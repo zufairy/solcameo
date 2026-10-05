@@ -7,7 +7,7 @@ import BN from "bn.js";
 import bs58 from "bs58";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { dbcConnection } from "@/lib/server/meteoraLaunch";
+import { dbcConnection, dbcReadiness } from "@/lib/server/meteoraLaunch";
 import { dbcTreasury } from "@/lib/server/dbcTreasury";
 import { convexClient } from "@/lib/server/solstarRoute";
 import { unsignedPumpTransaction } from "@/lib/server/pumpLaunch";
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (work.token.network === "devnet") await assertDevnet(conn);
     if (
       (work.token.network === "mainnet") !==
-      (process.env.NEXT_PUBLIC_SOLANA_NETWORK === "mainnet-beta")
+      (dbcReadiness().network === "mainnet")
     )
       throw new Error("Keeper network differs from coin network");
     const client = new DynamicBondingCurveClient(conn, "confirmed"),

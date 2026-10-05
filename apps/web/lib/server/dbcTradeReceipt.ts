@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 export type TradeReceipt = {
   wallet: string;
+  network?: "devnet" | "mainnet";
   characterId: string;
   hash: string;
   side: "buy" | "sell";
@@ -20,6 +21,7 @@ export function readTradeReceipt(
   value: string,
   wallet: string,
   allowExpired = false,
+  network: "devnet" | "mainnet" = "devnet",
 ): TradeReceipt {
   const [data, signature, extra] = value.split(".");
   const expected = createHmac("sha256", key())
@@ -35,7 +37,11 @@ export function readTradeReceipt(
   const r = JSON.parse(
     Buffer.from(data, "base64url").toString(),
   ) as TradeReceipt;
-  if (r.wallet !== wallet || (!allowExpired && r.expires < Date.now()))
+  if (
+    r.wallet !== wallet ||
+    (r.network ?? "devnet") !== network ||
+    (!allowExpired && r.expires < Date.now())
+  )
     throw new Error("Trade receipt expired or wallet changed");
   return r;
 }

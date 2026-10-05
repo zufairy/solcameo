@@ -19,3 +19,20 @@ it("binds the reviewed swap to its wallet, message and expiration", () => {
   expect(() => readTradeReceipt(expired, "owner")).toThrow();
   expect(readTradeReceipt(expired, "owner", true).hash).toBe(r.hash);
 });
+
+it("rejects a receipt on a different Solana cluster", () => {
+  vi.stubEnv("INTERNAL_CRON_SECRET", "test");
+  const token = signTradeReceipt({
+    wallet: "owner",
+    characterId: "c",
+    hash: "h",
+    side: "buy",
+    amount: "1",
+    expires: Date.now() + 1000,
+    network: "mainnet",
+  });
+  expect(() => readTradeReceipt(token, "owner", false, "devnet")).toThrow();
+  expect(readTradeReceipt(token, "owner", false, "mainnet").network).toBe(
+    "mainnet",
+  );
+});

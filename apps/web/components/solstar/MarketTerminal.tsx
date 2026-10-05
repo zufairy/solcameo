@@ -151,13 +151,13 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
         Character unavailable. <Link href="/market">Return to market</Link>
       </div>
     );
-  if (data.token.network !== "devnet" || !data.token.mint || !data.token.dbcPool || !["live", "graduated", "migrated"].includes(data.token.state)) return (
+  if (data.token.network === "paper" || !data.token.mint || !data.token.dbcPool || !["live", "graduated", "migrated"].includes(data.token.state)) return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <MarketCharacterChat characterId={characterId} />
       <Link href="/market" className="text-xs text-zinc-400">← Back to market</Link>
       <h1 className="mt-6 text-2xl font-semibold">{data.character.name}</h1>
-      <p className="mt-3 text-sm text-zinc-400">This character has no confirmed devnet market yet. Launch the coin to enable on-chain prices and trading.</p>
-      {publicKey?.toBase58() === data.character.ownerWallet ? <div className="mt-6"><LiveDbcLaunch characterId={characterId} options={DEFAULT_DBC} onComplete={() => window.dispatchEvent(new Event("solcameo:trade-confirmed"))} /></div> : <Link href="/create" className="mt-6 inline-flex h-9 items-center rounded-md bg-[#d7ff00] px-4 text-sm font-medium text-black hover:bg-[#e4ff59]">Create a devnet coin</Link>}
+      <p className="mt-3 text-sm text-zinc-400">This character has no confirmed market yet. Launch the coin to enable on-chain prices and trading.</p>
+      {publicKey?.toBase58() === data.character.ownerWallet ? <div className="mt-6"><LiveDbcLaunch characterId={characterId} options={DEFAULT_DBC} onComplete={() => window.dispatchEvent(new Event("solcameo:trade-confirmed"))} /></div> : <Link href="/create" className="mt-6 inline-flex h-9 items-center rounded-md bg-[#d7ff00] px-4 text-sm font-medium text-black hover:bg-[#e4ff59]">Create a coin</Link>}
     </div>
   );
   const { character, token, stats, episodes, trades, budget } = data;

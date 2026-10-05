@@ -1,3 +1,4 @@
+import bs58 from "bs58";
 import { migratedPosition } from "@/lib/server/dammLifecycle";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -260,6 +261,8 @@ export async function POST(req: NextRequest) {
         const packet = VersionedTransaction.deserialize(
           Buffer.from(body.transaction, "base64"),
         );
+        if (bs58.encode(packet.signatures[0]) !== body.signature)
+          throw new Error("Recovery signature differs from packet");
         if (pumpMessageHash(packet) !== r.hash)
           throw new Error("Recovery packet differs from review");
         const state = (

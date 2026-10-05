@@ -1,4 +1,5 @@
 "use client";
+import { getNetwork } from "@/lib/solana/network";
 /* eslint-disable @next/next/no-img-element -- remote character portraits */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -134,7 +135,7 @@ function Market() {
     const timer = setInterval(tick, 60000);
     return () => clearInterval(timer);
   }, []);
-  const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: "devnet", liveOnly: true });
+  const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: getNetwork()==="mainnet-beta"?"mainnet":"devnet", liveOnly: true });
   useEffect(() => {
     const controller = new AbortController();
     const live = rows?.filter((r) => r.dbcPool) ?? [];
@@ -315,8 +316,8 @@ function Market() {
         </div>
       ) : !visible?.length ? (
         <div className="rounded-md border border-white/10 py-20 text-center text-zinc-500">
-          <p>No confirmed devnet coins match this market.</p>
-          <Link href="/create" className="mt-4 inline-flex h-9 items-center rounded-md bg-[#d7ff00] px-4 text-sm font-medium text-black hover:bg-[#e4ff59]">Create a devnet coin</Link>{" "}
+          <p>No confirmed coins match this market.</p>
+          <Link href="/create" className="mt-4 inline-flex h-9 items-center rounded-md bg-[#d7ff00] px-4 text-sm font-medium text-black hover:bg-[#e4ff59]">Create a coin</Link>{" "}
           <Button
             variant="link"
             onClick={() => {

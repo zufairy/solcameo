@@ -1,4 +1,5 @@
 "use client";
+import { getNetwork } from "@/lib/solana/network";
 import { useState } from "react";
 import { VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -25,7 +26,7 @@ export function DbcTradeTicket({characterId,ticker,network}:{characterId:MarketR
       if(!pending) {
         const units = parseUnits(amount,side === "buy" ? 9 : 6);
         if(!units || units<=0n) throw new Error("Enter a valid amount.");
-        setMessage("Reading the actual devnet pool and preparing your quote…");
+        setMessage("Reading the actual pool and preparing your quote…");
         const prepared = await call({action:"prepare",characterId,side,amount:units.toString(),slippageBps:100});
         const tx = VersionedTransaction.deserialize(Uint8Array.from(atob(prepared.transaction),(c)=>c.charCodeAt(0)));
         const signed = await signTransaction(tx);
@@ -33,7 +34,7 @@ export function DbcTradeTicket({characterId,ticker,network}:{characterId:MarketR
         sessionStorage.setItem(storage,JSON.stringify(pending));
         await call({action:"submit",...pending});
       }
-      setMessage("Waiting for devnet confirmation. Your signed trade is saved.");
+      setMessage("Waiting for Solana confirmation. Your signed trade is saved.");
       let result;
       for(let i=0;i<30;i++) {
         try { result = await call({action:"confirm",...pending});break; }
@@ -45,11 +46,11 @@ export function DbcTradeTicket({characterId,ticker,network}:{characterId:MarketR
       }
       if(result?.confirmed) {
         sessionStorage.removeItem(storage);setAmount("");
-        setMessage(`Confirmed on devnet. Wallet change: ${result.walletSolChange?.toFixed(6) ?? "—"} SOL (including fees/rent). ${result.historyWarning ?? ""}`);
+        setMessage(`Confirmed on ${network}. Wallet change: ${result.walletSolChange?.toFixed(6) ?? "—"} SOL (including fees/rent). ${result.historyWarning ?? ""}`);
         window.dispatchEvent(new Event("solcameo:trade-confirmed"));
       }
     } catch(e) {setMessage(e instanceof Error ? e.message : "Trade failed. Signed progress is preserved.");}
     finally {setBusy(false);}
   }
-  return <div className="space-y-4 border-b border-white/10 p-4"><p className="text-xs text-[#ec7352]">On-chain devnet trade · real test-wallet balance</p><div className="flex gap-2">{(["buy","sell"] as const).map(s=><Button key={s} disabled={busy} variant={side===s?"secondary":"outline"} onClick={()=>setSide(s)} className="flex-1 capitalize">{s}</Button>)}</div><label className="block text-xs text-zinc-400">Amount · {side==="buy"?"devnet SOL":ticker}<Input value={amount} onChange={e=>setAmount(e.target.value)} disabled={busy} placeholder="0.00" inputMode="decimal" className="mt-2 border-white/10" /></label><p className="text-xs leading-5 text-zinc-500">1% slippage limit. Swaps settle in SOL and the minted token. Pool trading fees, network fees and account rent are deducted on chain. USD market values are estimates.</p><Button disabled={busy || network!=="devnet"} onClick={()=>void trade()} className="w-full">{busy?"Confirming…":`Approve ${side} in wallet / resume`}</Button>{message&&<p role="status" className="text-xs leading-5 text-zinc-300">{message}</p>}</div>;
+  return <div className="space-y-4 border-b border-white/10 p-4"><p className="text-xs text-[#d7ff00]">On-chain {network} trade</p><div className="flex gap-2">{(["buy","sell"] as const).map(s=><Button key={s} disabled={busy} variant={side===s?"secondary":"outline"} onClick={()=>setSide(s)} className="flex-1 capitalize">{s}</Button>)}</div><label className="block text-xs text-zinc-400">Amount · {side==="buy"?"SOL":ticker}<Input value={amount} onChange={e=>setAmount(e.target.value)} disabled={busy} placeholder="0.00" inputMode="decimal" className="mt-2 border-white/10" /></label><p className="text-xs leading-5 text-zinc-500">1% slippage limit. Swaps settle in SOL and the minted token. Pool trading fees, network fees and account rent are deducted on chain. USD market values are estimates.</p><Button disabled={busy || network!==(getNetwork()==="mainnet-beta"?"mainnet":"devnet")} onClick={()=>void trade()} className="w-full">{busy?"Confirming…":`Approve ${side} in wallet / resume`}</Button>{message&&<p role="status" className="text-xs leading-5 text-zinc-300">{message}</p>}</div>;
 }

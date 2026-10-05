@@ -77,7 +77,7 @@ export const listMarket = query({
     const rows: Array<Row & { volume: bigint; mcap: bigint; change: bigint }> =
       [];
     for (const token of tokens) {
-      if (args.liveOnly && (token.network !== "devnet" || !token.mint || !token.dbcPool || !token.dbcConfig || !["live", "graduated", "migrated"].includes(token.state))) continue;
+      if (args.liveOnly && (token.network === "paper" || !token.mint || !token.dbcPool || !token.dbcConfig || !["live", "graduated", "migrated"].includes(token.state))) continue;
       const character = await ctx.db.get(token.characterId);
       if (!character || character.status !== "approved") continue;
       if (args.category && character.category !== args.category) continue;

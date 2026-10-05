@@ -63,6 +63,11 @@ export function FlywheelPanel({
       clearInterval(timer);
     };
   }, [characterId, tick]);
+  const [saved, setSaved] = useState({claim: false, graduate: false});
+  useEffect(() => {
+    const prefix = `dbc-operation-${characterId}-${publicKey?.toBase58()}-`;
+    setSaved({claim: !!localStorage.getItem(prefix + "claim"), graduate: !!localStorage.getItem(prefix + "graduate")});
+  }, [characterId, publicKey, busy]);
   async function operation(kind: "claim" | "graduate") {
     if (!publicKey || !signTransaction) return;
     setBusy(true);
@@ -210,7 +215,7 @@ export function FlywheelPanel({
       {owner && (
         <div className="space-y-2">
           <Button
-            disabled={busy || !chain || BigInt(chain.creatorClaimable) === 0n}
+            disabled={busy || (!saved.claim && (!chain || BigInt(chain.creatorClaimable) === 0n))}
             onClick={() => void operation("claim")}
             className="w-full"
           >
@@ -221,13 +226,13 @@ export function FlywheelPanel({
             )}
             Claim creator fees / resume
           </Button>
-          {chain?.readyToGraduate && (
+          {(chain?.readyToGraduate || saved.graduate) && (
             <Button
               disabled={busy}
               onClick={() => void operation("graduate")}
               className="w-full"
             >
-              Graduate to permanent liquidity
+              {saved.graduate ? "Resume graduation" : "Graduate to permanent liquidity"}
             </Button>
           )}
           {wheel.economy === "sustainable-v1" && (

@@ -5,7 +5,7 @@ import {
   internalQuery,
   internalAction,
 } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { assertSecret } from "./lib/solstarAuth";
 import { splitCollectedPartner } from "../lib/meteora/flywheel";
 import { appFetch } from "./lib/appFetch";

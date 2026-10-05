@@ -56,7 +56,7 @@ const NO_LIVE: Readiness = {
 const STEPS = [
   "Build character",
   "Coin details",
-  "The curve",
+  "Launch economics",
   "Review & launch",
 ];
 const STORAGE = "solcameo-influencer-draft-v2";
@@ -160,7 +160,7 @@ function InfluencerOnboardingContent({
     draft.concept ?? { name: "", ticker: "", bio: "", category: "Comedy" },
   );
   const [dbcOptions, setDbcOptions] = useState<DbcOptions>(
-    draft.dbcOptions ?? DEFAULT_DBC,
+    draft.pendingCharacterId ? (draft.dbcOptions ?? DEFAULT_DBC) : {...(draft.dbcOptions ?? DEFAULT_DBC), economy: "sustainable-v1"},
   );
   const [launchMode] = useState<"preview" | "live">(
     "live",
@@ -477,7 +477,7 @@ function InfluencerOnboardingContent({
                       <ArrowLeft /> Character
                     </Button>
                     <Button type="submit">
-                      Configure curve <ArrowRight />
+                      Configure launch <ArrowRight />
                     </Button>
                   </div>
                 </form>
@@ -597,7 +597,7 @@ function InfluencerOnboardingContent({
                       disabled={busy || !!pendingCharacterId}
                       onClick={() => setStep(2)}
                     >
-                      <ArrowLeft /> Edit curve
+                      <ArrowLeft /> Edit economics
                     </Button>
                     <Button
                       disabled={
