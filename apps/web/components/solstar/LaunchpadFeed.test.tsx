@@ -20,10 +20,9 @@ it("does not show paper characters as confirmed launches", async () => {
   mocks.query.mockImplementation((_ref, args) => args?.network === "devnet" ? [] : args?.network === "paper" ? [{characterId:"preview1",name:"Preview Person",ticker:"PRE",network:"paper",category:"Comedy",imageUrl:"https://example.com/image.jpg",marketCapLamports:"1000000000",videosPosted:0,followers:0}] : null);
   await mount();
   expect(host.textContent).toContain("Be part of the first launches");
-  expect(host.textContent).not.toContain("Preview Person");
+  expect(host.textContent).not.toContain("$PRE");
   await act(async () => { (Array.from(host.querySelectorAll("button")).find(b => b.textContent === "Previews")!).click(); });
-  expect(host.textContent).toContain("Preview Person");
-  expect(host.textContent).toContain("Unminted preview");
+  expect(host.textContent).toContain("$PRE");
   expect(host.textContent).toContain("$100");
   expect(host.textContent).not.toContain("Devnet · minted");
 });

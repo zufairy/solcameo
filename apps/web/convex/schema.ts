@@ -27,6 +27,7 @@ export default defineSchema({
   ssEpisodes: defineTable({
     tokenId: v.id("ssTokens"), index: v.number(), videoUrl: v.string(), posterUrl: v.string(),
     title: v.string(), prompt: v.optional(v.string()), source: v.union(v.literal("sample"), v.literal("generated")),
+    engine: v.optional(v.string()), // video model that rendered the episode, e.g. "Genjutsu", "Veo 3"
     createdAt: v.number(),
   }).index("by_token", ["tokenId", "index"]),
   ssLedger: defineTable({

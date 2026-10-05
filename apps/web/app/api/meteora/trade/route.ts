@@ -23,8 +23,23 @@ import {
   readTradeReceipt,
   signTradeReceipt,
 } from "@/lib/server/dbcTradeReceipt";
+import { txFingerprint } from "@/lib/server/dbcTradeFingerprint";
 import { putImage } from "@/lib/server/imageStorage";
 export const maxDuration = 60;
+// New receipts carry a review fingerprint that tolerates wallet-injected guard and
+// priority instructions; receipts issued before that change used the exact message hash.
+function matchesReview(
+  tx: VersionedTransaction,
+  receipt: { hash: string; fingerprint?: number },
+  wallet: string,
+) {
+  try {
+    if (receipt.fingerprint === 2) return txFingerprint(tx, wallet) === receipt.hash;
+  } catch {
+    return false;
+  }
+  return pumpMessageHash(tx) === receipt.hash;
+}
 export async function POST(req: NextRequest) {
   const prep = await prepareAuthedJson(req, 16384);
   if (!prep.ok) return prep.res;
@@ -145,6 +160,7 @@ export async function POST(req: NextRequest) {
         connection,
         payer,
         tx.instructions,
+        { priorityMicroLamports: 100_000 },
       );
       return NextResponse.json({
         transaction: prepared.transaction,
@@ -152,7 +168,8 @@ export async function POST(req: NextRequest) {
           wallet,
           network,
           characterId: body.characterId,
-          hash: pumpMessageHash(prepared.tx),
+          hash: txFingerprint(prepared.tx, wallet),
+          fingerprint: 2,
           side: body.side as "buy" | "sell",
           amount: body.amount,
           expires: Date.now() + 120000,
@@ -177,7 +194,7 @@ export async function POST(req: NextRequest) {
       const tx = VersionedTransaction.deserialize(
         Buffer.from(body.transaction, "base64"),
       );
-      if (pumpMessageHash(tx) !== receipt.hash)
+      if (!matchesReview(tx, receipt, wallet))
         throw new Error("Signed trade differs from your reviewed transaction");
       return NextResponse.json({
         signature: await connection.sendRawTransaction(tx.serialize(), {
@@ -203,10 +220,21 @@ export async function POST(req: NextRequest) {
           Buffer.from(body.transaction, "base64"),
         );
         if (
-          pumpMessageHash(packet) !== receipt.hash ||
+          !matchesReview(packet, receipt, wallet) ||
           bs58.encode(packet.signatures[0]) !== body.signature
-        )
+        ) {
+          // A packet that fails review is never broadcast by us (submit enforces the
+          // same check), so unless it is already on chain it can safely be dropped.
+          const seen = await connection.getSignatureStatuses([body.signature], {
+            searchTransactionHistory: true,
+          });
+          if (!seen.value[0])
+            return NextResponse.json({
+              discarded: true,
+              reason: "The saved swap no longer matches your review and never reached the network. No funds moved.",
+            });
           throw new Error("Recovery packet differs from the reviewed swap");
+        }
         const status = await connection.getSignatureStatuses([body.signature], {
           searchTransactionHistory: true,
         });
@@ -227,9 +255,11 @@ export async function POST(req: NextRequest) {
     if (!confirmed.meta || confirmed.meta.err)
       return NextResponse.json({ failed: true, signature: body.signature });
     if (
-      pumpMessageHash(
+      !matchesReview(
         new VersionedTransaction(confirmed.transaction.message),
-      ) !== receipt.hash
+        receipt,
+        wallet,
+      )
     )
       throw new Error("Confirmed trade differs from reviewed transaction");
     const keys = confirmed.transaction.message.staticAccountKeys;

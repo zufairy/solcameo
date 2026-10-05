@@ -47,6 +47,15 @@ export async function POST(req: NextRequest) {
     );
   const err = requireOwnerWithSiws(auth, agent);
   if (err) return err;
+  // Return to the same-origin page that started the flow; never an arbitrary URL.
+  let returnTo = "/";
+  try {
+    const target = new URL(String(body?.redirectUrl ?? ""), req.nextUrl.origin);
+    if (target.origin === req.nextUrl.origin)
+      returnTo = `${target.pathname}${target.search}`;
+  } catch {
+    /* keep default */
+  }
   const state = randomBytes(32).toString("base64url"),
     verifier = randomBytes(32).toString("base64url");
   const url = new URL("https://x.com/i/oauth2/authorize");
@@ -67,6 +76,7 @@ export async function POST(req: NextRequest) {
       verifier,
       mintAddress,
       owner: agent.creatorWallet,
+      returnTo,
       expires: Date.now() + 600000,
     }),
     {

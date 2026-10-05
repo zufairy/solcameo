@@ -88,6 +88,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
   const [retryAt, setRetryAt] = useState<number | null>(null);
   const [retrySeconds, setRetrySeconds] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flashError = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!username) return;
@@ -96,7 +97,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
       const res = await fetch(`/api/social/status?username=${encodeURIComponent(username)}`, { headers: authHeaders(accessToken) });
       const data = (await res.json()) as StatusResponse;
       setStatus(data);
-      setError(data.ok ? null : data.error ?? "Failed to load status");
+      setError(data.ok ? flashError.current : data.error ?? "Failed to load status");
     } catch {
       setError("Couldn't reach the social status endpoint.");
     } finally {
@@ -104,6 +105,18 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
     }
   }, [username, accessToken]);
 
+  useEffect(() => {
+    // Outcome of the X redirect flow (see /api/social/x/callback).
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get("x_connect");
+    if (outcome) {
+      if (outcome === "error") { flashError.current = params.get("x_message") || "X connection failed."; setError(flashError.current); }
+      params.delete("x_connect");
+      params.delete("x_message");
+      const query = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
+  }, []);
   useEffect(() => {
     void refresh();
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -147,7 +160,9 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
     // which is why Connect appeared to "do nothing"). We point it at a loading
     // page first, then redirect it to the upload-post URL once we have it.
     let popup: Window | null = null;
-    if (typeof window !== "undefined") {
+    // X consent is a full-page redirect: its "I trust this app" step does not work
+    // reliably inside a small popup, and the callback returns the user here.
+    if (typeof window !== "undefined" && platformId !== "x") {
       popup = window.open("", `uploadpost-connect-${platformId}`, "width=560,height=780");
       if (popup) {
         popup.document.write(
@@ -178,7 +193,11 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
           error?: string;
         };
         if (data.configured === false) { setError(data.error ?? "Not configured."); popup?.close(); return; }
-        if (data.ok && data.url) { openUrl(data.url); return; }
+        if (data.ok && data.url) {
+          if (platformId === "x") { window.location.assign(data.url); return; }
+          openUrl(data.url);
+          return;
+        }
         if (data.rateLimited) {
           const cached = readCachedConnectUrl(username);
           if (cached) { openUrl(cached); return; }

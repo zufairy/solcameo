@@ -31,7 +31,7 @@ export function MarketInfoCarousel({
     <section
       aria-label="Coin information"
       aria-roledescription="carousel"
-      className="border-t border-white/10 font-sans"
+      className="market-sidebar-text shrink-0 border-t border-white/10 bg-[#181a1c]"
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => setInteracting(false)}
       onFocusCapture={() => setInteracting(true)}
@@ -39,7 +39,7 @@ export function MarketInfoCarousel({
         if (!e.currentTarget.contains(e.relatedTarget)) setInteracting(false);
       }}
     >
-      <div className="flex items-center gap-1 px-4 pt-4">
+      <div className="flex items-center gap-1 px-4 pt-3">
         <h2 className="mr-auto text-xs font-medium text-zinc-200">
           {labels[index]}
         </h2>
@@ -70,18 +70,26 @@ export function MarketInfoCarousel({
           <ChevronRight className="size-4" />
         </button>
       </div>
-      {slides.map((slide, i) => (
+      <div className="overflow-hidden">
         <div
-          key={labels[i]}
-          hidden={i !== index}
-          role="group"
-          aria-roledescription="slide"
-          aria-label={`${i + 1} of ${slides.length}: ${labels[i]}`}
+          className="flex transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          style={{ transform: `translateX(-${index * 100}%)` }}
         >
-          {slide}
+          {slides.map((slide, i) => (
+            <div
+              key={labels[i]}
+              inert={i !== index}
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${slides.length}: ${labels[i]}`}
+              className="max-h-[260px] w-full shrink-0 overflow-y-auto overscroll-contain"
+            >
+              {slide}
+            </div>
+          ))}
         </div>
-      ))}
-      <div className="flex justify-center gap-1.5 pb-4">
+      </div>
+      <div className="flex justify-center gap-1.5 py-2.5">
         {slides.map((_, i) => (
           <button
             key={labels[i]}

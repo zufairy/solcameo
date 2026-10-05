@@ -60,6 +60,7 @@ export function DbcTradeTicket({
   } | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [quoteRevision, setQuoteRevision] = useState(0);
+  const [toast, setToast] = useState<{ text: string; signature: string } | null>(null);
   const locked = useRef(false);
   const wallet = publicKey?.toBase58();
   const storage = `solcameo-dbc-trade-${network}-${characterId}-${wallet}`;
@@ -150,6 +151,17 @@ export function DbcTradeTicket({
     };
   }, [wallet, connection, compatible, mint]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+  const clearSaved = () => {
+    sessionStorage.removeItem(storage);
+    sessionStorage.removeItem(`solcameo-dbc-trade-${characterId}-${wallet}`);
+    setPending(null);
+    setSignature("");
+  };
   async function call(
     body: unknown,
     auth: string,
@@ -303,8 +315,18 @@ export function DbcTradeTicket({
       setMessage("Sending your signed swap…");
       try {
         await call({ action: "submit", ...packet }, auth, siws);
-      } catch {
-        /* A timed-out send can still land. Check its exact signature. */
+      } catch (e) {
+        // A timed-out send can still land, so only transient errors fall through to
+        // the signature check. A swap rejected on review or by the RPC is final.
+        const text = e instanceof Error ? e.message : "";
+        if (/differs|Invalid|expired|Blockhash not found|insufficient|custom program error|simulation/i.test(text)) {
+          clearSaved();
+          throw new Error(
+            /differs/i.test(text)
+              ? "Your wallet changed the swap after review. Nothing was sent and no funds moved. Press Buy again for a fresh quote."
+              : `${text} Nothing was confirmed. Press Buy again for a fresh quote.`,
+          );
+        }
       }
       setMessage("Confirming on Solana…");
       for (let i = 0; i < 30; i++) {
@@ -324,6 +346,10 @@ export function DbcTradeTicket({
           await new Promise((r) => setTimeout(r, 2000));
           continue;
         }
+        if (result.discarded) {
+          clearSaved();
+          throw new Error(`${result.reason} Press Buy again for a fresh quote.`);
+        }
         if (result.expired || result.failed || result.confirmed) {
           sessionStorage.removeItem(storage);
           sessionStorage.removeItem(
@@ -342,6 +368,10 @@ export function DbcTradeTicket({
           setMessage(
             `Swap confirmed. ${result.historyWarning ?? "Balances and market data are updating."}`,
           );
+          setToast({
+            text: `${side === "buy" ? "Bought" : "Sold"} ${ticker} successfully`,
+            signature: packet.signature,
+          });
           window.dispatchEvent(new Event("solcameo:trade-confirmed"));
           return;
         }
@@ -365,6 +395,27 @@ export function DbcTradeTicket({
       : "bg-rose-400 text-zinc-950 hover:bg-rose-300";
   return (
     <div className="space-y-3 border-b border-white/10 bg-[#151719] p-4">
+      {toast && (
+        <div
+          role="status"
+          aria-live="assertive"
+          className="fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-emerald-300/30 bg-[#12201a] p-4 text-sm text-emerald-100 shadow-2xl"
+        >
+          <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-bold text-zinc-950">✓</span>
+          <div className="min-w-0">
+            <p className="font-medium">{toast.text}</p>
+            <a
+              href={getTxExplorerUrl(toast.signature, network === "mainnet" ? "mainnet-beta" : "devnet")}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-emerald-300 underline underline-offset-4"
+            >
+              View on Solscan
+            </a>
+          </div>
+          <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="text-emerald-300/60 hover:text-white">×</button>
+        </div>
+      )}
       <div
         className="flex rounded-lg bg-white/[.04] p-1"
         role="group"

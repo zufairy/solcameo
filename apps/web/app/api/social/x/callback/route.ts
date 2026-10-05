@@ -6,14 +6,17 @@ export async function GET(req: NextRequest) {
   let message =
     "X connected. You can close this window and return to your agent.";
   let status = 200;
+  let returnTo: string | undefined;
   try {
     const session = unseal<{
       state: string;
       verifier: string;
       mintAddress: string;
       owner: string;
+      returnTo?: string;
       expires: number;
     }>(req.cookies.get("x_oauth")?.value ?? "");
+    returnTo = session.returnTo;
     if (
       session.expires < Date.now() ||
       req.nextUrl.searchParams.get("state") !== session.state
@@ -60,13 +63,24 @@ export async function GET(req: NextRequest) {
     message = e instanceof Error ? e.message : "X connection failed";
     status = 400;
   }
-  const response = new NextResponse(message, {
-    status,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+  // Full-page flow: send the user back to where they started with the outcome.
+  const back =
+    returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? new URL(returnTo, req.nextUrl.origin)
+      : null;
+  if (back) {
+    back.searchParams.set("x_connect", status === 200 ? "ok" : "error");
+    if (status !== 200) back.searchParams.set("x_message", message.slice(0, 200));
+  }
+  const response = back
+    ? NextResponse.redirect(back, { headers: { "Cache-Control": "no-store" } })
+    : new NextResponse(message, {
+        status,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
   response.cookies.delete({ name: "x_oauth", path: "/api/social/x" });
   return response;
 }

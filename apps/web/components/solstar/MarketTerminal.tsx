@@ -403,9 +403,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           </button>
         ))}
       </div>
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_300px] 2xl:grid-cols-[320px_minmax(0,1fr)_340px]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)_320px] xl:grid-cols-[400px_minmax(0,1fr)_330px] 2xl:grid-cols-[460px_minmax(0,1fr)_360px]">
         <aside
-          className={`${mobilePanel === "community" ? "flex" : "hidden"} min-h-0 min-w-0 flex-col overflow-hidden border-r border-white/10 lg:flex`}
+          className={`${mobilePanel === "community" ? "flex" : "hidden"} h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-white/10 lg:flex`}
         >
           <div className="flex shrink-0 border-b border-white/10 p-2 gap-1">
             <Button
@@ -478,7 +478,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
 
             </div>
           )}
-              <div className="shrink-0 border-t border-white/10 bg-[#181a1c] p-4">
+              <div className="mt-auto shrink-0 border-t border-white/10 bg-[#181a1c] p-4">
                 <h2 className="mb-2 text-xs font-medium text-zinc-400">
                   About the influencer
                 </h2>
@@ -705,7 +705,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           </div>
           {tab === "holders" && onChain ? (
             <div className="overflow-auto">
-              <Table>
+              <Table className="[&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
                 <TableHeader>
                   <TableRow>
                     {["Holder wallet", "Tokens", "% supply"].map((label) => (
@@ -748,7 +748,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           ) : tab === "holders" ? (
             <div className="overflow-auto">
-              <Table className="min-w-[530px]">
+              <Table className="min-w-[530px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
                 <TableHeader>
                   <TableRow className="border-white/10">
                     {[
@@ -817,7 +817,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           ) : tab === "trades" ? (
             <div className="overflow-auto">
-              <Table className="min-w-[530px]">
+              <Table className="min-w-[530px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
                 <TableHeader>
                   <TableRow className="border-white/10">
                     {["Time", "Side", "USD", "Tokens", "Wallet"].map((t) => (
@@ -922,8 +922,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           )}
         </section>
         <aside
-          className={`${mobilePanel === "trade" ? "block" : "hidden"} min-h-0 overflow-y-auto overscroll-contain border-l border-white/10 lg:block`}
+          className={`${mobilePanel === "trade" ? "flex" : "hidden"} market-sidebar-text min-h-0 flex-col overflow-hidden border-l border-white/10 lg:flex`}
         >
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <TradeTicket token={token} />
           {(token.network === "paper" || token.state === "pending") &&
             !token.dbcPool &&
@@ -994,7 +995,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </a>
             </div>
           )}
-          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Creator fees & content"] : []), "Pool activity", "Developer & funding", "Token information"]}>
+          </div>
+          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Creator fees"] : []), "Pool activity", "Developer", "Token data"]}>
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
           <div className="space-y-3 border-b border-white/10 p-4">
             <div className="flex items-center justify-between">
@@ -1130,7 +1132,7 @@ function Metric({
     <div>
       <p className="mb-1 text-[10px] text-zinc-500">{label}</p>
       <p
-        className={`${big ? "text-xl font-semibold" : "text-sm"} tabular-nums text-white`}
+        className={`market-sidebar-text ${big ? "text-xl font-semibold" : "text-sm font-medium"} text-white`}
       >
         {value}
       </p>

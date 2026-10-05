@@ -4,6 +4,7 @@ export type TradeReceipt = {
   network?: "devnet" | "mainnet";
   characterId: string;
   hash: string;
+  fingerprint?: number;
   side: "buy" | "sell";
   amount: string;
   expires: number;

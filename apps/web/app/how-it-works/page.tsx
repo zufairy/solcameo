@@ -1,20 +1,20 @@
-import Link from "next/link";
-import { ArrowUpRight, Fingerprint, MessageCircle, Video, Coins, Flame, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import type { Metadata } from "next";
+import { HowItWorks, type ExploreRef } from "@/components/solcameo/how/HowItWorks";
+import references from "@/lib/explore/references.json";
 
-const steps = [
-  { icon: Fingerprint, title: "Create a character", text: "Give your AI influencer a look, personality, and story. Its linked agent carries that identity into chat and content." },
-  { icon: Coins, title: "Launch its coin", text: "Approve the launch in your Solana wallet. Meteora’s Dynamic Bonding Curve sets the trading path toward graduation into a liquidity pool." },
-  { icon: MessageCircle, title: "Shape the next story", text: "Fans talk in the character’s public market chat. Each hour, the agent reviews the conversation and proposes a response and next video plot." },
-  { icon: Video, title: "Create and keep evolving", text: "Generate videos with the character’s identity and references. Published videos become the next chapter, giving the community something new to discuss." },
-];
+export const metadata: Metadata = {
+  title: "How it works",
+  description: "Launch an AI character with its own Solana coin. See how the curve, fee split and community-driven videos work.",
+};
+
+type Item = ExploreRef & { width: number; height: number };
+const all = (references.items as Item[]).filter(i => i.videoUrl && i.thumbUrl);
+/** Even stride through the library so every category shows up, never the same few clips. */
+const pick = (list: Item[], n: number) => list.filter((_, i) => i % Math.max(1, Math.floor(list.length / n)) === 0).slice(0, n);
+const slim = ({ id, title, category, videoUrl, thumbUrl }: Item): ExploreRef => ({ id, title, category, videoUrl, thumbUrl });
+
 export default function HowItWorksPage() {
-  return <main className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16 text-zinc-100">
-    <div className="max-w-3xl"><span className="text-xs font-medium uppercase tracking-[.2em] text-[#d7ff00]">The Solcameo loop</span><h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-6xl">A character. A community.<br /><span className="text-zinc-500">An unfolding story.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-zinc-400">Build an AI influencer on Solana. Let its community influence what happens next, with a coin connecting people to the character’s journey.</p><Button render={<Link href="/create" />} className="mt-7 rounded-full bg-[#d7ff00] px-6 text-black hover:bg-[#e3ff55]">Create your character <ArrowUpRight className="size-4" /></Button></div>
-    <section aria-label="How to get started" className="mt-14 grid gap-4 md:grid-cols-2">{steps.map(({icon: Icon,title,text},i)=><Card key={title} className="border-white/10 bg-[#202326] shadow-none"><CardContent className="p-6"><div className="mb-5 flex items-center justify-between"><Icon className="size-5 text-[#d7ff00]" /><span className="text-xs text-zinc-500">0{i+1}</span></div><h2 className="text-lg font-medium">{title}</h2><p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p></CardContent></Card>)}</section>
-    <section className="mt-14 border-y border-white/10 py-9"><div className="flex items-center gap-3"><RefreshCw className="size-5 text-[#d7ff00]" /><h2 className="text-2xl font-semibold">The content flywheel</h2></div><div className="mt-7 flex flex-wrap items-center gap-3 text-sm">{["Content","Attention","Community chat","New story ideas","More content"].map((label,i)=><div key={label} className="flex items-center gap-3"><span className="rounded-full bg-white/5 px-4 py-2.5">{label}</span>{i<4&&<span className="text-zinc-500">→</span>}</div>)}</div><p className="mt-6 max-w-3xl text-sm leading-6 text-zinc-400">The coin gives each character its own market and community destination. Continued relevance comes from worthwhile stories and interaction. Trading activity alone does not create content, and token ownership does not guarantee revenue or returns.</p></section>
-    <section className="mt-12 grid gap-8 md:grid-cols-2"><div><h2 className="text-2xl font-semibold">How the curve works</h2><p className="mt-4 text-sm leading-7 text-zinc-400">Before graduation, trades follow the configured Meteora bonding curve. The launch configuration determines prices, fees, and the graduation threshold. When the threshold is met, liquidity migrates according to that configuration. Check each coin’s actual settings and confirmed onchain state in its market.</p><p className="mt-4 text-xs text-[#d7ff00]">Current launches use Solana devnet for testing.</p></div><div><div className="flex items-center gap-3"><Flame className="size-5 text-[#d7ff00]" /><h2 className="text-2xl font-semibold">Buyback and burn</h2></div><span className="mt-4 inline-block rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-400">Proposed mechanism · not automated today</span><p className="mt-4 text-sm leading-7 text-zinc-400">A future treasury policy could allocate a disclosed portion of earned revenue to buying the character’s token, then permanently burning those tokens on Solana. A real burn reduces token supply and must have a verifiable transaction. Meteora DBC does not automatically provide this revenue loop.</p></div></section>
-    <div className="mt-12 rounded-2xl bg-white/[0.03] p-6"><h2 className="font-medium">Continuous creation needs real resources</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">Hourly chat reflection is automated. For sustainable launches, confirmed partner fees are split between the character’s content budget and platform operations. On mainnet, an enabled character can generate one budget-backed chapter daily from a new community plot. Generation requires a configured service price and prepaid provider credits. On devnet, the fee budget is a test balance and cannot buy AI credits. The content budget is managed by Solcameo’s backend treasury. Accepted jobs reserve their charge before generation; uncertain provider submissions are held for reconciliation. Creators can pause future jobs from their market. Generated chapters appear in the video feed; external social publishing uses separately connected accounts.</p></div>
-  </main>;
+  const wide = pick(all.filter(i => i.width > i.height), 8).map(slim);
+  const tall = pick(all.filter(i => i.height > i.width), 28).map(slim);
+  return <HowItWorks wide={wide} tall={tall} total={all.length} />;
 }
