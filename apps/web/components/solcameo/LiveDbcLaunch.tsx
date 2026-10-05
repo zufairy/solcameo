@@ -155,7 +155,7 @@ export function LiveDbcLaunch({
             }
           }
         }
-        setLaunchStep(2);
+        setLaunchStep(pending.stage === "config" ? 0 : 1);
         setStatus("Waiting for Solana confirmation…");
         let result;
         for (let attempt = 0; attempt < 24; attempt++) {
@@ -214,7 +214,7 @@ export function LiveDbcLaunch({
     <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate space-y-5 overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/[0.09] via-[#202326]/90 to-[#17191c]/95 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-[#d7ff00]/10 blur-3xl" />
       <div className="flex items-center gap-3"><motion.div animate={reduced ? {} : { y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }} className="grid size-10 place-items-center rounded-xl bg-[#d7ff00]/10"><Rocket className="size-5 text-[#d7ff00]" /></motion.div><div><h3 className="text-base font-semibold text-white">Your next chapter starts here</h3><p className="text-xs text-zinc-400">Two wallet approvals. Your character, live on Solana.</p></div></div>
-      <div className="relative grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5" aria-label="Launch progress">{["Prepare curve", "Approve launch", "Go live"].map((label, index) => <div key={label} className={`relative rounded-xl border px-2 py-3 text-center text-[11px] transition-colors duration-500 ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}>{index === launchStep && <motion.span layoutId="launch-step" className="absolute inset-0 rounded-xl bg-[#d7ff00]/5 shadow-[inset_0_1px_0_rgba(215,255,0,0.15)]" transition={{duration: reduced ? 0 : 0.4}} />}<span className="relative"><span className="mr-1">{index < launchStep ? "✓" : `${index + 1}.`}</span>{label}</span></div>)}</div>
+      <div className="relative grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5" aria-label="Launch progress">{["Configure curve", "Create token", "Live on Solana"].map((label, index) => <div key={label} className={`relative rounded-xl border px-2 py-3 text-center text-[11px] transition-colors duration-500 ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}>{index === launchStep && <motion.span layoutId="launch-step" className="absolute inset-0 rounded-xl bg-[#d7ff00]/5 shadow-[inset_0_1px_0_rgba(215,255,0,0.15)]" transition={{duration: reduced ? 0 : 0.4}} />}<span className="relative"><span className="mr-1">{index < launchStep ? "✓" : `${index + 1}.`}</span>{label}</span></div>)}</div>
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="text-zinc-300">{getNetworkLabel()} launch</span>
         <span className="text-[#d7ff00]">{preflight?.ready ? "RPC verified" : preflight ? "Needs attention" : "Checking network…"}</span>

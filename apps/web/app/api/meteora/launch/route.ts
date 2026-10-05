@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
           if (status) return NextResponse.json({ signature });
         }
         if (
-          (await connection.isBlockhashValid(previous.message.recentBlockhash))
+          (await connection.isBlockhashValid(previous.message.recentBlockhash, {commitment: "confirmed"}))
             .value
         )
           return NextResponse.json({
@@ -136,6 +136,8 @@ export async function POST(req: NextRequest) {
             receipt: body.receipt,
             stage: receipt.stage,
           });
+        if (receipt.lastValidBlockHeight != null && await connection.getBlockHeight("confirmed") <= receipt.lastValidBlockHeight)
+          return NextResponse.json({error: "Solana is syncing your saved approval. Retry shortly.", code: "RPC_RETRY"}, {status: 503});
         // An expired transaction can no longer land. Rebuild the same accounts/settings with a fresh blockhash.
       }
       if (body.action === "submit") {
@@ -157,8 +159,14 @@ export async function POST(req: NextRequest) {
           mint: receipt.mint,
           authSecret: secret,
         });
+        if (!(await connection.isBlockhashValid(tx.message.recentBlockhash, {commitment: "confirmed"})).value) {
+          if (receipt.lastValidBlockHeight != null && await connection.getBlockHeight("confirmed") <= receipt.lastValidBlockHeight)
+            return NextResponse.json({error: "Solana is syncing your approval. Your signed transaction is saved.", code: "RPC_RETRY"}, {status: 503});
+          return NextResponse.json({ error: "Your wallet approval expired. Refreshing the launch transaction is safe.", code: "BLOCKHASH_EXPIRED" }, {status: 409});
+        }
         const signature = await connection.sendRawTransaction(tx.serialize(), {
           skipPreflight: false,
+          preflightCommitment: "confirmed",
           maxRetries: 3,
         });
         return NextResponse.json({ signature });
@@ -248,10 +256,13 @@ export async function POST(req: NextRequest) {
       receipt: signDbcReceipt({
         ...receipt,
         messageHash: pumpMessageHash(prepared.tx),
+        lastValidBlockHeight: prepared.lastValidBlockHeight,
       }),
       stage: receipt.stage,
     });
   } catch (e) {
+    if (e instanceof Error && /blockhash not found/i.test(e.message))
+      return NextResponse.json({ error: "Solana is catching up with your transaction. Retry to resume your saved launch.", code: "RPC_RETRY" }, {status: 503});
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Meteora launch failed." },
       { status: 400 },

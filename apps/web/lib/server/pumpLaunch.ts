@@ -52,7 +52,7 @@ export async function unsignedPumpTransaction(connection: Connection, wallet: Pu
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: wallet, recentBlockhash: block.blockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ...instructions] }).compileToV0Message());
   const raw = tx.serialize();
   if (raw.length > 1232) throw new Error("This launch exceeds Solana's transaction size limit. Try SOL without starting funds.");
-  return { tx, transaction: Buffer.from(raw).toString("base64") };
+  return { tx, transaction: Buffer.from(raw).toString("base64"), lastValidBlockHeight: block.lastValidBlockHeight };
 }
 export async function verifyPumpTransaction(connection: Connection, signature: string, receipt: PumpReceipt) {
   if (!/^[1-9A-HJ-NP-Za-km-z]{64,100}$/.test(signature)) throw new Error("Invalid transaction signature.");

@@ -12,6 +12,7 @@
  * Works in Next.js route handlers and Node-runtime helpers (aws4fetch, no SDK).
  */
 import { AwsClient } from "aws4fetch";
+import { optimizePortrait } from "./optimizePortrait";
 import { randomUUID } from "node:crypto";
 
 const EXT_BY_MIME: Record<string, string> = {
@@ -109,7 +110,7 @@ export async function putImage(
 /** Fetch a remote image and mirror it into R2. Returns null on any failure. */
 export async function mirrorImageToR2(
   url: string,
-  opts: { keyPrefix?: string; key?: string; maxBytes?: number; timeoutMs?: number } = {},
+  opts: { keyPrefix?: string; key?: string; maxBytes?: number; timeoutMs?: number; optimize?: boolean } = {},
 ): Promise<StoredImage | null> {
   try {
     const ctrl = new AbortController();
@@ -121,6 +122,11 @@ export async function mirrorImageToR2(
     if (!/^(image|video)\//i.test(mime)) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length === 0 || buf.length > (opts.maxBytes ?? 50_000_000)) return null;
+    if (opts.optimize) {
+      const lightweight = await optimizePortrait(buf);
+      const key = opts.key?.replace(/\.[^/.]+$/, ".webp");
+      return await putImage(lightweight, "image/webp", {keyPrefix: opts.keyPrefix, key});
+    }
     return await putImage(buf, mime, { keyPrefix: opts.keyPrefix, key: opts.key });
   } catch {
     return null;

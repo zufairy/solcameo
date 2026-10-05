@@ -21,3 +21,8 @@ Real lifecycle test on 2026-10-05:
 - DAMM v2 graduation: 44Ux4c9xoE6tu1U4ZmpDGkLnrgLPhFL8yp5RDw3npMdMh4WsePi1LN6x35Ce4C2RXAsefd5HudxW6QZfwmUzrsuY
 
 Repeat with `npx tsx scripts/dbc-flywheel-smoke.ts --run` from apps/web. The script refuses mainnet and creates a small test curve, spending test SOL. Test pools are not registered as user-owned application characters.
+
+Extended post-graduation test also passed:
+- Mint: 4exsjVJyE8gFBoa5pQL8GeBUpBgTDZZyVTuyUUk1A6C8
+- DAMM v2 buy: 3nazvfNkMqGJmS5vw5qhJYYddRcpRzrUdzoYDEStopWopXYTCMRK5YN7TNPjYg1FdA2qS3FqhSK2p3Xh9d9bDbdY
+- LP fee claim: 4wSfziuvHeRupWvDusBujEYS1HdddAbR6FndPvEcmm5QJQxoG2CQrvrm6seesBpGf1JpkubmJDLURWEW6jxLqWgM (39,999 lamports)

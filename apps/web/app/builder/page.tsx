@@ -52,8 +52,7 @@ import AvatarGifPlayer from "@/components/builder/AvatarGifPlayer";
 import NftMintCard from "@/components/builder/NftMintCard";
 import { WalletButton } from "@/components/layout/wallet-button";
 import { LowBalanceBanner } from "@/components/billing/LowBalanceBanner";
-import { CreditsBadge } from "@/components/billing/CreditsBadge";
-import { CreditUsageGuide } from "@/components/billing/CreditUsageGuide";
+import { AgentWalletBalance } from "@/components/builder/AgentWalletBalance";
 import ClipJobProgress from "@/components/builder/ClipJobProgress";
 import ClipRunNarrator from "@/components/builder/ClipRunNarrator";
 import { uploadMediaFile } from "@/lib/client/uploadMedia";
@@ -5393,9 +5392,7 @@ function BuilderPageInner() {
             style={{ pointerEvents: mountStage >= 4 ? "auto" : "none" }}
             className="flex items-center gap-2 md:gap-3"
           >
-          {/* Realtime credit balance — sits left of the Studio/Graph toggle. */}
-          <CreditsBadge ownerWallet={ownerWallet} />
-          <CreditUsageGuide />
+          <AgentWalletBalance address={agentWalletAddress} />
 
           {/* View mode toggle — icons + label bumped 2px larger */}
           <div className="hidden sm:flex items-center rounded-md border border-white/10 overflow-hidden">

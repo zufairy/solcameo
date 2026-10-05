@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import dotenv from "dotenv";
 import {Keypair,Connection,sendAndConfirmTransaction} from "@solana/web3.js";
-import {NATIVE_MINT} from "@solana/spl-token";
+import {NATIVE_MINT,TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {DynamicBondingCurveClient,SwapMode,DAMM_V2_MIGRATION_FEE_ADDRESS} from "@meteora-ag/dynamic-bonding-curve-sdk";
 import BN from "bn.js";
 import {dbcTreasury} from "../lib/server/dbcTreasury";
@@ -10,6 +10,7 @@ import {buildDbcCurve} from "../lib/meteora/curve";
 import {DEFAULT_DBC} from "../lib/meteora/options";
 import {getRpcUrl} from "../lib/solana/network";
 import {assertDevnet} from "../lib/server/devnetGuard";
+import {migratedPool,migratedPosition} from "../lib/server/dammLifecycle";
 import {confirmedQuoteDebit} from "../lib/server/dbcClaimAccounting";
 async function main(){
   Object.assign(process.env,dotenv.parse(fs.readFileSync(".env.local")));
@@ -38,5 +39,13 @@ async function main(){
   const migrated=await client.migration.migrateToDammV2({payer:payer.publicKey,pool:pool.publicKey,dammConfig:DAMM_V2_MIGRATION_FEE_ADDRESS[6]});
   const migrationSignature=await sendAndConfirmTransaction(connection,migrated.transaction,[payer,migrated.firstPositionNftKeypair,migrated.secondPositionNftKeypair]);
   console.log("Graduation confirmed:",migrationSignature);if(!(await client.state.getPool(pool.publicKey))?.poolState.isMigrated)throw new Error("Pool not graduated");
+  const damm=await migratedPool(connection,pool.publicKey);if(!damm)throw new Error("DAMM pool missing");
+  const q=damm.cp.getQuote({inAmount:new BN(10000000),inputTokenMint:NATIVE_MINT,slippage:1,poolState:damm.state,currentTime:Math.floor(Date.now()/1000),currentSlot:await connection.getSlot(),tokenADecimal:damm.state.tokenAMint.equals(NATIVE_MINT)?9:6,tokenBDecimal:damm.state.tokenBMint.equals(NATIVE_MINT)?9:6,hasReferral:false});
+  const dammBuy=await damm.cp.swap({payer:payer.publicKey,pool:damm.address,inputTokenMint:NATIVE_MINT,outputTokenMint:mint.publicKey,amountIn:new BN(10000000),minimumAmountOut:q.minSwapOutAmount,tokenAMint:damm.state.tokenAMint,tokenBMint:damm.state.tokenBMint,tokenAVault:damm.state.tokenAVault,tokenBVault:damm.state.tokenBVault,tokenAProgram:TOKEN_PROGRAM_ID,tokenBProgram:TOKEN_PROGRAM_ID,referralTokenAccount:null,poolState:damm.state});
+  console.log("Post-graduation buy confirmed:",await sendAndConfirmTransaction(connection,dammBuy,[payer]));
+  const position=await migratedPosition(connection,pool.publicKey,payer.publicKey);if(!position||position.quoteFees.isZero())throw new Error("LP fee accrual missing");
+  const lpClaim=await position.claim();const lpSignature=await sendAndConfirmTransaction(connection,lpClaim,[payer]);
+  const lpReceipt=await connection.getTransaction(lpSignature,{commitment:"confirmed",maxSupportedTransactionVersion:0});if(!lpReceipt)throw new Error("LP receipt missing");
+  console.log("Verified post-graduation SOL claim:",confirmedQuoteDebit(lpReceipt,position.quoteVault).toString(),"lamports",lpSignature);
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

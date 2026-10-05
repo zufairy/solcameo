@@ -37,6 +37,7 @@ export type DbcReceipt = {
   network: "devnet" | "mainnet";
   stage: "config" | "pool";
   messageHash: string;
+  lastValidBlockHeight?: number;
   expires: number;
 };
 function secret() {

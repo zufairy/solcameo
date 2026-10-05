@@ -24,7 +24,7 @@ const human = (units: bigint, decimals: number) =>
     "",
   );
 export function TradeTicket({ token }: { token: Token }) {
-  return token.dbcPool ? <DbcTradeTicket characterId={token.characterId} ticker={token.ticker} network={token.network} /> : <PaperTradeTicket token={token} />;
+  return token.dbcPool ? <DbcTradeTicket characterId={token.characterId} ticker={token.ticker} network={token.network} mint={token.mint ?? undefined} /> : <PaperTradeTicket token={token} />;
 }
 function PaperTradeTicket({ token }: { token: Token }) {
   const { profile, login, getFreshToken } = useSupabaseAuth();

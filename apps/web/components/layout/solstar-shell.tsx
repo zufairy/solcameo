@@ -171,10 +171,10 @@ function SidebarDividerToggle() {
   >{expanded ? <ChevronLeft className="size-2.5" strokeWidth={2} /> : <ChevronRight className="size-2.5" strokeWidth={2} />}</button>;
 }
 
-function TopBar() {
+function TopBar({ terminal = false }: { terminal?: boolean }) {
   return (
     <header className="solcameo-topbar sticky top-0 z-30 flex h-[48px] shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#181a1c]/95 px-3 backdrop-blur-md">
-      <SidebarTrigger className="-ml-1 md:hidden text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-emerald-400/60" />
+      {!terminal && <SidebarTrigger className="-ml-1 md:hidden text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-emerald-400/60" />}
       <div className="flex min-w-0 flex-1 items-center">
         <ShellSearch />
       </div>
@@ -188,6 +188,7 @@ function TopBar() {
 /** Global app chrome: collapsible left rail + top bar. One instance, mounted by the root layout. */
 export function SolstarShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isMarketTerminal = !legacyUiEnabled() && /^\/market\/[^/]+$/.test(pathname);
   const isControl = pathname === "/control" || pathname.startsWith("/control/");
   return (
     <ShellProvider value={true}>
@@ -198,7 +199,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           style={{ "--sidebar-width-icon": "3.5rem", "--sidebar-width": "13.5rem" } as React.CSSProperties}
           className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${["/market", "/explore", "/analytics"].some(route => pathname.startsWith(route)) ? "vello-market-theme" : ""}`}
         >
-          <Sidebar
+          {!isMarketTerminal && <Sidebar
             id="vello-sidebar"
             collapsible="icon"
             className="border-r border-white/[0.06] [&_[data-slot=sidebar-inner]]:bg-[#09090b] [&_[data-slot=sidebar-container]]:transition-[width] [&_[data-slot=sidebar-container]]:duration-200 motion-reduce:[&_[data-slot=sidebar-container]]:transition-none"
@@ -218,13 +219,13 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
               <RailCreate />
               <RailFooter />
             </SidebarFooter>
-          </Sidebar>
-          <SidebarDividerToggle />
+          </Sidebar>}
+          {!isMarketTerminal && <SidebarDividerToggle />}
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
-            <ShellAnnouncement />
-            <TopBar />
-            {!isControl && !pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/market/") && <TickerStrip />}
-            <div className={`min-h-0 min-w-0 flex-1 ${isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-[#090a0b]" : "overflow-y-auto overscroll-contain"}`}>
+            {!isMarketTerminal && <ShellAnnouncement />}
+            <TopBar terminal={isMarketTerminal} />
+            {!isControl && !pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/market") && !pathname.startsWith("/agents") && <TickerStrip />}
+            <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>
           </SidebarInset>

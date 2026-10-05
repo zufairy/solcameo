@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CandlestickSeries,
   HistogramSeries,
@@ -26,6 +26,8 @@ export function TerminalChart({
   minutes: number;
   mcap: boolean;
 }) {
+  const [following, setFollowing] = useState(true);
+  const previous = useRef<{ view: string; candles: ReturnType<typeof candlesFromPoints> } | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -55,9 +57,9 @@ export function TerminalChart({
     if (!container.current) return;
     const c = createChart(container.current, {
       autoSize: true,
-      height: 430,
+
       layout: {
-        background: { type: ColorType.Solid, color: "#09090b" },
+        background: { type: ColorType.Solid, color: "#181a1c" },
         textColor: "#71717a",
         attributionLogo: true,
       },
@@ -81,8 +83,8 @@ export function TerminalChart({
       borderVisible: false,
       priceFormat: {
         type: "price",
-        precision: mcap ? 4 : 9,
-        minMove: mcap ? 0.0001 : 0.000000001,
+        precision: 4,
+        minMove: 0.0001,
       },
     });
     histogram.current = c.addSeries(HistogramSeries, {
@@ -98,34 +100,48 @@ export function TerminalChart({
     c.priceScale("right").applyOptions({
       scaleMargins: { top: 0.05, bottom: 0.2 },
     });
+    c.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      const range = c.timeScale().getVisibleLogicalRange();
+      const last = previous.current?.candles.length ?? 0;
+      if (range && last) setFollowing(range.to >= last - 2);
+    });
     return () => {
+      previous.current = null; fitted.current = "";
       histogram.current = null;
       c.remove();
       chart.current = null;
       series.current = null;
     };
-  }, [mcap]);
+  }, []);
   useEffect(() => {
-    series.current?.setData(
-      candles.map((c) => ({ ...c, time: c.time as UTCTimestamp })),
-    );
-    histogram.current?.setData(volumes);
-    const view = `${minutes}:${mcap}`;
-    if (candles.length && fitted.current !== view) {
-      chart.current?.timeScale().fitContent();
-      fitted.current = view;
+    const view = `${minutes}:${mcap}:${supplyTokens}`;
+    const prior = previous.current;
+    series.current?.applyOptions({ priceFormat: { type: "price", precision: mcap ? 4 : 9, minMove: mcap ? 0.0001 : 0.000000001 } });
+    // Update the current candle without rebuilding the series or moving a panned chart.
+    const appendOnly = prior?.view === view && candles.length >= prior.candles.length && prior.candles.length > 0 && prior.candles.slice(0, -1).every((c, i) => JSON.stringify(c) === JSON.stringify(candles[i]));
+    if (appendOnly && prior) {
+      for (const candle of candles.slice(prior.candles.length - 1)) series.current?.update({ ...candle, time: candle.time as UTCTimestamp });
+      for (const volume of volumes.filter(v => v.time >= prior.candles[prior.candles.length - 1].time)) histogram.current?.update(volume);
+    } else {
+      series.current?.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
+      histogram.current?.setData(volumes);
     }
-  }, [candles, mcap, volumes, minutes]);
+    previous.current = { view, candles };
+    if (candles.length && fitted.current !== view) {
+      chart.current?.timeScale().fitContent(); fitted.current = view;
+    }
+  }, [candles, mcap, volumes, minutes, supplyTokens]);
   return (
     <div className="relative">
-      <div ref={container} className="h-[430px] w-full" />
+      <div ref={container} className="h-[clamp(240px,42dvh,430px)] w-full" />
+      {!!candles.length && <button type="button" onClick={() => { chart.current?.timeScale().scrollToRealTime(); setFollowing(true); }} className={`absolute right-16 top-3 rounded border px-2 py-1 text-[10px] ${following ? "border-emerald-300/20 bg-[#181a1c] text-emerald-300" : "border-white/15 bg-[#202326] text-zinc-200"}`}>{following ? "Latest" : "Back to latest"}</button>}
       {!candles.length && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-500">
           <span className="text-zinc-400">
-            Waiting for the first recorded trade
+            Waiting for confirmed price data
           </span>
           <span className="text-xs text-zinc-600">
-            Price candles and volume appear as trades execute.
+            Candles follow pool prices. Volume reflects recorded app trades.
           </span>
         </div>
       )}

@@ -3,12 +3,13 @@ import { useEffect } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { getNetwork } from "@/lib/solana/network";
 import { PublicKey } from "@solana/web3.js";
 
 /** One shared subscription; mounted pages retain polling as reconnect fallback. */
 export function OnchainUpdates() {
   const { connection } = useConnection();
-  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
+  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: getNetwork() === "mainnet-beta" ? "mainnet" : "devnet", liveOnly: true });
   const pools = (rows ?? []).map(row => row.dbcPool).filter(Boolean).slice(0, 30).join(",");
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;

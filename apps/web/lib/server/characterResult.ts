@@ -15,7 +15,7 @@ export async function characterResult(scope: string, id: string) {
   if (r.status !== "completed") return { status: r.status, error: r.error };
   const rawJob = await getObjectText(`characters/${scope}/jobs/${id}.json`);
   const job = rawJob ? JSON.parse(rawJob) : null;
-  const stored = await Promise.all(r.imageUrls.slice(0,4).map((url, index) => mirrorImageToR2(url, { key: `characters/${scope}/gen/${id}/${index}.png` })));
+  const stored = await Promise.all(r.imageUrls.slice(0,4).map((url, index) => mirrorImageToR2(url, { key: `characters/${scope}/gen/${id}/${index}.webp`, optimize: true })));
   const images: CharacterImage[] = stored.flatMap(image => image ? [{ url: image.url, model: job?.model ?? "reference", ratio: job?.ratio ?? "3:4" }] : []);
   if (!images.length) return { status: "failed", error: "Could not store the portrait. Retry the status check to recover it." };
   await putImage(Buffer.from(JSON.stringify(images)), "application/json", { key: cacheKey });

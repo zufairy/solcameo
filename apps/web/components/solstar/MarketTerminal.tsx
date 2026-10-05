@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- remote episode media */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useConvexConnectionState } from "convex/react";
@@ -12,7 +13,6 @@ import {
   Copy,
   ExternalLink,
   Loader2,
-  MessageSquare,
   Star,
   Video,
 } from "lucide-react";
@@ -35,11 +35,10 @@ import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { DEFAULT_DBC } from "@/lib/meteora/options";
 import { PAPER_VIRTUAL_TOKENS } from "@/lib/solstar/economics";
 import { marketCapLamports, priceLamportsPerToken } from "@/lib/solstar/market";
-import { getAccountExplorerUrl } from "@/lib/solana/network";
+import { getReadRpcUrl, getAccountExplorerUrl } from "@/lib/solana/network";
 import { TerminalChart } from "./TerminalChart";
 import { FlywheelPanel } from "@/components/solcameo/FlywheelPanel";
 import { TradeTicket } from "./TradeTicket";
-import { ChangePill } from "./MarketTable";
 import { useMarketWatchlist } from "./market-watchlist";
 
 type ChainData = {
@@ -86,6 +85,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const connection = useConvexConnectionState();
   const watch = useMarketWatchlist();
   const params = useSearchParams();
+  const [mobilePanel, setMobilePanel] = useState<"chart" | "trade" | "community">("chart");
+  const [poolError, setPoolError] = useState("");
+  const [poolCheckedAt, setPoolCheckedAt] = useState<number>();
   const [communityTab, setCommunityTab] = useState<"chat" | "feed">("chat");
   const [tab, setTab] = useState(
     params.get("tab") === "videos" ? "videos" : "holders",
@@ -98,14 +100,52 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const [dbc, setDbc] = useState<{ available: boolean; capSol: number | null; reserveSol: number; targetSol: number; progress: number; migrated: boolean; supplyTokens?: number; points?: Array<{time:number;price:number;volume:number;side:"buy"|"sell"}>; appVolume24hLamports?: string } | null>(null);
   const [chainError, setChainError] = useState("");
   const feed = useQuery(api.solstarFeed.listFeed, { limit: 50 });
+  const poolConnection = useMemo(() => new Connection(getReadRpcUrl(data?.token.network === "mainnet" ? "mainnet-beta" : "devnet"), "confirmed"), [data?.token.network]);
   useEffect(() => {
     if (!data?.token.dbcPool) return;
     const controller = new AbortController();
-    const refresh = async () => { try { const res = await fetch(`/api/meteora/pool?characterId=${characterId}`, { signal: controller.signal }); const next = await res.json(); if (!controller.signal.aborted) setDbc(previous => { if (!next.available) return next; const merged = [...(previous?.points ?? []), ...(next.points ?? [])]; const byTime = new Map(merged.map(point => [point.time, point])); return { ...next, points: [...byTime.values()].sort((a,b) => a.time-b.time).slice(-1000) }; }); } catch { /* Keep confirmed state. */ } };
+    let refreshing = false, queued = false;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      if (controller.signal.aborted || document.hidden) return;
+      if (refreshing) { queued = true; return; }
+      refreshing = true;
+      try {
+        const res = await fetch(`/api/meteora/pool?characterId=${characterId}`, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+        const next = await res.json();
+        if (!res.ok || !next.available) throw new Error(next.error || "Waiting for pool data");
+        if (!controller.signal.aborted) {
+          setDbc(previous => {
+            const merged = [...(previous?.points ?? []), ...(next.points ?? [])];
+            const byTime = new Map(merged.map(point => [point.time, point]));
+            return { ...next, points: [...byTime.values()].sort((a,b) => a.time-b.time).slice(-5000) };
+          });
+          setPoolError(""); setPoolCheckedAt(Date.now());
+        }
+      } catch (e) { if (!controller.signal.aborted) setPoolError(e instanceof Error ? e.message : "Pool RPC reconnecting"); }
+      finally {
+        refreshing = false;
+        if (queued && !controller.signal.aborted) { queued = false; void refresh(); }
+      }
+    };
+    const notify = () => {
+      if (debounce || controller.signal.aborted) return;
+      debounce = setTimeout(() => { debounce = undefined; void refresh(); window.dispatchEvent(new Event("solcameo:trade-confirmed")); }, 250);
+    };
+    // Subscribe to this pool even when it falls outside the home market's latest 30.
+    const subscription = poolConnection.onAccountChange(new PublicKey(data.token.dbcPool), notify, "confirmed");
     window.addEventListener("solcameo:trade-confirmed", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     void refresh(); const timer = setInterval(() => void refresh(), 5000);
-    return () => { controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); };
-  }, [characterId, data?.token.dbcPool]);
+    return () => {
+      controller.abort(); clearInterval(timer); if (debounce) clearTimeout(debounce);
+      void poolConnection.removeAccountChangeListener(subscription);
+      window.removeEventListener("solcameo:trade-confirmed", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [characterId, data?.token.dbcPool, poolConnection]);
   const onChain = !!data?.token.mint && data.token.network !== "paper";
   useEffect(() => {
     if (!onChain) return;
@@ -117,7 +157,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
       try {
         const res = await fetch(
           `/api/solstar/token-chain?characterId=${encodeURIComponent(characterId)}`,
-          { signal: controller.signal },
+          { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) },
         );
         const result = await res.json();
         if (!res.ok) throw new Error(result.error);
@@ -152,8 +192,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
       </div>
     );
   if (data.token.network === "paper" || !data.token.mint || !data.token.dbcPool || !["live", "graduated", "migrated"].includes(data.token.state)) return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <MarketCharacterChat characterId={characterId} />
+    <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-6 py-10">
+      <div className="mb-6 h-[420px]"><MarketCharacterChat characterId={characterId} /></div>
       <Link href="/market" className="text-xs text-zinc-400">← Back to market</Link>
       <h1 className="mt-6 text-2xl font-semibold">{data.character.name}</h1>
       <p className="mt-3 text-sm text-zinc-400">This character has no confirmed market yet. Launch the coin to enable on-chain prices and trading.</p>
@@ -170,8 +210,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const volume = stats
     ? (BigInt(stats.buyVolume) + BigInt(stats.sellVolume)).toString()
     : null;
-  const buys = stats?.buys ?? 0,
-    sells = stats?.sells ?? 0;
+  const recentTrades = chain?.trades ?? [];
+  const buys = onChain ? recentTrades.filter(t => t.side === "buy").length : stats?.buys ?? 0,
+    sells = onChain ? recentTrades.filter(t => t.side === "sell").length : stats?.sells ?? 0;
   const rows =
     stats?.holders.filter((h) =>
       h.wallet.toLowerCase().includes(search.toLowerCase()),
@@ -195,8 +236,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     }
   }
   return (
-    <main className="min-h-screen bg-[#181a1c] text-zinc-300">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-[11px] text-zinc-500">
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#181a1c] text-zinc-300">
+      <div className="flex items-center justify-between shrink-0 border-b border-white/10 px-4 py-2 text-[11px] text-zinc-500">
         <Link
           href="/market"
           className="flex items-center gap-1.5 hover:text-white"
@@ -208,24 +249,21 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           <span
             className={`size-1.5 rounded-full ${connection.isWebSocketConnected ? "bg-emerald-300" : "bg-amber-400"}`}
           />
-          {connection.isWebSocketConnected ? "Live market" : "Reconnecting"} ·{" "}
+          {poolError ? "Pool reconnecting" : connection.isWebSocketConnected ? "Connected" : "Reconnecting"} ·{" "}
           {token.network === "paper"
             ? "Paper preview · no mint"
             : `Solana ${token.network}`}
         </span>
       </div>
-      <div className="grid min-w-0 xl:grid-cols-[240px_minmax(0,1fr)_310px] 2xl:grid-cols-[280px_minmax(0,1fr)_350px]">
-        <aside className="flex min-w-0 flex-col border-r border-white/10">
-          <div className="flex border-b border-white/10 p-2 gap-1"><Button size="sm" variant="ghost" className={communityTab === "chat" ? "bg-white/5 text-[#d7ff00]" : "text-zinc-500"} onClick={() => setCommunityTab("chat")}>Chat</Button><Button size="sm" variant="ghost" className={communityTab === "feed" ? "bg-white/5 text-[#d7ff00]" : "text-zinc-500"} onClick={() => setCommunityTab("feed")}>Live feed</Button></div>
-          {communityTab === "chat" ? <MarketCharacterChat characterId={characterId} /> : <>
-          <div className="flex items-center gap-2 border-b border-white/10 p-4 text-sm font-medium">
-            <MessageSquare className="size-4 text-zinc-500" />
-            Live activity
-          </div>
+      <div className="flex shrink-0 border-b border-white/10 p-1 lg:hidden" role="group" aria-label="Market panels">{(["chart", "trade", "community"] as const).map(panel => <button type="button" key={panel} aria-pressed={mobilePanel === panel} onClick={() => setMobilePanel(panel)} className={`flex-1 rounded-md py-2 text-xs capitalize ${mobilePanel === panel ? "bg-white/10 text-white" : "text-zinc-500"}`}>{panel}</button>)}</div>
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)_300px] 2xl:grid-cols-[260px_minmax(0,1fr)_340px]">
+        <aside className={`${mobilePanel === "community" ? "flex" : "hidden"} min-h-0 min-w-0 flex-col overflow-hidden border-r border-white/10 lg:flex`}>
+          <div className="flex shrink-0 border-b border-white/10 p-2 gap-1"><Button size="sm" variant="ghost" className={communityTab === "chat" ? "bg-white/5 text-[#d7ff00]" : "text-zinc-500"} onClick={() => setCommunityTab("chat")}>Chat</Button><Button size="sm" variant="ghost" className={communityTab === "feed" ? "bg-white/5 text-[#d7ff00]" : "text-zinc-500"} onClick={() => setCommunityTab("feed")}>Activity</Button></div>
+          {communityTab === "chat" ? <MarketCharacterChat characterId={characterId} /> : <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {events.length ? (
             events.map((e) => (
-              <div key={e.id} className="border-b border-white/10 p-4">
-                <p className="mb-2 font-mono text-[10px] text-zinc-500">
+              <div key={e.id} className="border-b border-white/5 px-3 py-2.5">
+                <p className="mb-1 font-mono text-[10px] text-zinc-500">
                   {short(e.wallet || "Vello")} ·{" "}
                   {new Date(e.createdAt).toLocaleTimeString("en-MY", {
                     timeZone: "Asia/Kuala_Lumpur",
@@ -236,12 +274,12 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                 <p className="text-xs leading-relaxed text-zinc-300">
                   {e.body}
                 </p>
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#18181c] p-2">
+                <div className="mt-1.5 flex items-center gap-2 text-zinc-500">
                   {character.referenceImageUrl && (
                     <img
                       src={character.referenceImageUrl}
                       alt=""
-                      className="size-7 rounded-full object-cover"
+                      className="size-5 rounded-full object-cover"
                     />
                   )}
                   <span className="text-xs">${token.ticker}</span>
@@ -261,6 +299,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             <h2 className="mb-2 text-xs font-medium text-zinc-400">
               About the influencer
             </h2>
+            <div className="mb-3 flex items-center gap-3">{character.referenceImageUrl && <img src={character.referenceImageUrl} alt={character.name} className="size-12 rounded-xl object-cover" />}<div><p className="text-sm font-medium text-white">{character.name}</p><p className="mt-1 text-[10px] text-zinc-500">${token.ticker} · {character.category}</p></div></div>
             <p className="text-xs leading-relaxed text-zinc-500">
               {character.bio}
             </p>
@@ -268,11 +307,10 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               {character.category}
             </p>
           </div>
-          <img src={character.referenceImageUrl} alt={character.name} className="mt-auto aspect-square w-full object-cover" />
-          </>}
+          </div>}
         </aside>
-        <section className="min-w-0">
-          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-4 py-5">
+        <section className={`${mobilePanel === "chart" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto overscroll-contain lg:block`}>
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-3">
               {character.referenceImageUrl && (
                 <img
@@ -376,6 +414,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           </div>
           <div className="border-b border-white/10">
+            {poolError && <p role="status" className="px-4 pt-2 text-[10px] text-amber-300">{poolError} · showing last confirmed data</p>}
             <div className="px-4 pt-4 text-xs text-zinc-500">
               {token.ticker}/USD · {mcap ? "Market cap" : "Price"} · {minutes}
               min ·{" "}
@@ -580,47 +619,18 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           )}
         </section>
-        <aside className="border-t border-white/10 xl:border-l xl:border-t-0">
+        <aside className={`${mobilePanel === "trade" ? "block" : "hidden"} min-h-0 overflow-y-auto overscroll-contain border-l border-white/10 lg:block`}>
+          <TradeTicket token={token} />
           {(token.network === "paper" || token.state === "pending") && !token.dbcPool && publicKey?.toBase58() === character.ownerWallet && <div className="border-b border-white/10 p-4"><p className="mb-3 text-xs text-zinc-400">This coin is a database preview. Mint it on the configured network to create a real token and trade from your wallet.</p><LiveDbcLaunch characterId={characterId} options={DEFAULT_DBC} onComplete={() => window.dispatchEvent(new Event("solcameo:trade-confirmed"))} /></div>}
           {token.network === "mainnet" && token.mint && !token.dbcPool && <PumpFeePayout characterId={characterId} ownerWallet={character.ownerWallet} mint={token.mint} />}
           {token.network === "devnet" && <p className="border-b border-white/10 px-4 py-2 text-[10px] text-zinc-500">Devnet USD values use the SOL spot rate for testing. Test tokens have no monetary value.</p>}
-          {token.dbcPool && <div className="space-y-3 border-b border-white/10 bg-[#202326] p-4"><h2 className="text-sm font-semibold text-[#d7ff00]">Meteora DBC · {token.network}</h2>{dbc?.available ? <><p className="text-xs text-zinc-400">{dbc.migrated ? "Graduated to DAMM v2" : `${dbc.reserveSol.toFixed(3)} / ${dbc.targetSol.toFixed(3)} SOL reserve`}</p><div className="h-1.5 overflow-hidden bg-white/10 [mask-image:repeating-linear-gradient(to_right,black_0px,black_5px,transparent_5px,transparent_8px)]"><div className="h-full bg-[#d7ff00]/80 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${dbc.progress * 100}%` }} /></div><p className="text-[10px] text-zinc-500">Confirmed pool state · refreshes every 5 seconds</p></> : <p className="text-xs text-zinc-500">Waiting for confirmed pool data…</p>}<a href={explorer(token.dbcPool)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-[#d7ff00]">View pool on Solana <ExternalLink className="size-3" /></a></div>}
-          <TradeTicket token={token} />
+          {token.dbcPool && <div className="space-y-3 border-b border-white/10 bg-[#202326] p-4"><h2 className="text-sm font-semibold text-[#d7ff00]">Meteora DBC · {token.network}</h2>{dbc?.available ? <><p className="text-xs text-zinc-400">{dbc.migrated ? "Graduated to DAMM v2" : `${dbc.reserveSol.toFixed(3)} / ${dbc.targetSol.toFixed(3)} SOL reserve`}</p><div className="h-1.5 overflow-hidden bg-white/10 [mask-image:repeating-linear-gradient(to_right,black_0px,black_5px,transparent_5px,transparent_8px)]"><div className="h-full bg-[#d7ff00]/80 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${dbc.progress * 100}%` }} /></div><p className="text-[10px] text-zinc-500">{poolError ? "RPC reconnecting · showing last confirmed state" : `Confirmed pool state${poolCheckedAt ? ` · ${new Date(poolCheckedAt).toLocaleTimeString("en-MY", { hour12: false })}` : ""}`}</p></> : <p className="text-xs text-zinc-500">Waiting for confirmed pool data…</p>}<a href={explorer(token.dbcPool)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-[#d7ff00]">View pool on Solana <ExternalLink className="size-3" /></a></div>}
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
-          <div className="space-y-4 border-b border-white/10 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm text-white">Market stats</h2>
-              <span className="rounded bg-white/5 px-2 py-1 text-[10px] text-zinc-500">
-                24h
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-zinc-500">
-              Price change
-              <ChangePill value={stats?.changes[2]} />
-            </div>
-            <BalanceBar
-              left={`${buys.toLocaleString()} buys`}
-              right={`${sells.toLocaleString()} sells`}
-              ratio={buys / (buys + sells || 1)}
-            />
-            <BalanceBar
-              left={`${stats ? formatCompactSol(stats.buyVolume) : "—"} USD buy vol`}
-              right={`${stats ? formatCompactSol(stats.sellVolume) : "—"} USD sell vol`}
-              ratio={
-                stats
-                  ? Number(stats.buyVolume) /
-                    (Number(stats.buyVolume) + Number(stats.sellVolume) || 1)
-                  : 0
-              }
-            />
-            <BalanceBar
-              left={`${stats?.buyers ?? "—"} buyers`}
-              right={`${stats?.sellers ?? "—"} sellers`}
-              ratio={
-                (stats?.buyers ?? 0) /
-                ((stats?.buyers ?? 0) + (stats?.sellers ?? 0) || 1)
-              }
-            />
+          <div className="space-y-3 border-b border-white/10 p-4">
+            <div className="flex items-center justify-between"><h2 className="text-xs font-medium text-white">Recent pool activity</h2><span className="font-mono text-[10px] text-zinc-500">{chain?.trades ? `${recentTrades.length} transactions` : "Loading…"}</span></div>
+            <BalanceBar left={`${buys} buys`} right={`${sells} sells`} ratio={buys / (buys + sells || 1)} />
+            <p className="flex justify-between text-[11px] text-zinc-500">Recorded app volume · 24h<span className="font-mono text-zinc-200">{dbc?.appVolume24hLamports ? formatCompactSol(dbc.appVolume24hLamports) : "—"}</span></p>
+            <p className="text-[10px] leading-4 text-zinc-600">Recent confirmed pool transactions. App volume covers swaps recorded through SolCameo.</p>
           </div>
           <div className="space-y-4 border-b border-white/10 p-4 text-xs">
             <div className="flex justify-between">
@@ -628,15 +638,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               <span className="font-mono">{short(character.ownerWallet)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">ATH · USD</span>
+              <span className="text-zinc-500">Observed high · USD</span>
               <span>
-                {stats
-                  ? formatCompactSol(
-                      (
-                        BigInt(Math.round(stats.ath)) * 1000000000n
-                      ).toString(),
-                    )
-                  : "—"}
+                {dbc?.points?.length ? formatCompactSol(String(Math.round(Math.max(...dbc.points.map(p => p.price)) * 1e9))) : "—"}
               </span>
             </div>
             <div className="flex justify-between">

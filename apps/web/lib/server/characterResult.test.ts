@@ -14,7 +14,7 @@ it("mirrors a completed job to a deterministic owner path and indexes it",async(
   m.status.mockResolvedValue({status:"completed",imageUrls:["https://provider.test/image.png"]});
   m.mirror.mockResolvedValue({url:"https://stored.test/image.png"});
   expect(await characterResult("owner","request-123")).toMatchObject({status:"completed"});
-  expect(m.mirror).toHaveBeenCalledWith("https://provider.test/image.png",{key:"characters/owner/gen/request-123/0.png"});
+  expect(m.mirror).toHaveBeenCalledWith("https://provider.test/image.png",{key:"characters/owner/gen/request-123/0.webp",optimize:true});
   expect(m.put.mock.calls[0][2]).toEqual({key:"characters/owner/results/request-123.json"});
 });
 it("rejects traversal before any storage read",async()=>{

@@ -221,9 +221,7 @@ function formatPostEta(scheduledFor: number): string {
 function SectionHeading({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
   return (
     <div className="mb-3">
-      <h2 className={`text-[20px] font-bold leading-none tracking-tight ${dark ? "font-sans text-white" : "font-serif text-zinc-900"}`}>{children}</h2>
-      {/* Bold neobrutalist rule (light theme) / faint glass divider (dark theme) */}
-      <div className={`mt-1.5 ${dark ? "h-px bg-white/80" : "h-[2px] bg-zinc-900"}`} />
+      <h2 className={`text-[20px] font-semibold leading-tight tracking-[-0.025em] ${dark ? "font-sans text-white" : "font-serif text-zinc-900"}`}>{children}</h2>
     </div>
   );
 }
@@ -1247,7 +1245,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
             className="flex-1 overflow-y-auto"
             style={WARM_GLASS_BG}
           >
-            <CharacterTab mintAddress={isRealMint ? mintAddress : undefined} />
+            <CharacterTab mintAddress={isRealMint ? mintAddress : undefined} agentName={displayName} />
           </motion.div>
         ) : tab === "learn" ? (
           <motion.div key="learn"
@@ -2430,7 +2428,7 @@ function AgentSettingsCog({
         aria-expanded={open}
         aria-label="Agent settings"
         title="Agent settings"
-        className="grid size-[38px] place-items-center rounded-[9px] border-2 border-zinc-900 bg-white text-zinc-800 shadow-[2px_2px_0_0_#18181b] transition-[transform,box-shadow,background-color] duration-100 hover:bg-zinc-50 active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_0_#18181b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/40"
+        className="grid size-10 place-items-center rounded-xl border border-white/25 bg-white/[0.12] text-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.2] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
       >
         <Settings className={`size-[18px] transition-transform duration-200 ${open ? "rotate-45" : ""}`} aria-hidden />
       </button>
@@ -3449,11 +3447,11 @@ function ClipperHomeCockpit(props: {
                 <button
                   type="button"
                   onClick={isClipping ? onStartClipping : onTestAgent}
-                  className="group relative w-full overflow-hidden rounded-2xl border border-white/20 bg-white/[0.09] px-5 py-3.5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.14] hover:shadow-[0_22px_50px_-24px_rgba(255,255,255,0.65),inset_0_1px_0_rgba(255,255,255,0.24)] active:translate-y-0"
+                  className="group relative w-full overflow-hidden rounded-2xl border border-white/25 bg-gradient-to-b from-white/[0.16] to-white/[0.06] px-5 py-3.5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.14] hover:shadow-[0_22px_50px_-24px_rgba(255,255,255,0.65),inset_0_1px_0_rgba(255,255,255,0.24)] active:translate-y-0"
                 >
                   <span aria-hidden className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                   <span className="relative inline-flex items-center justify-center gap-2.5">
-                    <span className="grid size-7 place-items-center rounded-full border border-white/15 bg-black/20"><Scissors className="size-3.5" /></span>
+                    <span className="grid size-7 place-items-center rounded-full border border-white/15 bg-black/20">{isClipping ? <Scissors className="size-3.5" /> : <Clapperboard className="size-3.5" />}</span>
                     {isClipping ? "Start clipping" : "Generate next video"}
                     <ArrowUpRight className="size-4 text-white/60 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </span>

@@ -40,7 +40,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let tileSeq = 0;
 const tileId = () => `t${Date.now().toString(36)}${(tileSeq++).toString(36)}`;
 
-export function CharacterTab({ mintAddress, onboarding = false, onCharacterReady, initialCharacter, canGenerate = true, onNeedLogin }: { mintAddress?: string; onboarding?: boolean; initialCharacter?: SavedCharacter; canGenerate?: boolean; onNeedLogin?: () => void; onCharacterReady?: (character: SavedCharacter) => void }) {
+export function CharacterTab({ mintAddress, agentName, onboarding = false, onCharacterReady, initialCharacter, canGenerate = true, onNeedLogin }: { mintAddress?: string; agentName?: string; onboarding?: boolean; initialCharacter?: SavedCharacter; canGenerate?: boolean; onNeedLogin?: () => void; onCharacterReady?: (character: SavedCharacter) => void }) {
   const { authenticated, accessToken } = useSupabaseAuth();
   const [loading, setLoading] = useState(!!mintAddress);
   const [saved, setSaved] = useState<SavedCharacter | null>(null);
@@ -284,8 +284,8 @@ export function CharacterTab({ mintAddress, onboarding = false, onCharacterReady
     <div className="min-h-full" style={GLASS_BG}>
       <div className="mx-auto grid max-w-6xl gap-5 px-4 pb-8 pt-4 lg:grid-cols-[400px_1fr]">
         {/* LEFT: studio panel (same container for builder, saved influencer and Replicate) */}
-        <div className="flex h-[calc(100vh-96px)] min-h-[640px] flex-col overflow-hidden rounded-[32px] border border-white/[0.06]" style={{ background: SURFACE.panel }}>
-          <div className="px-5 pb-2 pt-4 text-center">
+        <div className="flex h-[calc(100dvh-160px)] min-h-[480px] flex-col lg:sticky lg:top-4 lg:self-start overflow-hidden rounded-[32px] border border-white/[0.06]" style={{ background: SURFACE.panel }}>
+          <div className="px-5 pb-6 pt-5 text-center">
             <div className="flex h-5 items-center justify-between text-[12px]">
               <span className="w-16" />
               <AnimatePresence>
@@ -311,7 +311,7 @@ export function CharacterTab({ mintAddress, onboarding = false, onCharacterReady
           {mode === "replicate" ? (
             <ReplicatePanel mintAddress={mintAddress ?? ""} character={saved?.image.url} selected={pickedMotion} onClearSelected={() => setPickedMotion(null)} onGenerate={startMotion} />
           ) : savedCard && saved ? (
-            <SavedCard character={saved} onEdit={startEdit} />
+            <SavedCard character={saved} agentName={agentName} onEdit={startEdit} />
           ) : (
             <>
               <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 [scrollbar-width:thin]">
@@ -394,7 +394,7 @@ export function CharacterTab({ mintAddress, onboarding = false, onCharacterReady
 
 const flip = (s: Set<string>, k: string) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; };
 
-function SavedCard({ character, onEdit }: { character: SavedCharacter; onEdit: () => void }) {
+function SavedCard({ character, agentName, onEdit }: { character: SavedCharacter; agentName?: string; onEdit: () => void }) {
   const traits = useMemo(() => {
     const out: string[] = [];
     for (const c of categoriesFor(character.tier)) {
@@ -409,12 +409,13 @@ function SavedCard({ character, onEdit }: { character: SavedCharacter; onEdit: (
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto px-4 pb-3 [scrollbar-width:thin]">
-        <motion.div initial={{ scale: 0.97 }} animate={{ scale: 1 }} transition={SPRING} className="relative mx-auto w-full overflow-hidden rounded-[26px] ring-2 ring-lime-400/70 shadow-[0_24px_60px_-28px_rgba(163,230,53,0.5)]" style={{ aspectRatio: (character.image.ratio ?? "3:4").replace(":", " / "), maxHeight: "52vh" }}>
-          <img src={character.image.url} alt="Your agent's character" className="size-full object-cover" />
+        <motion.div initial={{ scale: 0.97 }} animate={{ scale: 1 }} transition={SPRING} className="relative mx-auto w-full overflow-hidden rounded-[26px] ring-2 ring-lime-400/70 shadow-[0_24px_60px_-28px_rgba(163,230,53,0.5)]" style={{ aspectRatio: "1 / 1" }}>
+          <img src={character.image.url} alt={agentName ? `${agentName} portrait` : "Your agent's character"} className="size-full object-cover object-[50%_25%] scale-[1.15]" />
           <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-black" style={{ background: LIME }}><Check className="size-3" strokeWidth={3.5} /> Saved</span>
           <span className="absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">{MODEL_LABEL[character.image.model]}</span>
         </motion.div>
-        <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+        <div className="px-1 pb-3 pt-5"><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">Your character</p><h3 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{agentName || "Your AI influencer"}</h3><p className="mt-4 text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">Character traits</p></div>
+        <div className="flex flex-wrap gap-1.5 px-1">
           {shown.map((t, i) => (
             <motion.span key={`${t}-${i}`} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.03 * i, ...SPRING }} className="rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[12px] text-zinc-200">{t}</motion.span>
           ))}

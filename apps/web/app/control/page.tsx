@@ -349,7 +349,7 @@ function ControlPanel() {
 
   return (
     <AppHeaderShell>
-      <div className="h-full min-h-0 flex-1 overflow-hidden bg-[#181a1c]">{body}</div>
+      <div className="h-full min-h-0 flex-1 overflow-hidden bg-background">{body}</div>
     </AppHeaderShell>
   );
 }
@@ -712,10 +712,10 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
             key="screen"
             initial={{ width: 0, opacity: 0 }} animate={{ width: 340, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="hidden shrink-0 overflow-hidden border-l border-white/[0.06] bg-[#181a1c] lg:block"
+            className="hidden shrink-0 overflow-hidden border-l border-white/[0.06] bg-card/50 lg:block"
           >
             <div className="h-full w-[340px] overflow-y-auto p-4">
-              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#181a1c]">
+              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-background/60">
                 <AnimatePresence mode="wait" initial={false}>
                   {screenVideo ? (
                     <motion.button
@@ -930,7 +930,7 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
     <motion.div
       whileHover={{ y: -3 }}
       transition={SPRING}
-      className="group w-[196px] shrink-0 overflow-hidden rounded-xl border border-white/[0.07] bg-[#181a1c] transition-colors hover:border-white/15"
+      className="group w-[196px] shrink-0 overflow-hidden rounded-xl border border-white/[0.07] bg-background/60 transition-colors hover:border-white/15"
     >
       <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full bg-black" aria-label="Open video player">
         <video src={v.videoUrl} poster={v.posterUrl ?? undefined} ref={v.posterUrl ? undefined : paintFirstFrameIfNoPoster} preload="metadata" muted playsInline className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />

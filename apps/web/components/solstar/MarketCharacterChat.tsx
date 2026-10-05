@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { History, Send, Loader2, Clapperboard } from "lucide-react";
+import { Send, Loader2, Clapperboard } from "lucide-react";
 export function MarketCharacterChat({ characterId }: { characterId: string }) {
   const { authenticated, login, accessToken } = useSupabaseAuth();
   const [before, setBefore] = useState<number>();
@@ -19,14 +19,48 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
       ? { characterId: characterId as Id<"ssCharacters">, before }
       : "skip",
   );
-  const rows = before ? past?.messages : live?.messages;
+  const [archive, setArchive] = useState<NonNullable<typeof live>["messages"]>([]);
+  const [hasOlder, setHasOlder] = useState(true);
+  const rows = useMemo(() => {
+    if (!live) return undefined;
+    const unique = new Map([...archive, ...live.messages].map(message => [message._id, message]));
+    return [...unique.values()].sort((a, b) => a.createdAt - b.createdAt);
+  }, [archive, live]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const bottom = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+  const follow = useRef(true);
+  const anchor = useRef<{ height: number; top: number } | null>(null);
+  const loadingHistory = before !== undefined;
+  function loadOlder() {
+    if (loadingHistory || !hasOlder || !rows?.length) return;
+    follow.current = false;
+    if (viewport.current) anchor.current = { height: viewport.current.scrollHeight, top: viewport.current.scrollTop };
+    setBefore(rows[0].createdAt);
+  }
   useEffect(() => {
-    if (!before) bottom.current?.scrollIntoView({ block: "nearest" });
-  }, [live?.messages.length, before]);
+    if (!past || before === undefined) return;
+    // Cache the received Convex history page before moving the pagination cursor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setArchive(previous => [...new Map([...previous, ...past.messages].map(message => [message._id, message])).values()]);
+    setHasOlder(past.messages.length === 100);
+    setBefore(undefined);
+  }, [past, before]);
+  // Retain messages that leave the latest live window as new messages arrive.
+  useEffect(() => {
+    // Retain the external subscription window so incoming rows cannot evict history.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (live?.messages.length) setArchive(previous => [...new Map([...previous, ...live.messages].map(message => [message._id, message])).values()]);
+  }, [live]);
+  useLayoutEffect(() => {
+    const el = viewport.current;
+    if (!el) return;
+    if (anchor.current && !loadingHistory) {
+      el.scrollTop = anchor.current.top + el.scrollHeight - anchor.current.height;
+      anchor.current = null;
+    } else if (follow.current && !anchor.current) el.scrollTop = el.scrollHeight;
+  }, [rows, loadingHistory]);
   async function send() {
     if (!authenticated) {
       login();
@@ -47,7 +81,7 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setInput("");
-      setBefore(undefined);
+      follow.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry.");
     } finally {
@@ -55,49 +89,20 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
     }
   }
   return (
-    <div className="flex h-[650px] max-h-[85vh] min-h-[420px] flex-col bg-[#111315]">
-      <div className="flex items-center justify-between border-b border-white/10 px-3 py-3">
-        <div>
-          <p className="text-xs font-medium text-white">Community chat</p>
-          <p className="mt-1 text-[10px] text-zinc-500">
-            Public · agent replies hourly
-          </p>
-        </div>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label={before ? "Return to live chat" : "View chat history"}
-          onClick={() =>
-            setBefore(before ? undefined : (rows?.[0]?.createdAt ?? Date.now()))
-          }
-        >
-          <History className="size-4" />
-        </Button>
-      </div>
-      {before && (
-        <div className="flex justify-between border-b border-white/10 p-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!rows?.length}
-            onClick={() => setBefore(rows?.[0]?.createdAt)}
-          >
-            Older
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setBefore(undefined)}
-          >
-            Back to live
-          </Button>
-        </div>
-      )}
+    <div className="flex h-full min-h-0 flex-col bg-[#111315]">
       <div
-        className="flex-1 space-y-3 overflow-y-auto px-3 py-4"
+        ref={viewport}
+        onScroll={() => {
+          const el = viewport.current;
+          if (!el) return;
+          follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+          if (el.scrollTop < 40 && !follow.current) loadOlder();
+        }}
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3"
         role="log"
         aria-label="Public community chat"
       >
+        {!!rows?.length && hasOlder && <button type="button" onClick={loadOlder} disabled={loadingHistory} className="w-full py-1 text-[10px] text-zinc-500 hover:text-zinc-200">{loadingHistory ? "Loading history…" : "Load earlier messages"}</button>}
         {rows === undefined ? (
           <Loader2 className="size-4 animate-spin text-zinc-500" />
         ) : !rows.length ? (
@@ -134,7 +139,7 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
             </div>
           ))
         )}
-        <div ref={bottom} />
+
       </div>
       {live?.plot && (
         <details className="border-t border-white/10 px-3 py-3">
@@ -169,7 +174,7 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
           disabled={busy}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Share an idea…"
-          className="min-h-16 resize-none border-white/10 text-xs"
+          className="min-h-12 max-h-24 resize-none border-white/10 text-xs"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <span className="text-[10px] text-zinc-600">Visible to everyone</span>

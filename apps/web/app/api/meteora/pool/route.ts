@@ -1,3 +1,4 @@
+import { marketCapSol } from "@/lib/meteora/poolPrice";
 import { migratedPool } from "@/lib/server/dammLifecycle";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { NextRequest, NextResponse } from "next/server";
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
       const migrated=await migratedPool(connection,new PublicKey(data.token.dbcPool));
       if(!migrated)throw new Error("Graduated pool unavailable");
       const s=Number(migrated.state.sqrtPrice.toString())/2**64;
-      capSol=migrated.state.tokenBMint.equals(NATIVE_MINT)?s*s*units*supplyTokens:1/(s*s*units)*supplyTokens;
+      capSol=marketCapSol(s, supplyTokens, supply.value.decimals, migrated.state.tokenBMint.equals(NATIVE_MINT));
     }
     if (capSol != null) points.push({ time: Date.now(), price: capSol, volume: 0 });
     return NextResponse.json(

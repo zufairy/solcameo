@@ -29,3 +29,22 @@ it("continues into both wallet approvals automatically after the network check",
   expect(m.complete).toHaveBeenCalledTimes(1);
   await act(async () => root.unmount());
 });
+it("refreshes an expired wallet approval and resumes the same launch", async () => {
+  vi.stubGlobal("React", React); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  let submissions = 0, confirmations = 0;
+  m.sign.mockImplementation(async tx => tx);
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.startsWith("/api/meteora/readiness")) return new Response(JSON.stringify({ready: true, balanceLamports: 100000000}));
+    const body = JSON.parse(init!.body as string);
+    if (body.action === "submit" && ++submissions === 1) return new Response(JSON.stringify({error: "Approval expired", code: "BLOCKHASH_EXPIRED"}), {status:409});
+    if (body.action === "submit") return new Response(JSON.stringify({signature: "confirmed-signature"}));
+    if (body.action === "confirm" && ++confirmations === 2) return new Response(JSON.stringify({complete: true}));
+    return new Response(JSON.stringify({transaction: "AQ==", receipt: "updated-receipt"}));
+  }));
+  const host=document.createElement("div"),root=createRoot(host);
+  await act(async()=>{root.render(<LiveDbcLaunch characterId="coin" options={DEFAULT_DBC} autoStart onComplete={m.complete}/>);});
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
+  expect(m.sign).toHaveBeenCalledTimes(3);expect(m.complete).toHaveBeenCalledTimes(1);
+  expect(sessionStorage.length).toBe(0);
+  await act(async()=>root.unmount());
+});

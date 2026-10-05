@@ -66,7 +66,8 @@ export function FlywheelPanel({
   const [saved, setSaved] = useState({claim: false, graduate: false});
   useEffect(() => {
     const prefix = `dbc-operation-${characterId}-${publicKey?.toBase58()}-`;
-    setSaved({claim: !!localStorage.getItem(prefix + "claim"), graduate: !!localStorage.getItem(prefix + "graduate")});
+    const timer = setTimeout(() => setSaved({claim: !!localStorage.getItem(prefix + "claim"), graduate: !!localStorage.getItem(prefix + "graduate")}), 0);
+    return () => clearTimeout(timer);
   }, [characterId, publicKey, busy]);
   async function operation(kind: "claim" | "graduate") {
     if (!publicKey || !signTransaction) return;

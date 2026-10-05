@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   pool: vi.fn(),
   rpc: {
     getLatestBlockhash: vi.fn(),
+    getBlockHeight: vi.fn(),
     getGenesisHash: vi.fn().mockResolvedValue("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"),
     sendRawTransaction: vi.fn(),
     getTransaction: vi.fn(),
@@ -108,6 +109,8 @@ beforeEach(() => {
     token: { name: "Test", ticker: "TEST", description: "" },
   });
   m.rpc.getLatestBlockhash.mockResolvedValue({ blockhash });
+  m.rpc.isBlockhashValid.mockResolvedValue({ value: true });
+  vi.stubEnv("SOLCAMEO_DBC_TREASURY_SECRET", JSON.stringify([...Keypair.generate().secretKey]));
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("Meteora wallet launch", () => {
@@ -131,6 +134,32 @@ describe("Meteora wallet launch", () => {
     expect((await res.json()).stage).toBe("config");
     expect(m.rpc.sendRawTransaction).not.toHaveBeenCalled();
     expect(m.mutation).not.toHaveBeenCalled();
+  });
+  it("submits with the same confirmed commitment used to obtain the blockhash", async () => {
+    const tx = transaction(); tx.sign([owner]);
+    m.rpc.sendRawTransaction.mockResolvedValue("signature");
+    const res = await request({action: "submit", receipt: signDbcReceipt(receipt(tx)), transaction: Buffer.from(tx.serialize()).toString("base64")});
+    expect(res.status).toBe(200);
+    expect(m.rpc.sendRawTransaction).toHaveBeenCalledWith(expect.any(Uint8Array), expect.objectContaining({preflightCommitment: "confirmed"}));
+  });
+  it("returns a recoverable expiry without broadcasting stale approvals", async () => {
+    const tx = transaction(); tx.sign([owner]);
+    m.rpc.isBlockhashValid.mockResolvedValue({value: false});
+    const res = await request({action: "submit", receipt: signDbcReceipt(receipt(tx)), transaction: Buffer.from(tx.serialize()).toString("base64")});
+    expect(m.rpc.isBlockhashValid).toHaveBeenCalledWith(blockhash, {commitment: "confirmed"});
+    expect(res.status).toBe(409); expect((await res.json()).code).toBe("BLOCKHASH_EXPIRED");
+    expect(m.rpc.sendRawTransaction).not.toHaveBeenCalled();
+  });
+  it("keeps a not-yet-expired approval intact when an RPC is behind", async () => {
+    const tx=transaction(); tx.sign([owner]);
+    m.rpc.getSignatureStatuses.mockResolvedValue({value:[null]});
+    m.rpc.isBlockhashValid.mockResolvedValue({value:false});
+    m.rpc.getBlockHeight.mockResolvedValue(100);
+    const r={...receipt(tx),lastValidBlockHeight:150};
+    const res=await request({action:"submit",receipt:signDbcReceipt(r),transaction:Buffer.from(tx.serialize()).toString("base64")});
+    expect((await res.json()).code).toBe("RPC_RETRY");expect(m.rpc.sendRawTransaction).not.toHaveBeenCalled();
+    const refresh=await request({action:"refresh",receipt:signDbcReceipt(r),transaction:Buffer.from(tx.serialize()).toString("base64")});
+    expect((await refresh.json()).code).toBe("RPC_RETRY");expect(m.rpc.getLatestBlockhash).not.toHaveBeenCalled();
   });
   it("rejects a transaction altered after review", async () => {
     const tx = transaction();

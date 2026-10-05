@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- remote preview thumbs */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronRight, Film, Loader2, Play, Plus, Shapes, User, Video, X, Check, Download } from "lucide-react";
 import { useAgentLibrary } from "../useAgentLibrary";
 import { LIME, SURFACE, SPRING } from "./character-ui";
@@ -86,29 +86,53 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const fetching = useRef(false);
+  const reduced = useReducedMotion();
 
   const load = useCallback(async (cursor: number) => {
+    if (fetching.current) return;
+    fetching.current = true;
     setLoading(true); setFailed(false);
     try {
       const d = await api<{ items: MotionItem[]; next: number }>(`/api/character/motions?cursor=${cursor}`);
       setItems((prev) => { const seen = new Set(prev.map((p) => p.id)); return [...prev, ...d.items.filter((i) => !seen.has(i.id))]; });
       setNext(d.next);
-    } catch { setFailed(true); } finally { setLoading(false); }
+      setHasMore(d.items.length > 0 && d.next > cursor);
+    } catch { setFailed(true); } finally { fetching.current = false; setLoading(false); }
   }, []);
   // Initial fetch of an external feed, synced into state on mount.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(1); }, [load]);
 
+  const reveal = useCallback(() => {
+    if (loading || failed) return;
+    if (visibleCount < items.length) setVisibleCount(count => Math.min(items.length, count + 10));
+    else if (hasMore) void load(next);
+  }, [loading, failed, visibleCount, items.length, hasMore, load, next]);
+
+  useEffect(() => {
+    const target = sentinel.current;
+    if (!target || loading || failed || (visibleCount >= items.length && !hasMore)) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) reveal();
+    }, { rootMargin: "160px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [reveal, loading, failed, visibleCount, items.length, hasMore]);
+
   return (
     <div>
       <div className="columns-2 gap-2.5 sm:columns-3 xl:columns-4">
-        {items.map((m, i) => {
+        {items.slice(0, visibleCount).map((m, i) => {
           const on = selectedId === m.id;
           return (
             <motion.button
               key={m.id} type="button" onClick={() => onSelect(on ? null : m)}
               onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover((h) => (h === m.id ? null : h))}
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: Math.min(i % 24, 10) * 0.025 }}
+              initial={{ opacity: 0, y: reduced ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: reduced ? 0 : (i % 10) * 0.035 }}
               whileHover={{ y: -2 }} aria-pressed={on} title={m.title}
               className="group relative mb-2.5 block w-full overflow-hidden rounded-[18px] border-[2.5px] bg-black text-left outline-none"
               style={{ borderColor: on ? LIME : SURFACE.ring, boxShadow: on ? `0 0 0 1px ${LIME}55, 0 10px 28px -10px ${LIME}88` : undefined, aspectRatio: "9 / 16" }}
@@ -128,10 +152,11 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
           );
         })}
       </div>
-      {loading && <div className="flex justify-center py-6"><Loader2 className="size-5 animate-spin text-zinc-500" /></div>}
+      <div ref={sentinel} className="h-1" aria-hidden />
+      {loading && <div role="status" className="flex items-center justify-center gap-2 py-6 text-xs text-zinc-400"><Loader2 className="size-4 animate-spin" /> Loading video ideas…</div>}
       {failed && <p className="py-4 text-center text-[12.5px] text-zinc-500">Couldn&apos;t load the motion library. <button onClick={() => void load(next)} className="text-white underline">Retry</button></p>}
-      {!loading && !failed && items.length > 0 && (
-        <button type="button" onClick={() => void load(next)} className="mx-auto mt-2 flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:text-white">
+      {!loading && !failed && (visibleCount < items.length || hasMore) && (
+        <button type="button" onClick={reveal} className="mx-auto mt-2 flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:text-white">
           Load more <ChevronRight className="size-3.5" />
         </button>
       )}

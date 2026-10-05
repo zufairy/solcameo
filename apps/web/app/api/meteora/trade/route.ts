@@ -1,3 +1,4 @@
+import { marketCapSol } from "@/lib/meteora/poolPrice";
 import { migratedPool } from "@/lib/server/dammLifecycle";
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { NextRequest, NextResponse } from "next/server";
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (network === "devnet") await assertDevnet(connection);
     const client = new DynamicBondingCurveClient(connection, "confirmed");
     const payer = new PublicKey(wallet);
-    if (body.action === "prepare") {
+    if (body.action === "prepare" || body.action === "quote") {
       if (
         !isConvexIdString(body.characterId) ||
         !["buy", "sell"].includes(body.side as string) ||
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
         data.token.network !== network ||
         !["live", "graduated", "migrated"].includes(data.token.state)
       )
-        throw new Error("This coin is not minted on devnet. Mint it first.");
+        throw new Error("This coin is not available on the configured network.");
       const poolAddress = new PublicKey(data.token.dbcPool);
       const [pool, config] = await Promise.all([
         client.state.getPool(poolAddress),
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest) {
         });
         minimumOut = quote.minimumAmountOut;
       }
+      if (body.action === "quote") return NextResponse.json({ minimumOut: minimumOut.toString() }, { headers: { "Cache-Control": "no-store" } });
       const prepared = await unsignedPumpTransaction(
         connection,
         payer,
@@ -180,6 +182,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         signature: await connection.sendRawTransaction(tx.serialize(), {
           skipPreflight: false,
+          preflightCommitment: "confirmed",
           maxRetries: 3,
         }),
       });
@@ -255,7 +258,7 @@ export async function POST(req: NextRequest) {
             const migrated = await migratedPool(connection, new PublicKey(data.token.dbcPool));
             if (!migrated) throw new Error("Migrated pool missing");
             const s = Number(migrated.state.sqrtPrice.toString()) / 2 ** 64;
-            capSol = migrated.state.tokenBMint.equals(NATIVE_MINT) ? s*s*units*totalSupply : totalSupply/(s*s*units);
+            capSol = marketCapSol(s, totalSupply, supply.value.decimals, migrated.state.tokenBMint.equals(NATIVE_MINT));
           }
           const solAmount =
             receipt.side === "buy"

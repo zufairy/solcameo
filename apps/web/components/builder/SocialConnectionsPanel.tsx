@@ -327,7 +327,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
               : <span />}
             {addBtn}
           </div>
-          <div className="h-px bg-white/80 mt-1.5" />
+
         </div>
       ) : (
         <div className={`flex items-center justify-between px-5 py-3.5 border-b ${theme.row}`}>
@@ -418,7 +418,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
           <button
             type="button"
             onClick={() => setShowAdd((v) => !v)}
-            className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/40 bg-white/90 py-2 text-[12px] font-semibold text-neutral-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-xl transition-colors hover:bg-white"
+            className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/25 bg-white/[0.12] py-2.5 text-[12px] font-semibold text-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-all hover:bg-white/[0.2] active:scale-[0.98]"
           >
             <Plus className={`size-3.5 transition-transform ${showAdd ? "rotate-45" : ""}`} />
             {showAdd ? "Done" : "Add account"}
