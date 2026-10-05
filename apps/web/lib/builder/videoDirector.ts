@@ -509,7 +509,9 @@ export function deriveVideoDirectorIntent(raw: string): VideoDirectorIntent {
 
   // Engine
   let videoEngine: VideoEngineId | undefined;
-  if (/\bveo\b|veo ?3/.test(t)) videoEngine = "veo3-fast";
+  if (/higgsfield/.test(t) && /seedance/.test(t)) videoEngine = /2\.?0\b/.test(t) ? "hf-seedance-2" : "hf-seedance-25";
+  else if (/higgsfield/.test(t) && /grok/.test(t)) videoEngine = "hf-grok-video";
+  else if (/\bveo\b|veo ?3/.test(t)) videoEngine = "veo3-fast";
   else if (/seedance/.test(t)) videoEngine = "seedance-v2";
   else if (/kling/.test(t)) videoEngine = "kling-v3";
   else if (/grok.*(1\.?5|imagine 1\.?5)|imagine 1\.?5/.test(t)) videoEngine = "grok-imagine-15";

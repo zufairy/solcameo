@@ -38,8 +38,8 @@ function Logo() {
       aria-label={`${BRAND.name} home`}
       className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
     >
-      <img src="/brand/solcameo-mark.png" alt="" className="hidden size-8 object-contain group-data-[collapsible=icon]:block" />
-      <img src="/brand/solcameo-dark.png" alt="Solcameo" width={190} height={38} className="h-8 w-auto max-w-[190px] object-contain group-data-[collapsible=icon]:hidden" />
+      <img src="/brand/solcameo-mark.png" alt="" className="hidden size-6 object-contain group-data-[collapsible=icon]:block" />
+      <img src="/brand/solcameo-dark.png" alt="Solcameo" width={190} height={38} className="h-6 w-auto max-w-[150px] object-contain group-data-[collapsible=icon]:hidden" />
     </Link>
   );
 }
@@ -160,7 +160,7 @@ function SidebarDividerToggle() {
     aria-controls="vello-sidebar"
     onClick={toggleSidebar}
     style={{ left: expanded ? "var(--sidebar-width)" : "var(--sidebar-width-icon)" }}
-    className="solcameo-sidebar-toggle fixed top-[15px] z-40 hidden h-5 w-4 -translate-x-1/2 items-center justify-center rounded-full border border-white/15 bg-[#202326] text-white shadow-sm transition-[left,color,background-color] duration-200 hover:bg-[#2b2e31] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ec7352] motion-reduce:transition-none md:flex"
+    className="solcameo-sidebar-toggle fixed top-[15px] z-40 hidden h-6 w-3.5 -translate-x-1/2 items-center justify-center rounded-[2px] border border-white/15 bg-[#202326] text-white shadow-sm transition-[left,color,background-color] duration-200 hover:bg-[#2b2e31] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ec7352] motion-reduce:transition-none md:flex"
   >{expanded ? <ChevronLeft className="size-2.5" strokeWidth={2} /> : <ChevronRight className="size-2.5" strokeWidth={2} />}</button>;
 }
 

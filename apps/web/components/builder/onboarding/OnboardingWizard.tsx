@@ -40,8 +40,8 @@ const TOTAL_STEPS = 7; // 6 content steps + the sample gate
 const STEP_META: { title: string; subtitle: string }[] = [
   { title: "What's this agent about?", subtitle: "The premise, in one line." },
   { title: "Pick the face", subtitle: "Choose the influencer's look, or upload your own photo." },
-  { title: "Pick your formats", subtitle: "Up to 3, this drives everything the agent produces." },
-  { title: "Dial in each format", subtitle: "Length and style, per format." },
+  { title: "Pick your formats", subtitle: "Up to 3. Tap a card to preview and rank it." },
+  { title: "Dial in each format", subtitle: "Output model, then length and style per format." },
   { title: "Find your voice", subtitle: "Tone, language, energy." },
   { title: "Set the cadence", subtitle: "How often it posts, and what that costs." },
   { title: "Sample", subtitle: "One last look before it goes live." },

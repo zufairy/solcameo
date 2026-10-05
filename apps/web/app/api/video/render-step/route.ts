@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MOTION_SWAP_FORMAT_ID, motionReferenceFromBible, renderMotionSwap } from "@/lib/server/motionSwap";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { putVideo } from "@/lib/server/videoStorage";
@@ -530,7 +531,25 @@ export async function POST(req: NextRequest) {
       let seedanceStateLocal: SeedanceState = (() => {
         try { return job.seedanceState ? (JSON.parse(job.seedanceState) as SeedanceState) : {}; } catch { return {}; }
       })();
-      const result = await generateVideoFromScript({
+      // Motion Swap is a Higgsfield Genjutsu render (library clip's motion → the
+      // character), not a script-driven Kie render — so it bypasses the pipeline.
+      const runMotionSwap = async (): Promise<{ videoUrl?: string; videoNote?: string; videoError?: string }> => {
+        try {
+          const doc = await convex.query(api.influencers.getByMint, { mintAddress: job.mintAddress });
+          const referenceVideoUrl = motionReferenceFromBible((doc as { showBible?: unknown } | null)?.showBible);
+          if (!referenceVideoUrl) return { videoError: "Motion Swap needs a reference move — pick one in the Director tab." };
+          const videoUrl = await renderMotionSwap({
+            referenceVideoUrl,
+            characterImageUrl: baseArgs.avatarUrl,
+            timeoutMs: VIDEO_BUDGET_MS,
+            idempotencyPrefix: String(id),
+          });
+          return { videoUrl, videoNote: "Motion Swap rendered on Higgsfield Genjutsu." };
+        } catch (e) {
+          return { videoError: e instanceof Error ? e.message : String(e) };
+        }
+      };
+      const result = baseArgs.formatId === MOTION_SWAP_FORMAT_ID ? await runMotionSwap() : await generateVideoFromScript({
         ...baseArgs,
         apiKey: KIE_KEY,
         phase: "video",

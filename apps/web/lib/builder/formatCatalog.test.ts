@@ -4,7 +4,7 @@ import { VIDEO_FORMATS, formatById, clampFormatDuration, formatRequiresStartFram
 describe("VIDEO_FORMATS", () => {
   it("contains the launch formats with exact ids", () => {
     expect(VIDEO_FORMATS.map((f) => f.id).sort()).toEqual([
-      "absurd", "anime", "cartoon", "case-study", "clipper", "commercial", "documentary", "founder-talk", "news-commentary", "no-voice-candids", "skit", "street-interview", "voiceover",
+      "absurd", "anime", "cartoon", "case-study", "clipper", "commercial", "documentary", "founder-talk", "motion-swap", "news-commentary", "no-voice-candids", "skit", "street-interview", "voiceover",
     ]);
   });
   it("every generate-pipeline format has a template with a {topic} slot and at least one engine", () => {

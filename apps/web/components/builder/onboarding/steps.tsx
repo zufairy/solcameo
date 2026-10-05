@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { videoCreditsForLength, VIDEO_ENGINES, selectableVideoEngines, HIDDEN_VIDEO_ENGINE_IDS, type VideoEngineOption } from "@/lib/builder/agentTypes";
 import { clampWizardDuration, wizardDurationBounds, type VideoFormat } from "@/lib/builder/formatCatalog";
 import type { OnboardingDraft } from "@/lib/builder/onboardingDraft";
+import { MotionReferencePicker } from "./MotionReferencePicker";
 import { WIZARD_FORMATS } from "@/lib/builder/onboardingDraft";
 
 /** Onboarding wizard step components — pure `{ draft, onChange }` panels.
@@ -295,8 +296,6 @@ export function StepFormats({ draft, onChange }: StepProps) {
     onChange({ ...draft, formats: [...draft.formats, id] });
   };
 
-  const suggested = suggestedEngine(draft);
-
   return (
     <div>
       <p className="mb-4 text-[12px] text-zinc-500">Pick up to {MAX_FORMATS} formats, this drives everything the agent produces.</p>
@@ -313,14 +312,25 @@ export function StepFormats({ draft, onChange }: StepProps) {
         ))}
       </div>
 
+    </div>
+  );
+}
+
+/** Output settings (video model + aspect ratio) — lives with the length sliders because the
+    engine sets their bounds and the credit estimate. */
+function OutputSettings({ draft, onChange }: StepProps) {
+  const suggested = suggestedEngine(draft);
+  return (
+    <>
       {/* Video model + Aspect ratio — same row: both are per-project render
           settings (not per-format), so they read as one "output" group. */}
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl sm:grid-cols-2">
         {/* Engine picker, defaults to the suggested engine for the top-ranked
             format, but any engine can be chosen; it drives Step 3's length
             bounds and the cost preview. */}
         <div>
           <label className={labelCls} htmlFor="wizard-engine">Video model</label>
+          {draft.formats.includes("motion-swap") && <p className="mt-1 text-[11.5px] text-zinc-500">Motion Swap always renders on <span className="font-semibold text-lime-300">Genjutsu</span>; this model applies to your other formats.</p>}
           {suggested && (
             <p className="mt-1 text-[11.5px] text-zinc-500">
               Suggested for your picks: <span className="font-semibold text-lime-300">{suggested.label}</span> · {Math.round(suggested.pricePerMaxClipUsdc * 100)} credits per {suggested.maxClipSeconds}s segment
@@ -373,7 +383,7 @@ export function StepFormats({ draft, onChange }: StepProps) {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -501,6 +511,7 @@ export function StepTunables({ draft, onChange }: StepProps) {
 
   return (
     <div className="space-y-4">
+      <OutputSettings draft={draft} onChange={onChange} />
       {selected.map((format) => {
         // Engine-aware bounds: Grok slides from 5s (cheap test renders),
         // Gemini Omni from 10s; everything caps at 30s.
@@ -533,6 +544,17 @@ export function StepTunables({ draft, onChange }: StepProps) {
                 }
               />
             </div>
+
+            {format.id === "motion-swap" && (
+              <div className="mt-4 border-t border-white/[0.06] pt-4">
+                <p className="text-[12px] font-medium text-zinc-400">Pick the move <span className="font-normal text-zinc-600">· renders on Genjutsu automatically</span></p>
+                <p className="mb-3 mt-0.5 text-[11px] text-zinc-600">Your character performs this clip's motion. Browse the same Higgsfield library as Explore.</p>
+                <MotionReferencePicker
+                  value={draft.tunables[format.id]?.reference ?? ""}
+                  onPick={(r) => onChange({ ...draft, tunables: { ...draft.tunables, [format.id]: { ...draft.tunables[format.id], reference: r.videoUrl, referenceTitle: r.title } } })}
+                />
+              </div>
+            )}
 
             {format.tunables.length > 0 && (
               <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-4">

@@ -147,7 +147,8 @@ export function draftStepComplete(draft: OnboardingDraft, step: number): boolean
     case 1: return draft.premise.trim().length > 0;
     case 2: return true;  // face pick optional — minted avatar remains the fallback
     case 3: return draft.formats.length >= 1 && draft.formats.length <= 3 && draft.formats.every((f) => formatById(f));
-    case 4: return true;  // tunables optional
+    // tunables optional, except Motion Swap: it cannot render without a library move
+    case 4: return !draft.formats.includes("motion-swap") || !!draft.tunables["motion-swap"]?.reference;
     case 5: return !!draft.tone && !!draft.language;
     case 6: return draft.postsPerDay >= 1;
     default: return true;

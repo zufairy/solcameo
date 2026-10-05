@@ -276,6 +276,16 @@ export const VIDEO_FORMATS: VideoFormat[] = [
     pipeline: "generate",
   },
   {
+    id: "motion-swap", name: "Motion Swap",
+    blurb: "Your character performs a trending move from the reference library. Powered by Higgsfield Genjutsu.",
+    // A finished Genjutsu render from the Higgsfield reference library (lib/explore).
+    exampleClipUrls: ["https://d8j0ntlcm91z4.cloudfront.net/community-presets/7b8aebe7-9adb-420b-9211-9550cd29b113/edit.mp4"], durationSec: D(4, 15, 8),
+    engines: ["hf-genjutsu"], voice: "none",
+    promptTemplate: "Apply the chosen reference motion ({topic}) to {cast}. Keep the character's face, outfit and the original camera framing. Total length {durationSec}s.",
+    tunables: [],
+    pipeline: "generate",
+  },
+  {
     id: "clipper", name: "Clipper",
     blurb: "Cuts the sharpest, most shareable moments out of your longer source videos.",
     // Not shown in the wizard (WIZARD_FORMATS excludes "clipping" formats) —

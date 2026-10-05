@@ -385,6 +385,8 @@ export const updateJob = mutation({
           title: `${c?.name ?? "Creator"}: next chapter`,
           prompt: j.prompt,
           source: "generated",
+          // The keeper submits every flywheel job to Kie grok-imagine/image-to-video.
+          engine: "Grok Imagine",
           createdAt: Date.now(),
         });
       }

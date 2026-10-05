@@ -1417,3 +1417,21 @@ html.light body *, html.dark body * {
   font-feature-settings: "calt", "kern", "ss03";
   letter-spacing: -0.01em;
 }
+
+/* Apple-style system type for market card names. */
+.font-apple { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", var(--font-inter), system-ui, sans-serif; }
+/* "View market" call-to-action: animated sweep so it reads as clickable. */
+.market-cta {
+  position: relative;
+  overflow: hidden;
+  color: #0e1a05;
+  background: linear-gradient(110deg, #9be15d 0%, #d7ff00 40%, #7cf5c2 70%, #9be15d 100%);
+  background-size: 220% 100%;
+  animation: market-cta-sweep 4s linear infinite;
+  transition: filter 0.2s;
+}
+.market-cta:hover { filter: brightness(1.08); }
+.market-cta:hover .market-cta-arrow { transform: translate(2px, -2px); }
+.market-cta-arrow { transition: transform 0.2s; }
+@keyframes market-cta-sweep { 0% { background-position: 0% 0; } 100% { background-position: 220% 0; } }
+@media (prefers-reduced-motion: reduce) { .market-cta { animation: none; } }

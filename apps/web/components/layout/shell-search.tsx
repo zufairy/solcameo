@@ -89,7 +89,7 @@ export function ShellSearch() {
         className="group flex h-8 w-full max-w-xl items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-zinc-500 transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate text-left">Search tokens and characters...</span>
+        <span className="flex-1 truncate text-left">Search anything...</span>
         <kbd className="hidden rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[11px] text-zinc-400 sm:inline">
           ⌘K
         </kbd>
@@ -126,7 +126,7 @@ function CommandInputShell({
 }) {
   return (
     <Command shouldFilter={false}>
-      <CommandInput value={value} onValueChange={onValueChange} placeholder="Search by name or ticker..." />
+      <CommandInput value={value} onValueChange={onValueChange} placeholder="Search anything..." />
       <CommandList>{children}</CommandList>
     </Command>
   );

@@ -3,6 +3,8 @@
  * Each type has its own phase flow, canvas template, and system prompt.
  */
 
+import { HIGGSFIELD_ENGINES } from "./higgsfieldEngines";
+
 export type AgentType = "influencer" | "worker" | "trader" | "campaign" | "clipping";
 
 // ── Phase definitions ─────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ Once the agent is minted, the operator gives commands to DO things, not just con
 - \`{"type":"fund_wallet","amount":<number optional>,"token":"USDC"|"SOL" optional}\` — when the operator asks to **fund / top up / deposit to / add money to** the agent wallet. Emit it and the client shows an in-chat funding card (the operator signs the transfer in their own wallet). If they didn't name an amount, omit \`amount\` — the agent recommends one to cover ~30 days of burn. Default token USDC unless they mention SOL/gas.
 - \`{"type":"create_skill","name":"Short skill name","description":"one-line summary","tags":["..."],"markdown":"Full operating instructions…"}\` — when the operator asks you to **research / build / create / make a new skill** for the agent. YOU are the skills engineer: synthesise what you know about the topic into a concrete, usable skill. \`markdown\` is the agent's operating manual for that skill — specific and actionable, 150-500 words. (For a "speak good Malaysian Malay" skill: everyday KL/Malaysian Malay patterns, particles like "lah/kan/eh", common slang, Manglish code-switching norms, cultural context, do's/don'ts, and 4-6 example lines.) The skill is added to the agent's Skills card immediately and the agent uses it on every task. Confirm in ≤2 sentences naming the skill. Do exactly ONE create_skill per request unless asked for more. STRICT GATE: emit create_skill ONLY when the operator EXPLICITLY asks to build/create/make a skill — never as a side effect of a persona edit, a standards change, or a style request (those belong in the config/persona). A skill must be FUNCTIONAL: concrete instructions that change how videos/content come out. When in doubt, don't create one — the operator's videos matching what they asked for always outranks adding skills.
 - \`{"type":"set_video_config","videoConfig":{ …only the fields to change… }}\` — change the **Video Director** (how the agent's videos turn out) when the operator asks about video length, type/style, cadence, captions, hook text, aspect ratio, or look. Send ONLY the fields you're changing (merged server-side). Fields & allowed values: \`minSeconds\`/\`maxSeconds\` (5-60 — the length RANGE; videos vary within it), \`videosPerDay\` (sets posting cadence), \`monthlyBudget\` (USDC/month — drives the cost estimate + suggested max cadence), \`maxBrandsPerDay\` (cap on brand campaigns the agent joins+posts per day), \`aspectRatio\` ("9:16"|"1:1"|"16:9"), \`styles\`[] (rotates for variety: "talking_head"|"commercial"|"ootd"|"vlog"|"tutorial"|"ugc_review"|"cinematic_broll"|"asmr"), \`hookStyles\`[] ("question"|"bold_claim"|"pattern_interrupt"|"story"|"stat"|"problem_solution"), \`settings\`[] ("studio"|"home"|"outdoor"|"nature"|"cafe"|"abstract"), \`moods\`[] ("upbeat"|"aspirational"|"edgy"|"cozy"|"luxe"), \`energy\` ("calm"|"balanced"|"high"|"hype"), \`cameraStyle\` ("ugc_handheld"|"tripod"|"cinematic"|"selfie"), \`colorGrade\` ("natural"|"warm"|"vibrant"|"moody"|"clean_bright"), \`cta\` ("follow"|"visit_link"|"comment"|"shop"|"none"), \`captions\` {"enabled":bool,"style":{"mode":"karaoke"|"line","fontColor":"#ffffff","fontSize":48,"position":"top"|"center"|"bottom"}}, \`hookText\` {"enabled":bool,"source":"auto"|"custom","text"?:"…","style":{…same shape…}}. Map plain-language requests to these. Examples: "make her videos 60 seconds" → \`{"type":"set_video_config","videoConfig":{"minSeconds":55,"maxSeconds":60}}\`; "do commercial and OOTD style" → \`{"videoConfig":{"styles":["commercial","ootd"]}}\`; "post 3 videos a day" → \`{"videoConfig":{"videosPerDay":3}}\`; "turn on captions" → \`{"videoConfig":{"captions":{"enabled":true,"style":{"mode":"karaoke","fontColor":"#ffffff","fontSize":48,"position":"bottom"}}}}\`. After emitting, confirm in ≤2 sentences and tell them to open the **Director** tab to see it. This is the agentic way to tune videos — never tell the operator to do it manually, just do it.
-- \`{"type":"set_video_engine","videoEngine":"<id>"}\` — switch the **render engine** when the operator asks to change the video engine/model. Allowed ids: "gemini-omni" (Gemini Omni) | "veo3-fast" (Google Veo 3.1 Fast) | "seedance-v2" (Seedance 2.0) | "kling-v3" (Kling 3.0) | "grok-imagine-15" (Grok Imagine 1.5). Map names to ids: "use Veo" → \`{"type":"set_video_engine","videoEngine":"veo3-fast"}\`; "switch to Seedance" → \`"seedance-v2"\`; "use Kling" → \`"kling-v3"\`. Engine is separate from \`set_video_config\` — emit this action for engine changes. Confirm + point to the **Director** tab.
+- \`{"type":"set_video_engine","videoEngine":"<id>"}\` — switch the **render engine** when the operator asks to change the video engine/model. Allowed ids: "gemini-omni" (Gemini Omni) | "veo3-fast" (Google Veo 3.1 Fast) | "seedance-v2" (Seedance 2.0) | "kling-v3" (Kling 3.0) | "grok-imagine-15" (Grok Imagine 1.5) | "hf-seedance-25" (Seedance 2.5 on Higgsfield) | "hf-seedance-2" (Seedance 2.0 on Higgsfield) | "hf-grok-video" (Grok Imagine on Higgsfield). Map names to ids: "use Veo" → \`{"type":"set_video_engine","videoEngine":"veo3-fast"}\`; "switch to Seedance" → \`"seedance-v2"\`; "use Kling" → \`"kling-v3"\`. Engine is separate from \`set_video_config\` — emit this action for engine changes. Confirm + point to the **Director** tab.
 
 🎯 **VELLO CAMPAIGNS — joining requires skills + a matching connected platform. Follow this gate exactly:**
 Joining a campaign means PUBLISHING a real post and submitting its link, so it has hard prerequisites. Read the \`CAMPAIGNS_SKILL_INSTALLED\`, \`SOCIAL_SKILL_INSTALLED\`, \`CONNECTED_SOCIALS\`, and the per-campaign \`platforms=[...]\` + \`JOINABLE\`/\`NOT_JOINABLE(reason)\` markers in AVAILABLE_CAMPAIGNS.
@@ -660,6 +662,10 @@ export interface WalletState {
 // ceil(targetSeconds / maxClipSeconds) separate API calls.
 
 export type VideoEngineId =
+  | "hf-seedance-2"
+  | "hf-seedance-25"
+  | "hf-grok-video"
+  | "hf-genjutsu"
   | "gemini-omni"
   | "veo3-fast"
   | "seedance-v2"
@@ -681,6 +687,10 @@ export interface VideoEngineOption {
   pricePerMaxClipUsdc: number;  // Vello retail debit for one provider clip
   quality: "premium" | "high" | "balanced" | "budget";
   description: string;
+  /** Where the render runs. Omitted = Kie. */
+  provider?: "higgsfield";
+  /** Picked automatically by a format (e.g. Motion Swap), never offered in engine dropdowns. */
+  formatOnly?: boolean;
 }
 
 // Veo generates fixed 8s clips (extended for longer videos), so the standard
@@ -803,6 +813,7 @@ export function resolveRenderDurationSeconds(targetSeconds: number, fittedSecond
  */
 export function maxClipForModel(kieModel: string): number {
   const m = (kieModel ?? "").toLowerCase();
+  if (m in HIGGSFIELD_ENGINES) return HIGGSFIELD_ENGINES[m].maxClipSeconds;
   // Seedance 1.5 Pro caps at 12s/clip (not 15s like the legacy 2.0 default) —
   // check it before the generic "seedance" match below.
   if (/seedance.*1[.-]?5/.test(m)) return 12;
@@ -835,6 +846,53 @@ export function maxClipForModel(kieModel: string): number {
 // against the kie.ai model catalog and correct here in ONE place if they differ.
 // Storyboard image (nano-banana-pro) is billed separately at ~$0.04 per generation.
 export const VIDEO_ENGINES: VideoEngineOption[] = [
+  {
+    id: "hf-genjutsu",
+    label: "Genjutsu · Higgsfield",
+    kieModel: "hf:gj",
+    provider: "higgsfield",
+    formatOnly: true,
+    pricePerSecondUsdc: 0.4,
+    maxClipSeconds: 15,
+    pricePerMaxClipUsdc: 6,
+    quality: "premium",
+    description: "Higgsfield Genjutsu — transfers a library clip's motion onto your character. Used automatically by the Motion Swap format.",
+  },
+  {
+    id: "hf-seedance-25",
+    label: "Seedance 2.5 · Higgsfield",
+    kieModel: "hf:sd25",
+    provider: "higgsfield",
+    // Retail placeholders: priced like Kie's Seedance 2.0 per second until Higgsfield's
+    // per-clip cost is measured. Tune here in ONE place.
+    pricePerSecondUsdc: 0.8,
+    maxClipSeconds: 30,
+    pricePerMaxClipUsdc: 24,
+    quality: "premium",
+    description: "Higgsfield · ByteDance Seedance 2.5 — up to a single 30s take with native audio, locked to your character image.",
+  },
+  {
+    id: "hf-seedance-2",
+    label: "Seedance 2.0 · Higgsfield",
+    kieModel: "hf:sd20",
+    provider: "higgsfield",
+    pricePerSecondUsdc: 0.8,
+    maxClipSeconds: 15,
+    pricePerMaxClipUsdc: 12,
+    quality: "premium",
+    description: "Higgsfield · ByteDance Seedance 2.0 — smooth motion and strong identity lock, up to 1080p.",
+  },
+  {
+    id: "hf-grok-video",
+    label: "Grok Imagine · Higgsfield",
+    kieModel: "hf:gxv",
+    provider: "higgsfield",
+    pricePerSecondUsdc: 0.2,
+    maxClipSeconds: 15,
+    pricePerMaxClipUsdc: 3,
+    quality: "high",
+    description: "Higgsfield · xAI Grok Imagine video — fast, expressive image-to-video, 2-15s takes.",
+  },
   {
     id: "gemini-omni",
     label: "Gemini Omni",
@@ -914,7 +972,7 @@ export const HIDDEN_VIDEO_ENGINE_IDS: readonly string[] = ["veo3-fast", "kling-v
 
 /** The engines a user may pick in a dropdown. */
 export function selectableVideoEngines(): VideoEngineOption[] {
-  return VIDEO_ENGINES.filter((e) => !HIDDEN_VIDEO_ENGINE_IDS.includes(e.id));
+  return VIDEO_ENGINES.filter((e) => !HIDDEN_VIDEO_ENGINE_IDS.includes(e.id) && !e.formatOnly);
 }
 
 /**

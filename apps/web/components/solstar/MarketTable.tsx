@@ -343,6 +343,9 @@ function Market() {
               className="group overflow-hidden rounded-lg border border-white/[.09] bg-[#202326] transition-colors hover:border-[#d7ff00]/35 motion-reduce:transition-none"
             >
               <div className="p-5">
+                <span className="mb-4 inline-block rounded-[3px] bg-teal-400/10 px-2 py-1 text-[10px] font-medium text-teal-400">
+                  {r.category}
+                </span>
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     href={`/market/${r.characterId}`}
@@ -350,27 +353,14 @@ function Market() {
                   >
                     <Portrait row={r} large />
                     <div className="min-w-0">
-                      <h2 className="truncate text-sm font-semibold text-[#f5f4ef]">
+                      <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white">
                         {r.name}
                       </h2>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-zinc-300">
                         ${r.ticker} · {age(r.createdAt)}
                       </p>
                     </div>
                   </Link>
-                  <span aria-label="Change since launch" className="grid size-7 place-items-center">{pools[r.characterId]?.changeSinceLaunchPct == null ? <span className="text-zinc-600">—</span> : pools[r.characterId].changeSinceLaunchPct! >= 0 ? <ArrowUpRight className="size-4 text-[#d7ff00]" /> : <ArrowDownRight className="size-4 text-red-400" />}</span>
-                </div>
-                <div className="mt-5 flex gap-2 text-[10px]">
-                  <span className="rounded-md bg-white/5 px-2 py-1 text-zinc-400">
-                    {r.network === "paper"
-                      ? "Preview"
-                      : r.dbcPool
-                        ? `DBC · ${r.network}`
-                        : `Solana · ${r.network}`}
-                  </span>
-                  <span className="rounded-md bg-teal-400/10 px-2 py-1 text-teal-400">
-                    {r.category}
-                  </span>
                 </div>
                 <div className="mt-6 flex items-center justify-between gap-2">
                   <div>
@@ -386,7 +376,7 @@ function Market() {
                         USD
                       </span>
                     </p>
-                    <div className="mt-2">
+                    <div className="mt-1">
                       <ChangePill value={pools[r.characterId]?.changeSinceLaunchPct} /><span className="ml-2 text-[10px] text-zinc-500">since launch</span>
                     </div>
                   </div>
@@ -440,10 +430,10 @@ function Market() {
               </div>
               <Link
                 href={`/market/${r.characterId}`}
-                className="flex items-center justify-between border-t border-white/[.08] px-5 py-4 text-xs text-zinc-500 transition-colors hover:bg-white/5 hover:text-[#d7ff00]"
+                className="market-cta flex items-center justify-between border-t border-white/[.08] px-5 py-4 text-xs font-medium"
               >
                 View market
-                <ArrowUpRight className="size-4" />
+                <ArrowUpRight className="market-cta-arrow size-4" />
               </Link>
             </motion.article>
           ))}
@@ -626,7 +616,7 @@ function Market() {
 function Portrait({ row, large = false }: { row: MarketRow; large?: boolean }) {
   return (
     <span
-      className={`relative grid shrink-0 place-items-center overflow-hidden border border-white/10 bg-[#d7ff00]/10 text-xs font-semibold text-[#d7ff00] ${large ? "size-14 rounded-lg" : "size-10 rounded-full"}`}
+      className={`relative grid shrink-0 place-items-center overflow-hidden border border-white/10 bg-[#d7ff00]/10 text-xs font-semibold text-[#d7ff00] ${large ? "size-16 rounded-[4px]" : "size-10 rounded-full"}`}
       aria-hidden="true"
     >
       {row.name.slice(0, 2).toUpperCase()}

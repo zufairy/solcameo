@@ -13,6 +13,8 @@
 //   Veo3:    https://docs.kie.ai/veo3-api/generate-veo-3-video
 //   Seedance: https://docs.kie.ai/market/bytedance/seedance-2-fast
 
+import { HIGGSFIELD_ENGINES, isHiggsfieldModel } from "@/lib/builder/higgsfieldEngines";
+import { submitVideoClip, waitForVideo } from "@/lib/server/higgsfield";
 import {
   MAX_VIDEO_SECONDS,
   MIN_VIDEO_SECONDS,
@@ -4692,6 +4694,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
       // ceil(duration / clipMax) clips and concat them (independent shots — no
       // model-specific frame-chain params, so this works for any jobs model).
       const isGrok = /grok/i.test(videoModel);
+      const isHfEngine = isHiggsfieldModel(videoModel);
       // maxClipForModel("grok") returns 20 — that's the UI menu's display ceiling
       // (a "30s" grok clip is really base-15+extend-15 under the hood), NOT a
       // legal single /jobs/createTask duration. This segmentation math is the
@@ -4845,6 +4848,18 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
             duration: String(adapter.encodeDuration(thisClipLen)),
             resolution: outputResolution,
           };
+        } else if (isHfEngine) {
+          // Higgsfield image-to-video: `image_url` is REQUIRED; duration is an int.
+          const hf = HIGGSFIELD_ENGINES[videoModel];
+          const still = primaryStill ?? args.avatarUrl;
+          if (!isHttpImageUrl(still)) throw new Error(`${videoModel}: Higgsfield image-to-video needs a character image`);
+          input = {
+            prompt,
+            image_url: still,
+            aspect_ratio: args.aspectRatio ?? "9:16",
+            duration: Math.max(hf.minClipSeconds, Math.min(hf.maxClipSeconds, Math.round(clipLen))),
+            resolution: hf.resolutions.includes(outputResolution) ? outputResolution : "720p",
+          };
         } else {
           // Kling + any other generic jobs engine (best-effort shared shape).
           input = {
@@ -4860,6 +4875,10 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
         // so a slow clip can't run past the function limit and kill sibling clips
         // that are generating in parallel.
         const runClip = async (clipInput: Record<string, unknown>): Promise<string> => {
+          if (isHfEngine) {
+            const requestId = await submitVideoClip(HIGGSFIELD_ENGINES[videoModel].endpoint, clipInput, `${args.agentName}:${videoModel}:${i}:${Date.now()}`);
+            return await waitForVideo(requestId, Math.max(60_000, deadlineMs - Date.now() - 15_000));
+          }
           const taskId = await createJobsTask(videoModel, clipInput);
           const pollMs = Math.max(60_000, deadlineMs - Date.now() - 15_000);
           return await pollJobsTask(taskId, pollMs, `video(${videoModel} ${i + 1}/${segs.length})`);

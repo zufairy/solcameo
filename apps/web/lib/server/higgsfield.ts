@@ -126,6 +126,40 @@ export async function submitVideo(
   return data.request_id;
 }
 
+/** One image-to-video clip on a Higgsfield model endpoint. */
+export async function submitVideoClip(endpoint: string, input: Record<string, unknown>, idempotencyKey: string): Promise<string> {
+  const data = (await call(`/${endpoint}`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(input),
+  })) as { request_id?: string } | null;
+  if (!data?.request_id) throw new HfError("Higgsfield returned no request id", 502, "upstream");
+  return data.request_id;
+}
+
+/** Poll until the clip finishes; resolves to its (7-day) video URL. */
+export async function waitForVideo(requestId: string, timeoutMs: number): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let delay = 4000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, delay));
+    delay = Math.min(delay * 1.3, 10_000);
+    let result: HfResult;
+    try { result = await getStatus(requestId); } catch (e) {
+      if (e instanceof HfError && e.code === "upstream") continue; // transient
+      throw e;
+    }
+    if (result.status === "completed") {
+      if (!result.videoUrl) throw new HfError("Higgsfield finished without a video URL", 502, "upstream");
+      return result.videoUrl;
+    }
+    if (result.status === "failed" || result.status === "nsfw" || result.status === "canceled") {
+      throw new HfError(result.status === "nsfw" ? "Higgsfield moderation rejected this clip" : result.error || `Higgsfield clip ${result.status}`, 502, "upstream");
+    }
+  }
+  throw new HfError(`Higgsfield clip timed out after ${Math.round(timeoutMs / 1000)}s`, 504, "upstream");
+}
+
 export function parseResult(data: unknown, requestId: string): HfResult {
   const d = (data ?? {}) as { status?: string; images?: { url?: string }[]; video?: { url?: string }; error?: string };
   const status = (["queued", "in_progress", "completed", "failed", "nsfw", "canceled"].includes(d.status ?? "")
