@@ -392,6 +392,15 @@ function Market() {
           <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-zinc-500" />
         </div>
         <p className="ml-auto flex items-center gap-2.5 text-sm font-medium text-white">
+          <span aria-hidden className="relative grid size-3 place-items-center">
+            {connection.isWebSocketConnected && (
+              <>
+                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/60" />
+                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/30" style={{ animationDelay: "2.75s" }} />
+              </>
+            )}
+            <span className={`live-core relative size-2 rounded-full ${connection.isWebSocketConnected ? "bg-red-500 shadow-[0_0_8px_1px_rgba(239,68,68,0.5)]" : "bg-zinc-600"}`} />
+          </span>
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
               key={connection.isWebSocketConnected ? `n-${visible?.length ?? "…"}` : "off"}
@@ -406,20 +415,11 @@ function Market() {
                 : "Reconnecting…"}
             </motion.span>
           </AnimatePresence>
-          <span aria-hidden className="relative grid size-3 place-items-center">
-            {connection.isWebSocketConnected && (
-              <>
-                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/60" />
-                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/40" style={{ animationDelay: "0.9s" }} />
-              </>
-            )}
-            <span className={`live-core relative size-2 rounded-full ${connection.isWebSocketConnected ? "bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.7)]" : "bg-zinc-600"}`} />
-          </span>
           <style>{`
-            @keyframes liveRing { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
-            @keyframes liveCore { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
-            .live-ring { animation: liveRing 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
-            .live-core { animation: liveCore 1.8s ease-in-out infinite; }
+            @keyframes liveRing { 0% { transform: scale(0.9); opacity: 0.35; } 100% { transform: scale(2.2); opacity: 0; } }
+            @keyframes liveCore { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+            .live-ring { animation: liveRing 5.5s cubic-bezier(0.25, 0.1, 0.25, 1) infinite; }
+            .live-core { animation: liveCore 5.5s ease-in-out infinite; }
             @media (prefers-reduced-motion: reduce) { .live-ring, .live-core { animation: none; } .live-ring { display: none; } }
           `}</style>
         </p>
@@ -455,10 +455,10 @@ function Market() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="group relative overflow-hidden rounded-xl border border-white/[0.1] bg-gradient-to-b from-white/[0.075] to-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_60px_-28px_rgba(0,0,0,0.9)] backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:from-white/[0.1] motion-reduce:transition-none"
+              className="group relative overflow-hidden rounded-xl border border-white/25 bg-gradient-to-b from-white/[0.17] via-white/[0.08] to-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(255,255,255,0.04),0_28px_70px_-28px_rgba(0,0,0,0.95)] backdrop-blur-3xl backdrop-saturate-[1.8] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/40 hover:from-white/[0.22] motion-reduce:transition-none"
             >
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_55%_at_50%_-8%,rgba(255,255,255,0.2),transparent_62%)]" />
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl border border-white/70 [mask-image:radial-gradient(65%_45%_at_50%_0%,black,transparent)]" />
+              <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[46%] bg-gradient-to-b from-white/[0.42] via-white/[0.16] to-transparent" />
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl border-2 border-white/90 [mask-image:radial-gradient(65%_45%_at_50%_0%,black,transparent)]" />
               <div className="relative p-5">
                 <div className="flex items-start justify-between gap-3">
                   <Link
@@ -468,7 +468,7 @@ function Market() {
                     <Portrait row={r} large />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white">
+                        <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.55)]">
                           {r.name}
                         </h2>
 

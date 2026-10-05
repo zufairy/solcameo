@@ -1472,11 +1472,14 @@ html.light body *, html.dark body * {
   border: 0 !important;
   outline: 0;
   box-shadow: none !important;
-  background: #3b4cff url("/brand/create-fast.gif") center / cover no-repeat !important;
+  background: linear-gradient(135deg, #263a33, #33463e 35%, #2a3a47 70%, #263a33) !important;
+  background-size: 300% 300% !important;
+  animation: railCreateDrift 18s ease-in-out infinite;
   color: #fff !important;
 }
+@keyframes railCreateDrift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @media (prefers-reduced-motion: reduce) {
-  .solcameo-app .group[data-collapsible="icon"] [data-slot="sidebar-footer"] a[href="/create"] { background-image: none !important; }
+  .solcameo-app .group[data-collapsible="icon"] [data-slot="sidebar-footer"] a[href="/create"] { animation: none; }
 }
 
 /* Agent cards: 3D glossy glass. Tilts toward the cursor (vars set in AgentCard), gloss follows the pointer. */
