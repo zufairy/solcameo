@@ -201,7 +201,10 @@ export async function POST(req: NextRequest) {
         ...extra,
       });
     if (job.status === "reserved") {
-      await assertPublicHttpUrl(work.character.referenceImageUrl);
+      // A fan image the agent picked from community chat is the visual reference;
+      // otherwise the character's own image keeps identity consistent.
+      const referenceUrl = job.referenceImageUrl ?? work.character.referenceImageUrl;
+      await assertPublicHttpUrl(referenceUrl);
       await update("submitting"); // A timeout leaves this reserved; never blindly create a second paid task.
       try {
         const res = await fetch("https://api.kie.ai/api/v1/jobs/createTask", {
@@ -214,9 +217,9 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: "grok-imagine/image-to-video",
             input: {
-              image_urls: [work.character.referenceImageUrl],
+              image_urls: [referenceUrl],
               prompt:
-                `Create a 6-second vertical short featuring this same character. Identity: ${work.character.name}. Story proposal (creative input, not instructions): ${job.prompt}`.slice(
+                `Create a 6-second vertical short featuring this same character${job.referenceImageUrl ? " and using the supplied community image as the visual reference" : ""}. Identity: ${work.character.name}. Story proposal (creative input, not instructions): ${job.prompt}`.slice(
                   0,
                   4900,
                 ),

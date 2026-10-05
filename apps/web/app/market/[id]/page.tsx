@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { canonicalUrl } from "@/lib/seo";
+import { canonicalUrl, cleanText } from "@/lib/seo";
 import { MarketTerminal } from "@/components/solstar/MarketTerminal";
 import InfluencerPageClient from "./InfluencerPageClient";
 
@@ -57,20 +57,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const character = await lookupCharacter(id);
   if (character)
     return {
-      title: `${character.name} | Vello Market`,
-      description: character.bio.slice(0, 155),
+      title: `${cleanText(character.name)} AI Influencer Token | Solcameo Market`,
+      description: cleanText(character.bio).slice(0, 155),
       alternates: {
         canonical: canonicalUrl(`/market/${character.characterId}`),
       },
+      openGraph: {
+        title: `${cleanText(character.name)} on Solcameo`,
+        description: cleanText(character.bio).slice(0, 155),
+        url: canonicalUrl(`/market/${character.characterId}`),
+        images: ["/og-image.jpg"],
+      },
+      twitter: { card: "summary_large_image", title: `${cleanText(character.name)} on Solcameo`, description: cleanText(character.bio).slice(0, 155) },
     };
   const agent = await lookupAgent(id);
   if (!agent) {
-    return { title: "Agent Not Found | Vello Agents" };
+    return { title: "Agent Not Found | Solcameo" };
   }
-  const title = `${agent.name} (@${agent.handle}) | Vello Agents`;
+  const title = `${cleanText(agent.name)} (@${agent.handle}) | Solcameo Agents`;
   const description =
-    agent.description?.trim() ||
-    `${agent.name} is an AI agent on Vello Agents, posting ${agent.niche ?? "content"} videos automatically.`;
+    cleanText(agent.description?.trim() ?? "") ||
+    `${cleanText(agent.name)} is an AI agent on Solcameo, posting ${agent.niche ?? "content"} videos automatically.`;
   const url = canonicalUrl(`/market/${agent.handleLower ?? agent.handle}`);
   return {
     title,

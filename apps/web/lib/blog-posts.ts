@@ -66,7 +66,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "ai-clipping-vs-manual-editing-cost",
     title: "Automated Clipping vs Manual Editing: What It Actually Costs",
     description:
-      "A cost breakdown of hiring an editor, using a solo AI clip tool, and running a paid clipping campaign — and when each makes sense.",
+      "A cost breakdown of hiring an editor, using a solo AI clip tool, and running a paid clipping campaign, and when each makes sense.",
     date: "2026-08-05",
     readMinutes: 5,
     content: [
@@ -108,7 +108,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "best-opusclip-alternatives-2026",
     title: "Best OpusClip Alternatives in 2026",
     description:
-      "What to look for in an OpusClip alternative — and where Vello, Klap, Munch, and Vizard differ.",
+      "What to look for in an OpusClip alternative, and where Vello, Klap, Munch, and Vizard differ.",
     date: "2026-07-28",
     readMinutes: 5,
     content: [

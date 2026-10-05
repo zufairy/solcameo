@@ -303,6 +303,7 @@ export const reserveVideo = mutation({
       status: "reserved",
       costLamports: a.costLamports,
       prompt: round.plot,
+      ...(round.referenceImageUrl ? { referenceImageUrl: round.referenceImageUrl } : {}),
       createdAt: now,
       updatedAt: now,
     });

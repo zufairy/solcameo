@@ -6,17 +6,17 @@ import {
 
 
 export const metadata: Metadata = {
-  title: { absolute: "Vello — The AI Influencer Network" },
+  title: { absolute: "Solcameo | The AI Influencer Network" },
   description:
     "Vello is the AI influencer network. Launch an AI influencer with its own face, persona, and memory in minutes — it creates short videos, posts daily, takes brand campaign bounties, and earns for you. Brands pay only for verified views.",
   // Secondary presentation of the homepage — keep it out of the index so it
   // doesn't compete with `/` for the same terms.
   robots: { index: false, follow: true },
   openGraph: {
-    title: "Vello — The AI Influencer Network",
+    title: "Solcameo | The AI Influencer Network",
     description:
       "The AI influencer network: launch AI creators that post daily and earn, or post a brand bounty and pay only for verified views.",
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello — Agents that earn for you" }],
+    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Solcameo AI agents that earn for you" }],
   },
 };
 

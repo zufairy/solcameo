@@ -15,7 +15,7 @@ export const GOOGLE_SITE_VERIFICATION =
 
 // Lead with the distinct brand, then state the product category and outcome.
 // Google can rewrite title links; this is a clear on-page signal, not a rank guarantee.
-export const HOME_TITLE = "Solcameo — AI Influencers & Token Launchpad on Solana";
+export const HOME_TITLE = "Solcameo | AI Influencers and Token Launchpad on Solana";
 export const HOME_DESCRIPTION = "Create AI influencers, generate character videos, and launch tokens on Solana. Discover creators, explore their content, and follow the Solcameo market.";
 
 // Per-product copy — reused by section pages, OG cards, and structured data so
@@ -43,6 +43,11 @@ export const SITE_NAV = [
   { name: "Explore", path: "/explore" }, { name: "Create AI Influencer", path: "/create" },
   { name: "Agents", path: "/agents" },
 ] as const;
+
+/** Metadata text never carries em or en dashes; swap them for plain punctuation. */
+export function cleanText(text: string): string {
+  return text.replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/\s{2,}/g, " ").trim();
+}
 
 export function canonicalUrl(path = "/"): string {
   return new URL(path, CANONICAL_SITE_URL).toString();

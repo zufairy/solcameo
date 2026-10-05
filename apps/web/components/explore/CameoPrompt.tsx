@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { ReferenceVideo } from "@/lib/explore/feed";
 
@@ -13,9 +13,10 @@ const tokenOf = (name: string) => name.replace(/\s+/g, "").replace(/[^\w-]/g, ""
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
 
 /** Scene-direction box with @cameo mentions and a "magic" auto-written scenario. */
-export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }: {
+export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onChange, onCast }: {
   mint: string;
   primaryName: string;
+  primaryImage?: string;
   item: ReferenceVideo;
   value: string;
   onChange: (v: string) => void;
@@ -30,7 +31,13 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reveal, setReveal] = useState<string[] | null>(null);
-  const edited = useRef(false); // true once the operator typed their own words
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState<CameoMember[]>([]);
+  const [uploading, setUploading] = useState(false);
+  // Words of the last auto-written prompt (mentions stripped). Anything else in the box is the operator's own.
+  const lastAuto = useRef("");
+  const strip = (t: string) => t.replace(/@[\w-]*/g, "").replace(/\s+/g, " ").trim();
+  const userWrote = (t: string) => !!strip(t) && strip(t) !== lastAuto.current;
   const runId = useRef(0);
 
   const roster = useMemo(() => {
@@ -43,8 +50,9 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
       seen.add(token.toLowerCase());
       out.push({ token, name: a.name, avatarUrl: a.avatarUrl });
     }
+    for (const u of uploads) if (!seen.has(u.token.toLowerCase())) out.push(u);
     return out;
-  }, [agents, mint]);
+  }, [agents, mint, uploads]);
 
   const cast = useMemo(() => {
     const found: CameoMember[] = [];
@@ -71,8 +79,32 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
     const next = `${value.slice(0, query.start)}@${member.token} ${value.slice(caret)}`;
     onChange(next);
     setQuery(null);
-    edited.current = false; // choosing a cameo should refresh the auto scenario
     requestAnimationFrame(() => { const pos = query.start + member.token.length + 2; el?.focus(); el?.setSelectionRange(pos, pos); });
+  }
+
+  async function addPhoto(file: File) {
+    setError("");
+    setUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("Couldn't read the file"));
+        r.readAsDataURL(file);
+      });
+      const res = await fetch("/api/upload-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ base64 }) });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? `Upload failed (${res.status})`);
+      const n = uploads.length + 1;
+      const member: CameoMember = { token: `Photo${n}`, name: `Photo ${n}`, avatarUrl: data.url };
+      setUploads((u) => [...u, member]);
+      onChange(`${value}${value && !/\s$/.test(value) ? " " : ""}@${member.token} `);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function magic(opts?: { keepDraft?: boolean }) {
@@ -88,16 +120,15 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
           title: item.title,
           description: item.description,
           category: item.category,
-          cast: [{ token: tokenOf(primaryName), name: primaryName }, ...cast.map((c) => ({ token: c.token, name: c.name }))],
+          cast: [{ token: tokenOf(primaryName), name: primaryName, imageUrl: primaryImage }, ...cast.map((c) => ({ token: c.token, name: c.name, imageUrl: c.avatarUrl }))],
           draft: opts?.keepDraft ? value : "",
         }),
       });
       const data = (await res.json()) as { prompt?: string; error?: string };
       if (!res.ok || !data.prompt) throw new Error(data.error || "Couldn't write a prompt right now.");
       if (id !== runId.current) return; // superseded or edited meanwhile
-      // Keep every mentioned cameo in the text so references stay attached.
-      const missing = cast.filter((c) => !new RegExp(`@${c.token}\\b`, "i").test(data.prompt!)).map((c) => `@${c.token}`);
-      const text = missing.length ? `${data.prompt} ${missing.join(" ")}` : data.prompt;
+      const text = data.prompt;
+      lastAuto.current = strip(text);
       if (reduced) { onChange(text); return; }
       const words = text.split(/(\s+)/).filter(Boolean);
       setReveal(words);
@@ -111,7 +142,7 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
 
   // Automatic scenario: on open, and whenever the cast changes, until the operator writes their own.
   useEffect(() => {
-    if (edited.current && value.trim()) return;
+    if (userWrote(value)) return;
     const t = window.setTimeout(() => void magic(), 600);
     return () => window.clearTimeout(t);
   }, [castKey, item.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -119,11 +150,18 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">Scene direction <span className="text-zinc-600">· type @ to cameo another agent</span></span>
-        <button type="button" disabled={busy} onClick={() => { edited.current = false; void magic({ keepDraft: true }); }}
+        <span className="text-xs text-zinc-400">Scene direction <span className="text-zinc-600">· type @ for another agent, or add an image</span></span>
+        <div className="flex items-center gap-1.5">
+        <button type="button" disabled={uploading || cast.length >= 7} onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/10 disabled:opacity-50">
+          {uploading ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}Add image
+        </button>
+        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
+        <button type="button" disabled={busy} onClick={() => void magic({ keepDraft: userWrote(value) })}
           className="inline-flex items-center gap-1 rounded-full border border-[#d7ff00]/30 bg-[#d7ff00]/10 px-2.5 py-1 text-[11px] font-semibold text-[#d7ff00] transition-colors hover:bg-[#d7ff00]/20 disabled:opacity-60">
           {busy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}Magic prompt
         </button>
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -146,7 +184,7 @@ export function CameoPrompt({ mint, primaryName, item, value, onChange, onCast }
           value={value}
           rows={4}
           maxLength={4000}
-          onChange={(e) => { edited.current = true; runId.current++; setReveal(null); setBusy(false); onChange(e.target.value); detect(e.target.value, e.target.selectionStart); }}
+          onChange={(e) => { runId.current++; setReveal(null); setBusy(false); onChange(e.target.value); detect(e.target.value, e.target.selectionStart); }}
           onClick={(e) => detect(value, e.currentTarget.selectionStart)}
           onKeyDown={(e) => {
             if (!query || !matches.length) return;

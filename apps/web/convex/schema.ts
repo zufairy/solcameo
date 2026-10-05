@@ -51,7 +51,7 @@ export default defineSchema({
   }).index("by_token", ["tokenId"]).index("by_next_run", ["nextRunAt"]),
   ssContentJobs: defineTable({
     tokenId: v.id("ssTokens"), roundId: v.id("ssCommunityRounds"), key: v.string(), status: v.string(),
-    costLamports: v.int64(), prompt: v.string(), taskId: v.optional(v.string()), videoUrl: v.optional(v.string()), error: v.optional(v.string()),
+    costLamports: v.int64(), prompt: v.string(), referenceImageUrl: v.optional(v.string()), taskId: v.optional(v.string()), videoUrl: v.optional(v.string()), error: v.optional(v.string()),
     createdAt: v.number(), updatedAt: v.number(),
   }).index("by_key", ["key"]).index("by_token", ["tokenId"]).index("by_status", ["status"]),
   ssFollows: defineTable({ wallet: v.string(), characterId: v.id("ssCharacters"), createdAt: v.number() })
@@ -62,10 +62,10 @@ export default defineSchema({
     amountIn: v.int64(), amountOut: v.int64(), fee: v.int64(), idempotencyKey: v.string(), createdAt: v.number(),
   }).index("by_idem", ["idempotencyKey"]).index("by_wallet_token", ["wallet", "tokenId"]).index("by_token", ["tokenId"]),
   ssCommunityMessages: defineTable({
-    characterId: v.id("ssCharacters"), author: v.string(), role: v.union(v.literal("fan"), v.literal("agent")), body: v.string(), createdAt: v.number(),
+    characterId: v.id("ssCharacters"), author: v.string(), role: v.union(v.literal("fan"), v.literal("agent")), body: v.string(), imageUrl: v.optional(v.string()), createdAt: v.number(),
   }).index("by_character_created", ["characterId", "createdAt"]).index("by_created", ["createdAt"]).index("by_author_created", ["author", "createdAt"]),
   ssCommunityRounds: defineTable({
-    characterId: v.id("ssCharacters"), window: v.number(), status: v.union(v.literal("running"), v.literal("complete"), v.literal("failed")), leaseUntil: v.number(), plot: v.optional(v.string()), summary: v.optional(v.string()), createdAt: v.number(),
+    characterId: v.id("ssCharacters"), window: v.number(), status: v.union(v.literal("running"), v.literal("complete"), v.literal("failed")), leaseUntil: v.number(), plot: v.optional(v.string()), summary: v.optional(v.string()), referenceImageUrl: v.optional(v.string()), createdAt: v.number(),
   }).index("by_character_window", ["characterId", "window"]),
   ssFeed: defineTable({
     kind: v.union(v.literal("chat"), v.literal("event")),

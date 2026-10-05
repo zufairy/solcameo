@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 import { HowItWorks, type ExploreRef } from "@/components/solcameo/how/HowItWorks";
+import { canonicalUrl } from "@/lib/seo";
 import references from "@/lib/explore/references.json";
 
+const TITLE = "How Solcameo Works: Launch an AI Character With Its Own Coin";
+const DESCRIPTION = "Create an AI character, launch its Solana coin on a Meteora bonding curve, and let its community steer new videos. See the fee split, curve and creator tools.";
 export const metadata: Metadata = {
-  title: "How it works",
-  description: "Launch an AI character with its own Solana coin. See how the curve, fee split and community-driven videos work.",
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: canonicalUrl("/how-it-works") },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: canonicalUrl("/how-it-works"), images: ["/og-image.jpg"] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/og-image.jpg"] },
 };
 
 type Item = ExploreRef & { width: number; height: number };

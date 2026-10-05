@@ -403,7 +403,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           </button>
         ))}
       </div>
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)_320px] xl:grid-cols-[400px_minmax(0,1fr)_330px] 2xl:grid-cols-[460px_minmax(0,1fr)_360px]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[310px_minmax(0,1fr)_320px] xl:grid-cols-[350px_minmax(0,1fr)_330px] 2xl:grid-cols-[400px_minmax(0,1fr)_360px]">
         <aside
           className={`${mobilePanel === "community" ? "flex" : "hidden"} h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-white/10 lg:flex`}
         >
@@ -487,7 +487,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                     <img
                       src={character.referenceImageUrl}
                       alt={character.name}
-                      className="size-12 rounded-xl object-cover"
+                      className="size-12 rounded-[4px] object-cover"
                     />
                   )}
                   <div>

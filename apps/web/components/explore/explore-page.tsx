@@ -236,7 +236,7 @@ function Generator({
         </p>
       )}
       {portrait && (
-        <CameoPrompt mint={mint} primaryName={primaryName} item={item} value={prompt} onChange={setPrompt} onCast={setCast} />
+        <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
       <Button

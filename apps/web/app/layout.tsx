@@ -44,7 +44,7 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1920,
         height: 1080,
-        alt: "Solcameo — AI influencers and token launchpad on Solana",
+        alt: "Solcameo AI influencers and token launchpad on Solana",
       },
     ],
   },
