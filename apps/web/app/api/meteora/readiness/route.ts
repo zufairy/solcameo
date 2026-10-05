@@ -14,8 +14,12 @@ export async function GET(req: NextRequest) {
   try { if (address) wallet = new PublicKey(address); }
   catch { return NextResponse.json({ error: "Invalid wallet address." }, { status: 400 }); }
   if (!configured.ready || !storage) return NextResponse.json({ ready: false, network: configured.network, error: !storage ? "Coin metadata storage is not configured." : configured.reason }, { status: 503 });
+  let treasury;
+  try { treasury = dbcTreasury(); }
+  catch {
+    return NextResponse.json({ ready: false, network: configured.network, error: "Configure a valid SOLCAMEO_DBC_TREASURY_SECRET on the app service for fee collection and content funding." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
   try {
-    const treasury=dbcTreasury();
     const connection = dbcConnection();
     if (configured.network === "devnet") await assertDevnet(connection);
     const [slot, program, balance] = await Promise.all([
