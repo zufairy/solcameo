@@ -51,13 +51,11 @@ export async function POST(req: NextRequest) {
   let identity: Awaited<ReturnType<typeof getAgentQuotaIdentity>>;
   try {
     identity = await getAgentQuotaIdentity(convex, auth.user);
-    const quote = await convex.query(api.mintFee.quoteMintFee, {
+    await convex.query(api.mintFee.quoteMintFee, {
       creatorWallet, creatorWallets: identity.creatorWallets, creatorDid: identity.creatorDid,
       agentLimit: identity.agentLimit, standardFeeUsdc: 0, forceFree: true,
     });
-    if (identity.agentLimit >= 0 && quote.priorMints >= identity.agentLimit) {
-      return NextResponse.json({ ok: false, error: "Agent limit reached. Open My Agents to manage your agents or free a slot.", code: "agent_limit_reached" }, { status: 403 });
-    }
+
   } catch {
     return NextResponse.json({ ok: false, error: "Could not check agent access. Please retry." }, { status: 503 });
   }

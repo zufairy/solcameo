@@ -27,7 +27,10 @@ export function TerminalChart({
   mcap: boolean;
 }) {
   const [following, setFollowing] = useState(true);
-  const previous = useRef<{ view: string; candles: ReturnType<typeof candlesFromPoints> } | null>(null);
+  const previous = useRef<{
+    view: string;
+    candles: ReturnType<typeof candlesFromPoints>;
+  } | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -106,7 +109,8 @@ export function TerminalChart({
       if (range && last) setFollowing(range.to >= last - 2);
     });
     return () => {
-      previous.current = null; fitted.current = "";
+      previous.current = null;
+      fitted.current = "";
       histogram.current = null;
       c.remove();
       chart.current = null;
@@ -116,25 +120,58 @@ export function TerminalChart({
   useEffect(() => {
     const view = `${minutes}:${mcap}:${supplyTokens}`;
     const prior = previous.current;
-    series.current?.applyOptions({ priceFormat: { type: "price", precision: mcap ? 4 : 9, minMove: mcap ? 0.0001 : 0.000000001 } });
+    series.current?.applyOptions({
+      priceFormat: {
+        type: "price",
+        precision: mcap ? 4 : 9,
+        minMove: mcap ? 0.0001 : 0.000000001,
+      },
+    });
     // Update the current candle without rebuilding the series or moving a panned chart.
-    const appendOnly = prior?.view === view && candles.length >= prior.candles.length && prior.candles.length > 0 && prior.candles.slice(0, -1).every((c, i) => JSON.stringify(c) === JSON.stringify(candles[i]));
+    const appendOnly =
+      prior?.view === view &&
+      candles.length >= prior.candles.length &&
+      prior.candles.length > 0 &&
+      prior.candles
+        .slice(0, -1)
+        .every((c, i) => JSON.stringify(c) === JSON.stringify(candles[i]));
     if (appendOnly && prior) {
-      for (const candle of candles.slice(prior.candles.length - 1)) series.current?.update({ ...candle, time: candle.time as UTCTimestamp });
-      for (const volume of volumes.filter(v => v.time >= prior.candles[prior.candles.length - 1].time)) histogram.current?.update(volume);
+      for (const candle of candles.slice(prior.candles.length - 1))
+        series.current?.update({
+          ...candle,
+          time: candle.time as UTCTimestamp,
+        });
+      for (const volume of volumes.filter(
+        (v) => v.time >= prior.candles[prior.candles.length - 1].time,
+      ))
+        histogram.current?.update(volume);
     } else {
-      series.current?.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
+      series.current?.setData(
+        candles.map((c) => ({ ...c, time: c.time as UTCTimestamp })),
+      );
       histogram.current?.setData(volumes);
     }
     previous.current = { view, candles };
     if (candles.length && fitted.current !== view) {
-      chart.current?.timeScale().fitContent(); fitted.current = view;
+      chart.current?.timeScale().fitContent();
+      fitted.current = view;
     }
   }, [candles, mcap, volumes, minutes, supplyTokens]);
   return (
     <div className="relative">
       <div ref={container} className="h-[clamp(240px,42dvh,430px)] w-full" />
-      {!!candles.length && <button type="button" onClick={() => { chart.current?.timeScale().scrollToRealTime(); setFollowing(true); }} className={`absolute right-16 top-3 rounded border px-2 py-1 text-[10px] ${following ? "border-emerald-300/20 bg-[#181a1c] text-emerald-300" : "border-white/15 bg-[#202326] text-zinc-200"}`}>{following ? "Latest" : "Back to latest"}</button>}
+      {!!candles.length && (
+        <button
+          type="button"
+          onClick={() => {
+            chart.current?.timeScale().scrollToRealTime();
+            setFollowing(true);
+          }}
+          className={`absolute right-16 top-3 rounded border px-2 py-1 text-[10px] ${following ? "border-emerald-300/20 bg-[#181a1c] text-emerald-300" : "border-white/15 bg-[#202326] text-zinc-200"}`}
+        >
+          {following ? "Latest" : "Back to latest"}
+        </button>
+      )}
       {!candles.length && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-500">
           <span className="text-zinc-400">

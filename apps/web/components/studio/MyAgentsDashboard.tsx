@@ -1,6 +1,5 @@
 "use client";
 
-import { useAgentQuota } from "@/hooks/use-agent-quota";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -25,8 +24,6 @@ import {
   Trash2,
   AlertTriangle,
   Heart,
-  Clapperboard,
-  Gem,
   ChevronDown,
   Users,
   CalendarClock,
@@ -65,7 +62,6 @@ function timeAgo(ts: number): string {
  *  tokenomics (TVL/APR/share price) and no on-chain chrome. */
 function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; lastPostAt: number | null; onDelete: (mint: string, name: string) => void; onChat?: (mint: string) => void }) {
   const operateHref = `/builder?type=${doc.agentType || "influencer"}&mint=${doc.mintAddress}`;
-  const isClipper = doc.agentType === "clipping";
 
   return (
     <div className="group relative flex items-stretch overflow-hidden rounded-lg border border-white/10 bg-[#121416] transition-colors hover:bg-[#191c1e]">
@@ -98,22 +94,13 @@ function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; las
         <div className="flex items-center gap-1.5">
           <p className="truncate text-[15px] font-medium text-white">{doc.name}</p>
           <p className="shrink-0 truncate text-[11px] text-white/40">@{doc.handle}</p>
-          {doc.solstarTokenId && <span className="rounded bg-[#d7ff00]/10 px-1.5 py-0.5 text-[9px] text-[#d7ff00]">Coin linked</span>}
+          {doc.coinTicker && <span className="rounded bg-[#d7ff00]/10 px-1.5 py-0.5 text-[9px] text-[#d7ff00]">${doc.coinTicker}</span>}
           {doc.heartbeatEnabled && (
             <Heart className="size-3 shrink-0 animate-pulse fill-pink-500 text-pink-500" aria-label="Heartbeat on" role="img">
               <title>Heartbeat on</title>
             </Heart>
           )}
-          {/* Agent-type badge — rightmost on the name row. Frosted-glass 3D
-              button look (monochrome white): soft top highlight + drop shadow
-              instead of colored fills. Clippers = clapperboard, AI influencers
-              = gem. */}
-          <span
-            title={isClipper ? "AI Clipper" : "AI Influencer"}
-            className="ml-auto grid size-7 shrink-0 place-items-center rounded-xl border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-200 group-hover:scale-105"
-          >
-            {isClipper ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
-          </span>
+
         </div>
         {doc.description && (
           <p className="line-clamp-2 text-[11.5px] leading-snug text-white/45">{doc.description}</p>
@@ -283,20 +270,9 @@ const DAY_MS = 86_400_000;
 // single 6h window gets crowded). That's what makes "same time" rows read as
 // a clean row instead of colliding avatars stacked at slightly-different
 // pixel heights.
-const QUARTERS = [
-  { label: "12–6a", from: 0 },
-  { label: "6–12p", from: 6 },
-  { label: "12–6p", from: 12 },
-  { label: "6–12a", from: 18 },
-] as const;
-
 function dayKey(ts: number) {
   const d = new Date(ts);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function quarterOf(ts: number): number {
-  return Math.floor(new Date(ts).getHours() / 6);
 }
 
 /** One scheduled row's avatar chip — its own hover scope (Tailwind's
@@ -365,116 +341,16 @@ function WeeklyScheduleStrip({ mintAddresses, agentsByMint }: { mintAddresses: s
     mintAddresses.length ? { mintAddresses, startMs, endMs } : "skip",
   ) as SchedRow[] | undefined;
 
-  // day key → 4 quarters, each already time-sorted.
-  const byDayQuarter = useMemo(() => {
-    const m = new Map<string, SchedRow[][]>();
-    for (const r of rows ?? []) {
-      const k = dayKey(r.scheduledFor);
-      const quarters = m.get(k) ?? [[], [], [], []];
-      quarters[quarterOf(r.scheduledFor)].push(r);
-      m.set(k, quarters);
-    }
-    for (const quarters of m.values()) for (const q of quarters) q.sort((a, b) => a.scheduledFor - b.scheduledFor);
-    return m;
-  }, [rows]);
-
-  const totalCount = rows?.length ?? 0;
-  const loading = mintAddresses.length > 0 && rows === undefined;
-  const [nowQuarter] = useState(() => quarterOf(Date.now()));
-
-  return (
-    <motion.div {...blurIn(0.04)} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_30px_70px_-45px_rgba(0,0,0,0.9)]">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04]">
-            <CalendarClock className="size-3.5 text-white/75" strokeWidth={1.75} />
-          </span>
-          <div>
-            <p className="text-[13px] font-semibold text-white">Weekly schedule</p>
-            <p className="text-[10.5px] text-white/35">When your agents are posting next, at a glance</p>
-          </div>
-        </div>
-        {!loading && (
-          <p className="text-[11px] text-white/35">
-            <span className="font-semibold tabular-nums text-white/70">{totalCount}</span> scheduled this week
-          </p>
-        )}
-      </div>
-
-      <div className="relative mt-4 grid grid-cols-7 gap-px overflow-hidden rounded-xl bg-white/[0.06]">
-        {days.map((day, di) => {
-          const quarters = byDayQuarter.get(day.key) ?? [[], [], [], []];
-          return (
-            <motion.div
-              key={day.key}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.06 + di * 0.045, ease: [0.16, 1, 0.3, 1] }}
-              className={`relative bg-[#0b0b0e] px-1.5 pb-1.5 pt-1.5 ${day.isToday ? "bg-white/[0.03]" : ""}`}
-            >
-              <div className="flex flex-col items-center gap-0.5 pb-1.5">
-                <span className={`text-[9.5px] font-semibold uppercase tracking-wide ${day.isToday ? "text-lime-300" : "text-white/35"}`}>
-                  {day.weekday}
-                </span>
-                <span
-                  className={`grid size-5 place-items-center rounded-full text-[10.5px] font-bold tabular-nums ${
-                    day.isToday ? "bg-lime-400 text-black" : "text-white/55"
-                  }`}
-                >
-                  {day.date}
-                </span>
-              </div>
-
-              <div className="flex flex-col divide-y divide-white/[0.05]">
-                {QUARTERS.map((q, qi) => {
-                  const qRows = quarters[qi];
-                  const isNow = day.isToday && qi === nowQuarter;
-                  return (
-                    <div key={q.label} className={`flex min-h-[30px] items-center gap-2 py-1.5 ${isNow ? "bg-lime-400/[0.06]" : ""}`}>
-                      {di === 0 && (
-                        <span className={`w-[30px] shrink-0 text-[8px] font-medium tabular-nums ${isNow ? "text-lime-300" : "text-white/25"}`}>
-                          {q.label}
-                        </span>
-                      )}
-                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                        {qRows.length === 0 ? (
-                          <span className="size-1 rounded-full bg-white/[0.08]" />
-                        ) : (
-                          qRows.map((r, ri) => (
-                            <motion.div
-                              key={r._id}
-                              initial={{ opacity: 0, scale: 0.5 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ type: "spring", stiffness: 420, damping: 24, delay: 0.1 + di * 0.03 + qi * 0.02 + ri * 0.015 }}
-                            >
-                              <ScheduleChip row={r} agent={agentsByMint.get(r.mintAddress)} />
-                            </motion.div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          );
-        })}
-
-        {!loading && totalCount === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <p className="rounded-full border border-white/10 bg-[#0b0b0e]/90 px-3 py-1 text-[11px] text-white/35">
-              Nothing scheduled this week yet
-            </p>
-          </div>
-        )}
-        {loading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <Loader2 className="size-4 animate-spin text-white/25" />
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
+  const [selected, setSelected] = useState(0);
+  const selectedRows = (rows ?? []).filter(row => dayKey(row.scheduledFor) === days[selected].key).sort((a,b) => a.scheduledFor-b.scheduledFor);
+  return <motion.section {...blurIn(0.04)} aria-label="Weekly schedule" className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div className="mb-3 flex items-center justify-between"><p className="flex items-center gap-2 text-xs font-medium text-white"><CalendarClock className="size-3.5 text-[#d7ff00]"/> This week</p><span className="text-[10px] text-zinc-500">{rows?.length ?? 0} scheduled</span></div>
+    <div className="grid grid-cols-7 gap-1" role="group" aria-label="Choose schedule day">{days.map((day,index)=>{
+      const count=(rows ?? []).filter(row=>dayKey(row.scheduledFor)===day.key).length;
+      return <button key={day.key} onClick={()=>setSelected(index)} aria-pressed={selected===index} className={`relative flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${selected===index ? "bg-[#d7ff00]/10 text-[#d7ff00] ring-1 ring-[#d7ff00]/20" : "text-zinc-500 hover:bg-white/5"}`}><span>{day.weekday}</span><span className="text-sm font-medium tabular-nums">{day.date}</span><span className={`size-1 rounded-full ${count ? "bg-[#d7ff00]" : "bg-white/10"}`}/></button>;
+    })}</div>
+    <div className="mt-3 flex min-h-7 flex-wrap items-center gap-2 border-t border-white/5 pt-2">{rows===undefined && mintAddresses.length>0 ? <Loader2 className="size-3 animate-spin text-zinc-500"/> : selectedRows.length ? selectedRows.slice(0,8).map(row=><Link key={row._id} href={`/builder?mint=${encodeURIComponent(row.mintAddress)}&tab=schedule`} className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><ScheduleChip row={row} agent={agentsByMint.get(row.mintAddress)}/><span className="text-[10px] text-zinc-400">{new Date(row.scheduledFor).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span></Link>) : <span className="text-[11px] text-zinc-500">No posts scheduled for {days[selected].isToday ? "today" : days[selected].weekday.toLowerCase()}.</span>}{selectedRows.length>8 && <span className="text-[10px] text-zinc-500">+{selectedRows.length-8} more</span>}</div>
+  </motion.section>;
 }
 
 /** A quiet identity mark and one clear creation action. */
@@ -520,7 +396,6 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
   // listByCreator (single wallet) returns [] for a multi-wallet operator even
   // though they own funded agents.
   const { profile, authenticated, loading: authLoading } = useSupabaseAuth();
-  const { quota } = useAgentQuota();
   const address = connected && publicKey ? publicKey.toBase58() : null;
   const creatorWallets = useMemo(
     () => unionWalletAddresses(profile?.walletAddresses, address || profile?.walletAddress || null),
@@ -528,7 +403,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
   );
   const [search, setSearch] = useState("");
   // Agent-type filter for the dropdown next to search.
-  const [typeFilter, setTypeFilter] = useState<"all" | "clipper" | "influencer">("influencer");
+  const [typeFilter, setTypeFilter] = useState<"all" | "coins" | "characters" | "active">("all");
 
   // Delete-agent flow. The route refunds the agent wallet's USDC to the owner,
   // frees the upload-post slot, and cascade-deletes the agent's data. Convex
@@ -607,9 +482,9 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return docs.filter((d) => {
-      const isClipper = d.agentType === "clipping";
-      if (typeFilter === "clipper" && !isClipper) return false;
-      if (typeFilter === "influencer" && isClipper) return false;
+      if (typeFilter === "coins" && !d.solstarTokenId) return false;
+      if (typeFilter === "characters" && d.solstarTokenId) return false;
+      if (typeFilter === "active" && !d.heartbeatEnabled) return false;
       if (!q) return true;
       return d.name.toLowerCase().includes(q) || d.handle.toLowerCase().includes(q) || d.niche.toLowerCase().includes(q);
     });
@@ -629,7 +504,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                  sidebar) still has both. ── */}
           <motion.div {...blurIn(0)} className="flex flex-wrap items-end justify-between gap-4 xl:min-h-16">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">My influencers<span className="text-[#d7ff00]">.</span></h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">My influencers</h1>
               <p className="mt-1.5 text-xs text-zinc-500">Create, chat, and manage your characters and their coins.</p>
             </div>
             <div className="flex items-center gap-2 xl:hidden">
@@ -639,7 +514,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 render={<Link href="/create" />}
               >
                 <Plus className="size-3.5" />
-                {quota && !quota.canCreate ? "Agent limit reached" : "Create influencer"}
+                Create influencer
               </Button>
               <Button
                 className="h-9 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
@@ -655,14 +530,14 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
           {/* ── Weekly schedule strip — sits above search, one query shared
                  across all of this operator's agents. ── */}
           {hasAccount && docs.length > 0 && (
-            <div className="mt-8">
+            <div className="mt-5">
               <WeeklyScheduleStrip mintAddresses={mintAddresses} agentsByMint={agentsByMint} />
             </div>
           )}
 
           {/* ── Search + type filter ── */}
           {hasAccount && docs.length > 0 && (
-            <motion.div {...blurIn(0.08)} className="mt-8 flex flex-wrap items-center gap-2.5">
+            <motion.div {...blurIn(0.08)} className="mt-5 flex flex-wrap items-center gap-2.5">
               <div className="relative w-full max-w-xs">
                 <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
                 <Input
@@ -676,11 +551,13 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-                  title="Filter by agent type"
+                  title="Filter your influencers"
                   className="h-9 appearance-none rounded-full border border-white/10 bg-white/[0.04] pl-4 pr-8 text-[13px] text-white/80 backdrop-blur-xl outline-none transition-colors hover:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-white/20 [&>option]:bg-neutral-900"
                 >
-                  <option value="all">All agents</option>
-                  <option value="influencer">AI Influencers only</option>
+                  <option value="all">All influencers</option>
+                  <option value="coins">With a coin</option>
+                  <option value="characters">Without a coin</option>
+                  <option value="active">Autopilot enabled</option>
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
               </div>
@@ -688,7 +565,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
           )}
 
           {/* ── Body ── */}
-          <div className="mt-8">
+          <div className="mt-5">
             {!hasAccount && (
               <motion.div {...blurIn(0.08)} className="flex flex-col items-center justify-center gap-5 py-32 text-center">
                 <div className="grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
@@ -746,7 +623,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 render={<Link href="/create" />}
               >
                 <Plus className="size-3.5" />
-                {quota && !quota.canCreate ? "Agent limit reached" : "Create influencer"}
+                Create influencer
               </Button>
               <Button
                 className="h-9 flex-1 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
@@ -758,7 +635,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
               </Button>
             </div>
             {hasAccount && !loading && docs.length > 0 && (
-              <div className="mt-8">
+              <div className="mt-5">
                 <AccountHealthPanel
                   agents={docs.map((d) => ({ mintAddress: d.mintAddress, name: d.name, avatarUrl: d.avatarUrl }))}
                   health={healthByMint}

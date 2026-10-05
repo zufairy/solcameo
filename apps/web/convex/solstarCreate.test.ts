@@ -197,7 +197,7 @@ describe("ticker uniqueness", () => {
   });
 });
 
-describe("daily create limit", () => {
+describe("unlimited character creation", () => {
   const seedRecent = (t: T, wallet: string, ageMs: number, n: number) =>
     t.run(async (ctx) => {
       for (let i = 0; i < n; i++) {
@@ -207,11 +207,12 @@ describe("daily create limit", () => {
         });
       }
     });
-  it("rejects the 4th within 24h", async () => {
+  it("allows a fourth character in a day for the same wallet", async () => {
     const t = convexTest(schema, modules);
     await seedRecent(t, W1, 60_000, 3);
-    await expect(call(t, await validImage(t))).rejects.toThrow("create_limit");
-    expect((await counts(t)).tokens).toBe(0);
+    const result = await call(t, await validImage(t));
+    expect(result.characterId).toBeTruthy();
+    expect((await counts(t)).tokens).toBe(1);
   });
   it("does not count rows older than 24h or other wallets", async () => {
     const t = convexTest(schema, modules);

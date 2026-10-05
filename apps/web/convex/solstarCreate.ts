@@ -15,8 +15,6 @@ import {
 import { launchOptionsValidator } from "./lib/launchOptions";
 import { launchOptionsSchema } from "../lib/pump/economics";
 
-const DAY_MS = 86_400_000;
-const DAILY_LIMIT = 3;
 
 export const generateUploadUrl = mutation({
   args: { authSecret: v.string() },
@@ -69,8 +67,7 @@ export const createCharacter = mutation({
     if (taken) throw new Error("ticker_taken");
 
     const now = Date.now();
-    const mine = await ctx.db.query("ssCharacters").withIndex("by_owner", (q) => q.eq("ownerWallet", wallet)).order("desc").take(DAILY_LIMIT + 1);
-    if (mine.filter((c) => c.createdAt >= now - DAY_MS).length >= DAILY_LIMIT) throw new Error("create_limit");
+
 
     const characterId = await ctx.db.insert("ssCharacters", {
       ...(launchOptions ? { launchOptions } : {}), ownerWallet: wallet, name, bio, referenceImageUrl: imageUrl, category: a.category, status: "approved",

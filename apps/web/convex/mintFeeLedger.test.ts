@@ -64,7 +64,7 @@ describe("mintFee.reserveMintFee — quote + record (advisory)", () => {
     expect(resume).toMatchObject({ alreadyMinted: true, mintAddress: "mint_1" });
   });
 
-  it("counts by account DID too — a fresh unlinked wallet can't dodge the agent limit", async () => {
+  it("allows further agents for the same account across linked wallets", async () => {
     const t = convexTest(schema, modules);
     // Fill the DID-linked account to the 15-agent limit under WALLET_A.
     await t.run(async (ctx) => {
@@ -78,7 +78,7 @@ describe("mintFee.reserveMintFee — quote + record (advisory)", () => {
     // A fresh wallet under the SAME DID is denied the 16th agent.
     await t.mutation(api.mintFee.reserveMintFee, reserveArgs("s_new", WALLET_B, { creatorWallets: [WALLET_B], creatorDid: DID }));
     const c = await t.mutation(api.mintFee.claimMint, claimArgs("s_new", WALLET_B, { creatorWallets: [WALLET_B], creatorDid: DID }));
-    expect(c).toMatchObject({ ok: false, limitReached: true });
+    expect(c).toMatchObject({ ok: true });
   });
 
   it("an ABANDONED reservation never over-charges the account's real next mint (F6)", async () => {
@@ -112,15 +112,15 @@ describe("mintFee.reserveMintFee — quote + record (advisory)", () => {
   });
 });
 
-describe("mintFee.claimMint — atomic agent-limit gate", () => {
-  it("grants free agents up to the 15-agent limit, then denies the 16th", async () => {
+describe("mintFee.claimMint — unlimited idempotent reservations", () => {
+  it("allows creation beyond former limits even with an old explicit cap", async () => {
     const t = convexTest(schema, modules);
     for (let i = 0; i < 15; i++) {
       await completeFreeMint(t, `s${i}`, WALLET_A, `mint_${i}`);
     }
     await t.mutation(api.mintFee.reserveMintFee, reserveArgs("s15", WALLET_A));
     const c16 = await t.mutation(api.mintFee.claimMint, claimArgs("s15", WALLET_A));
-    expect(c16).toMatchObject({ ok: false, limitReached: true, agentLimit: 15 });
+    expect(c16).toMatchObject({ ok: true });
   });
 
   it("is idempotent — re-claiming an already-claimed session stays ok (resume)", async () => {
@@ -210,7 +210,7 @@ describe("mintFee.quoteMintFee — read-only display quote", () => {
     const q = await t.query(api.mintFee.quoteMintFee, { sessionId: "s1", creatorWallet: WALLET_A, creatorWallets: [WALLET_A], standardFeeUsdc: FEE, forceFree: false });
     expect(q.feeUsdc).toBe(0);
     expect(q.priorMints).toBe(2);
-    expect(q.agentLimit).toBe(1);
+    expect(q.agentLimit).toBe(-1);
   });
 });
 

@@ -3,22 +3,16 @@ import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { v } from "convex/values";
 
-/**
- * Account-wide agent reservations. claimMint checks capacity and claims a slot
- * in one transaction, preventing concurrent sessions from exceeding the plan.
- * Live agents plus in-flight claims count; deleted agents release their slots.
- * Historical fee fields remain for compatibility with paid mint reservations.
- */
+/** Account-wide, idempotent creation reservations. Creation has no account cap.
+ * Historical fee fields remain for compatibility with paid reservations. */
 
 /** List price of a non-free agent mint. Mirrors lib/server/mintFee.ts (client
  *  quote copy) — keep in sync. AGENT CREATION IS NOW FREE — this constant only
  *  remains because the ledger schema records a fee per row; decideFee below
  *  always returns 0. */
 export const MINT_FEE_USDC = 10;
-/** Hard cap on agents per account — creation is free, limited to this many.
- *  Enforced atomically in claimMint (the same OCC gate that used to guard the
- *  creation), counted from active reservations and live agents across the account. */
-export const AGENT_LIMIT_PER_WALLET = 1;
+/** Unlimited agent creation for every account; retain the sentinel for legacy clients. */
+export const AGENT_LIMIT_PER_WALLET = -1;
 
 /** Failed in-flight creation releases its reservation after five minutes.
  * saveInfluencer rechecks capacity atomically before inserting a late render. */
@@ -92,11 +86,9 @@ function dedupeWallets(creatorWallet: string, creatorWallets: string[]): string[
   return [...new Set([creatorWallet, ...creatorWallets].filter(Boolean))];
 }
 
-/** UI-safe rendering of an effective limit — the client's SlotsMeter builds an
- *  array of this many segments, so the internal "-1 = unlimited" sentinel must
- *  never reach it directly. */
+/** Legacy response field: -1 explicitly denotes unlimited creation. */
 function displayLimit(effectiveLimit: number): number {
-  return effectiveLimit < 0 ? 999 : effectiveLimit;
+  return effectiveLimit;
 }
 
 /** Pure fee policy: agent creation is FREE for everyone. The paid path in the
@@ -118,7 +110,7 @@ export const quoteMintFee = query({
   },
   handler: async (ctx, args) => {
     const wallets = dedupeWallets(args.creatorWallet, args.creatorWallets);
-    const effectiveLimit = args.agentLimit ?? AGENT_LIMIT_PER_WALLET;
+    const effectiveLimit = AGENT_LIMIT_PER_WALLET;
     // A settled session shows its locked-in decision. A still-"reserved" session
     // is only a quote, so RE-EVALUATE it live — otherwise a reservation locked at
     // "free" would keep showing free after the freebie was consumed elsewhere.
@@ -250,16 +242,8 @@ export const claimMint = mutation({
     // status === "reserved". Legacy paid rows (still reserved with a fee) can't
     // exist under the free policy, but keep the deny for safety.
     if (row.feeUsdc > 0 && row.status !== "paid") return { ok: false as const, feeUsdc: row.feeUsdc };
-    // AGENT LIMIT gate (replaces the old freebie gate, same atomic OCC pattern):
-    // count committed prior agents and claim in one mutation, so N concurrent
-    // creations serialize and the account can never exceed the cap.
     const wallets = dedupeWallets(args.creatorWallet, args.creatorWallets);
-    const priorMints = await countPrior(ctx, { wallets, creatorDid: args.creatorDid, excludeSessionId: args.sessionId, now });
-    const effectiveLimit = args.agentLimit ?? AGENT_LIMIT_PER_WALLET;
-    // -1 (or any negative) means unlimited for this account — skip the cap entirely.
-    if (effectiveLimit >= 0 && priorMints >= effectiveLimit) {
-      return { ok: false as const, feeUsdc: 0, limitReached: true as const, agentCount: priorMints, agentLimit: effectiveLimit };
-    }
+    const effectiveLimit = AGENT_LIMIT_PER_WALLET;
     await ctx.db.patch(row._id, { status: "claimed", committedAt: now, agentLimit: effectiveLimit, creatorWallets: wallets, creatorDid: args.creatorDid });
     return { ok: true as const, feeUsdc: 0 };
   },
@@ -377,13 +361,10 @@ export const accountIdentity = query({
   },
 });
 
-/** Recheck in the insertion transaction, including after an expired mint claim. */
+/** Validate reservation ownership and status during insertion. No capacity cap. */
 export async function assertMintCapacity(ctx: MutationCtx, sessionId: string, creatorWallet: string) {
   const row = await ctx.db.query("agentMintCharges").withIndex("by_session", q => q.eq("sessionId", sessionId)).first();
   if (!row) return; // trusted internal provisioning has no user reservation
   if (row.creatorWallet !== creatorWallet || row.status === "deleted" || row.status === "reserved") throw new Error("Invalid mint reservation");
-  const wallets = row.creatorWallets ?? [creatorWallet];
-  const limit = row.agentLimit ?? AGENT_LIMIT_PER_WALLET;
-  const count = await countPrior(ctx, { wallets, creatorDid: row.creatorDid, excludeSessionId: sessionId, now: Date.now() });
-  if (limit >= 0 && count >= limit) throw new Error("Agent limit reached. Delete an agent to free a slot.");
+
 }

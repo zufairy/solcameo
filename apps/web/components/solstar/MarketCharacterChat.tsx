@@ -19,11 +19,15 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
       ? { characterId: characterId as Id<"ssCharacters">, before }
       : "skip",
   );
-  const [archive, setArchive] = useState<NonNullable<typeof live>["messages"]>([]);
+  const [archive, setArchive] = useState<NonNullable<typeof live>["messages"]>(
+    [],
+  );
   const [hasOlder, setHasOlder] = useState(true);
   const rows = useMemo(() => {
     if (!live) return undefined;
-    const unique = new Map([...archive, ...live.messages].map(message => [message._id, message]));
+    const unique = new Map(
+      [...archive, ...live.messages].map((message) => [message._id, message]),
+    );
     return [...unique.values()].sort((a, b) => a.createdAt - b.createdAt);
   }, [archive, live]);
   const [input, setInput] = useState("");
@@ -36,30 +40,51 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
   function loadOlder() {
     if (loadingHistory || !hasOlder || !rows?.length) return;
     follow.current = false;
-    if (viewport.current) anchor.current = { height: viewport.current.scrollHeight, top: viewport.current.scrollTop };
+    if (viewport.current)
+      anchor.current = {
+        height: viewport.current.scrollHeight,
+        top: viewport.current.scrollTop,
+      };
     setBefore(rows[0].createdAt);
   }
   useEffect(() => {
     if (!past || before === undefined) return;
     // Cache the received Convex history page before moving the pagination cursor.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setArchive(previous => [...new Map([...previous, ...past.messages].map(message => [message._id, message])).values()]);
+    setArchive((previous) => [
+      ...new Map(
+        [...previous, ...past.messages].map((message) => [
+          message._id,
+          message,
+        ]),
+      ).values(),
+    ]);
     setHasOlder(past.messages.length === 100);
     setBefore(undefined);
   }, [past, before]);
   // Retain messages that leave the latest live window as new messages arrive.
   useEffect(() => {
     // Retain the external subscription window so incoming rows cannot evict history.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (live?.messages.length) setArchive(previous => [...new Map([...previous, ...live.messages].map(message => [message._id, message])).values()]);
+    if (live?.messages.length)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setArchive((previous) => [
+        ...new Map(
+          [...previous, ...live.messages].map((message) => [
+            message._id,
+            message,
+          ]),
+        ).values(),
+      ]);
   }, [live]);
   useLayoutEffect(() => {
     const el = viewport.current;
     if (!el) return;
     if (anchor.current && !loadingHistory) {
-      el.scrollTop = anchor.current.top + el.scrollHeight - anchor.current.height;
+      el.scrollTop =
+        anchor.current.top + el.scrollHeight - anchor.current.height;
       anchor.current = null;
-    } else if (follow.current && !anchor.current) el.scrollTop = el.scrollHeight;
+    } else if (follow.current && !anchor.current)
+      el.scrollTop = el.scrollHeight;
   }, [rows, loadingHistory]);
   async function send() {
     if (!authenticated) {
@@ -95,14 +120,24 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
         onScroll={() => {
           const el = viewport.current;
           if (!el) return;
-          follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+          follow.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 60;
           if (el.scrollTop < 40 && !follow.current) loadOlder();
         }}
         className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3"
         role="log"
         aria-label="Public community chat"
       >
-        {!!rows?.length && hasOlder && <button type="button" onClick={loadOlder} disabled={loadingHistory} className="w-full py-1 text-[10px] text-zinc-500 hover:text-zinc-200">{loadingHistory ? "Loading history…" : "Load earlier messages"}</button>}
+        {!!rows?.length && hasOlder && (
+          <button
+            type="button"
+            onClick={loadOlder}
+            disabled={loadingHistory}
+            className="w-full py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+          >
+            {loadingHistory ? "Loading history…" : "Load earlier messages"}
+          </button>
+        )}
         {rows === undefined ? (
           <Loader2 className="size-4 animate-spin text-zinc-500" />
         ) : !rows.length ? (
@@ -139,7 +174,6 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
             </div>
           ))
         )}
-
       </div>
       {live?.plot && (
         <details className="border-t border-white/10 px-3 py-3">

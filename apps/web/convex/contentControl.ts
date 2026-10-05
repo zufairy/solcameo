@@ -11,6 +11,7 @@ function authorize(secret: string) {
 }
 export async function enqueueAgentAnnouncement(ctx: MutationCtx, agent: { mintAddress: string; name: string; handle: string; description: string; niche: string; avatarUrl: string; agentType?: string }) {
   const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
+  if (!settings) return; // An unconfigured marketing destination must not block agent creation.
   // Always on: every new mint is announced to the selected destination (or the Vello marketing account).
   const dedupeKey = `agent-launch:${agent.mintAddress}`;
   if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return;

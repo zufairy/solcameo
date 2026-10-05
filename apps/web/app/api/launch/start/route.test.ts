@@ -15,23 +15,23 @@ beforeEach(() => {
   mocks.query.mockReset().mockResolvedValue({ priorMints: 0 });
   mocks.mutation.mockReset().mockImplementation(async name => name === "create" ? "run-one" : name === "claim" ? { ok: true } : {});
   mocks.run.mockReset().mockResolvedValue(undefined);
-  mocks.identity.mockReset().mockResolvedValue({ creatorWallets: ["wallet"], creatorDid: "owner", agentLimit: 1, agents: [] });
+  mocks.identity.mockReset().mockResolvedValue({ creatorWallets: ["wallet"], creatorDid: "owner", agentLimit: -1, agents: [] });
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const req = () => new NextRequest("https://velloagents.com/api/launch/start", { method: "POST", body: JSON.stringify({ websiteUrl: "https://example.com" }) });
-it("blocks launch before paid generation or run creation when the free slot is used", async () => {
+it("allows another launch when the account already owns agents", async () => {
   mocks.query.mockResolvedValue({ priorMints: 1 });
   const { POST } = await import("./route");
-  expect((await POST(req())).status).toBe(403);
-  expect(mocks.mutation).not.toHaveBeenCalled(); expect(mocks.run).not.toHaveBeenCalled();
+  expect((await POST(req())).status).toBe(202);
+  expect(mocks.mutation).toHaveBeenCalled(); expect(mocks.run).toHaveBeenCalledTimes(1);
 });
-it("claims the account-wide slot before dispatching a new launch", async () => {
+it("reserves the launch idempotently before dispatch", async () => {
   const { POST } = await import("./route");
   expect((await POST(req())).status).toBe(202);
-  expect(mocks.mutation).toHaveBeenCalledWith("claim", expect.objectContaining({ sessionId: "launch_run-one", creatorDid: "owner", creatorWallets: ["wallet"], agentLimit: 1 }));
+  expect(mocks.mutation).toHaveBeenCalledWith("claim", expect.objectContaining({ sessionId: "launch_run-one", creatorDid: "owner", creatorWallets: ["wallet"], agentLimit: -1 }));
   expect(mocks.run).toHaveBeenCalledTimes(1);
 });
-it("does not dispatch when a concurrent creation takes the slot after the quote", async () => {
+it("does not dispatch if the reservation fails", async () => {
   mocks.mutation.mockImplementation(async name => name === "create" ? "run-one" : name === "claim" ? { ok: false } : {});
   const { POST } = await import("./route");
   expect((await POST(req())).status).toBe(403);

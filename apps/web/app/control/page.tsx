@@ -382,7 +382,7 @@ function DashboardRow({ active, compact, onClick, count }: { active: boolean; co
       </span>
       <div className={`relative min-w-0 flex-1 ${compact ? "md:hidden" : ""}`}>
         <span className="block truncate text-[15px] font-medium text-white">Dashboard</span>
-        <span className="block truncate text-[13px] text-zinc-500">{count} agent{count === 1 ? "" : "s"} · schedule · health</span>
+        <span className="block truncate text-[13px] text-zinc-500">{count} agent{count === 1 ? "" : "s"}</span>
       </div>
     </motion.button>
   );

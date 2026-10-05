@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Check, Loader2, AlertCircle, Wallet, ArrowRight, RefreshCw, Users } from "lucide-react";
+import { Sparkles, Check, Loader2, AlertCircle, Wallet, ArrowRight, RefreshCw } from "lucide-react";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useSiwsSession } from "@/hooks/use-siws-session";
 import { classifyMintError, type MintErrorKind } from "@/lib/builder/mintErrors";
@@ -39,39 +39,6 @@ function tidyCategory(raw?: string): string {
   if (!raw) return "";
   const first = raw.trim().split(/[\s,/–—-]+/)[0] ?? "";
   return first ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : "";
-}
-
-/** Realtime agent-slots meter — plan-sized segments, filled = agents this account
- *  already runs, next slot pulses while creation is available. */
-function SlotsMeter({ count, limit, pulse }: { count: number; limit: number; pulse: boolean }) {
-  const segments = Array.from({ length: limit }, (_, i) => i);
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[11px] font-medium text-white/60">
-          <Users className="size-3" /> Agent slots
-        </span>
-        <span className="text-[11px] font-semibold tabular-nums text-white/80">
-          {count} <span className="text-white/40">/ {limit}</span>
-        </span>
-      </div>
-      <div className="mt-2 flex gap-1">
-        {segments.map((i) => {
-          const filled = i < count;
-          const isNext = i === count && pulse;
-          return (
-            <motion.span
-              key={i}
-              initial={false}
-              animate={filled ? { scaleY: 1, opacity: 1 } : { scaleY: 1, opacity: isNext ? [0.4, 0.9, 0.4] : 0.25 }}
-              transition={isNext ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
-              className={`h-1.5 flex-1 rounded-full ${filled ? "bg-lime-400" : "bg-white/30"}`}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 export default function NftMintCard({ avatarUrls, agentBlueprint, sessionId, onMintComplete }: NftMintCardProps) {
@@ -113,7 +80,7 @@ export default function NftMintCard({ avatarUrls, agentBlueprint, sessionId, onM
 
   // Quota for the CURRENTLY connected wallet only.
   const activeQuota = quota && publicKey && quota.wallet === publicKey.toBase58() ? quota : null;
-  const limitReached = !!activeQuota && activeQuota.agentCount >= activeQuota.agentLimit;
+  const limitReached = false;
 
   // Surface the right identity block — traders use agentBlueprint.trader, others use persona.
   const isTrader = agentBlueprint?.agentType === "trader";
@@ -194,7 +161,7 @@ export default function NftMintCard({ avatarUrls, agentBlueprint, sessionId, onM
 
       // STEP 3 — settled.
       setCurrentStep("finish");
-      setQuota((q) => (q && q.wallet === wallet ? { ...q, agentCount: Math.min(q.agentLimit, q.agentCount + 1) } : q));
+      setQuota((q) => (q && q.wallet === wallet ? { ...q, agentCount: q.agentCount + 1 } : q));
       setCurrentStep(null);
       setState("done");
       if (!data.mintAddress) throw new Error("Agent creation returned no agent address. Please retry.");
@@ -304,13 +271,6 @@ export default function NftMintCard({ avatarUrls, agentBlueprint, sessionId, onM
             &ldquo;{persona.catchphrase}&rdquo;
           </p>
         )}
-
-        {/* Realtime agent-slots meter, free creation, account-wide plan limit */}
-        <SlotsMeter
-          count={activeQuota?.agentCount ?? 0}
-          limit={activeQuota?.agentLimit ?? 1}
-          pulse={!!activeQuota && !limitReached && state === "idle"}
-        />
 
         {/* CTA / status */}
         {state === "done" ? (
@@ -442,7 +402,7 @@ export default function NftMintCard({ avatarUrls, agentBlueprint, sessionId, onM
         )}
 
         <p className="text-center text-[9.5px] text-white/35">
-          Free to create · up to {activeQuota?.agentLimit ?? 1} agents per account
+          Free to create · unlimited influencers
         </p>
       </div>
     </motion.div>

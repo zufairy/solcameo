@@ -1398,6 +1398,7 @@ html.light body *, html.dark body * {
 .solcameo-topbar .h-11 { height: 32px; }
 
 /* Let the Control route fill only the space allocated beneath app chrome. */
+.solcameo-market-content > .page-reveal { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; animation: none; }
 .solcameo-control-content > .page-reveal { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; animation: none; }
 
 /* Shared Solcameo app surfaces follow the Market palette. */

@@ -192,7 +192,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           style={{ "--sidebar-width-icon": "3.5rem", "--sidebar-width": "13.5rem" } as React.CSSProperties}
           className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${["/market", "/explore", "/analytics"].some(route => pathname.startsWith(route)) ? "vello-market-theme" : ""}`}
         >
-          {!isMarketTerminal && <Sidebar
+          {<Sidebar
             id="vello-sidebar"
             collapsible="icon"
             className="border-r border-white/[0.06] [&_[data-slot=sidebar-inner]]:bg-[#09090b] [&_[data-slot=sidebar-container]]:transition-[width] [&_[data-slot=sidebar-container]]:duration-200 motion-reduce:[&_[data-slot=sidebar-container]]:transition-none"
@@ -213,12 +213,12 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
               <RailFooter />
             </SidebarFooter>
           </Sidebar>}
-          {!isMarketTerminal && <SidebarDividerToggle />}
+          <SidebarDividerToggle />
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
             {!isMarketTerminal && <ShellAnnouncement />}
             <TopBar terminal={isMarketTerminal} />
             {!isControl && !pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/market") && !pathname.startsWith("/agents") && <TickerStrip />}
-            <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : "overflow-y-auto overscroll-contain"}`}>
+            <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>
           </SidebarInset>
