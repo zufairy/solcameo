@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:SG;src:url(fonts/sg700.woff2);font-weight:700}
+@font-face{font-family:SG5;src:url(fonts/sg500.woff2);font-weight:500}
+@font-face{font-family:JB;src:url(fonts/jb500.woff2);font-weight:500}
+@font-face{font-family:PX;src:url(fonts/ps2p.woff2)}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#0B0D0A}
+#c{position:absolute;inset:0;width:1920px;height:1080px}
+.layer{position:absolute;inset:0;pointer-events:none}
+/* HUD */
+#hud{font-family:PX;color:#fff;opacity:0}
+.hudbox{position:absolute;top:34px;padding:16px 20px;background:rgba(11,13,10,.55);border:3px solid rgba(255,255,255,.9);border-radius:14px;box-shadow:0 6px 0 rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+#hl{left:40px;display:flex;gap:18px;align-items:center}
+#hl .logo{color:#A3E635;font-size:26px;text-shadow:3px 3px 0 #1a2a05}
+#hl .world{font-size:14px;line-height:22px;color:#eaf6d8}
+#hr{right:40px;font-size:18px;line-height:34px;text-align:right;min-width:330px}
+#hr span{color:#A3E635}
+#boss{left:50%;transform:translateX(-50%);width:640px;text-align:center;font-size:14px;opacity:0}
+#bossbar{margin-top:12px;height:22px;border:3px solid #fff;border-radius:6px;background:#2a0f14;overflow:hidden}
+#bossfill{height:100%;width:100%;background:linear-gradient(#ff6b6b,#e0303a);box-shadow:inset 0 4px 0 rgba(255,255,255,.35)}
+#bosstime{color:#ffd166}
+/* caption */
+#cap{position:absolute;left:0;right:0;bottom:92px;text-align:center;font-family:SG;font-weight:700;font-size:64px;color:#fff;letter-spacing:-1.2px;text-shadow:0 4px 0 rgba(0,0,0,.25),0 10px 40px rgba(0,0,0,.55)}
+#cap .w{display:inline-block;margin:0 .13em;will-change:transform}
+#cap .e{color:#0B0D0A;background:#A3E635;padding:0 .18em;border-radius:.18em;text-shadow:none;box-shadow:0 6px 0 #6f9e1e}
+#cap.big{font-size:120px;bottom:120px;letter-spacing:-3px}
+/* pops */
+.pop{position:absolute;font-family:PX;font-size:22px;color:#FFD166;text-shadow:3px 3px 0 #5a3a00;white-space:nowrap}
+/* banner */
+#banner{-webkit-text-stroke:3px #5a2600;position:absolute;left:0;right:0;top:760px;text-align:center;font-family:PX;font-size:84px;color:#FFD166;text-shadow:6px 6px 0 #B34700,0 0 60px rgba(255,209,102,.6)}
+#banner .l{display:inline-block}
+/* title */
+#title{background:#07090a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:PX;color:#fff}
+#title .t1{font-size:120px;color:#A3E635;text-shadow:8px 8px 0 #2d4a06;letter-spacing:6px}
+#title .t2{font-size:30px;margin-top:34px;color:#ffd166;letter-spacing:8px}
+#title .t3{font-size:24px;margin-top:120px;letter-spacing:4px}
+#title .star{position:absolute;width:6px;height:6px;background:#fff}
+#flash{background:#fff;opacity:0}
+/* end card */
+#end{opacity:0}
+#end .wm{position:absolute;left:980px;top:300px;width:760px;height:216px}
+#end .tag{position:absolute;left:988px;top:548px;font-family:SG;font-weight:700;font-size:54px;color:#F4F6F0;letter-spacing:-1px;width:880px;line-height:1.1}
+#end .tag b{color:#A3E635}
+#end .url{position:absolute;left:992px;top:700px;font-family:JB;font-size:34px;color:#A3E635}
+#end .cta{position:absolute;left:988px;top:776px;font-family:PX;font-size:18px;color:#0B0D0A;background:#A3E635;padding:18px 24px;border-radius:12px;box-shadow:0 6px 0 #5f8a14}
+#vign{background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.35) 100%)}
+</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<div class="layer" id="vign"></div>
+<div class="layer" id="pops"></div>
+<div class="layer" id="hud">
+  <div class="hudbox" id="hl"><div class="logo">VELLO</div><div class="world">WORLD 1-1<br>THE 3-HOUR PODCAST</div></div>
+  <div class="hudbox" id="boss">BOSS: 3-HOUR PODCAST &nbsp;<span id="bosstime">3:12:08</span><div id="bossbar"><div id="bossfill"></div></div></div>
+  <div class="hudbox" id="hr">CLIPS <span id="clips">00</span><br>VIEWS <span id="views">0000000</span><br><span id="walletrow" style="color:#fff;opacity:0">WALLET <span id="wallet" style="color:#FFD166">000</span></span></div>
+</div>
+<div class="layer"><div id="cap"></div></div>
+<div class="layer"><div id="banner"></div></div>
+<div class="layer" id="end"><div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,13,10,0) 22%,rgba(11,13,10,.78) 46%,rgba(11,13,10,.94) 60%),linear-gradient(0deg,rgba(11,13,10,.7),rgba(11,13,10,0) 40%)"></div>
+  <canvas class="wm" id="wm" width="760" height="216"></canvas>
+  <div class="tag">Clipping pages that<br><b>run themselves.</b></div>
+  <div class="url">velloagents.com</div>
+  <div class="cta">LAUNCHING NOW &middot; FIRST 3 CLIPS FREE</div>
+</div>
+<div class="layer" id="title"><div class="t1">VELLO</div><div class="t2">LEVEL UP</div><div class="t3" id="press">PRESS START</div></div>
+<div class="layer" id="flash"></div>
+<img id="wmimg" src="vello-wordmark.png" style="display:none">
+<script type="module" src="main.js"></script>
+</body></html>

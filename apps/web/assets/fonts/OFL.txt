@@ -1,0 +1,26 @@
+These bundled fonts are licensed under the SIL Open Font License, Version 1.1.
+
+- Manrope — © The Manrope Project Authors (https://fonts.google.com/specimen/Manrope)
+- Montserrat — © The Montserrat Project Authors (https://fonts.google.com/specimen/Montserrat)
+- DM Serif Display — © Colophon Foundry, © The DM Serif Display Project Authors (https://fonts.google.com/specimen/DM+Serif+Display)
+- Space Grotesk — © The Space Grotesk Project Authors (https://fonts.google.com/specimen/Space+Grotesk)
+- Plus Jakarta Sans — © The Plus Jakarta Sans Project Authors (https://fonts.google.com/specimen/Plus+Jakarta+Sans)
+- Fraunces — © The Fraunces Project Authors (https://fonts.google.com/specimen/Fraunces)
+- Anton — © The Anton Project Authors (https://fonts.google.com/specimen/Anton)
+- Archivo Black — © The Archivo Black Project Authors (https://fonts.google.com/specimen/Archivo+Black)
+- Barlow — © The Barlow Project Authors (https://fonts.google.com/specimen/Barlow)
+- Bebas Neue — © The Bebas Neue Project Authors (https://fonts.google.com/specimen/Bebas+Neue)
+- Poppins — © The Poppins Project Authors (https://fonts.google.com/specimen/Poppins)
+- Inter — © The Inter Project Authors (https://fonts.google.com/specimen/Inter)
+- Gelasio — © The Gelasio Project Authors (https://fonts.google.com/specimen/Gelasio)
+- Fira Sans — © The Mozilla Foundation / Carrois Apostrophe (https://fonts.google.com/specimen/Fira+Sans)
+- Jost — © The Jost Project Authors (https://fonts.google.com/specimen/Jost)
+- Nunito — © The Nunito Project Authors (https://fonts.google.com/specimen/Nunito)
+- Quicksand — © The Quicksand Project Authors (https://fonts.google.com/specimen/Quicksand)
+
+Each font's full name-table copyright applies. The SIL Open Font License 1.1
+permits bundling and redistribution with the software. Full license text:
+https://openfontlicense.org/open-font-license-official-text/
+
+Bundled for Vello's ffmpeg/libass hook + caption burns so text renders
+consistently on any host (no reliance on system-installed fonts).

@@ -1,0 +1,10 @@
+import { readFileSync } from "node:fs";
+const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+const get = (k) => { const l = env.split("\n").find((x) => x.startsWith(k + "=")); return l ? l.slice(k.length + 1).trim().replace(/^["']|["']$/g, "") : ""; };
+const URL_ = get("NEXT_PUBLIC_SUPABASE_URL"); const SRK = get("SUPABASE_SERVICE_ROLE_KEY");
+const H = { apikey: SRK, Authorization: `Bearer ${SRK}` };
+const q = async (path) => (await fetch(`${URL_}/rest/v1/${path}`, { headers: H })).json();
+const dm = await q("content_rewards?campaign_name=ilike.*daddy*&select=id,campaign_name,status");
+console.log("daddymin matches:", JSON.stringify(dm).slice(0, 600));
+const all = await q("content_rewards?select=id,campaign_name,status&order=created_at.desc&limit=25");
+console.log("recent campaigns:", JSON.stringify((all||[]).map(c=>c.campaign_name)));

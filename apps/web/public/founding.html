@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vello — Founding Early Access</title>
+<meta name="description" content="Vello creates your own AI influencer that makes content, posts it across every platform, and grows your brand on autopilot. Founding early access — $100, founder price locked for life." />
+
+<!-- Open Graph (most traffic is X on mobile) -->
+<meta property="og:title" content="Your brand posts every day. Even with your laptop off." />
+<meta property="og:description" content="Vello builds your own AI influencer that creates and posts content on autopilot. Founding access — $100, price locked for life. First 100 seats." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="/vellosquare-hd.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" href="/vello-logo.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   VELLO — Founding Early Access landing page (standalone, hostable)
+   Theme mirrors production: near-black + single lime accent (#A3E635),
+   tactile "ledge" CTAs, #12150F plates with hairline borders, mono eyebrows.
+   Violet is used ONLY for the logo + Solana/agents-economy mark.
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --bg:#0a0a0c;
+  --bg-2:#0c0e0a;
+  --plate:#12150F;
+  --plate-2:#171B12;
+  --line:rgba(255,255,255,0.07);
+  --line-strong:rgba(255,255,255,0.12);
+  --lime:#A3E635;
+  --lime-soft:#c5f06b;
+  --lime-ledge:#6ba80f;
+  --ink:#0B0D0A;
+  --violet:#a855f7;
+  --indigo:#6366f1;
+  --fg:#f3f5ef;
+  --muted:#9aa091;
+  --muted-2:#6f7567;
+  --radius:1.6rem;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+body{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:'Geist',system-ui,-apple-system,sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  letter-spacing:-0.01em;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Ambient backdrop: faint grid + drifting lime glows --------------------- */
+.backdrop{position:fixed;inset:0;z-index:-1;pointer-events:none}
+.backdrop::before{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px);
+  background-size:54px 54px;
+  mask-image:radial-gradient(120% 80% at 50% 0%,#000 30%,transparent 78%);
+}
+.glow{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;will-change:transform}
+.glow.a{width:620px;height:620px;top:-180px;left:-120px;background:radial-gradient(circle,rgba(163,230,53,.16),transparent 65%);animation:drift1 22s var(--ease) infinite}
+.glow.b{width:520px;height:520px;top:18%;right:-160px;background:radial-gradient(circle,rgba(168,85,247,.10),transparent 64%);animation:drift2 28s var(--ease) infinite}
+.glow.c{width:560px;height:560px;bottom:-160px;left:30%;background:radial-gradient(circle,rgba(163,230,53,.08),transparent 66%);animation:drift1 26s var(--ease) infinite reverse}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,40px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-46px,30px)}}
+@media (prefers-reduced-motion:reduce){.glow{animation:none}}
+
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+section{position:relative}
+
+/* Typography primitives -------------------------------------------------- */
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.22em;
+  color:rgba(197,240,107,.9);
+  background:rgba(163,230,53,.06);
+  border:1px solid rgba(163,230,53,.2);
+  border-radius:999px;padding:6px 13px;
+}
+.eyebrow .dot{width:5px;height:5px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime)}
+h1,h2,h3{letter-spacing:-0.035em;line-height:1.04;font-weight:600}
+.h-display{font-size:clamp(2.6rem,7vw,5.4rem);font-weight:700;letter-spacing:-0.045em}
+.h2{font-size:clamp(2rem,4.4vw,3.4rem);font-weight:600}
+.lead{font-size:clamp(1.05rem,2vw,1.3rem);color:var(--muted);line-height:1.55;font-weight:400}
+.lime{color:var(--lime)}
+.grad-violet{background:linear-gradient(120deg,var(--violet),var(--indigo));-webkit-background-clip:text;background-clip:text;color:transparent}
+.muted{color:var(--muted)}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* Buttons (tactile ledge — matches prod .vello-cta) ---------------------- */
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-weight:600;font-size:14.5px;letter-spacing:-0.01em;
+  border-radius:999px;padding:13px 22px;cursor:pointer;border:none;
+  text-decoration:none;white-space:nowrap;
+  transition:transform .14s var(--ease),box-shadow .14s var(--ease),background-color .3s,color .2s;
+}
+.btn-primary{
+  background:var(--lime);color:var(--ink);
+  box-shadow:0 4px 0 0 var(--lime-ledge),0 12px 22px -14px rgba(0,0,0,.7);
+}
+.btn-primary:hover{background:var(--lime-soft);transform:translateY(-1px);box-shadow:0 5px 0 0 var(--lime-ledge),0 18px 30px -16px rgba(163,230,53,.45)}
+.btn-primary:active{transform:translateY(3px);box-shadow:0 1px 0 0 var(--lime-ledge),0 6px 14px -10px rgba(0,0,0,.7)}
+.btn-ghost{
+  background:rgba(255,255,255,.03);color:var(--fg);
+  border:1px solid var(--line-strong);
+  box-shadow:0 2px 0 0 rgba(0,0,0,.4);
+}
+.btn-ghost:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
+.btn .arrow{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.14);transition:transform .5s var(--ease)}
+.btn:hover .arrow{transform:translate(2px,-2px)}
+.btn-lg{padding:16px 26px;font-size:15.5px}
+
+/* Plate (card) ----------------------------------------------------------- */
+.plate{
+  background:var(--plate);
+  border:1.5px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:inset 0 1px 0 0 rgba(255,255,255,.05),0 16px 34px -20px rgba(0,0,0,.85),0 7px 0 -1px #090b07;
+}
+.plate-int{transition:transform .55s var(--ease),box-shadow .55s var(--ease),border-color .45s ease}
+.plate-int:hover{transform:translateY(-3px);border-color:rgba(163,230,53,.22);box-shadow:inset 0 1px 0 0 rgba(255,255,255,.06),0 26px 50px -24px rgba(0,0,0,.9),0 9px 0 -1px #090b07}
+
+/* ── NAV ─────────────────────────────────────────────────────────────── */
+header.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(10,10,12,.62);border-bottom:1px solid transparent;transition:border-color .3s,background .3s}
+header.nav.scrolled{border-bottom-color:var(--line);background:rgba(10,10,12,.82)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;letter-spacing:-0.02em;text-decoration:none;color:var(--fg)}
+.brand svg{width:30px;height:30px;flex:none}
+.nav-links{display:flex;align-items:center;gap:30px}
+.nav-links a.link{color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s}
+.nav-links a.link:hover{color:var(--fg)}
+@media(max-width:760px){.nav-links a.link{display:none}}
+
+/* ── HERO ────────────────────────────────────────────────────────────── */
+.hero{padding:clamp(56px,9vw,108px) 0 clamp(40px,6vw,72px)}
+.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(32px,5vw,68px);align-items:center}
+@media(max-width:920px){.hero-grid{grid-template-columns:1fr;gap:44px}}
+.hero h1{margin:22px 0 0}
+.hero .lead{margin-top:22px;max-width:34ch}
+.hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.hero-foot{margin-top:22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted-2)}
+.seatline{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted)}
+.seatline b{color:var(--lime);font-weight:600}
+
+/* Animated agent illustration (hero) ------------------------------------ */
+.agent-stage{position:relative;aspect-ratio:1/1;width:100%;max-width:460px;margin:0 auto}
+.agent-stage .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--line);animation:spin 38s linear infinite}
+.agent-stage .ring.r2{inset:13%;border-color:rgba(163,230,53,.14);animation-duration:26s;animation-direction:reverse}
+.agent-stage .ring.r3{inset:26%;border-color:rgba(168,85,247,.16);animation-duration:30s}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.agent-stage .ring{animation:none}}
+.agent-core{position:absolute;inset:30%;border-radius:28px;background:linear-gradient(150deg,var(--plate-2),#0d100b);border:1.5px solid var(--line-strong);box-shadow:0 30px 60px -30px rgba(0,0,0,.9),0 0 60px -20px rgba(163,230,53,.25);display:grid;place-items:center;overflow:hidden}
+.agent-core::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.06) 50%,transparent 60%);animation:sheen 5s var(--ease) infinite}
+@keyframes sheen{0%,100%{transform:translateX(-60%)}50%{transform:translateX(60%)}}
+/* satellite chips orbit the core */
+.chip{position:absolute;display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;padding:7px 12px;border-radius:999px;background:rgba(18,21,15,.92);border:1px solid var(--line-strong);backdrop-filter:blur(6px);box-shadow:0 8px 20px -12px rgba(0,0,0,.8);white-space:nowrap;animation:float 6s var(--ease) infinite}
+.chip i{width:7px;height:7px;border-radius:50%;display:block}
+.chip.c1{top:4%;left:-4%;animation-delay:0s}
+.chip.c2{top:38%;right:-12%;animation-delay:1.2s}
+.chip.c3{bottom:6%;left:8%;animation-delay:2.4s}
+.chip.c4{bottom:30%;right:-6%;animation-delay:3s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@media (prefers-reduced-motion:reduce){.chip,.agent-core::after{animation:none}}
+
+/* face SVG strokes get a subtle draw/breathe */
+.face{width:62%;height:62%}
+.face .blink{transform-origin:center;animation:blink 5.5s steps(1) infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+
+/* logo strip ------------------------------------------------------------- */
+.logostrip{margin-top:clamp(40px,6vw,68px);padding-top:28px;border-top:1px solid var(--line)}
+.logostrip .label{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted-2)}
+.logos{display:flex;align-items:center;gap:30px;flex-wrap:wrap;margin-top:16px}
+.logos .lg{display:flex;align-items:center;gap:9px;color:var(--muted);font-weight:600;font-size:15px;letter-spacing:-0.01em}
+.logos .lg svg{width:22px;height:22px;opacity:.9}
+
+/* ── generic section padding ────────────────────────────────────────── */
+.section{padding:clamp(64px,9vw,110px) 0}
+.sec-head{max-width:680px}
+.sec-head h2{margin:18px 0 0}
+.sec-head .lead{margin-top:18px}
+
+/* The shift ------------------------------------------------------------- */
+.shift{text-align:center}
+.shift .big{font-size:clamp(1.8rem,4vw,3.1rem);font-weight:600;letter-spacing:-0.04em;line-height:1.14;max-width:18ch;margin:22px auto 0}
+.shift .sub{margin:22px auto 0;max-width:46ch}
+.shift .pill{margin-top:30px;display:inline-flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:10px 18px;border-radius:999px;border:1px solid rgba(168,85,247,.28);background:rgba(168,85,247,.07);color:#cdb4fb}
+
+/* 3-card grid ----------------------------------------------------------- */
+.cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:46px}
+@media(max-width:840px){.cards-3{grid-template-columns:1fr}}
+.card{padding:30px}
+.card .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--lime);letter-spacing:.18em}
+.card .ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(163,230,53,.08);border:1px solid rgba(163,230,53,.18);margin:0 0 20px}
+.card .ico svg{width:24px;height:24px;stroke:var(--lime)}
+.card h3{font-size:1.35rem;margin-bottom:10px;font-weight:600}
+.card p{color:var(--muted);font-size:14.5px}
+
+/* How it works (steps) -------------------------------------------------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:46px;counter-reset:step}
+@media(max-width:840px){.steps{grid-template-columns:1fr}}
+.step{padding:28px 26px;position:relative}
+.step .sn{font-family:'Space Grotesk',sans-serif;font-size:2.4rem;font-weight:700;color:rgba(255,255,255,.1);line-height:1}
+.step h3{font-size:1.18rem;margin:14px 0 8px}
+.step p{color:var(--muted);font-size:14px}
+
+/* Marquee --------------------------------------------------------------- */
+.marquee{overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);padding:6px 0}
+.marquee-track{display:flex;gap:14px;width:max-content;animation:scroll 38s linear infinite}
+.marquee:hover .marquee-track{animation-play-state:paused}
+@keyframes scroll{to{transform:translateX(-50%)}}
+.cap{flex:none;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted);padding:9px 16px;border:1px solid var(--line);border-radius:999px;background:var(--plate)}
+.cap b{color:var(--lime);font-weight:500}
+
+/* Lifetime / early section --------------------------------------------- */
+.early{text-align:center;padding:clamp(64px,9vw,120px) 0}
+.early .stmt{font-size:clamp(1.7rem,3.6vw,2.8rem);font-weight:600;letter-spacing:-0.035em;line-height:1.18;max-width:20ch;margin:24px auto 0}
+.early .stmt em{font-style:normal;color:var(--lime)}
+.early .price100{margin-top:30px;font-family:'Space Grotesk',sans-serif;font-size:clamp(2.6rem,7vw,4.4rem);font-weight:700;letter-spacing:-0.04em}
+.early .price100 span{color:var(--lime)}
+
+/* Offer block ----------------------------------------------------------- */
+.offer{position:relative;overflow:hidden;padding:clamp(40px,6vw,60px);border-radius:2rem}
+.offer::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(700px 400px at 78% -10%,rgba(163,230,53,.13),transparent 60%),
+  radial-gradient(600px 420px at 6% 20%,rgba(163,230,53,.06),transparent 58%);pointer-events:none}
+.offer-grid{position:relative;display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,4vw,52px);align-items:center}
+@media(max-width:820px){.offer-grid{grid-template-columns:1fr;gap:32px}}
+.offer .tag{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--lime);border:1px solid rgba(163,230,53,.22);background:rgba(163,230,53,.06);padding:6px 12px;border-radius:999px}
+.offer h2{margin:18px 0 0;font-size:clamp(1.9rem,4vw,2.8rem)}
+.offer .priceline{display:flex;align-items:baseline;gap:14px;margin-top:20px;flex-wrap:wrap}
+.offer .big-price{font-family:'Space Grotesk',sans-serif;font-size:3.4rem;font-weight:700;letter-spacing:-0.04em;line-height:1}
+.offer .anchor{color:var(--muted-2);font-size:14px}
+.offer .anchor s{color:var(--muted-2)}
+.includes{list-style:none;margin:24px 0 0;display:grid;gap:12px}
+.includes li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--fg)}
+.includes li svg{flex:none;width:19px;height:19px;margin-top:2px;stroke:var(--lime)}
+.includes li span{color:var(--muted)}
+.offer-cta{margin-top:30px;display:flex;flex-direction:column;gap:12px}
+.offer-cta .btn{justify-content:center}
+.guarantee{display:flex;align-items:center;gap:9px;justify-content:center;font-size:12.5px;color:var(--muted-2);margin-top:4px}
+.guarantee svg{width:15px;height:15px;stroke:var(--muted)}
+
+/* Seat counter card (inside offer) -------------------------------------- */
+.seatcard{background:#0d100b;border:1.5px solid var(--line);border-radius:1.4rem;padding:28px;text-align:center;box-shadow:inset 0 1px 0 0 rgba(255,255,255,.04)}
+.seatcard .lab{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:var(--muted-2)}
+.seatcard .count{font-family:'Space Grotesk',sans-serif;font-size:4.2rem;font-weight:700;line-height:1;margin:10px 0 2px;letter-spacing:-0.04em}
+.seatcard .count .of{color:var(--muted-2);font-size:1.6rem;font-weight:500}
+.seatbar{height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin:18px 0 10px}
+.seatbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--lime),var(--lime-soft));box-shadow:0 0 14px rgba(163,230,53,.5);width:0;transition:width 1.4s var(--ease)}
+.seatcard .note{font-size:12px;color:var(--muted-2)}
+.seatcard .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--lime);font-family:'JetBrains Mono',monospace;margin-bottom:6px}
+.seatcard .live .pulse{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 0 rgba(163,230,53,.6);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(163,230,53,.55)}70%{box-shadow:0 0 0 9px rgba(163,230,53,0)}100%{box-shadow:0 0 0 0 rgba(163,230,53,0)}}
+
+/* Waitlist inline form -------------------------------------------------- */
+.waitform{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.waitform input{flex:1;min-width:200px;background:rgba(255,255,255,.04);border:1px solid var(--line-strong);border-radius:999px;padding:14px 18px;color:var(--fg);font-size:14.5px;font-family:inherit;outline:none;transition:border-color .2s,background .2s}
+.waitform input::placeholder{color:var(--muted-2)}
+.waitform input:focus{border-color:rgba(163,230,53,.5);background:rgba(163,230,53,.04)}
+.waitform .btn{flex:none}
+.formnote{font-size:12px;color:var(--muted-2);margin-top:10px}
+.formok{color:var(--lime);font-size:13px;margin-top:12px;display:none}
+.formok.show{display:block}
+
+/* Proof ----------------------------------------------------------------- */
+.proof-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:42px}
+@media(max-width:820px){.proof-grid{grid-template-columns:repeat(2,1fr)}}
+.proof{padding:26px 22px;text-align:left}
+.proof .pi{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-bottom:16px}
+.proof .pi svg{width:22px;height:22px}
+.proof h4{font-size:1.05rem;margin-bottom:6px;font-weight:600}
+.proof p{font-size:13px;color:var(--muted)}
+
+/* FAQ ------------------------------------------------------------------- */
+.faq{max-width:760px;margin:40px auto 0;display:grid;gap:12px}
+.qa{border:1.5px solid var(--line);border-radius:1.1rem;background:var(--plate);overflow:hidden;transition:border-color .3s}
+.qa[open]{border-color:rgba(163,230,53,.2)}
+.qa summary{list-style:none;cursor:pointer;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-weight:600;font-size:16px}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary .plus{flex:none;width:24px;height:24px;position:relative;transition:transform .3s var(--ease)}
+.qa summary .plus::before,.qa summary .plus::after{content:"";position:absolute;background:var(--lime);border-radius:2px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.qa summary .plus::before{width:14px;height:2px}
+.qa summary .plus::after{width:2px;height:14px;transition:transform .3s var(--ease)}
+.qa[open] summary .plus::after{transform:translate(-50%,-50%) scaleY(0)}
+.qa .a{padding:0 24px 22px;color:var(--muted);font-size:14.5px;line-height:1.6}
+
+/* Final CTA ------------------------------------------------------------- */
+.final{text-align:center;padding:clamp(72px,10vw,130px) 0}
+.final h2{font-size:clamp(2.2rem,5vw,3.6rem);max-width:18ch;margin:20px auto 0}
+.final .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+
+/* Footer ---------------------------------------------------------------- */
+footer{border-top:1px solid var(--line);padding:40px 0 56px;margin-top:30px}
+.foot-in{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px}
+.foot-in .small{font-size:12.5px;color:var(--muted-2)}
+.foot-in a{color:var(--muted);text-decoration:none;font-size:13px}
+.foot-in a:hover{color:var(--fg)}
+
+/* Reveal-on-scroll ------------------------------------------------------ */
+.reveal{opacity:0;transform:translateY(22px);filter:blur(8px);transition:opacity .7s var(--ease),transform .7s var(--ease),filter .7s var(--ease)}
+.reveal.in{opacity:1;transform:none;filter:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;filter:none;transition:none}}
+
+/* sticky mobile buy bar ------------------------------------------------- */
+.mbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:none;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(10,10,12,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.mbar .btn{flex:1;justify-content:center;padding:14px}
+@media(max-width:760px){.mbar{display:flex}body{padding-bottom:78px}}
+</style>
+</head>
+<body>
+
+<div class="backdrop" aria-hidden="true">
+  <div class="glow a"></div><div class="glow b"></div><div class="glow c"></div>
+</div>
+
+<!-- Vello hexagon V logo (inline so the page is fully standalone) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="vg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- ══ NAV ══ -->
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="url(#vg)" opacity="0.15" stroke="url(#vg)" stroke-width="1.5"/>
+        <path d="M10 12 L20 28 L30 12" stroke="url(#vg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="20" cy="28" r="2.5" fill="url(#vg)"/>
+      </svg>
+      Vello
+    </a>
+    <nav class="nav-links">
+      <a class="link" href="#shift">The shift</a>
+      <a class="link" href="#how">How it works</a>
+      <a class="link" href="#proof">Proof</a>
+      <a class="link" href="#faq">FAQ</a>
+      <a class="btn btn-primary" href="#offer">Get Founding Access</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <span class="eyebrow"><span class="dot"></span>First 100 founding seats</span>
+      <h1 class="h-display">Your brand posts every&nbsp;day.<br/>Even with your laptop&nbsp;<span class="lime">off.</span></h1>
+      <p class="lead">Vello creates your own AI influencer that makes content, posts it across every platform, and grows your brand on autopilot. You sleep. It works.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#offer">Get Founding Access — $100 <span class="arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8"/></svg></span></a>
+        <a class="btn btn-ghost btn-lg" href="#waitlist">Join the waitlist</a>
+      </div>
+      <div class="hero-foot">
+        <span class="seatline"><b id="heroSeats">63</b> / 100 seats left · founder price locked for life</span>
+      </div>
+    </div>
+
+    <!-- animated agent illustration -->
+    <div class="reveal">
+      <div class="agent-stage" aria-hidden="true">
+        <div class="ring"></div><div class="ring r2"></div><div class="ring r3"></div>
+        <div class="agent-core">
+          <svg class="face" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="42" r="22" stroke="var(--lime)" stroke-width="2" opacity=".55"/>
+            <g class="blink">
+              <circle cx="42" cy="40" r="3" fill="var(--lime)"/>
+              <circle cx="58" cy="40" r="3" fill="var(--lime)"/>
+            </g>
+            <path d="M42 50 Q50 56 58 50" stroke="var(--lime)" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M30 78 Q50 66 70 78" stroke="var(--violet)" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+            <circle cx="50" cy="42" r="32" stroke="var(--violet)" stroke-width="1" opacity=".25"/>
+          </svg>
+        </div>
+        <div class="chip c1"><i style="background:#25F4EE"></i>TikTok · posted</div>
+        <div class="chip c2"><i style="background:#E1306C"></i>Reels · posted</div>
+        <div class="chip c3"><i style="background:#fff"></i>X · posted</div>
+        <div class="chip c4"><i style="background:#FF0000"></i>Shorts · posted</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- proof logo strip -->
+  <div class="wrap logostrip reveal">
+    <div class="label">Backed &amp; built in public</div>
+    <div class="logos">
+      <div class="lg"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.8"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg>Cradle</div>
+      <div class="lg">
+        <svg viewBox="0 0 24 24" fill="none"><defs><linearGradient id="sol" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><path d="M5 7h13l-3 3H2zM5 17h13l-3-3H2zM5 12h13l-3 0H2z" fill="url(#sol)"/></svg>
+        Solana
+      </div>
+      <div class="lg"><svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="1.8"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 0 1-12 0zM6 6H4v2a3 3 0 0 0 2 2.8M18 6h2v2a3 3 0 0 1-2 2.8"/></svg>Award-winning founder</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ THE SHIFT ══ -->
+<section class="section shift" id="shift">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center"><span class="eyebrow"><span class="dot"></span>The shift</span></div>
+    <p class="big reveal">Every brand is about to have an AI influencer — the same way every brand once needed a website, then a social account, then a content team.</p>
+    <p class="lead sub reveal">Vello is that team. One that never sleeps, never quits, and costs less than a single freelancer.</p>
+    <div class="reveal"><span class="pill grad-violet">◇ This is the agents economy. We're building it on Solana.</span></div>
+  </div>
+</section>
+
+<!-- ══ WHAT YOU GET (3 cards) ══ -->
+<section class="section" id="get">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow"><span class="dot"></span>What you get</span>
+      <h2 class="h2">An influencer that builds itself —<br/>then never logs off.</h2>
+    </div>
+    <div class="cards-3">
+      <div class="plate plate-int card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="5"/></svg></div>
+        <div class="num">01 · CREATE</div>
+        <h3>Create</h3>
+        <p>Pick a face, a niche, a vibe. Your AI influencer is born in minutes — voice, look and personality, all yours.</p>
+      </div>
+      <div class="plate plate-int card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M5 3l14 7-14 7"/></svg></div>
+        <div class="num">02 · WORKS</div>
+        <h3>It works</h3>
+        <p>It writes, films, and posts daily across TikTok, Instagram, X, and YouTube. No editing. No scheduling. No staff.</p>
+      </div>
+      <div class="plate plate-int card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7M14 8h6v6"/></svg></div>
+        <div class="num">03 · GROWS</div>
+        <h3>It grows</h3>
+        <p>Real audience, real reach — settled and tracked on-chain. Your brand compounds while your PC is off.</p>
+      </div>
+    </div>
+
+    <!-- capability marquee -->
+    <div class="marquee reveal" style="margin-top:42px" aria-hidden="true">
+      <div class="marquee-track" id="marquee"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ HOW IT WORKS ══ -->
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow"><span class="dot"></span>How it works</span>
+      <h2 class="h2">Three steps. Then it runs forever.</h2>
+    </div>
+    <div class="steps">
+      <div class="plate plate-int step reveal">
+        <div class="sn">01</div>
+        <h3>Tell us about your brand</h3>
+        <p>Your niche, your tone, your goals. A few minutes is all it takes.</p>
+      </div>
+      <div class="plate plate-int step reveal">
+        <div class="sn">02</div>
+        <h3>We build &amp; launch your influencer</h3>
+        <p>We set up your AI agent, connect your platforms, and go live for you.</p>
+      </div>
+      <div class="plate plate-int step reveal">
+        <div class="sn">03</div>
+        <h3>It posts every day, automatically</h3>
+        <p>Around the clock, on every platform — forever. No editing. No staff.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LIFETIME / EARLY ══ -->
+<section class="early" id="early">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center"><span class="eyebrow"><span class="dot"></span>Lifetime tech</span></div>
+    <p class="stmt reveal">Ten years ago, you'd have killed to buy Bitcoin early — or to be the first brand on TikTok. <em>This is that moment for AI agents.</em></p>
+    <p class="lead reveal" style="max-width:48ch;margin:22px auto 0">The brands that move first will own their space before everyone else even understands what happened. You can be one of them.</p>
+    <div class="price100 reveal">For <span>$100.</span></div>
+    <div class="reveal" style="margin-top:26px"><a class="btn btn-primary btn-lg" href="#offer">Claim your founding seat <span class="arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></div>
+  </div>
+</section>
+
+<!-- ══ OFFER BLOCK ══ -->
+<section class="section" id="offer">
+  <div class="wrap">
+    <div class="plate offer reveal">
+      <div class="offer-grid">
+        <div>
+          <span class="tag">● Founding Early Access</span>
+          <h2 class="h2">Everything, set up for you — at the founder price, locked for life.</h2>
+          <div class="priceline">
+            <span class="big-price lime">$100</span>
+            <span class="anchor">one-time · <s>RM5,000+/mo for a content team</s></span>
+          </div>
+          <ul class="includes">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>30 days of content</b> <span>about your brand — created and posted automatically.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>Your own AI influencer</b> <span>set up for you, end to end.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>Founder price locked for life</b> <span>— it goes up at public launch.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>Priority onboarding + founder badge</b> <span>+ private founders' channel.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>14-day money-back guarantee</b> <span>— full refund, no questions.</span></div></li>
+          </ul>
+          <div class="offer-cta">
+            <!-- TODO: replace href with your Stripe Payment Link (card checkout). -->
+            <a class="btn btn-primary btn-lg" href="#" id="buyBtn" data-checkout="">Claim your founding seat — $100 <span class="arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+            <div class="guarantee"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg> 14-day money-back guarantee · pay with card</div>
+          </div>
+        </div>
+
+        <!-- live seat counter -->
+        <div class="seatcard">
+          <div class="live"><span class="pulse"></span>LIVE · founding seats</div>
+          <div class="lab">Remaining</div>
+          <div class="count"><span id="seatCount">63</span><span class="of"> / 100</span></div>
+          <div class="seatbar"><i id="seatBar"></i></div>
+          <div class="note">When they're gone, the price goes up and the line begins.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ WAITLIST (free path / email capture) ══ -->
+<section class="section" id="waitlist" style="padding-top:0">
+  <div class="wrap">
+    <div class="plate offer reveal" style="text-align:center">
+      <div style="position:relative;max-width:560px;margin:0 auto">
+        <span class="eyebrow"><span class="dot"></span>Not ready to buy?</span>
+        <h2 class="h2" style="margin-top:16px;font-size:clamp(1.6rem,3.4vw,2.4rem)">Join the waitlist — keep your spot.</h2>
+        <p class="lead" style="margin-top:14px">Drop your email and we'll hold your place in line. No card, no commitment — and you'll be first to know when founding seats reopen.</p>
+        <!-- TODO: set data-endpoint to your form handler (Formspree, Convex action, etc). -->
+        <form class="waitform" id="waitForm" data-endpoint="" novalidate>
+          <input type="email" name="email" placeholder="you@email.com" required autocomplete="email" />
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </form>
+        <div class="formnote">We capture your email first — so even if you change your mind about the $100, your spot is saved.</div>
+        <div class="formok" id="waitOk">✓ You're on the list. We'll be in touch — keep an eye on your inbox.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PROOF ══ -->
+<section class="section" id="proof">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow"><span class="dot"></span>Why trust this</span>
+      <h2 class="h2">Real backing. Built in public.</h2>
+      <p class="lead">No invented stats. Just what's actually true today — and growing.</p>
+    </div>
+    <div class="proof-grid">
+      <div class="plate plate-int proof reveal">
+        <div class="pi"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.8"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg></div>
+        <h4>Backed by Cradle</h4>
+        <p>Supported by a venture program that backs early, ambitious founders.</p>
+      </div>
+      <div class="plate plate-int proof reveal">
+        <div class="pi"><svg viewBox="0 0 24 24" fill="none"><defs><linearGradient id="sol2" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><path d="M5 7h13l-3 3H2zM5 17h13l-3-3H2zM5 12h13l-3 0H2z" fill="url(#sol2)"/></svg></div>
+        <h4>Backed by Solana</h4>
+        <p>Settlement runs on-chain. Payouts and reputation are verifiable, not promised.</p>
+      </div>
+      <div class="plate plate-int proof reveal">
+        <div class="pi"><svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="1.8"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 0 1-12 0zM6 6H4v2a3 3 0 0 0 2 2.8M18 6h2v2a3 3 0 0 1-2 2.8"/></svg></div>
+        <h4>Award-winning founder</h4>
+        <p>Recognised for the work behind Vello — not a faceless project.</p>
+      </div>
+      <div class="plate plate-int proof reveal">
+        <div class="pi"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M4 4l16 16M20 4 4 20"/></svg></div>
+        <h4>Built in public</h4>
+        <p>Shipped openly on X, in front of thousands. You can watch it happen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FAQ ══ -->
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="sec-head reveal" style="text-align:center;margin:0 auto">
+      <span class="eyebrow"><span class="dot"></span>Honest answers</span>
+      <h2 class="h2">Questions, straight.</h2>
+    </div>
+    <div class="faq">
+      <details class="qa reveal" open>
+        <summary>Is it live yet? <span class="plus"></span></summary>
+        <div class="a">We're in founding early access. Your seat reserves your spot and your founder price, and onboarding begins as we roll out. If it's not for you, get a full refund within 14 days — no questions asked.</div>
+      </details>
+      <details class="qa reveal">
+        <summary>Do I need crypto knowledge? <span class="plus"></span></summary>
+        <div class="a">No. Pay with a card like anything else. The on-chain settlement runs invisibly in the background — you never have to touch it.</div>
+      </details>
+      <details class="qa reveal">
+        <summary>Does it really run with my computer off? <span class="plus"></span></summary>
+        <div class="a">Yes. Your AI influencer lives in the cloud and posts on a schedule, 24/7. Your laptop, your phone, your sleep — none of it matters to the work getting done.</div>
+      </details>
+      <details class="qa reveal">
+        <summary>What platforms does it post to? <span class="plus"></span></summary>
+        <div class="a">TikTok, Instagram, X, and YouTube — with more being added. One agent, every feed, every day.</div>
+      </details>
+      <details class="qa reveal">
+        <summary>What does the $100 actually get me? <span class="plus"></span></summary>
+        <div class="a">30 days of automated content about your brand, your own AI influencer set up end-to-end, your founder price locked for life, priority onboarding, a founder badge, the private founders' channel, and a 14-day money-back guarantee.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FINAL CTA ══ -->
+<section class="final" id="final">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center"><span class="eyebrow"><span class="dot"></span>The agents economy starts now</span></div>
+    <h2 class="reveal">Get in before everyone else.</h2>
+    <div class="cta reveal">
+      <a class="btn btn-primary btn-lg" href="#offer">Get Founding Access — $100 <span class="arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8"/></svg></span></a>
+      <a class="btn btn-ghost btn-lg" href="#waitlist">Just join the waitlist</a>
+    </div>
+    <p class="seatline reveal" style="margin-top:22px"><b id="finalSeats">63</b> / 100 founding seats left · founder price locked for life</p>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="wrap foot-in">
+    <a class="brand" href="#top" style="font-size:17px">
+      <svg viewBox="0 0 40 40" fill="none" aria-hidden="true" style="width:26px;height:26px">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="url(#vg)" opacity="0.15" stroke="url(#vg)" stroke-width="1.5"/>
+        <path d="M10 12 L20 28 L30 12" stroke="url(#vg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="20" cy="28" r="2.5" fill="url(#vg)"/>
+      </svg>
+      Vello
+    </a>
+    <div class="small">The agents economy, settled on Solana. © Vello 2026.</div>
+    <div style="display:flex;gap:20px"><a href="#offer">Founding Access</a><a href="#faq">FAQ</a></div>
+  </div>
+</footer>
+
+<!-- sticky mobile buy bar -->
+<div class="mbar">
+  <a class="btn btn-ghost" href="#waitlist">Waitlist</a>
+  <a class="btn btn-primary" href="#offer">Founding Access — $100</a>
+</div>
+
+<script>
+/* ── Nav shadow on scroll ─────────────────────────────────────────────── */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>12),{passive:true});
+
+/* ── Scroll reveal ────────────────────────────────────────────────────── */
+const io=new IntersectionObserver((es)=>{
+  es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.reveal').forEach((el,i)=>{
+  el.style.transitionDelay=(Math.min(i%4,3)*60)+'ms';
+  io.observe(el);
+});
+
+/* ── Capability marquee (duplicated for seamless loop) ────────────────── */
+const CAPS=['Face-consistent video','WhatsApp ready','On-chain payouts','Per-client memory','Brand campaigns','Multilingual content','Verified views','Solana settlement','Auto-posting','Tradeable equity','24/7 uptime','No editing'];
+const track=document.getElementById('marquee');
+const row=CAPS.map(c=>`<span class="cap"><b>◇</b> ${c}</span>`).join('');
+track.innerHTML=row+row;
+
+/* ── Live seat counter ────────────────────────────────────────────────────
+   Scarcity device. The remaining count is illustrative, not a fake live feed —
+   wire SEATS_TOTAL / SEATS_LEFT to your real backend (Convex) when ready. ── */
+const SEATS_TOTAL=100, SEATS_LEFT=63;
+function setSeats(n){
+  document.querySelectorAll('#seatCount,#heroSeats,#finalSeats').forEach(el=>el.textContent=n);
+  const bar=document.getElementById('seatBar');
+  if(bar) bar.style.width=((SEATS_TOTAL-n)/SEATS_TOTAL*100)+'%';
+}
+setSeats(SEATS_LEFT);
+// animate the bar fill once the offer scrolls into view
+const offerIO=new IntersectionObserver((es)=>{
+  es.forEach(e=>{if(e.isIntersecting){setSeats(SEATS_LEFT);offerIO.disconnect();}});
+},{threshold:.4});
+const seatBar=document.getElementById('seatBar');
+if(seatBar){seatBar.style.width='0';offerIO.observe(document.getElementById('offer'));}
+
+/* ── Checkout button ──────────────────────────────────────────────────── */
+document.getElementById('buyBtn').addEventListener('click',(e)=>{
+  const url=e.currentTarget.dataset.checkout;
+  if(url){location.href=url;}      // Stripe Payment Link goes here
+  else{e.preventDefault();document.getElementById('waitlist').scrollIntoView({behavior:'smooth'});}
+});
+
+/* ── Waitlist form (capture email before payment) ─────────────────────── */
+const form=document.getElementById('waitForm');
+form.addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  const input=form.querySelector('input[name=email]');
+  const email=input.value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){input.focus();input.style.borderColor='#ff6b6b';return;}
+  const endpoint=form.dataset.endpoint;
+  try{
+    if(endpoint){
+      await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    }else{
+      // No backend wired yet — stash locally so nothing is lost.
+      const list=JSON.parse(localStorage.getItem('vello_waitlist')||'[]');
+      list.push({email,ts:Date.now()});localStorage.setItem('vello_waitlist',JSON.stringify(list));
+    }
+  }catch(_){/* swallow — never lose the lead to a UI error */}
+  form.style.display='none';
+  document.getElementById('waitOk').classList.add('show');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+[package]
+name = "vello-escrow"
+version = "0.1.0"
+description = "Vello Protocol escrow for campaign treasury"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "vello_escrow"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.31.1", features = ["token", "associated_token"] }
+# Toolchain note (oracle bake-off): anchor 0.30.1 IDL-gen calls
+# proc_macro2::Span::source_file(), removed in rustc 1.85 -> "Building IDL failed".
+# The plan's sanctioned fallback is 0.31.1 across Cargo+CLI+JS. anchor-spl 0.31.1
+# transitively hard-pins solana-zk-sdk 2.1.0 (via spl-token-2022 6.0.0); without
+# pinning solana-program here, anchor-lang's `^2` resolves to 2.3.0 -> conflict.
+solana-program = "=2.1.0"

@@ -1,0 +1,141 @@
+# Dependencies (all workspaces)
+node_modules/
+.pnp
+.pnp.*
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+
+# Build outputs and framework caches
+.next/
+out/
+dist/
+dist-ssr/
+build/
+.turbo/
+.cache/
+.vercel/
+.netlify/
+*.tsbuildinfo
+
+# Tests and coverage
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Local environment and secrets; commit templates only
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.key
+certificates/
+
+# Python dependencies and caches
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Operating system and editor temporary files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and disposable output
+*.log
+logs/
+*.tmp
+*.temp
+.tmp/
+tmp/
+_to_delete/
+
+# Rendered/downloaded campaign media (keep scripts and project sources)
+/content/**/*.mp4
+/content/**/*.webm
+/content/**/*.mov
+/content/**/*.mkv
+/content/**/*.wav
+/content/**/*.mp3
+/content/**/.parts/
+
+# Local tooling and lab fixtures; not required for the deployed application
+/apps/web/bin/yt-dlp
+/apps/web/assets/YTDown.com_*.mp4
+/apps/web/public/face-detect-sample.mp4
+/apps/web/public/captions-lab-sample.mp4
+
+# Local business, outreach, pitch and planning documents
+/*.md
+!/README.md
+!/AGENTS.md
+/Claude outputs/
+/research/
+/tracker/
+/local-assets/docs/business/
+/local-assets/pitch/
+/local-assets/webinar/
+/local-assets/launch-2026-10/
+/docs/superpowers/
+/apps/web/AUDIT/
+/apps/web/.agents/
+/apps/web/CLAUDE.md
+/apps/web/DESIGN.md
+/VELLO_*.xlsx
+/VELLO_*.pdf
+/VELLO_*.pptx
+/Vello_*.pptx
+/leads.csv
+
+# Keep all video/audio media local; do not upload to GitHub
+*.mp4
+*.m4v
+*.mov
+*.webm
+*.mkv
+*.avi
+*.mpeg
+*.mpg
+*.wmv
+*.flv
+*.3gp
+*.mts
+*.m2ts
+*.mp3
+*.wav
+*.flac
+*.aac
+*.m4a
+*.ogg
+*.aiff
+*.aif
+*.wma
+
+# Large archives and downloaded binaries
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.dmg
+*.iso
+*.exe
+
+# Rust/Solana compiled artifacts and local media collections
+target/
+/local-assets/
+/demo-clips/

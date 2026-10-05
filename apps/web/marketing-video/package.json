@@ -1,0 +1,29 @@
+{
+  "name": "vello-marketing-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render VelloPromo out/vello-promo.mp4 --crf 18 --color-space bt709 --concurrency 8",
+    "render:vertical": "remotion render VelloPromoVertical out/vello-promo-vertical.mp4 --crf 18 --color-space bt709 --concurrency 8",
+    "render:draft": "remotion render VelloPromo out/draft.mp4 --crf 28 --concurrency 8",
+    "render:all": "npm run render && npm run render:vertical"
+  },
+  "dependencies": {
+    "@remotion/cli": "4",
+    "@remotion/google-fonts": "4",
+    "@remotion/noise": "4",
+    "@remotion/shapes": "4",
+    "@remotion/transitions": "4",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.6.3"
+  }
+}

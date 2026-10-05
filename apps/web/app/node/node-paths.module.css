@@ -1,0 +1,91 @@
+/* Choose your path: a three.js crossroads, two path cards, and the panel for the chosen road. */
+.section { border-block: 1px solid var(--hair-light); }
+.chooser { margin-top: 40px; }
+.crossroads { position: relative; height: clamp(150px, 15vw, 210px); width: min(640px, 100%); margin: 0 auto 8px; }
+.crossroads canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fallback { position: absolute; inset: 14% 8%; display: flex; justify-content: space-around; align-items: center; color: var(--gold-deep); }
+.fallback span { display: grid; place-items: center; width: 84px; height: 110px; border: 1px solid currentColor; border-radius: 42px 42px 0 0; font-family: var(--serif); font-size: 44px; }
+.fallback i { width: 1px; height: 70px; background: currentColor; opacity: .4; }
+.crossroads[data-ready="true"] .fallback { opacity: 0; }
+
+.tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tabs button { position: relative; display: flex; align-items: center; gap: 18px; padding: 20px 22px; text-align: left; border-radius: 16px; background: #fffdf7; border: 1px solid var(--hair-light); color: var(--ink); cursor: pointer; box-shadow: 0 14px 34px -24px rgba(70, 50, 15, .45); transition: background .35s, transform .4s var(--ease), border-color .3s, color .3s, box-shadow .4s; }
+.tabs button[aria-selected="true"] { background: linear-gradient(160deg, #1d3157, #14233f); color: var(--cream); border-color: rgba(230, 184, 95, .6); box-shadow: 0 22px 44px -22px rgba(20, 35, 63, .7); }
+.tabs button > span { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(184, 134, 47, .4); background: rgba(230, 184, 95, .12); font-family: var(--serif); font-size: 24px; color: var(--gold-ink); }
+.tabs button[aria-selected="true"] > span { color: var(--gold-light); border-color: rgba(230, 184, 95, .5); }
+.tabs button b { display: block; font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; }
+.tabs button small { display: block; font-size: 13.5px; line-height: 1.45; margin-top: 4px; opacity: .72; }
+.tabs button i { margin-left: auto; font-size: 18px; font-style: normal; opacity: .6; transition: transform .3s var(--ease); }
+.tabs button:hover { transform: translateY(-3px); border-color: rgba(184, 134, 47, .55); }
+.tabs button:hover i { transform: translate(2px, -2px); }
+.tabs button:active { transform: translateY(0); }
+.panel { padding-top: 40px; animation: panelArrive .5s var(--ease) both; }
+.panel[hidden] { display: none; }
+@keyframes panelArrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.content { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(28px, 4vw, 56px); align-items: start; }
+.inscription { font: 600 10.5px/1.6 var(--label); letter-spacing: .2em; text-transform: uppercase; color: var(--gold-ink); }
+.section .pathCopy h3 { margin-top: 14px; font-family: var(--serif); font-weight: 500; font-size: clamp(28px, 3vw, 40px); line-height: 1.1; letter-spacing: -.01em; color: var(--ink); }
+.pathCopy h3 em { font-style: italic; color: var(--gold-ink); }
+.pathCopy > p:not(.inscription) { margin-top: 16px; font-size: 15.5px; line-height: 1.75; color: var(--ink-soft); }
+.steps { list-style: none; margin-top: 24px !important; }
+.steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; padding: 16px 0; border-top: 1px solid var(--hair-light); }
+.steps li > span { font-family: var(--serif); font-style: italic; font-size: 24px; line-height: 1.1; color: var(--gold-deep); }
+.steps h4 { margin: 0; font-family: var(--serif); font-size: 21px; font-weight: 600; line-height: 1.2; color: var(--ink); }
+.section .steps p { margin-top: 6px; font-size: 14.5px; line-height: 1.65; color: var(--ink-soft); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 22px; }
+.actions > a:not(:first-child) { font-size: 14.5px; font-weight: 500; color: var(--gold-ink); border-bottom: 1px solid rgba(138, 98, 22, .35); padding: 6px 0; transition: border-color .3s, color .3s; }
+.actions > a:not(:first-child):hover { color: var(--ink); border-color: var(--ink); }
+
+.clipExample, .references { min-width: 0; padding: 24px; border-radius: 18px; border: 1px solid var(--hair-light); background: #fffdf7; box-shadow: 0 20px 44px -28px rgba(70, 50, 15, .45); }
+.nicheSeal { position: relative; text-align: center; margin: 20px auto; padding: 26px 18px; max-width: 280px; border: 1px solid rgba(230, 184, 95, .5); border-radius: 110px 110px 14px 14px; background: linear-gradient(#10224166, #102241e8), url('/node/ancient-builders.webp') 18% 65% / auto 150%; color: var(--cream); }
+.nicheSeal > span { font-family: var(--serif); font-style: italic; font-size: 30px; color: var(--gold-light); }
+.nicheSeal h4 { margin: 8px 0; font-family: var(--serif); font-size: 32px; font-weight: 500; line-height: 1.08; }
+.nicheSeal h4 em { color: var(--gold-light); }
+.nicheSeal small { font: 500 9px/1 var(--label); letter-spacing: .2em; text-transform: uppercase; opacity: .85; }
+.clipStrip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.clipStrip > div { position: relative; aspect-ratio: 9 / 14; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px 10px; border-radius: 12px; background: linear-gradient(140deg, #294570, #101d3b); color: var(--cream); border: 1px solid rgba(230, 184, 95, .5); }
+.clipStrip > div:nth-child(2) { background: linear-gradient(140deg, #4a5464, #1a294b); }
+.clipStrip > div:nth-child(3) { background: linear-gradient(140deg, #8d6c36, #332c20); }
+.clipStrip span { position: absolute; top: 12px; left: 10px; font: 500 9px/1 var(--label); letter-spacing: .2em; color: var(--gold-light); }
+.clipStrip b { font-family: var(--serif); font-size: 19px; font-weight: 600; line-height: 1.1; }
+.section .clipStrip p { font-size: 12.5px; line-height: 1.35; margin-top: 4px; opacity: .8; }
+.clipStrip i { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, rgba(255, 235, 190, .16) 50%, transparent 65%); transform: translateX(-110%); }
+.clipStrip > div:hover i { animation: clipGleam 1s var(--ease); }
+@keyframes clipGleam { to { transform: translateX(110%); } }
+.clipStrip > div img { object-fit: cover; opacity: .62; transition: transform .8s var(--ease); }
+.clipStrip > div:nth-child(1) img { object-position: 14% center; }
+.clipStrip > div:nth-child(2) img { object-position: 52% center; }
+.clipStrip > div:nth-child(3) img { object-position: 90% center; }
+.clipStrip > div::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 20%, #081227eb); pointer-events: none; }
+.clipStrip > div > b, .clipStrip > div > p, .clipStrip > div > span, .clipStrip > div > i { z-index: 1; }
+.clipStrip > div > b, .clipStrip > div > p { position: relative; }
+.clipStrip > div:hover img { transform: scale(1.08); }
+.exampleNote { margin-top: 18px !important; font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); }
+.exampleNote a { text-decoration: underline; text-underline-offset: 3px; color: var(--gold-ink); }
+.referenceLink { display: inline-block; margin-top: 16px; color: var(--gold-ink) !important; font-size: 14.5px; font-weight: 500; border-bottom: 1px solid rgba(138, 98, 22, .35); }
+.referenceGrid { display: grid; grid-template-columns: .85fr 1.2fr; gap: 14px; margin-top: 16px; align-items: start; }
+.referenceGrid > a, .referenceGrid figure > a { display: block; border-radius: 12px; border: 1px solid var(--hair-light); overflow: hidden; background: var(--paper); }
+.referenceGrid img { display: block; width: 100%; height: auto; transition: transform .4s var(--ease); }
+.referenceGrid a:hover img { transform: scale(1.025); }
+.referenceGrid figure { margin: 0; }
+.referenceGrid figcaption { margin-top: 14px; font-family: var(--serif); font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--ink); }
+.section .referenceGrid figure > p { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.closing { margin-top: 44px !important; font-family: var(--serif); text-align: center; font-size: 23px; font-style: italic; color: var(--gold-ink); }
+
+@media (max-width: 960px) { .content { grid-template-columns: 1fr; } .references, .clipExample { width: 100%; max-width: 620px; margin-inline: auto; } }
+@media (max-width: 600px) {
+  .crossroads { height: 150px; }
+  .fallback span { width: 62px; height: 90px; font-size: 34px; }
+  .tabs { grid-template-columns: 1fr; gap: 10px; }
+  .tabs button { padding: 16px 18px; gap: 14px; }
+  .tabs button b { font-size: 22px; }
+  .panel { padding-top: 28px; }
+  .actions { flex-direction: column; align-items: flex-start; }
+  .clipExample, .references { padding: 20px 16px; }
+  .clipStrip > div { padding: 10px 8px; }
+  .clipStrip b { font-size: 17px; }
+  .closing { font-size: 20px; line-height: 1.4; }
+}
+@media (max-width: 380px) { .clipStrip { grid-template-columns: 1fr; gap: 10px; } .clipStrip > div { aspect-ratio: 16 / 9; padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { .chooser *, .chooser *::before, .chooser *::after { animation: none !important; transition: none !important; } }

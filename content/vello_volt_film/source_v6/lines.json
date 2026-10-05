@@ -1,0 +1,5636 @@
+[
+{
+"id": 0,
+"c": 0,
+"s": 0.0,
+"e": 4.73,
+"n": 14,
+"t": "Believe in yourself and don't, and don't rely on anybody to believe in you.",
+"interp": 0.0
+},
+{
+"id": 1,
+"c": 0,
+"s": 5.51,
+"e": 9.37,
+"n": 11,
+"t": "Don't rely on anybody to push you or make you better.",
+"interp": 0.0
+},
+{
+"id": 2,
+"c": 0,
+"s": 9.82,
+"e": 16.45,
+"n": 17,
+"t": "Believe in yourself and only yourself, and allow that human being to make you a better person.",
+"interp": 0.0
+},
+{
+"id": 3,
+"c": 0,
+"s": 16.61,
+"e": 21.38,
+"n": 8,
+"t": "Live your life with character, honor, and discipline.",
+"interp": 0.0
+},
+{
+"id": 4,
+"c": 0,
+"s": 22.45,
+"e": 28.74,
+"n": 19,
+"t": "And if you live that way, I guaran-damn-tee you your goals and dreams will, will get accomplished.",
+"interp": 0.0
+},
+{
+"id": 5,
+"c": 0,
+"s": 28.74,
+"e": 30.94,
+"n": 9,
+"t": "Why be normal when you can be the best?",
+"interp": 0.0
+},
+{
+"id": 6,
+"c": 0,
+"s": 30.94,
+"e": 32.82,
+"n": 6,
+"t": "I don't want to be normal.",
+"interp": 0.0
+},
+{
+"id": 7,
+"c": 0,
+"s": 32.82,
+"e": 33.89,
+"n": 6,
+"t": "I want to make the difference.",
+"interp": 0.0
+},
+{
+"id": 8,
+"c": 0,
+"s": 33.89,
+"e": 38.97,
+"n": 19,
+"t": "So everything I do, I want to make the difference, because when I make the difference, I'm the best.",
+"interp": 0.0
+},
+{
+"id": 9,
+"c": 0,
+"s": 38.97,
+"e": 40.02,
+"n": 5,
+"t": "And that is not arrogance.",
+"interp": 0.0
+},
+{
+"id": 10,
+"c": 0,
+"s": 40.02,
+"e": 41.35,
+"n": 3,
+"t": "That is confidence.",
+"interp": 0.0
+},
+{
+"id": 11,
+"c": 0,
+"s": 41.35,
+"e": 42.83,
+"n": 2,
+"t": "I'm unbeatable.",
+"interp": 0.0
+},
+{
+"id": 12,
+"c": 0,
+"s": 42.83,
+"e": 44.09,
+"n": 4,
+"t": "I can't be beat.",
+"interp": 0.0
+},
+{
+"id": 13,
+"c": 0,
+"s": 44.09,
+"e": 45.67,
+"n": 2,
+"t": "It's impossible.",
+"interp": 0.0
+},
+{
+"id": 14,
+"c": 0,
+"s": 45.67,
+"e": 47.23,
+"n": 4,
+"t": "You can dent me.",
+"interp": 0.0
+},
+{
+"id": 15,
+"c": 0,
+"s": 47.23,
+"e": 48.61,
+"n": 4,
+"t": "You can damage me.",
+"interp": 0.0
+},
+{
+"id": 16,
+"c": 0,
+"s": 48.61,
+"e": 50.26,
+"n": 6,
+"t": "You're never, ever gonna beat me.",
+"interp": 0.0
+},
+{
+"id": 17,
+"c": 0,
+"s": 50.26,
+"e": 55.8,
+"n": 12,
+"t": "Most people will not understand your obsession, your drive, and your determination.",
+"interp": 0.0
+},
+{
+"id": 18,
+"c": 0,
+"s": 55.8,
+"e": 57.12,
+"n": 5,
+"t": "Success is a lonely journey.",
+"interp": 0.0
+},
+{
+"id": 19,
+"c": 0,
+"s": 57.12,
+"e": 58.26,
+"n": 4,
+"t": "That's just the reality.",
+"interp": 0.0
+},
+{
+"id": 20,
+"c": 0,
+"s": 58.26,
+"e": 67.71,
+"n": 28,
+"t": "And most people are not gonna understand why you're so driven, why you're so obsessed, and if you try and make them understand, you're gonna end up frustrated.",
+"interp": 0.0
+},
+{
+"id": 21,
+"c": 0,
+"s": 67.71,
+"e": 73.05,
+"n": 14,
+"t": "The best advice I can tell you is go on the journey by yourself.",
+"interp": 0.0
+},
+{
+"id": 22,
+"c": 0,
+"s": 73.05,
+"e": 74.79,
+"n": 6,
+"t": "It is the best journey, man.",
+"interp": 0.0
+},
+{
+"id": 23,
+"c": 0,
+"s": 74.79,
+"e": 86.56,
+"n": 37,
+"t": "Leveling up, making more money, losing weight, getting fit, becoming the best version of yourself is a fucking most awesomest journey you will ever go on, but is a journey that you'll probably go on by yourself.",
+"interp": 0.0
+},
+{
+"id": 24,
+"c": 0,
+"s": 86.56,
+"e": 91.52,
+"n": 11,
+"t": "You have to be crazy enough to think that it's possible.",
+"interp": 0.0
+},
+{
+"id": 25,
+"c": 0,
+"s": 91.52,
+"e": 94.49,
+"n": 7,
+"t": "That's how you fucking do something worthwhile.",
+"interp": 0.0
+},
+{
+"id": 26,
+"c": 0,
+"s": 94.49,
+"e": 97.83,
+"n": 7,
+"t": "That's how you beat the fucking odds.",
+"interp": 0.0
+},
+{
+"id": 27,
+"c": 0,
+"s": 97.83,
+"e": 101.66,
+"n": 7,
+"t": "You have to believe it's possible, okay?",
+"interp": 0.0
+},
+{
+"id": 28,
+"c": 0,
+"s": 101.66,
+"e": 106.21,
+"n": 13,
+"t": "And when you believe something is possible, everything else will figure itself out.",
+"interp": 0.0
+},
+{
+"id": 29,
+"c": 0,
+"s": 106.21,
+"e": 109.5,
+"n": 10,
+"t": "Say to yourself over and over again, \"I am unstoppable.",
+"interp": 0.0
+},
+{
+"id": 30,
+"c": 0,
+"s": 109.5,
+"e": 110.76,
+"n": 3,
+"t": "I am unstoppable.",
+"interp": 0.0
+},
+{
+"id": 31,
+"c": 0,
+"s": 110.76,
+"e": 117.07,
+"n": 23,
+"t": "I can do anything I put my mind to.\" And wonderfully enough, you do become what you think about most of the time.",
+"interp": 0.0
+},
+{
+"id": 32,
+"c": 0,
+"s": 117.07,
+"e": 126.55,
+"n": 31,
+"t": "You also become what you say to yourself most of the time, and that means that you accept complete responsibility for yourself and for your business and for everything that happens.",
+"interp": 0.0
+},
+{
+"id": 33,
+"c": 0,
+"s": 126.55,
+"e": 130.95,
+"n": 17,
+"t": "You see, the big problem in our world today is people are trying to blame other people.",
+"interp": 0.0
+},
+{
+"id": 34,
+"c": 0,
+"s": 130.95,
+"e": 133.57,
+"n": 11,
+"t": "I'm where I am and what I am because of myself.",
+"interp": 0.0
+},
+{
+"id": 35,
+"c": 0,
+"s": 133.57,
+"e": 143.95,
+"n": 25,
+"t": "When you accept responsibility, you stop making excuses, you stop criticizing, you stop complaining, you stop blaming other people, and you start to feel powerful.",
+"interp": 0.0
+},
+{
+"id": 36,
+"c": 0,
+"s": 143.95,
+"e": 147.23,
+"n": 9,
+"t": "You develop the mindset of the truly superior person.",
+"interp": 0.0
+},
+{
+"id": 37,
+"c": 0,
+"s": 147.23,
+"e": 151.57,
+"n": 16,
+"t": "You develop the mindset of the leader, and no matter what happens, nothing can stop you.",
+"interp": 0.0
+},
+{
+"id": 38,
+"c": 0,
+"s": 151.57,
+"e": 164.75,
+"n": 47,
+"t": "So if you have those co- that combination, if you like yourself, you have self-confidence, you accept responsibility, and you decide in advance that you will never give up, you will chop and change and try different things and you will bounce back and re- recoil.",
+"interp": 0.0
+},
+{
+"id": 39,
+"c": 0,
+"s": 164.75,
+"e": 166.09,
+"n": 3,
+"t": "You'll be resilient.",
+"interp": 0.0
+},
+{
+"id": 40,
+"c": 0,
+"s": 166.09,
+"e": 175.07,
+"n": 26,
+"t": "You'll have temporary defeats and failures, but you will never give up, then nothing can stop you from achieving the greatness for which you were created.",
+"interp": 0.0
+},
+{
+"id": 41,
+"c": 0,
+"s": 175.2,
+"e": 175.59,
+"n": 2,
+"t": "Complete delusion.",
+"interp": 0.0
+},
+{
+"id": 42,
+"c": 0,
+"s": 175.59,
+"e": 181.52,
+"n": 12,
+"t": "You gotta believe the delusion, because it's only delusional until it works.",
+"interp": 0.0
+},
+{
+"id": 43,
+"c": 0,
+"s": 181.52,
+"e": 186.53,
+"n": 9,
+"t": "How can you beat someone who cannot fucking quit?",
+"interp": 0.0
+},
+{
+"id": 44,
+"c": 0,
+"s": 186.53,
+"e": 194.91,
+"n": 28,
+"t": "How can you beat someone who every time they go through a hard time, they get better and they get stronger instead of getting weaker and getting demoralized?",
+"interp": 0.0
+},
+{
+"id": 45,
+"c": 0,
+"s": 194.91,
+"e": 201.12,
+"n": 22,
+"t": "How can you beat someone who looks back on all the tests that they've had and said, \"Yeah, that wasn't shit, dude.",
+"interp": 0.0
+},
+{
+"id": 46,
+"c": 0,
+"s": 201.12,
+"e": 203.4,
+"n": 6,
+"t": "Bring it the fuck on.\" Okay?",
+"interp": 0.0
+},
+{
+"id": 47,
+"c": 0,
+"s": 203.4,
+"e": 209.33,
+"n": 23,
+"t": "As opposed to the person who's like, \"Oh my God, I can't believe this happened,\" and then fucking two months, another thing happens.",
+"interp": 0.0
+},
+{
+"id": 48,
+"c": 0,
+"s": 209.33,
+"e": 222.29,
+"n": 38,
+"t": "\"Oh my God, I can't believe this happened.\" It's gonna be the person who has a stoic mentality, who looks at it and says this, okay, \"All right, we'll get through it.\" And then the next thing happens.",
+"interp": 0.0
+},
+{
+"id": 49,
+"c": 0,
+"s": 222.29,
+"e": 225.17,
+"n": 11,
+"t": "\"Well, won't do that again, but we'll get through it.\" Right?",
+"interp": 0.0
+},
+{
+"id": 50,
+"c": 0,
+"s": 225.17,
+"e": 227.95,
+"n": 13,
+"t": "Not freaking the fuck out like the world's ending every two weeks, dude.",
+"interp": 0.0
+},
+{
+"id": 51,
+"c": 0,
+"s": 227.95,
+"e": 228.89,
+"n": 5,
+"t": "You can't live like that.",
+"interp": 0.0
+},
+{
+"id": 52,
+"c": 0,
+"s": 228.89,
+"e": 232.71,
+"n": 10,
+"t": "What is the best advice you've ever heard or received?",
+"interp": 0.0
+},
+{
+"id": 53,
+"c": 0,
+"s": 232.71,
+"e": 233.72,
+"n": 3,
+"t": "Believe in yourself.",
+"interp": 0.0
+},
+{
+"id": 54,
+"c": 0,
+"s": 233.72,
+"e": 236.91,
+"n": 10,
+"t": "What is the worst advice you've ever heard or received?",
+"interp": 0.0
+},
+{
+"id": 55,
+"c": 0,
+"s": 236.91,
+"e": 238.54,
+"n": 4,
+"t": "It can't be done.",
+"interp": 0.0
+},
+{
+"id": 56,
+"c": 0,
+"s": 238.54,
+"e": 239.97,
+"n": 7,
+"t": "What have you learned about how to",
+"interp": 0.0
+},
+{
+"id": 57,
+"c": 1,
+"s": 240.0,
+"e": 243.67,
+"n": 7,
+"t": "To deal with and overcome fear Go.",
+"interp": 0.5714285714285714
+},
+{
+"id": 58,
+"c": 1,
+"s": 243.67,
+"e": 244.58,
+"n": 1,
+"t": "Go.",
+"interp": 1.0
+},
+{
+"id": 59,
+"c": 1,
+"s": 244.58,
+"e": 245.5,
+"n": 1,
+"t": "Yep.",
+"interp": 1.0
+},
+{
+"id": 60,
+"c": 1,
+"s": 246.41,
+"e": 263.32,
+"n": 44,
+"t": "It's you- when all that, all that, uh, fear that's in your head, all the what ifs and the scenarios that you create inside your own mind that are way worse than anything that is actually gonna happen, they all disappear when you go.",
+"interp": 0.18181818181818182
+},
+{
+"id": 61,
+"c": 1,
+"s": 263.46,
+"e": 267.2,
+"n": 10,
+"t": "So just, just take action and, and start moving forward.",
+"interp": 0.3
+},
+{
+"id": 62,
+"c": 1,
+"s": 267.2,
+"e": 274.51,
+"n": 21,
+"t": "It, and it, that is the, the, that is the moment that can last a million years is waiting to go.",
+"interp": 0.3333333333333333
+},
+{
+"id": 63,
+"c": 1,
+"s": 274.71,
+"e": 281.53,
+"n": 28,
+"t": "And I found I, I'm pretty good at it now, where, oh, I'm like, \"Oh, yeah, I know what that is,\" and I'm going, and, uh, that's it.",
+"interp": 0.4642857142857143
+},
+{
+"id": 64,
+"c": 1,
+"s": 281.87,
+"e": 283.11,
+"n": 6,
+"t": "There's no luck in this game.",
+"interp": 0.0
+},
+{
+"id": 65,
+"c": 1,
+"s": 283.11,
+"e": 290.95,
+"n": 25,
+"t": "It may be a little bit of luck, but the luck happens after you bust your ass and you put yourself in that lucky situation.",
+"interp": 0.64
+},
+{
+"id": 66,
+"c": 1,
+"s": 290.95,
+"e": 291.46,
+"n": 3,
+"t": "Luck doesn't happen.",
+"interp": 0.6666666666666666
+},
+{
+"id": 67,
+"c": 1,
+"s": 291.92,
+"e": 297.49,
+"n": 17,
+"t": "You put yourself in that situation where luck might fucking happen, and that's what people don't know.",
+"interp": 0.5882352941176471
+},
+{
+"id": 68,
+"c": 1,
+"s": 298.03,
+"e": 300.46,
+"n": 8,
+"t": "But to get there, luck ain't gonna happen.",
+"interp": 0.5
+},
+{
+"id": 69,
+"c": 1,
+"s": 300.46,
+"e": 304.03,
+"n": 9,
+"t": "You have to put yourself in that situation, man.",
+"interp": 0.8888888888888888
+},
+{
+"id": 70,
+"c": 1,
+"s": 304.03,
+"e": 305.76,
+"n": 6,
+"t": "It takes a lot of work.",
+"interp": 1.0
+},
+{
+"id": 71,
+"c": 1,
+"s": 305.76,
+"e": 307.38,
+"n": 4,
+"t": "Only risk takers win.",
+"interp": 0.75
+},
+{
+"id": 72,
+"c": 1,
+"s": 307.56,
+"e": 318.66,
+"n": 29,
+"t": "By definition, if you are the same as everybody else, if you're not taking a risk over and above what everybody else is taking, by definition you can't win.",
+"interp": 0.10344827586206896
+},
+{
+"id": 73,
+"c": 1,
+"s": 319.13,
+"e": 324.02,
+"n": 14,
+"t": "If you're doing exactly what everybody else is doing, how can you possibly win?",
+"interp": 0.21428571428571427
+},
+{
+"id": 74,
+"c": 1,
+"s": 324.15,
+"e": 326.8,
+"n": 7,
+"t": "You have to be different to win.",
+"interp": 0.14285714285714285
+},
+{
+"id": 75,
+"c": 1,
+"s": 327.37,
+"e": 328.82,
+"n": 5,
+"t": "You have to take risks.",
+"interp": 0.0
+},
+{
+"id": 76,
+"c": 1,
+"s": 328.82,
+"e": 335.1,
+"n": 12,
+"t": "If you stay in your comfort zone, that's where you will fail.",
+"interp": 0.75
+},
+{
+"id": 77,
+"c": 1,
+"s": 335.1,
+"e": 335.52,
+"n": 7,
+"t": "You will fail in your comfort zone.",
+"interp": 1.0
+},
+{
+"id": 78,
+"c": 1,
+"s": 335.58,
+"e": 338.45,
+"n": 6,
+"t": "Success is not a comfortable procedure.",
+"interp": 0.3333333333333333
+},
+{
+"id": 79,
+"c": 1,
+"s": 338.45,
+"e": 341.32,
+"n": 8,
+"t": "It is a very uncomfortable thing to attempt.",
+"interp": 0.875
+},
+{
+"id": 80,
+"c": 1,
+"s": 341.66,
+"e": 347.66,
+"n": 13,
+"t": "So you gotta get comfortable being uncomfortable if you ever wanna be successful.",
+"interp": 0.46153846153846156
+},
+{
+"id": 81,
+"c": 1,
+"s": 347.66,
+"e": 348.91,
+"n": 9,
+"t": "Let me see what you do when you're tired.",
+"interp": 0.8888888888888888
+},
+{
+"id": 82,
+"c": 1,
+"s": 348.91,
+"e": 350.32,
+"n": 7,
+"t": "Let me see how you push yourself.",
+"interp": 1.0
+},
+{
+"id": 83,
+"c": 1,
+"s": 350.32,
+"e": 350.93,
+"n": 3,
+"t": "Come on, man.",
+"interp": 1.0
+},
+{
+"id": 84,
+"c": 1,
+"s": 351.13,
+"e": 351.43,
+"n": 2,
+"t": "Get up.",
+"interp": 0.5
+},
+{
+"id": 85,
+"c": 1,
+"s": 351.43,
+"e": 352.43,
+"n": 4,
+"t": "Get up again tomorrow.",
+"interp": 0.25
+},
+{
+"id": 86,
+"c": 1,
+"s": 352.43,
+"e": 353.23,
+"n": 4,
+"t": "Get up again tomorrow.",
+"interp": 0.5
+},
+{
+"id": 87,
+"c": 1,
+"s": 353.23,
+"e": 354.06,
+"n": 4,
+"t": "Get up again tomorrow.",
+"interp": 1.0
+},
+{
+"id": 88,
+"c": 1,
+"s": 354.27,
+"e": 357.73,
+"n": 11,
+"t": "The next day, get up, get up, get up, get up.",
+"interp": 0.6363636363636364
+},
+{
+"id": 89,
+"c": 1,
+"s": 357.73,
+"e": 357.73,
+"n": 2,
+"t": "Keep going.",
+"interp": 1.0
+},
+{
+"id": 90,
+"c": 1,
+"s": 357.73,
+"e": 358.67,
+"n": 8,
+"t": "How long can you maintain a positive attitude?",
+"interp": 0.625
+},
+{
+"id": 91,
+"c": 1,
+"s": 358.67,
+"e": 361.68,
+"n": 10,
+"t": "Do more hard shit makes you do more hard shit.",
+"interp": 0.5
+},
+{
+"id": 92,
+"c": 1,
+"s": 361.68,
+"e": 362.07,
+"n": 1,
+"t": "Yeah.",
+"interp": 1.0
+},
+{
+"id": 93,
+"c": 1,
+"s": 362.07,
+"e": 365.53,
+"n": 21,
+"t": "Understand that you want it bad, so you're willing to put in the work and do things you don't wanna do.",
+"interp": 0.47619047619047616
+},
+{
+"id": 94,
+"c": 1,
+"s": 365.53,
+"e": 371.07,
+"n": 20,
+"t": "It's what makes you have that, the confidence, the mentality that I'm the type of dude who gets shit done.",
+"interp": 0.55
+},
+{
+"id": 95,
+"c": 1,
+"s": 371.37,
+"e": 375.89,
+"n": 12,
+"t": "You need to let discipline be your guide, not how you feel.",
+"interp": 0.08333333333333333
+},
+{
+"id": 96,
+"c": 1,
+"s": 375.89,
+"e": 381.18,
+"n": 9,
+"t": "Be the guy who embraces the ugly, the miserable.",
+"interp": 0.2222222222222222
+},
+{
+"id": 97,
+"c": 1,
+"s": 381.18,
+"e": 384.72,
+"n": 9,
+"t": "Be the guy who embraces hard work, the grind.",
+"interp": 0.7777777777777778
+},
+{
+"id": 98,
+"c": 1,
+"s": 384.95,
+"e": 386.25,
+"n": 6,
+"t": "Don't be afraid of being hurt.",
+"interp": 0.16666666666666666
+},
+{
+"id": 99,
+"c": 1,
+"s": 386.25,
+"e": 388.64,
+"n": 7,
+"t": "Don't be afraid of sacrificing some blood.",
+"interp": 0.5714285714285714
+},
+{
+"id": 100,
+"c": 1,
+"s": 388.64,
+"e": 393.31,
+"n": 11,
+"t": "I tell young men, it's like find something difficult to do.",
+"interp": 0.45454545454545453
+},
+{
+"id": 101,
+"c": 1,
+"s": 393.84,
+"e": 394.84,
+"n": 3,
+"t": "You need that.",
+"interp": 0.0
+},
+{
+"id": 102,
+"c": 1,
+"s": 394.84,
+"e": 398.2,
+"n": 7,
+"t": "You're not built for comfort or pleasure.",
+"interp": 0.42857142857142855
+},
+{
+"id": 103,
+"c": 1,
+"s": 398.2,
+"e": 400.27,
+"n": 6,
+"t": "Like, if that comes along, good.",
+"interp": 0.3333333333333333
+},
+{
+"id": 104,
+"c": 1,
+"s": 400.27,
+"e": 405.71,
+"n": 17,
+"t": "Have some sense and enjoy it, but don't be thinking that's what your life is aimed at.",
+"interp": 0.4117647058823529
+},
+{
+"id": 105,
+"c": 1,
+"s": 406.07,
+"e": 406.72,
+"n": 2,
+"t": "That's contemptible.",
+"interp": 0.5
+},
+{
+"id": 106,
+"c": 1,
+"s": 406.72,
+"e": 409.57,
+"n": 7,
+"t": "Champions do daily what everybody do occasionally.",
+"interp": 0.7142857142857143
+},
+{
+"id": 107,
+"c": 1,
+"s": 409.57,
+"e": 410.17,
+"n": 3,
+"t": "Everybody else does.",
+"interp": 1.0
+},
+{
+"id": 108,
+"c": 1,
+"s": 410.17,
+"e": 410.38,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 109,
+"c": 1,
+"s": 410.38,
+"e": 411.89,
+"n": 5,
+"t": "You just do it daily.",
+"interp": 0.6
+},
+{
+"id": 110,
+"c": 1,
+"s": 411.89,
+"e": 413.45,
+"n": 5,
+"t": "You're not- Yeah, we do ...",
+"interp": 0.6
+},
+{
+"id": 111,
+"c": 1,
+"s": 413.45,
+"e": 415.33,
+"n": 5,
+"t": "you're not, you're not extraordinary.",
+"interp": 1.0
+},
+{
+"id": 112,
+"c": 1,
+"s": 415.71,
+"e": 417.15,
+"n": 6,
+"t": "You just do the ordinary extra.",
+"interp": 0.16666666666666666
+},
+{
+"id": 113,
+"c": 1,
+"s": 417.15,
+"e": 417.15,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 114,
+"c": 1,
+"s": 417.15,
+"e": 418.08,
+"n": 2,
+"t": "That's it.",
+"interp": 0.5
+},
+{
+"id": 115,
+"c": 1,
+"s": 418.08,
+"e": 423.9,
+"n": 22,
+"t": "No matter how much emotion or feeling you may have or how much hurt you may have, life has to go on.",
+"interp": 0.5
+},
+{
+"id": 116,
+"c": 1,
+"s": 423.9,
+"e": 424.79,
+"n": 5,
+"t": "Life doesn't stop for anybody.",
+"interp": 1.0
+},
+{
+"id": 117,
+"c": 1,
+"s": 424.79,
+"e": 425.14,
+"n": 2,
+"t": "Mm-mm.",
+"interp": 1.0
+},
+{
+"id": 118,
+"c": 1,
+"s": 425.14,
+"e": 430.68,
+"n": 19,
+"t": "So if you don't process that and understand that, you're stuck in whatever time period you got hurt forever.",
+"interp": 0.5263157894736842
+},
+{
+"id": 119,
+"c": 1,
+"s": 430.68,
+"e": 431.12,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 120,
+"c": 1,
+"s": 431.12,
+"e": 431.55,
+"n": 1,
+"t": "Forever.",
+"interp": 1.0
+},
+{
+"id": 121,
+"c": 1,
+"s": 431.99,
+"e": 432.54,
+"n": 2,
+"t": "Yes, sir.",
+"interp": 0.0
+},
+{
+"id": 122,
+"c": 1,
+"s": 432.54,
+"e": 433.18,
+"n": 2,
+"t": "Yes, sir.",
+"interp": 0.0
+},
+{
+"id": 123,
+"c": 1,
+"s": 433.18,
+"e": 433.39,
+"n": 1,
+"t": "Yeah.",
+"interp": 1.0
+},
+{
+"id": 124,
+"c": 1,
+"s": 433.6,
+"e": 440.38,
+"n": 21,
+"t": "So grudges and anger and negativity, I don't have time for it because I'm living to do so much positive things.",
+"interp": 0.42857142857142855
+},
+{
+"id": 125,
+"c": 1,
+"s": 440.38,
+"e": 440.68,
+"n": 1,
+"t": "Right.",
+"interp": 1.0
+},
+{
+"id": 126,
+"c": 1,
+"s": 440.68,
+"e": 442.94,
+"n": 8,
+"t": "I got so much- Don't bathe in that ...",
+"interp": 0.625
+},
+{
+"id": 127,
+"c": 1,
+"s": 442.94,
+"e": 450.91,
+"n": 24,
+"t": "positive outlook on everything else that's coming in the future, I can't, I can't stand in the past and bathe in what was wrong.",
+"interp": 0.5833333333333334
+},
+{
+"id": 128,
+"c": 1,
+"s": 450.91,
+"e": 454.78,
+"n": 16,
+"t": "You wanna become best, you wanna become champion, and now you wanna say, like, you're tired?",
+"interp": 0.375
+},
+{
+"id": 129,
+"c": 1,
+"s": 454.78,
+"e": 454.97,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 130,
+"c": 1,
+"s": 454.97,
+"e": 455.35,
+"n": 2,
+"t": "Who cares?",
+"interp": 1.0
+},
+{
+"id": 131,
+"c": 1,
+"s": 455.35,
+"e": 456.11,
+"n": 4,
+"t": "You're tired or not.",
+"interp": 1.0
+},
+{
+"id": 132,
+"c": 1,
+"s": 456.11,
+"e": 457.2,
+"n": 4,
+"t": "Nobody care about it.",
+"interp": 0.75
+},
+{
+"id": 133,
+"c": 1,
+"s": 457.2,
+"e": 469.59,
+"n": 43,
+"t": "At the end of every day, you look yourself in the mirror and you ask yourself, \"Did I get better today?\" If the q- answer is yes, and you do that for five years, 10 years, 15 years, how much better are you gonna be?",
+"interp": 0.5348837209302325
+},
+{
+"id": 134,
+"c": 1,
+"s": 469.59,
+"e": 472.51,
+"n": 9,
+"t": "And that, that's basketball, that's whether it's, uh, football.",
+"interp": 0.5555555555555556
+},
+{
+"id": 135,
+"c": 1,
+"s": 472.76,
+"e": 473.58,
+"n": 3,
+"t": "That doesn't matter.",
+"interp": 0.0
+},
+{
+"id": 136,
+"c": 1,
+"s": 473.58,
+"e": 475.45,
+"n": 7,
+"t": "Are you getting better every single day?",
+"interp": 0.42857142857142855
+},
+{
+"id": 137,
+"c": 1,
+"s": 475.45,
+"e": 476.33,
+"n": 3,
+"t": "That's the question.",
+"interp": 0.6666666666666666
+},
+{
+"id": 138,
+"c": 1,
+"s": 476.39,
+"e": 479.98,
+"n": 13,
+"t": "Every man has two lives, and the second one begins when he re-",
+"interp": 0.3076923076923077
+},
+{
+"id": 139,
+"c": 2,
+"s": 480.0,
+"e": 482.45,
+"n": 7,
+"t": "that nobody is coming to save him.",
+"interp": 0.0
+},
+{
+"id": 140,
+"c": 2,
+"s": 482.45,
+"e": 488.36,
+"n": 29,
+"t": "At the end of the day, you know exactly what you need to do, but you're just being too much of a bitch to not take action on it.",
+"interp": 0.0
+},
+{
+"id": 141,
+"c": 2,
+"s": 488.36,
+"e": 494.94,
+"n": 23,
+"t": "The only thing keeping you from actually living the life that you want to is sitting down and just doing the fucking work.",
+"interp": 0.0
+},
+{
+"id": 142,
+"c": 2,
+"s": 495.07,
+"e": 496.69,
+"n": 8,
+"t": "You know exactly what you need to do.",
+"interp": 0.0
+},
+{
+"id": 143,
+"c": 2,
+"s": 496.75,
+"e": 499.73,
+"n": 16,
+"t": "You just need to grow a pair of balls and fucking get that shit done, man.",
+"interp": 0.0
+},
+{
+"id": 144,
+"c": 2,
+"s": 499.73,
+"e": 503.97,
+"n": 15,
+"t": "Because on the other side of everything that you're avoiding is everything that you want.",
+"interp": 0.0
+},
+{
+"id": 145,
+"c": 2,
+"s": 503.97,
+"e": 506.62,
+"n": 9,
+"t": "What's the best piece of advice you've ever received?",
+"interp": 0.0
+},
+{
+"id": 146,
+"c": 2,
+"s": 507.38,
+"e": 512.23,
+"n": 17,
+"t": "The best piece of advice that I ever received is that you are what you think about.",
+"interp": 0.0
+},
+{
+"id": 147,
+"c": 2,
+"s": 514.22,
+"e": 516.8,
+"n": 7,
+"t": "Everything that you think about, you become.",
+"interp": 0.0
+},
+{
+"id": 148,
+"c": 2,
+"s": 518.05,
+"e": 519.13,
+"n": 6,
+"t": "You become what you think about.",
+"interp": 0.0
+},
+{
+"id": 149,
+"c": 2,
+"s": 520.83,
+"e": 522.33,
+"n": 4,
+"t": "Thoughts lead to actions.",
+"interp": 0.0
+},
+{
+"id": 150,
+"c": 2,
+"s": 522.45,
+"e": 524.1,
+"n": 4,
+"t": "Actions lead to behaviors.",
+"interp": 0.0
+},
+{
+"id": 151,
+"c": 2,
+"s": 524.1,
+"e": 525.68,
+"n": 4,
+"t": "Behaviors leads to lifestyle.",
+"interp": 0.0
+},
+{
+"id": 152,
+"c": 2,
+"s": 526.11,
+"e": 527.55,
+"n": 4,
+"t": "Lifestyle determines your destiny.",
+"interp": 0.0
+},
+{
+"id": 153,
+"c": 2,
+"s": 527.93,
+"e": 531.67,
+"n": 13,
+"t": "You see, you do become what you think about most of the time.",
+"interp": 0.0
+},
+{
+"id": 154,
+"c": 2,
+"s": 532.0,
+"e": 535.11,
+"n": 11,
+"t": "You do achieve what you think about most of the time.",
+"interp": 0.0
+},
+{
+"id": 155,
+"c": 2,
+"s": 535.46,
+"e": 540.87,
+"n": 16,
+"t": "So all successful people and all wealthy people think about their goals most of the time.",
+"interp": 0.0
+},
+{
+"id": 156,
+"c": 2,
+"s": 540.87,
+"e": 545.55,
+"n": 10,
+"t": "There's this thing about people and they talk about manifesting.",
+"interp": 0.0
+},
+{
+"id": 157,
+"c": 2,
+"s": 545.55,
+"e": 545.96,
+"n": 2,
+"t": "Mm-hmm.",
+"interp": 0.0
+},
+{
+"id": 158,
+"c": 2,
+"s": 545.96,
+"e": 546.34,
+"n": 2,
+"t": "Mm-hmm.",
+"interp": 0.0
+},
+{
+"id": 159,
+"c": 2,
+"s": 546.34,
+"e": 547.89,
+"n": 4,
+"t": "It's fucking real, Matt.",
+"interp": 0.0
+},
+{
+"id": 160,
+"c": 2,
+"s": 547.89,
+"e": 549.46,
+"n": 3,
+"t": "Manifesting is real.",
+"interp": 0.0
+},
+{
+"id": 161,
+"c": 2,
+"s": 549.46,
+"e": 567.34,
+"n": 55,
+"t": "When you figure out who you are and what you wanna do, and you devote your life to it li- like, like a maniac, like you're all in on this thing, and you manifest, most of these people end up doing what they say they're gonna do and being who they say they're gonna become.",
+"interp": 0.0
+},
+{
+"id": 162,
+"c": 2,
+"s": 567.41,
+"e": 568.04,
+"n": 2,
+"t": "It's real.",
+"interp": 0.0
+},
+{
+"id": 163,
+"c": 2,
+"s": 568.04,
+"e": 569.77,
+"n": 5,
+"t": "Everything begins in the mind.",
+"interp": 0.0
+},
+{
+"id": 164,
+"c": 2,
+"s": 570.18,
+"e": 575.64,
+"n": 15,
+"t": "If you can control and wield your mind, you can very much determine your destiny.",
+"interp": 0.0
+},
+{
+"id": 165,
+"c": 2,
+"s": 576.28,
+"e": 586.46,
+"n": 25,
+"t": "If you can determine that regardless of what your mind says you will go to the gym, you will develop a physique unlike 99% of society.",
+"interp": 0.0
+},
+{
+"id": 166,
+"c": 2,
+"s": 587.1,
+"e": 596.86,
+"n": 27,
+"t": "If you decide to work on your business and you decide, and you commit, and you determine your mindset, and you wield it, you can become successful.",
+"interp": 0.0
+},
+{
+"id": 167,
+"c": 2,
+"s": 597.17,
+"e": 601.13,
+"n": 14,
+"t": "If you determine to be a studious individual and knowledgeable, you will be knowledgeable.",
+"interp": 0.0
+},
+{
+"id": 168,
+"c": 2,
+"s": 601.42,
+"e": 603.17,
+"n": 9,
+"t": "If you determine to be rich, you'll be rich.",
+"interp": 0.0
+},
+{
+"id": 169,
+"c": 2,
+"s": 603.61,
+"e": 605.64,
+"n": 5,
+"t": "Everything is in your control.",
+"interp": 0.0
+},
+{
+"id": 170,
+"c": 2,
+"s": 606.02,
+"e": 611.14,
+"n": 11,
+"t": "Your mind is designed to help you get what you want.",
+"interp": 0.0
+},
+{
+"id": 171,
+"c": 2,
+"s": 612.0,
+"e": 615.7,
+"n": 10,
+"t": "You just have to be willing to believe it's possible.",
+"interp": 0.0
+},
+{
+"id": 172,
+"c": 2,
+"s": 616.06,
+"e": 621.82,
+"n": 21,
+"t": "Once you tell your mind, \"I wanna achieve this,\" you start subconsciously looking for different ways that you can achieve it.",
+"interp": 0.0
+},
+{
+"id": 173,
+"c": 2,
+"s": 621.98,
+"e": 628.31,
+"n": 11,
+"t": "Once you change one thing, your mindset, you can attack everything.",
+"interp": 0.0
+},
+{
+"id": 174,
+"c": 2,
+"s": 628.31,
+"e": 637.85,
+"n": 23,
+"t": "Nobody else at the moment has the power to change you unless you have that initial spark and say, \"I must do something.",
+"interp": 0.0
+},
+{
+"id": 175,
+"c": 2,
+"s": 638.19,
+"e": 647.21,
+"n": 23,
+"t": "I don't want this anymore.\" Broke people and successful people are both self-made, but only the rich and successful will admit it.",
+"interp": 0.0
+},
+{
+"id": 176,
+"c": 2,
+"s": 648.66,
+"e": 649.68,
+"n": 7,
+"t": "They're the only ones that'll admit it.",
+"interp": 0.0
+},
+{
+"id": 177,
+"c": 2,
+"s": 650.65,
+"e": 656.9,
+"n": 23,
+"t": "The person that's broke, that's struggling, it's hard for them to admit that they are there because of the way that they think.",
+"interp": 0.0
+},
+{
+"id": 178,
+"c": 2,
+"s": 658.2,
+"e": 660.9,
+"n": 13,
+"t": "But they, but they are there because of the way that they think.",
+"interp": 0.0
+},
+{
+"id": 179,
+"c": 2,
+"s": 661.39,
+"e": 671.1,
+"n": 28,
+"t": "Not only that, but it's also understanding that you can't solve the problems in your life with the same information that caused the problems in the first place.",
+"interp": 0.0
+},
+{
+"id": 180,
+"c": 2,
+"s": 671.29,
+"e": 674.03,
+"n": 12,
+"t": "You need new information, so you need to become a new person.",
+"interp": 0.0
+},
+{
+"id": 181,
+"c": 2,
+"s": 674.87,
+"e": 676.16,
+"n": 7,
+"t": "You become a new person by what?",
+"interp": 0.0
+},
+{
+"id": 182,
+"c": 2,
+"s": 677.38,
+"e": 679.56,
+"n": 5,
+"t": "Adopting wisdom, transforming your mind.",
+"interp": 0.0
+},
+{
+"id": 183,
+"c": 2,
+"s": 679.94,
+"e": 680.9,
+"n": 4,
+"t": "Be a dangerous man.",
+"interp": 0.0
+},
+{
+"id": 184,
+"c": 2,
+"s": 682.44,
+"e": 685.06,
+"n": 8,
+"t": "Now, being dangerous is not being a threat.",
+"interp": 0.0
+},
+{
+"id": 185,
+"c": 2,
+"s": 685.06,
+"e": 686.15,
+"n": 4,
+"t": "They're two different things.",
+"interp": 0.0
+},
+{
+"id": 186,
+"c": 2,
+"s": 686.79,
+"e": 687.23,
+"n": 2,
+"t": "All right?",
+"interp": 0.0
+},
+{
+"id": 187,
+"c": 2,
+"s": 687.42,
+"e": 699.22,
+"n": 41,
+"t": "And it's not about going out and lifting weights and getting a bunch of tattoos and wearing leather jackets and walking around with your chest and shoulders up hulking around saying, \"I'm dangerous.\" That's very rarely is that a dangerous man.",
+"interp": 0.0
+},
+{
+"id": 188,
+"c": 2,
+"s": 701.2,
+"e": 704.44,
+"n": 15,
+"t": "Often the most dangerous man in the room is the quietest man in the room.",
+"interp": 0.0
+},
+{
+"id": 189,
+"c": 2,
+"s": 704.74,
+"e": 715.54,
+"n": 30,
+"t": "There's a moment when every boy realizes no one's coming to save him, and that's when he becomes a man, and some boys never get there and stay children forever.",
+"interp": 0.0
+},
+{
+"id": 190,
+"c": 2,
+"s": 715.54,
+"e": 716.77,
+"n": 3,
+"t": "Get up, motherfucker.",
+"interp": 0.0
+},
+{
+"id": 191,
+"c": 2,
+"s": 717.62,
+"e": 719.04,
+"n": 5,
+"t": "You're not fucking good enough.",
+"interp": 0.0
+},
+{
+"id": 192,
+"c": 3,
+"s": 720.0,
+"e": 721.09,
+"n": 3,
+"t": "Work fucking harder.",
+"interp": 0.6666666666666666
+},
+{
+"id": 193,
+"c": 3,
+"s": 721.09,
+"e": 723.0,
+"n": 6,
+"t": "You haven't put enough time in.",
+"interp": 0.3333333333333333
+},
+{
+"id": 194,
+"c": 3,
+"s": 723.0,
+"e": 725.52,
+"n": 8,
+"t": "It's that voice you wanna run away from.",
+"interp": 0.75
+},
+{
+"id": 195,
+"c": 3,
+"s": 725.52,
+"e": 727.65,
+"n": 8,
+"t": "It's that voice you don't wanna fucking hear.",
+"interp": 1.0
+},
+{
+"id": 196,
+"c": 3,
+"s": 727.65,
+"e": 728.87,
+"n": 3,
+"t": "But guess what?",
+"interp": 0.3333333333333333
+},
+{
+"id": 197,
+"c": 3,
+"s": 728.87,
+"e": 731.53,
+"n": 9,
+"t": "It's that voice you need to fucking listen to.",
+"interp": 0.5555555555555556
+},
+{
+"id": 198,
+"c": 3,
+"s": 731.85,
+"e": 732.5,
+"n": 2,
+"t": "Stay hard.",
+"interp": 0.5
+},
+{
+"id": 199,
+"c": 3,
+"s": 732.5,
+"e": 738.07,
+"n": 4,
+"t": "Listen to the whisper.",
+"interp": 0.5
+},
+{
+"id": 200,
+"c": 3,
+"s": 738.07,
+"e": 738.11,
+"n": 3,
+"t": "Pain is temporary.",
+"interp": 1.0
+},
+{
+"id": 201,
+"c": 3,
+"s": 738.11,
+"e": 748.67,
+"n": 28,
+"t": "It may last for a minute or an hour or a day or even a year, but eventually it will subside and something else will take its place.",
+"interp": 0.8214285714285714
+},
+{
+"id": 202,
+"c": 3,
+"s": 748.67,
+"e": 751.78,
+"n": 8,
+"t": "If I quit, however, it will last forever.",
+"interp": 0.75
+},
+{
+"id": 203,
+"c": 3,
+"s": 752.13,
+"e": 753.5,
+"n": 3,
+"t": "Don't make excuses.",
+"interp": 0.0
+},
+{
+"id": 204,
+"c": 3,
+"s": 753.65,
+"e": 757.4,
+"n": 9,
+"t": "Don't blame any other person or any other thing.",
+"interp": 0.2222222222222222
+},
+{
+"id": 205,
+"c": 3,
+"s": 757.4,
+"e": 763.12,
+"n": 12,
+"t": "Take ownership of everything in your world, the good and the bad.",
+"interp": 0.4166666666666667
+},
+{
+"id": 206,
+"c": 3,
+"s": 763.65,
+"e": 766.15,
+"n": 5,
+"t": "Take ownership of your mistakes.",
+"interp": 0.0
+},
+{
+"id": 207,
+"c": 3,
+"s": 766.3,
+"e": 768.28,
+"n": 5,
+"t": "Take ownership of your shortfalls.",
+"interp": 0.0
+},
+{
+"id": 208,
+"c": 3,
+"s": 768.44,
+"e": 775.41,
+"n": 18,
+"t": "Take ownership of your problems, and then take ownership of the solutions that will get those problems solved.",
+"interp": 0.0
+},
+{
+"id": 209,
+"c": 3,
+"s": 775.54,
+"e": 777.62,
+"n": 7,
+"t": "Never miss two days in a row.",
+"interp": 0.5714285714285714
+},
+{
+"id": 210,
+"c": 3,
+"s": 778.04,
+"e": 781.37,
+"n": 15,
+"t": "Like, you are not going to be able to go to the gym every day.",
+"interp": 0.26666666666666666
+},
+{
+"id": 211,
+"c": 3,
+"s": 781.37,
+"e": 787.48,
+"n": 10,
+"t": "There will be one day when an absolute catastrophe occurs.",
+"interp": 0.8
+},
+{
+"id": 212,
+"c": 3,
+"s": 789.44,
+"e": 790.51,
+"n": 7,
+"t": "You ate some dodgy sushi last night.",
+"interp": 0.8571428571428571
+},
+{
+"id": 213,
+"c": 3,
+"s": 790.51,
+"e": 790.91,
+"n": 3,
+"t": "You can't go.",
+"interp": 1.0
+},
+{
+"id": 214,
+"c": 3,
+"s": 790.91,
+"e": 793.34,
+"n": 11,
+"t": "But what you have is one missed day is an error.",
+"interp": 0.7272727272727273
+},
+{
+"id": 215,
+"c": 3,
+"s": 793.34,
+"e": 795.62,
+"n": 10,
+"t": "Two missed days is the start of a new habit.",
+"interp": 0.8
+},
+{
+"id": 216,
+"c": 3,
+"s": 796.01,
+"e": 803.78,
+"n": 15,
+"t": "And that means that small errors can snowball into complete, uh, demolitions of the habit.",
+"interp": 0.26666666666666666
+},
+{
+"id": 217,
+"c": 3,
+"s": 804.28,
+"e": 816.61,
+"n": 42,
+"t": "But if you just think, \"Okay, at some point this year, I'm gonna miss it, and the rule is if I missed it yesterday, I have to do it today.\" People say, \"Wow, you have no idea how hungry I am.\" Really?",
+"interp": 0.40476190476190477
+},
+{
+"id": 218,
+"c": 3,
+"s": 816.61,
+"e": 816.85,
+"n": 1,
+"t": "Yeah.",
+"interp": 1.0
+},
+{
+"id": 219,
+"c": 3,
+"s": 816.85,
+"e": 818.34,
+"n": 6,
+"t": "What'd you do about it today?",
+"interp": 0.3333333333333333
+},
+{
+"id": 220,
+"c": 3,
+"s": 818.34,
+"e": 821.5,
+"n": 13,
+"t": "\"Oh, not today, but tomorrow I'm gonna, I'm gonna...\" You ain't hungry, man.",
+"interp": 0.8461538461538461
+},
+{
+"id": 221,
+"c": 3,
+"s": 821.5,
+"e": 823.32,
+"n": 6,
+"t": "You, you just think you're hungry.",
+"interp": 0.5
+},
+{
+"id": 222,
+"c": 3,
+"s": 823.42,
+"e": 824.35,
+"n": 4,
+"t": "You are not hungry.",
+"interp": 0.0
+},
+{
+"id": 223,
+"c": 3,
+"s": 824.56,
+"e": 829.33,
+"n": 11,
+"t": "Real self-confidence doesn't come from shouting affirmations in the mirror.",
+"interp": 0.2727272727272727
+},
+{
+"id": 224,
+"c": 3,
+"s": 829.71,
+"e": 835.09,
+"n": 17,
+"t": "Real self-confidence comes from giving the world irrefutable proof you are who you say you are.",
+"interp": 0.23529411764705882
+},
+{
+"id": 225,
+"c": 3,
+"s": 835.09,
+"e": 837.26,
+"n": 9,
+"t": "And so I want you guys to understand something.",
+"interp": 0.7777777777777778
+},
+{
+"id": 226,
+"c": 3,
+"s": 837.26,
+"e": 839.07,
+"n": 5,
+"t": "Winning is for the obsessed.",
+"interp": 0.4
+},
+{
+"id": 227,
+"c": 3,
+"s": 839.07,
+"e": 841.65,
+"n": 8,
+"t": "You must be obsessed if you wanna win.",
+"interp": 0.25
+},
+{
+"id": 228,
+"c": 3,
+"s": 841.65,
+"e": 853.15,
+"n": 25,
+"t": "You must be obsessed with the goal, the journey, the outcome, the experience, the rejections, the resilience, the grit, the, the, the, all of it.",
+"interp": 0.28
+},
+{
+"id": 229,
+"c": 3,
+"s": 853.43,
+"e": 857.89,
+"n": 14,
+"t": "I became the most obsessed person on the planet Earth, and I was basically...",
+"interp": 0.21428571428571427
+},
+{
+"id": 230,
+"c": 3,
+"s": 857.89,
+"e": 862.95,
+"n": 9,
+"t": "I had to invent a guy that didn't exist.",
+"interp": 0.6666666666666666
+},
+{
+"id": 231,
+"c": 3,
+"s": 862.95,
+"e": 876.99,
+"n": 60,
+"t": "I had to invent a guy that can take any pain, any suffering, any kind of judgment, uh, be called nigger, be called whatever the fuck in the world, and be able to stand in the fucking room and say, \"Go fuck yourself.\" I had to build, I had to build this calloused mind, and I built it through suffering.",
+"interp": 0.8166666666666667
+},
+{
+"id": 232,
+"c": 3,
+"s": 876.99,
+"e": 880.77,
+"n": 9,
+"t": "I built it through downright fucking just crushing myself.",
+"interp": 0.8888888888888888
+},
+{
+"id": 233,
+"c": 3,
+"s": 880.77,
+"e": 898.95,
+"n": 63,
+"t": "If, if it was raining outside at 3:00 in the fucking morning, if it was snowing, the first thing to think is, \"Don't go out there and do shit.\" My instinct was, \"We gotta fucking go out there.\" Anything that was fucking horrible in my life that I would normally say no, that was inhumane to most people, I had to go do it.",
+"interp": 0.5396825396825397
+},
+{
+"id": 234,
+"c": 3,
+"s": 900.03,
+"e": 902.89,
+"n": 12,
+"t": "And I started callousing my mind at this point in my life.",
+"interp": 0.5833333333333334
+},
+{
+"id": 235,
+"c": 3,
+"s": 902.89,
+"e": 906.02,
+"n": 8,
+"t": "It's an obsessiveness that comes along with it.",
+"interp": 0.375
+},
+{
+"id": 236,
+"c": 3,
+"s": 906.06,
+"e": 913.53,
+"n": 31,
+"t": "You want things to be as perfect as they can be, understanding that nothing is ever perfect, but the challenge is trying to get them as perfect as they can be.",
+"interp": 0.3870967741935484
+},
+{
+"id": 237,
+"c": 3,
+"s": 913.53,
+"e": 913.77,
+"n": 2,
+"t": "Mm-hmm.",
+"interp": 1.0
+},
+{
+"id": 238,
+"c": 3,
+"s": 913.77,
+"e": 914.77,
+"n": 5,
+"t": "And what can you do?",
+"interp": 0.2
+},
+{
+"id": 239,
+"c": 3,
+"s": 914.77,
+"e": 916.25,
+"n": 4,
+"t": "It's in your control.",
+"interp": 0.5
+},
+{
+"id": 240,
+"c": 3,
+"s": 916.92,
+"e": 918.11,
+"n": 5,
+"t": "So control what you can.",
+"interp": 0.4
+},
+{
+"id": 241,
+"c": 3,
+"s": 918.3,
+"e": 919.36,
+"n": 4,
+"t": "I want this shit!",
+"interp": 0.5
+},
+{
+"id": 242,
+"c": 3,
+"s": 919.36,
+"e": 920.5,
+"n": 4,
+"t": "I want this shit!",
+"interp": 1.0
+},
+{
+"id": 243,
+"c": 3,
+"s": 920.5,
+"e": 925.72,
+"n": 18,
+"t": "And I'ma get up every day and I'ma outwork everybody in the room, and I'ma go get it.",
+"interp": 0.8333333333333334
+},
+{
+"id": 244,
+"c": 3,
+"s": 925.72,
+"e": 928.93,
+"n": 12,
+"t": "People say, \"Wow, you have no idea how hungry I am.\" Really?",
+"interp": 0.8333333333333334
+},
+{
+"id": 245,
+"c": 3,
+"s": 929.03,
+"e": 929.22,
+"n": 1,
+"t": "Yeah.",
+"interp": 0.0
+},
+{
+"id": 246,
+"c": 3,
+"s": 929.22,
+"e": 930.71,
+"n": 6,
+"t": "What'd you do about it today?",
+"interp": 0.5
+},
+{
+"id": 247,
+"c": 3,
+"s": 930.71,
+"e": 934.77,
+"n": 13,
+"t": "\"Oh, not today, but tomorrow I'm gonna, I'm gonna...\" You ain't hungry, man.",
+"interp": 0.9230769230769231
+},
+{
+"id": 248,
+"c": 3,
+"s": 934.77,
+"e": 935.71,
+"n": 6,
+"t": "You, you just think you're hungry.",
+"interp": 0.5
+},
+{
+"id": 249,
+"c": 3,
+"s": 935.78,
+"e": 936.77,
+"n": 4,
+"t": "You are not hungry.",
+"interp": 0.0
+},
+{
+"id": 250,
+"c": 3,
+"s": 936.77,
+"e": 940.98,
+"n": 13,
+"t": "If you don't come in and treat every day as game day- Yeah ...",
+"interp": 0.6153846153846154
+},
+{
+"id": 251,
+"c": 3,
+"s": 940.98,
+"e": 942.93,
+"n": 8,
+"t": "you're gonna never be ready for game day.",
+"interp": 0.25
+},
+{
+"id": 252,
+"c": 3,
+"s": 943.36,
+"e": 950.43,
+"n": 20,
+"t": "Every practice, Michael always said, \"I practice so hard so that games are easy.\" Obsession's gonna beat talent every time.",
+"interp": 0.5
+},
+{
+"id": 253,
+"c": 3,
+"s": 951.69,
+"e": 954.66,
+"n": 12,
+"t": "You got all the talent in the world, but are you obsessed?",
+"interp": 0.3333333333333333
+},
+{
+"id": 254,
+"c": 3,
+"s": 955.55,
+"e": 956.9,
+"n": 7,
+"t": "Is it all you ever think about?",
+"interp": 0.2857142857142857
+},
+{
+"id": 255,
+"c": 3,
+"s": 956.9,
+"e": 958.4,
+"n": 3,
+"t": "Let's face it.",
+"interp": 0.6666666666666666
+},
+{
+"id": 256,
+"c": 3,
+"s": 958.4,
+"e": 959.97,
+"n": 6,
+"t": "It's you against you out there.",
+"interp": 0.3333333333333333
+},
+{
+"id": 257,
+"c": 4,
+"s": 961.14,
+"e": 969.29,
+"n": 28,
+"t": "When you walk on that court, you have to think, \"I am the best guy out there.\" You've gotta want it as bad as you want to breathe.",
+"interp": 0.25
+},
+{
+"id": 258,
+"c": 4,
+"s": 969.29,
+"e": 977.24,
+"n": 24,
+"t": "And if you want it that bad, if you're willing to give it that much, you'll get a big piece of what you want.",
+"interp": 0.375
+},
+{
+"id": 259,
+"c": 4,
+"s": 978.4,
+"e": 980.7,
+"n": 7,
+"t": "In life, and dreams do come true.",
+"interp": 0.2857142857142857
+},
+{
+"id": 260,
+"c": 4,
+"s": 980.7,
+"e": 983.94,
+"n": 9,
+"t": "Anything you want can happen and become a reality.",
+"interp": 0.4444444444444444
+},
+{
+"id": 261,
+"c": 4,
+"s": 983.94,
+"e": 987.43,
+"n": 10,
+"t": "I believe that sincerely, and I'll die on that thought.",
+"interp": 0.4
+},
+{
+"id": 262,
+"c": 4,
+"s": 987.64,
+"e": 990.44,
+"n": 14,
+"t": "It's okay to lose, but it's not okay to live with a what if.",
+"interp": 0.6428571428571429
+},
+{
+"id": 263,
+"c": 4,
+"s": 990.44,
+"e": 992.14,
+"n": 6,
+"t": "I can sleep knowing I lost.",
+"interp": 0.6666666666666666
+},
+{
+"id": 264,
+"c": 4,
+"s": 992.14,
+"e": 997.86,
+"n": 16,
+"t": "I couldn't sleep watching all the Misfits fights thinking I coulda done it and not tried.",
+"interp": 0.625
+},
+{
+"id": 265,
+"c": 4,
+"s": 997.86,
+"e": 998.17,
+"n": 5,
+"t": "I can't live that way.",
+"interp": 1.0
+},
+{
+"id": 266,
+"c": 4,
+"s": 998.17,
+"e": 999.28,
+"n": 6,
+"t": "I'm not a what if guy.",
+"interp": 0.8333333333333334
+},
+{
+"id": 267,
+"c": 4,
+"s": 999.61,
+"e": 1004.01,
+"n": 19,
+"t": "My life is gonna be a tale of all the times I tried and succeeded and tried and failed.",
+"interp": 0.5789473684210527
+},
+{
+"id": 268,
+"c": 4,
+"s": 1004.01,
+"e": 1007.21,
+"n": 15,
+"t": "There's not gonna be a single what if hanging over my head on my deathbed.",
+"interp": 0.6666666666666666
+},
+{
+"id": 269,
+"c": 4,
+"s": 1007.21,
+"e": 1010.09,
+"n": 13,
+"t": "And I just encourage everyone at home to do the exact same thing.",
+"interp": 0.6923076923076923
+},
+{
+"id": 270,
+"c": 4,
+"s": 1010.09,
+"e": 1013.57,
+"n": 13,
+"t": "If you're wondering about something or you're not sure about something, fucking go.",
+"interp": 0.5384615384615384
+},
+{
+"id": 271,
+"c": 4,
+"s": 1013.57,
+"e": 1015.69,
+"n": 7,
+"t": "'Cause you can live with a loss.",
+"interp": 0.5714285714285714
+},
+{
+"id": 272,
+"c": 4,
+"s": 1015.69,
+"e": 1016.49,
+"n": 7,
+"t": "You can't live with a what if.",
+"interp": 1.0
+},
+{
+"id": 273,
+"c": 4,
+"s": 1016.49,
+"e": 1025.31,
+"n": 33,
+"t": "As Nietzsche said, \"I know of no better life purpose than to perish in attempting the great and impossible.\" The fact that something seems impossible shouldn't be a reason to not pursue it.",
+"interp": 0.45454545454545453
+},
+{
+"id": 274,
+"c": 4,
+"s": 1025.7,
+"e": 1027.62,
+"n": 7,
+"t": "That's exactly what makes it worth pursuing.",
+"interp": 0.2857142857142857
+},
+{
+"id": 275,
+"c": 4,
+"s": 1027.62,
+"e": 1032.53,
+"n": 16,
+"t": "Where would the courage and greatness be if success was certain and there was no risk?",
+"interp": 0.5
+},
+{
+"id": 276,
+"c": 4,
+"s": 1032.53,
+"e": 1035.74,
+"n": 10,
+"t": "The only true failure is shrinking away from life's challenges.",
+"interp": 0.3
+},
+{
+"id": 277,
+"c": 4,
+"s": 1036.47,
+"e": 1039.99,
+"n": 13,
+"t": "You see, the way that you become unstoppable is by refusing to stop.",
+"interp": 0.3076923076923077
+},
+{
+"id": 278,
+"c": 4,
+"s": 1040.75,
+"e": 1046.56,
+"n": 21,
+"t": "It's not a quality that you develop in a week or a month or by reading or listening to something inspiring.",
+"interp": 0.3333333333333333
+},
+{
+"id": 279,
+"c": 4,
+"s": 1046.56,
+"e": 1060.73,
+"n": 34,
+"t": "It's a habit of mind and character that you develop by practicing the quality of persistence over and over in every circumstance until it locks in and becomes a permanent part of your character.",
+"interp": 0.35294117647058826
+},
+{
+"id": 280,
+"c": 4,
+"s": 1060.73,
+"e": 1063.51,
+"n": 7,
+"t": "Is this going to make me better?",
+"interp": 1.0
+},
+{
+"id": 281,
+"c": 4,
+"s": 1063.91,
+"e": 1064.44,
+"n": 1,
+"t": "No.",
+"interp": 0.0
+},
+{
+"id": 282,
+"c": 4,
+"s": 1064.44,
+"e": 1065.27,
+"n": 2,
+"t": "It goes.",
+"interp": 1.0
+},
+{
+"id": 283,
+"c": 4,
+"s": 1065.27,
+"e": 1068.69,
+"n": 7,
+"t": "Is this going to help my life?",
+"interp": 0.8571428571428571
+},
+{
+"id": 284,
+"c": 4,
+"s": 1068.78,
+"e": 1069.23,
+"n": 1,
+"t": "No.",
+"interp": 0.0
+},
+{
+"id": 285,
+"c": 4,
+"s": 1069.23,
+"e": 1070.74,
+"n": 2,
+"t": "It goes.",
+"interp": 1.0
+},
+{
+"id": 286,
+"c": 4,
+"s": 1071.5,
+"e": 1074.81,
+"n": 12,
+"t": "Is this going to create a brighter future for those around me?",
+"interp": 0.5
+},
+{
+"id": 287,
+"c": 4,
+"s": 1074.81,
+"e": 1075.15,
+"n": 1,
+"t": "No.",
+"interp": 1.0
+},
+{
+"id": 288,
+"c": 4,
+"s": 1075.15,
+"e": 1075.83,
+"n": 2,
+"t": "It goes.",
+"interp": 1.0
+},
+{
+"id": 289,
+"c": 4,
+"s": 1075.83,
+"e": 1077.55,
+"n": 5,
+"t": "And it's simple as that.",
+"interp": 1.0
+},
+{
+"id": 290,
+"c": 4,
+"s": 1077.89,
+"e": 1081.4,
+"n": 17,
+"t": "I get happier about the harder it is because I know that no one else will follow.",
+"interp": 0.23529411764705882
+},
+{
+"id": 291,
+"c": 4,
+"s": 1081.4,
+"e": 1082.86,
+"n": 4,
+"t": "It's a selection effect.",
+"interp": 0.75
+},
+{
+"id": 292,
+"c": 4,
+"s": 1082.86,
+"e": 1098.94,
+"n": 61,
+"t": "And I think if you can, if you can shift from this is hard to no one else will be able to do this, then it, it's, it flips from being this thing that you're like, \"Oh, poor me,\" to, \"Oh, poor everyone else who's gonna have to fucking try.\" Driven human beings are going to always feel like they're behind.",
+"interp": 0.39344262295081966
+},
+{
+"id": 293,
+"c": 4,
+"s": 1098.94,
+"e": 1101.55,
+"n": 10,
+"t": "They're gonna always feel like they're not doing good enough.",
+"interp": 0.5
+},
+{
+"id": 294,
+"c": 4,
+"s": 1101.55,
+"e": 1104.15,
+"n": 9,
+"t": "They're gonna always feel like they're not far enough.",
+"interp": 0.6666666666666666
+},
+{
+"id": 295,
+"c": 4,
+"s": 1104.15,
+"e": 1106.25,
+"n": 7,
+"t": "They're gonna always feel like you're losing.",
+"interp": 0.2857142857142857
+},
+{
+"id": 296,
+"c": 4,
+"s": 1106.25,
+"e": 1109.06,
+"n": 7,
+"t": "Look, winning, this is how it feels.",
+"interp": 0.8571428571428571
+},
+{
+"id": 297,
+"c": 4,
+"s": 1110.06,
+"e": 1113.24,
+"n": 15,
+"t": "90% of the time, you're gonna feel like you're getting your balls kicked in, all right?",
+"interp": 0.5333333333333333
+},
+{
+"id": 298,
+"c": 4,
+"s": 1113.24,
+"e": 1117.56,
+"n": 10,
+"t": "8% of the time, you're gonna be confused and you're frustrated.",
+"interp": 0.2
+},
+{
+"id": 299,
+"c": 4,
+"s": 1117.56,
+"e": 1123.0,
+"n": 18,
+"t": "2% of the time, you actually win, and those moments come and go, and then you're back in the 90%.",
+"interp": 0.7777777777777778
+},
+{
+"id": 300,
+"c": 4,
+"s": 1124.12,
+"e": 1126.1,
+"n": 8,
+"t": "And that's the reality of a winner's life.",
+"interp": 0.375
+},
+{
+"id": 301,
+"c": 4,
+"s": 1126.38,
+"e": 1127.66,
+"n": 4,
+"t": "People don't understand that.",
+"interp": 0.25
+},
+{
+"id": 302,
+"c": 4,
+"s": 1127.77,
+"e": 1138.66,
+"n": 36,
+"t": "They think it's all about cruising around in a cool car with, having a free and happy and easy and go-lucky life, and that's not reality because true winners are built for the fucking fight.",
+"interp": 0.4444444444444444
+},
+{
+"id": 303,
+"c": 4,
+"s": 1138.66,
+"e": 1139.97,
+"n": 5,
+"t": "They're built for the battle.",
+"interp": 0.6
+},
+{
+"id": 304,
+"c": 4,
+"s": 1140.31,
+"e": 1143.47,
+"n": 11,
+"t": "They don't find peace and joy and happiness in the win.",
+"interp": 0.09090909090909091
+},
+{
+"id": 305,
+"c": 4,
+"s": 1143.77,
+"e": 1146.56,
+"n": 10,
+"t": "They find w- what they're looking for in the fight.",
+"interp": 0.2
+},
+{
+"id": 306,
+"c": 4,
+"s": 1146.56,
+"e": 1148.37,
+"n": 9,
+"t": "And so I want you guys to understand something.",
+"interp": 0.5555555555555556
+},
+{
+"id": 307,
+"c": 4,
+"s": 1148.73,
+"e": 1150.24,
+"n": 5,
+"t": "Winning is for the obsessed.",
+"interp": 0.0
+},
+{
+"id": 308,
+"c": 4,
+"s": 1150.77,
+"e": 1152.78,
+"n": 8,
+"t": "You must be obsessed if you wanna win.",
+"interp": 0.0
+},
+{
+"id": 309,
+"c": 4,
+"s": 1152.78,
+"e": 1164.28,
+"n": 25,
+"t": "You must be obsessed with the goal, the journey, the outcome, the experience, the rejections, the resilience, the grit, the, the, the, all of it.",
+"interp": 0.44
+},
+{
+"id": 310,
+"c": 4,
+"s": 1164.28,
+"e": 1180.91,
+"n": 56,
+"t": "He's like, \"The only thing that you can do is win so big that all of them constantly compare themselves to you, and then you'll forget they exist.\" And he s- and that's when he said, he's like, \"Success is the only revenge.\" He's like, \"It's not the best revenge.\" He's like, \"It's the only one.",
+"interp": 0.32142857142857145
+},
+{
+"id": 311,
+"c": 4,
+"s": 1180.91,
+"e": 1195.9,
+"n": 53,
+"t": "There's no other revenge.\" Those times when you get up early and you work hard, those times when you stay up late and you work hard, those times when you don't feel like working, you're too tired, you don't wanna push yourself, but you do it anyway, um, that is actually the dream.",
+"interp": 0.6037735849056604
+},
+{
+"id": 312,
+"c": 4,
+"s": 1196.67,
+"e": 1197.37,
+"n": 3,
+"t": "That's the dream.",
+"interp": 0.3333333333333333
+},
+{
+"id": 313,
+"c": 4,
+"s": 1197.37,
+"e": 1199.39,
+"n": 7,
+"t": "Champions do daily what everybody do occasionally",
+"interp": 0.7142857142857143
+},
+{
+"id": 314,
+"c": 5,
+"s": 1200.0,
+"e": 1200.55,
+"n": 3,
+"t": "Everybody else said.",
+"interp": 1.0
+},
+{
+"id": 315,
+"c": 5,
+"s": 1200.55,
+"e": 1200.73,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 316,
+"c": 5,
+"s": 1200.91,
+"e": 1202.14,
+"n": 5,
+"t": "You just do it daily.",
+"interp": 0.0
+},
+{
+"id": 317,
+"c": 5,
+"s": 1202.14,
+"e": 1203.69,
+"n": 5,
+"t": "You're not- Yeah, we do ...",
+"interp": 0.4
+},
+{
+"id": 318,
+"c": 5,
+"s": 1203.69,
+"e": 1207.38,
+"n": 11,
+"t": "you're not, you're not extraordinary, you just do the ordinary extra.",
+"interp": 0.45454545454545453
+},
+{
+"id": 319,
+"c": 5,
+"s": 1207.38,
+"e": 1207.39,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 320,
+"c": 5,
+"s": 1207.41,
+"e": 1208.43,
+"n": 2,
+"t": "That's it.",
+"interp": 0.5
+},
+{
+"id": 321,
+"c": 5,
+"s": 1208.43,
+"e": 1211.03,
+"n": 4,
+"t": "It's all about focus.",
+"interp": 0.5
+},
+{
+"id": 322,
+"c": 5,
+"s": 1211.03,
+"e": 1213.57,
+"n": 11,
+"t": "I don't care who you are, where you're from, doesn't matter.",
+"interp": 0.8181818181818182
+},
+{
+"id": 323,
+"c": 5,
+"s": 1213.57,
+"e": 1218.5,
+"n": 10,
+"t": "It's having a focus and, and, and having a purpose.",
+"interp": 0.8
+},
+{
+"id": 324,
+"c": 5,
+"s": 1218.5,
+"e": 1218.53,
+"n": 2,
+"t": "Mm-hmm.",
+"interp": 1.0
+},
+{
+"id": 325,
+"c": 5,
+"s": 1218.53,
+"e": 1218.55,
+"n": 1,
+"t": "Right?",
+"interp": 1.0
+},
+{
+"id": 326,
+"c": 5,
+"s": 1218.57,
+"e": 1221.17,
+"n": 14,
+"t": "You wake up every single day to get better today than you were yesterday.",
+"interp": 0.7142857142857143
+},
+{
+"id": 327,
+"c": 5,
+"s": 1221.17,
+"e": 1223.89,
+"n": 9,
+"t": "And, you know, it doesn't matter what you are.",
+"interp": 0.8888888888888888
+},
+{
+"id": 328,
+"c": 5,
+"s": 1223.89,
+"e": 1224.92,
+"n": 14,
+"t": "Are you a basketball player, a hockey player, a golf player, a painter, writer?",
+"interp": 1.0
+},
+{
+"id": 329,
+"c": 5,
+"s": 1224.92,
+"e": 1225.14,
+"n": 3,
+"t": "It doesn't matter.",
+"interp": 1.0
+},
+{
+"id": 330,
+"c": 5,
+"s": 1225.21,
+"e": 1225.49,
+"n": 1,
+"t": "Right.",
+"interp": 0.0
+},
+{
+"id": 331,
+"c": 5,
+"s": 1225.77,
+"e": 1226.14,
+"n": 1,
+"t": "Right?",
+"interp": 0.0
+},
+{
+"id": 332,
+"c": 5,
+"s": 1226.14,
+"e": 1230.87,
+"n": 17,
+"t": "You try to reach your full potential by getting better every single day, and that's the quest.",
+"interp": 0.6470588235294118
+},
+{
+"id": 333,
+"c": 5,
+"s": 1231.14,
+"e": 1238.06,
+"n": 21,
+"t": "People think that you should be weak, and you should be docile, and then you, you, you should be a pacifist.",
+"interp": 0.42857142857142855
+},
+{
+"id": 334,
+"c": 5,
+"s": 1238.06,
+"e": 1242.37,
+"n": 15,
+"t": "He goes, \"No, you should be a monster.\" He said, \"You should be a monster.",
+"interp": 0.26666666666666666
+},
+{
+"id": 335,
+"c": 5,
+"s": 1242.63,
+"e": 1247.78,
+"n": 13,
+"t": "You should be ruthlessly ambitious and then learn how to control it.\" Mm.",
+"interp": 0.15384615384615385
+},
+{
+"id": 336,
+"c": 5,
+"s": 1247.78,
+"e": 1253.75,
+"n": 20,
+"t": "And it's that old expression, it's better to be a warrior in a garden than a gardener in a war.",
+"interp": 0.6
+},
+{
+"id": 337,
+"c": 5,
+"s": 1253.99,
+"e": 1255.67,
+"n": 8,
+"t": "I always felt like I could do anything.",
+"interp": 0.375
+},
+{
+"id": 338,
+"c": 5,
+"s": 1255.67,
+"e": 1260.0,
+"n": 8,
+"t": "That's the main thing people are controlled by.",
+"interp": 0.875
+},
+{
+"id": 339,
+"c": 5,
+"s": 1260.0,
+"e": 1261.6,
+"n": 5,
+"t": "Thoughts, their perception of themselves.",
+"interp": 0.2
+},
+{
+"id": 340,
+"c": 5,
+"s": 1261.6,
+"e": 1265.03,
+"n": 8,
+"t": "They're slowed down by their perception of themselves.",
+"interp": 0.5
+},
+{
+"id": 341,
+"c": 5,
+"s": 1265.03,
+"e": 1267.69,
+"n": 11,
+"t": "If you're taught you can't do anything, you won't do anything.",
+"interp": 0.5454545454545454
+},
+{
+"id": 342,
+"c": 5,
+"s": 1267.69,
+"e": 1267.9,
+"n": 1,
+"t": "Mm.",
+"interp": 1.0
+},
+{
+"id": 343,
+"c": 5,
+"s": 1267.9,
+"e": 1269.86,
+"n": 7,
+"t": "I was taught I could do everything.",
+"interp": 0.7142857142857143
+},
+{
+"id": 344,
+"c": 5,
+"s": 1269.86,
+"e": 1270.82,
+"n": 2,
+"t": "[laughs] Lose?",
+"interp": 1.0
+},
+{
+"id": 345,
+"c": 5,
+"s": 1271.3,
+"e": 1272.38,
+"n": 3,
+"t": "I don't lose.",
+"interp": 0.3333333333333333
+},
+{
+"id": 346,
+"c": 5,
+"s": 1272.88,
+"e": 1273.19,
+"n": 2,
+"t": "I win.",
+"interp": 0.5
+},
+{
+"id": 347,
+"c": 5,
+"s": 1273.31,
+"e": 1273.91,
+"n": 2,
+"t": "I win.",
+"interp": 0.5
+},
+{
+"id": 348,
+"c": 5,
+"s": 1273.91,
+"e": 1274.7,
+"n": 3,
+"t": "That's my job.",
+"interp": 1.0
+},
+{
+"id": 349,
+"c": 5,
+"s": 1274.7,
+"e": 1276.34,
+"n": 4,
+"t": "That's what I do.",
+"interp": 0.75
+},
+{
+"id": 350,
+"c": 5,
+"s": 1276.34,
+"e": 1279.7,
+"n": 8,
+"t": "You don't start things and not finish them.",
+"interp": 0.75
+},
+{
+"id": 351,
+"c": 5,
+"s": 1279.7,
+"e": 1280.7,
+"n": 3,
+"t": "You don't quit.",
+"interp": 0.6666666666666666
+},
+{
+"id": 352,
+"c": 5,
+"s": 1280.7,
+"e": 1286.51,
+"n": 13,
+"t": "There's nothing that comes out of quitting besides knowing that you didn't finish.",
+"interp": 0.38461538461538464
+},
+{
+"id": 353,
+"c": 5,
+"s": 1286.51,
+"e": 1297.87,
+"n": 44,
+"t": "At the end of every day, you look yourself in the mirror and you ask yourself, \"Did I get better today?\" And if the q- answer is yes, and you do that for five years, 10 years, 15 years, how much better are you gonna be?",
+"interp": 0.5
+},
+{
+"id": 354,
+"c": 5,
+"s": 1297.87,
+"e": 1300.79,
+"n": 9,
+"t": "And that, that's basketball, that's whether it's, uh, football.",
+"interp": 0.6666666666666666
+},
+{
+"id": 355,
+"c": 5,
+"s": 1300.79,
+"e": 1302.07,
+"n": 4,
+"t": "It d- doesn't matter.",
+"interp": 0.75
+},
+{
+"id": 356,
+"c": 5,
+"s": 1302.07,
+"e": 1303.87,
+"n": 7,
+"t": "Are you getting better every single day?",
+"interp": 0.42857142857142855
+},
+{
+"id": 357,
+"c": 5,
+"s": 1303.87,
+"e": 1304.73,
+"n": 3,
+"t": "That's the question.",
+"interp": 0.6666666666666666
+},
+{
+"id": 358,
+"c": 5,
+"s": 1304.73,
+"e": 1306.66,
+"n": 8,
+"t": "Act like the person you want to become.",
+"interp": 0.25
+},
+{
+"id": 359,
+"c": 5,
+"s": 1306.66,
+"e": 1309.0,
+"n": 11,
+"t": "That's not fake it till you make it, by the way.",
+"interp": 0.5454545454545454
+},
+{
+"id": 360,
+"c": 5,
+"s": 1309.27,
+"e": 1310.42,
+"n": 3,
+"t": "This is intentional.",
+"interp": 0.0
+},
+{
+"id": 361,
+"c": 5,
+"s": 1310.89,
+"e": 1313.67,
+"n": 9,
+"t": "Intentionally act like the person you want to become.",
+"interp": 0.2222222222222222
+},
+{
+"id": 362,
+"c": 5,
+"s": 1314.11,
+"e": 1324.26,
+"n": 31,
+"t": "Because when you intentionally act like the person you want to become, your brain sees you taking those actions, so your brain starts to change the way it relates to you.",
+"interp": 0.16129032258064516
+},
+{
+"id": 363,
+"c": 5,
+"s": 1324.79,
+"e": 1334.84,
+"n": 23,
+"t": "When your brain sees you high-fiving yourself in the mirror, it starts to go, \"Oh, wait a minute, Steven loves himself.\" Mm.",
+"interp": 0.30434782608695654
+},
+{
+"id": 364,
+"c": 5,
+"s": 1334.84,
+"e": 1337.1,
+"n": 4,
+"t": "\"Steven's cheering for himself.",
+"interp": 1.0
+},
+{
+"id": 365,
+"c": 5,
+"s": 1337.66,
+"e": 1345.07,
+"n": 17,
+"t": "We don't beat Steven up.\" But the fear of regret fueled you to take action today, now.",
+"interp": 0.47058823529411764
+},
+{
+"id": 366,
+"c": 5,
+"s": 1345.07,
+"e": 1346.81,
+"n": 3,
+"t": "That's a fear.",
+"interp": 0.3333333333333333
+},
+{
+"id": 367,
+"c": 5,
+"s": 1346.87,
+"e": 1348.99,
+"n": 7,
+"t": "The fear is never reaching your potential.",
+"interp": 0.5714285714285714
+},
+{
+"id": 368,
+"c": 5,
+"s": 1348.99,
+"e": 1350.04,
+"n": 4,
+"t": "Fear is my friend.",
+"interp": 0.5
+},
+{
+"id": 369,
+"c": 5,
+"s": 1350.46,
+"e": 1351.13,
+"n": 3,
+"t": "I love fear.",
+"interp": 0.3333333333333333
+},
+{
+"id": 370,
+"c": 5,
+"s": 1351.13,
+"e": 1354.52,
+"n": 11,
+"t": "Fear m- fear, fear allows me to reach my highest potential.",
+"interp": 0.6363636363636364
+},
+{
+"id": 371,
+"c": 5,
+"s": 1354.52,
+"e": 1356.97,
+"n": 11,
+"t": "If you're not g- get rid of fear, then use fear.",
+"interp": 1.0
+},
+{
+"id": 372,
+"c": 5,
+"s": 1356.97,
+"e": 1358.3,
+"n": 6,
+"t": "Use fear or it uses you.",
+"interp": 1.0
+},
+{
+"id": 373,
+"c": 5,
+"s": 1358.3,
+"e": 1359.26,
+"n": 3,
+"t": "It's that simple.",
+"interp": 0.3333333333333333
+},
+{
+"id": 374,
+"c": 5,
+"s": 1359.26,
+"e": 1361.54,
+"n": 3,
+"t": "Be fucking fearless.",
+"interp": 0.6666666666666666
+},
+{
+"id": 375,
+"c": 5,
+"s": 1364.01,
+"e": 1366.57,
+"n": 7,
+"t": "The fear of failing is an illusion.",
+"interp": 0.7142857142857143
+},
+{
+"id": 376,
+"c": 5,
+"s": 1366.57,
+"e": 1367.96,
+"n": 10,
+"t": "Fear is an illusion, but we have to have desire.",
+"interp": 0.8
+},
+{
+"id": 377,
+"c": 5,
+"s": 1368.2,
+"e": 1371.24,
+"n": 8,
+"t": "We have to have something that pushes us.",
+"interp": 0.625
+},
+{
+"id": 378,
+"c": 5,
+"s": 1371.24,
+"e": 1371.24,
+"n": 3,
+"t": "Fear pushes us.",
+"interp": 1.0
+},
+{
+"id": 379,
+"c": 5,
+"s": 1371.24,
+"e": 1374.07,
+"n": 10,
+"t": "Your fear is always about what's going to happen next.",
+"interp": 0.5
+},
+{
+"id": 380,
+"c": 5,
+"s": 1374.07,
+"e": 1377.89,
+"n": 12,
+"t": "That means your fear is always about that which does not exist.",
+"interp": 0.3333333333333333
+},
+{
+"id": 381,
+"c": 5,
+"s": 1377.89,
+"e": 1378.93,
+"n": 3,
+"t": "Fear is gone.",
+"interp": 1.0
+},
+{
+"id": 382,
+"c": 5,
+"s": 1379.27,
+"e": 1384.3,
+"n": 19,
+"t": "Make up your mind that fear is not gonna stop you from doing the thing you really wanna do.",
+"interp": 0.3157894736842105
+},
+{
+"id": 383,
+"c": 5,
+"s": 1384.3,
+"e": 1386.5,
+"n": 6,
+"t": "Step out and do it today.",
+"interp": 0.6666666666666666
+},
+{
+"id": 384,
+"c": 5,
+"s": 1386.5,
+"e": 1391.01,
+"n": 11,
+"t": "Driven human beings are going to always feel like they're behind.",
+"interp": 0.45454545454545453
+},
+{
+"id": 385,
+"c": 5,
+"s": 1391.01,
+"e": 1393.78,
+"n": 10,
+"t": "They're gonna always feel like they're not doing good enough.",
+"interp": 0.2
+},
+{
+"id": 386,
+"c": 5,
+"s": 1393.78,
+"e": 1396.38,
+"n": 9,
+"t": "They're gonna always feel like they're not far enough.",
+"interp": 0.6666666666666666
+},
+{
+"id": 387,
+"c": 5,
+"s": 1396.38,
+"e": 1398.38,
+"n": 7,
+"t": "They're gonna always feel like you're losing.",
+"interp": 0.2857142857142857
+},
+{
+"id": 388,
+"c": 5,
+"s": 1398.38,
+"e": 1401.2,
+"n": 7,
+"t": "Look, winning, this is how it feels.",
+"interp": 0.5714285714285714
+},
+{
+"id": 389,
+"c": 5,
+"s": 1402.21,
+"e": 1404.77,
+"n": 13,
+"t": "90% of the time you're gonna feel like you're getting your balls kicked in.",
+"interp": 0.46153846153846156
+},
+{
+"id": 390,
+"c": 5,
+"s": 1404.77,
+"e": 1405.41,
+"n": 2,
+"t": "All right?",
+"interp": 1.0
+},
+{
+"id": 391,
+"c": 5,
+"s": 1405.41,
+"e": 1409.6,
+"n": 10,
+"t": "8% of the time you're gonna be confused and you're frustrated.",
+"interp": 0.2
+},
+{
+"id": 392,
+"c": 5,
+"s": 1409.6,
+"e": 1415.15,
+"n": 18,
+"t": "2% of the time you actually win, and those moments come and go and then you're back in the 90%.",
+"interp": 0.5555555555555556
+},
+{
+"id": 393,
+"c": 5,
+"s": 1416.28,
+"e": 1418.25,
+"n": 8,
+"t": "And that's the reality of a winner's life.",
+"interp": 0.375
+},
+{
+"id": 394,
+"c": 5,
+"s": 1418.53,
+"e": 1419.82,
+"n": 4,
+"t": "People don't understand that.",
+"interp": 0.25
+},
+{
+"id": 395,
+"c": 5,
+"s": 1419.82,
+"e": 1427.86,
+"n": 27,
+"t": "They think it's all about cruising around in a cool car with- having a free and happy and easy and go lucky life, and that's not reality.",
+"interp": 0.3333333333333333
+},
+{
+"id": 396,
+"c": 5,
+"s": 1427.86,
+"e": 1430.8,
+"n": 9,
+"t": "Because true winners are built for the fucking fight.",
+"interp": 0.1111111111111111
+},
+{
+"id": 397,
+"c": 5,
+"s": 1430.8,
+"e": 1432.22,
+"n": 5,
+"t": "They're built for the battle.",
+"interp": 0.4
+},
+{
+"id": 398,
+"c": 5,
+"s": 1432.43,
+"e": 1435.62,
+"n": 11,
+"t": "They don't find peace and joy and happiness in the win.",
+"interp": 0.09090909090909091
+},
+{
+"id": 399,
+"c": 5,
+"s": 1435.92,
+"e": 1438.58,
+"n": 10,
+"t": "They find w- what they're looking for in the fight.",
+"interp": 0.2
+},
+{
+"id": 400,
+"c": 5,
+"s": 1438.58,
+"e": 1440.38,
+"n": 8,
+"t": "What would you do if you weren't a-",
+"interp": 0.625
+},
+{
+"id": 401,
+"c": 6,
+"s": 1440.0,
+"e": 1444.96,
+"n": 15,
+"t": "And I just, I love thinking about that when I'm thinking about big life decisions.",
+"interp": 0.0
+},
+{
+"id": 402,
+"c": 6,
+"s": 1444.96,
+"e": 1446.41,
+"n": 9,
+"t": "Like, what would I do if I weren't afraid?",
+"interp": 0.0
+},
+{
+"id": 403,
+"c": 6,
+"s": 1447.3,
+"e": 1452.33,
+"n": 22,
+"t": "And it's usually, like, the big one, the, the bigger thing that I really wanna do but I'm afraid to do it.",
+"interp": 0.0
+},
+{
+"id": 404,
+"c": 6,
+"s": 1452.58,
+"e": 1456.05,
+"n": 15,
+"t": "It's like that's what I should do I always felt like I could do anything.",
+"interp": 0.0
+},
+{
+"id": 405,
+"c": 6,
+"s": 1456.05,
+"e": 1456.12,
+"n": 1,
+"t": "Yeah.",
+"interp": 0.0
+},
+{
+"id": 406,
+"c": 6,
+"s": 1457.68,
+"e": 1462.02,
+"n": 13,
+"t": "That's the main thing people are controlled by, thoughts, their perception of themselves.",
+"interp": 0.0
+},
+{
+"id": 407,
+"c": 6,
+"s": 1462.79,
+"e": 1465.42,
+"n": 8,
+"t": "They're slowed down by their perception of themselves.",
+"interp": 0.0
+},
+{
+"id": 408,
+"c": 6,
+"s": 1465.62,
+"e": 1468.13,
+"n": 11,
+"t": "If you're taught you can't do anything, you won't do anything.",
+"interp": 0.0
+},
+{
+"id": 409,
+"c": 6,
+"s": 1468.13,
+"e": 1468.49,
+"n": 1,
+"t": "Mm.",
+"interp": 0.0
+},
+{
+"id": 410,
+"c": 6,
+"s": 1468.88,
+"e": 1470.24,
+"n": 7,
+"t": "I was taught I could do everything.",
+"interp": 0.0
+},
+{
+"id": 411,
+"c": 6,
+"s": 1470.24,
+"e": 1473.21,
+"n": 12,
+"t": "[laughs] Don't ever be ashamed of anything you've done in your life.",
+"interp": 0.0
+},
+{
+"id": 412,
+"c": 6,
+"s": 1473.21,
+"e": 1475.08,
+"n": 7,
+"t": "Face it, fix it, make it better.",
+"interp": 0.0
+},
+{
+"id": 413,
+"c": 6,
+"s": 1475.18,
+"e": 1482.53,
+"n": 19,
+"t": "Build belief, build confidence to the point where nothing can hurt you because you know exactly who you are.",
+"interp": 0.0
+},
+{
+"id": 414,
+"c": 6,
+"s": 1483.11,
+"e": 1484.71,
+"n": 4,
+"t": "You've faced your demons.",
+"interp": 0.0
+},
+{
+"id": 415,
+"c": 6,
+"s": 1484.83,
+"e": 1487.13,
+"n": 9,
+"t": "You were able to hear all your past traumas.",
+"interp": 0.0
+},
+{
+"id": 416,
+"c": 6,
+"s": 1487.28,
+"e": 1488.31,
+"n": 4,
+"t": "I'm no longer embarrassed.",
+"interp": 0.0
+},
+{
+"id": 417,
+"c": 6,
+"s": 1488.31,
+"e": 1489.32,
+"n": 4,
+"t": "I'm no longer ashamed.",
+"interp": 0.0
+},
+{
+"id": 418,
+"c": 6,
+"s": 1490.0,
+"e": 1493.91,
+"n": 15,
+"t": "Being ashamed is one of the biggest things that kill people nowadays, in their minds.",
+"interp": 0.0
+},
+{
+"id": 419,
+"c": 6,
+"s": 1493.91,
+"e": 1494.96,
+"n": 5,
+"t": "Kill them from moving forward.",
+"interp": 0.0
+},
+{
+"id": 420,
+"c": 6,
+"s": 1494.96,
+"e": 1496.14,
+"n": 4,
+"t": "I'm ashamed of myself.",
+"interp": 0.0
+},
+{
+"id": 421,
+"c": 6,
+"s": 1496.4,
+"e": 1498.7,
+"n": 5,
+"t": "You have to achieve failure.",
+"interp": 0.0
+},
+{
+"id": 422,
+"c": 6,
+"s": 1498.92,
+"e": 1500.43,
+"n": 7,
+"t": "You have to take it that far.",
+"interp": 0.0
+},
+{
+"id": 423,
+"c": 6,
+"s": 1500.91,
+"e": 1502.57,
+"n": 6,
+"t": "Nobody wants to go that far.",
+"interp": 0.0
+},
+{
+"id": 424,
+"c": 6,
+"s": 1502.57,
+"e": 1503.48,
+"n": 3,
+"t": "It's too scary.",
+"interp": 0.0
+},
+{
+"id": 425,
+"c": 6,
+"s": 1503.57,
+"e": 1504.83,
+"n": 4,
+"t": "But you know something?",
+"interp": 0.0
+},
+{
+"id": 426,
+"c": 6,
+"s": 1504.83,
+"e": 1505.42,
+"n": 5,
+"t": "I got news for you.",
+"interp": 0.0
+},
+{
+"id": 427,
+"c": 6,
+"s": 1505.62,
+"e": 1507.09,
+"n": 4,
+"t": "That's where winning is.",
+"interp": 0.0
+},
+{
+"id": 428,
+"c": 6,
+"s": 1507.46,
+"e": 1508.44,
+"n": 4,
+"t": "It always has been.",
+"interp": 0.0
+},
+{
+"id": 429,
+"c": 6,
+"s": 1508.76,
+"e": 1509.66,
+"n": 2,
+"t": "Ever tried.",
+"interp": 0.0
+},
+{
+"id": 430,
+"c": 6,
+"s": 1510.56,
+"e": 1511.45,
+"n": 2,
+"t": "Ever failed.",
+"interp": 0.0
+},
+{
+"id": 431,
+"c": 6,
+"s": 1512.47,
+"e": 1513.23,
+"n": 2,
+"t": "No matter.",
+"interp": 0.0
+},
+{
+"id": 432,
+"c": 6,
+"s": 1514.12,
+"e": 1515.1,
+"n": 2,
+"t": "Try again.",
+"interp": 0.0
+},
+{
+"id": 433,
+"c": 6,
+"s": 1515.75,
+"e": 1516.78,
+"n": 2,
+"t": "Fail again.",
+"interp": 0.0
+},
+{
+"id": 434,
+"c": 6,
+"s": 1518.01,
+"e": 1518.9,
+"n": 2,
+"t": "Fail better.",
+"interp": 0.0
+},
+{
+"id": 435,
+"c": 6,
+"s": 1519.48,
+"e": 1521.77,
+"n": 5,
+"t": "Don't be afraid of failure.",
+"interp": 0.0
+},
+{
+"id": 436,
+"c": 6,
+"s": 1521.77,
+"e": 1523.46,
+"n": 5,
+"t": "Don't be afraid of losing.",
+"interp": 0.0
+},
+{
+"id": 437,
+"c": 6,
+"s": 1523.5,
+"e": 1523.72,
+"n": 1,
+"t": "Hmm.",
+"interp": 0.0
+},
+{
+"id": 438,
+"c": 6,
+"s": 1523.72,
+"e": 1526.03,
+"n": 7,
+"t": "Don't be afraid of people rejecting you.",
+"interp": 0.0
+},
+{
+"id": 439,
+"c": 6,
+"s": 1526.03,
+"e": 1526.51,
+"n": 1,
+"t": "Hmm.",
+"interp": 0.0
+},
+{
+"id": 440,
+"c": 6,
+"s": 1526.51,
+"e": 1534.07,
+"n": 23,
+"t": "As long as you don't surrender, as long as you don't give up, as long as you don't quit, then you haven't failed.",
+"interp": 0.0
+},
+{
+"id": 441,
+"c": 6,
+"s": 1534.51,
+"e": 1537.15,
+"n": 8,
+"t": "Okay, I failed, but I was right there.",
+"interp": 0.0
+},
+{
+"id": 442,
+"c": 6,
+"s": 1538.03,
+"e": 1538.67,
+"n": 3,
+"t": "What'd I miss?",
+"interp": 0.0
+},
+{
+"id": 443,
+"c": 6,
+"s": 1539.78,
+"e": 1540.76,
+"n": 6,
+"t": "What the fuck did I miss?",
+"interp": 0.0
+},
+{
+"id": 444,
+"c": 6,
+"s": 1541.17,
+"e": 1543.37,
+"n": 6,
+"t": "Oh, that's what I fucking missed.",
+"interp": 0.0
+},
+{
+"id": 445,
+"c": 6,
+"s": 1543.81,
+"e": 1544.85,
+"n": 6,
+"t": "I taught myself how to fail.",
+"interp": 0.0
+},
+{
+"id": 446,
+"c": 6,
+"s": 1545.6,
+"e": 1551.29,
+"n": 22,
+"t": "I'm always skirting on that, like, limit of like, \"Hey, I'm there, I'm there, I'm there, I'm there.\" I failed at it.",
+"interp": 0.0
+},
+{
+"id": 447,
+"c": 6,
+"s": 1552.13,
+"e": 1558.69,
+"n": 22,
+"t": "What can I learn from that and what can I do next differently to make sure I don't make that mistake again?",
+"interp": 0.0
+},
+{
+"id": 448,
+"c": 6,
+"s": 1558.76,
+"e": 1562.84,
+"n": 11,
+"t": "Now, the only place to go from failure is to win.",
+"interp": 0.0
+},
+{
+"id": 449,
+"c": 6,
+"s": 1563.3,
+"e": 1568.81,
+"n": 15,
+"t": "If you have big goals and big dreams, along the way, failure is gonna happen.",
+"interp": 0.0
+},
+{
+"id": 450,
+"c": 6,
+"s": 1569.4,
+"e": 1571.41,
+"n": 9,
+"t": "So how fast do you get up from that?",
+"interp": 0.0
+},
+{
+"id": 451,
+"c": 6,
+"s": 1571.67,
+"e": 1573.07,
+"n": 6,
+"t": "And you gotta teach yourself that.",
+"interp": 0.0
+},
+{
+"id": 452,
+"c": 6,
+"s": 1573.29,
+"e": 1575.59,
+"n": 8,
+"t": "The man who never fell has no glory.",
+"interp": 0.0
+},
+{
+"id": 453,
+"c": 6,
+"s": 1576.29,
+"e": 1580.02,
+"n": 13,
+"t": "The man who fell and got back up, that's where his glory is.",
+"interp": 0.0
+},
+{
+"id": 454,
+"c": 6,
+"s": 1580.44,
+"e": 1586.57,
+"n": 15,
+"t": "The man who fell 20 times and got up 21 times, that man has even greater glory.",
+"interp": 0.0
+},
+{
+"id": 455,
+"c": 6,
+"s": 1586.57,
+"e": 1586.77,
+"n": 1,
+"t": "Hmm.",
+"interp": 0.0
+},
+{
+"id": 456,
+"c": 6,
+"s": 1587.19,
+"e": 1587.49,
+"n": 1,
+"t": "Wow.",
+"interp": 0.0
+},
+{
+"id": 457,
+"c": 6,
+"s": 1587.49,
+"e": 1593.29,
+"n": 21,
+"t": "That man has more courage, way more courage than the guy who was so strong from birth that he never fell.",
+"interp": 0.0
+},
+{
+"id": 458,
+"c": 6,
+"s": 1593.97,
+"e": 1595.24,
+"n": 5,
+"t": "There's no glory in that.",
+"interp": 0.0
+},
+{
+"id": 459,
+"c": 6,
+"s": 1596.33,
+"e": 1598.43,
+"n": 9,
+"t": "You will fail at some point in your life.",
+"interp": 0.0
+},
+{
+"id": 460,
+"c": 6,
+"s": 1598.43,
+"e": 1599.03,
+"n": 2,
+"t": "Accept it.",
+"interp": 0.0
+},
+{
+"id": 461,
+"c": 6,
+"s": 1599.21,
+"e": 1600.13,
+"n": 3,
+"t": "You will lose.",
+"interp": 0.0
+},
+{
+"id": 462,
+"c": 6,
+"s": 1600.26,
+"e": 1601.64,
+"n": 4,
+"t": "You will embarrass yourself.",
+"interp": 0.0
+},
+{
+"id": 463,
+"c": 6,
+"s": 1601.78,
+"e": 1603.33,
+"n": 5,
+"t": "You will suck at something.",
+"interp": 0.0
+},
+{
+"id": 464,
+"c": 6,
+"s": 1603.56,
+"e": 1604.38,
+"n": 5,
+"t": "There's no doubt about it.",
+"interp": 0.0
+},
+{
+"id": 465,
+"c": 6,
+"s": 1605.22,
+"e": 1614.58,
+"n": 22,
+"t": "I was a 1.8 GPA one semester, and the university very politely suggested that it might be better to take some time off.",
+"interp": 0.0
+},
+{
+"id": 466,
+"c": 6,
+"s": 1614.58,
+"e": 1616.07,
+"n": 4,
+"t": "I was 20 years old.",
+"interp": 0.0
+},
+{
+"id": 467,
+"c": 6,
+"s": 1616.07,
+"e": 1617.81,
+"n": 6,
+"t": "I was at my lowest point.",
+"interp": 0.0
+},
+{
+"id": 468,
+"c": 6,
+"s": 1617.81,
+"e": 1620.04,
+"n": 4,
+"t": "But here's the thing.",
+"interp": 0.0
+},
+{
+"id": 469,
+"c": 6,
+"s": 1620.04,
+"e": 1622.47,
+"n": 3,
+"t": "I didn't quit.",
+"interp": 0.0
+},
+{
+"id": 470,
+"c": 6,
+"s": 1622.47,
+"e": 1625.54,
+"n": 4,
+"t": "I didn't fall back.",
+"interp": 0.0
+},
+{
+"id": 471,
+"c": 6,
+"s": 1625.54,
+"e": 1628.94,
+"n": 9,
+"t": "But I continued to fail and fail and fail.",
+"interp": 0.0
+},
+{
+"id": 472,
+"c": 6,
+"s": 1628.94,
+"e": 1630.98,
+"n": 8,
+"t": "But it didn't matter because you know what?",
+"interp": 0.0
+},
+{
+"id": 473,
+"c": 6,
+"s": 1630.98,
+"e": 1636.39,
+"n": 19,
+"t": "There's an old saying, you hang around the barbershop long enough, sooner or later you're gonna get a haircut.",
+"interp": 0.0
+},
+{
+"id": 474,
+"c": 6,
+"s": 1636.39,
+"e": 1640.6,
+"n": 7,
+"t": "Other than death, all failure is psychological.",
+"interp": 0.0
+},
+{
+"id": 475,
+"c": 6,
+"s": 1640.6,
+"e": 1643.58,
+"n": 7,
+"t": "Other than death, all failure is psychological.",
+"interp": 0.0
+},
+{
+"id": 476,
+"c": 6,
+"s": 1643.58,
+"e": 1644.67,
+"n": 3,
+"t": "Think about that.",
+"interp": 0.0
+},
+{
+"id": 477,
+"c": 6,
+"s": 1644.67,
+"e": 1646.4,
+"n": 6,
+"t": "Just, just, just think about that.",
+"interp": 0.0
+},
+{
+"id": 478,
+"c": 6,
+"s": 1646.77,
+"e": 1651.75,
+"n": 7,
+"t": "This failure, this upset, this, this catastrophe.",
+"interp": 0.0
+},
+{
+"id": 479,
+"c": 6,
+"s": 1651.75,
+"e": 1654.65,
+"n": 8,
+"t": "If you aren't dead, then it's just psychological.",
+"interp": 0.0
+},
+{
+"id": 480,
+"c": 6,
+"s": 1654.65,
+"e": 1655.47,
+"n": 4,
+"t": "It's in your head.",
+"interp": 0.0
+},
+{
+"id": 481,
+"c": 6,
+"s": 1655.47,
+"e": 1660.65,
+"n": 13,
+"t": "This does not mean that you won't lose some battles, because you will.",
+"interp": 0.0
+},
+{
+"id": 482,
+"c": 6,
+"s": 1660.65,
+"e": 1661.61,
+"n": 3,
+"t": "We all will.",
+"interp": 0.0
+},
+{
+"id": 483,
+"c": 6,
+"s": 1661.61,
+"e": 1665.32,
+"n": 7,
+"t": "Gotta be, uh, willing to, um, fail.",
+"interp": 0.0
+},
+{
+"id": 484,
+"c": 6,
+"s": 1665.32,
+"e": 1670.39,
+"n": 21,
+"t": "You gotta be willing to crash and burn, you know, with people on the phone, with starting a company, with whatever.",
+"interp": 0.0
+},
+{
+"id": 485,
+"c": 6,
+"s": 1670.39,
+"e": 1673.33,
+"n": 11,
+"t": "If you're afraid of failing, uh, you won't get very far.",
+"interp": 0.0
+},
+{
+"id": 486,
+"c": 6,
+"s": 1673.43,
+"e": 1673.58,
+"n": 1,
+"t": "Less.",
+"interp": 0.0
+},
+{
+"id": 487,
+"c": 6,
+"s": 1673.58,
+"e": 1674.6,
+"n": 2,
+"t": "You're dead.",
+"interp": 0.0
+},
+{
+"id": 488,
+"c": 6,
+"s": 1674.6,
+"e": 1677.72,
+"n": 9,
+"t": "You are not defeated, and you have not failed.",
+"interp": 0.0
+},
+{
+"id": 489,
+"c": 6,
+"s": 1677.72,
+"e": 1679.97,
+"n": 6,
+"t": "What you've done is you've learned.",
+"interp": 0.0
+},
+{
+"id": 490,
+"c": 7,
+"s": 1680.0,
+"e": 1680.96,
+"n": 1,
+"t": "Big.",
+"interp": 1.0
+},
+{
+"id": 491,
+"c": 7,
+"s": 1680.96,
+"e": 1683.13,
+"n": 2,
+"t": "That's right.",
+"interp": 0.5
+},
+{
+"id": 492,
+"c": 7,
+"s": 1683.13,
+"e": 1684.47,
+"n": 2,
+"t": "Fail big.",
+"interp": 1.0
+},
+{
+"id": 493,
+"c": 7,
+"s": 1684.47,
+"e": 1691.15,
+"n": 13,
+"t": "You only live once, so do what you feel passionate about, passionate about.",
+"interp": 0.5384615384615384
+},
+{
+"id": 494,
+"c": 7,
+"s": 1691.15,
+"e": 1694.71,
+"n": 3,
+"t": "Take chances professionally.",
+"interp": 0.3333333333333333
+},
+{
+"id": 495,
+"c": 7,
+"s": 1696.05,
+"e": 1697.35,
+"n": 5,
+"t": "Don't be afraid to fail.",
+"interp": 0.0
+},
+{
+"id": 496,
+"c": 7,
+"s": 1697.54,
+"e": 1700.38,
+"n": 8,
+"t": "Don't be afraid to think outside the box.",
+"interp": 0.375
+},
+{
+"id": 497,
+"c": 7,
+"s": 1700.55,
+"e": 1704.97,
+"n": 9,
+"t": "Don't be afraid to fail big, to dream big.",
+"interp": 0.3333333333333333
+},
+{
+"id": 498,
+"c": 7,
+"s": 1704.97,
+"e": 1713.54,
+"n": 8,
+"t": "But remember, dreams without goals are just dreams.",
+"interp": 0.25
+},
+{
+"id": 499,
+"c": 7,
+"s": 1713.85,
+"e": 1715.09,
+"n": 6,
+"t": "You don't feel like working out?",
+"interp": 0.6666666666666666
+},
+{
+"id": 500,
+"c": 7,
+"s": 1715.09,
+"e": 1716.07,
+"n": 3,
+"t": "It doesn't matter.",
+"interp": 0.0
+},
+{
+"id": 501,
+"c": 7,
+"s": 1716.07,
+"e": 1717.79,
+"n": 10,
+"t": "It doesn't matter that you don't feel like working out.",
+"interp": 0.7
+},
+{
+"id": 502,
+"c": 7,
+"s": 1717.79,
+"e": 1718.13,
+"n": 3,
+"t": "It doesn't matter.",
+"interp": 1.0
+},
+{
+"id": 503,
+"c": 7,
+"s": 1718.25,
+"e": 1719.46,
+"n": 6,
+"t": "It's not part of the calculation.",
+"interp": 0.3333333333333333
+},
+{
+"id": 504,
+"c": 7,
+"s": 1719.46,
+"e": 1720.54,
+"n": 3,
+"t": "Discipline overrides that.",
+"interp": 1.0
+},
+{
+"id": 505,
+"c": 7,
+"s": 1720.9,
+"e": 1723.79,
+"n": 9,
+"t": "The pain of discipline or the pain of regret.",
+"interp": 0.2222222222222222
+},
+{
+"id": 506,
+"c": 7,
+"s": 1724.65,
+"e": 1727.35,
+"n": 8,
+"t": "Go for the discipline because it weighs ounces.",
+"interp": 0.125
+},
+{
+"id": 507,
+"c": 7,
+"s": 1728.24,
+"e": 1729.67,
+"n": 4,
+"t": "The regret weighs tons.",
+"interp": 0.5
+},
+{
+"id": 508,
+"c": 7,
+"s": 1730.14,
+"e": 1730.56,
+"n": 5,
+"t": "You got to keep working.",
+"interp": 0.8
+},
+{
+"id": 509,
+"c": 7,
+"s": 1730.64,
+"e": 1731.47,
+"n": 5,
+"t": "Your time's going to come.",
+"interp": 0.8
+},
+{
+"id": 510,
+"c": 7,
+"s": 1731.65,
+"e": 1732.14,
+"n": 2,
+"t": "Trust me.",
+"interp": 0.0
+},
+{
+"id": 511,
+"c": 7,
+"s": 1732.14,
+"e": 1732.96,
+"n": 4,
+"t": "You got to work.",
+"interp": 0.5
+},
+{
+"id": 512,
+"c": 7,
+"s": 1732.96,
+"e": 1734.49,
+"n": 6,
+"t": "Your time is going to happen.",
+"interp": 0.6666666666666666
+},
+{
+"id": 513,
+"c": 7,
+"s": 1734.49,
+"e": 1735.54,
+"n": 5,
+"t": "You're here for a reason.",
+"interp": 0.2
+},
+{
+"id": 514,
+"c": 7,
+"s": 1735.54,
+"e": 1738.91,
+"n": 13,
+"t": "But you got to be ready because if you're not, it's on you.",
+"interp": 0.6153846153846154
+},
+{
+"id": 515,
+"c": 7,
+"s": 1738.91,
+"e": 1746.83,
+"n": 20,
+"t": "There's people out there that are just working harder than everybody else and they'll they're going to keep doing it.",
+"interp": 0.6
+},
+{
+"id": 516,
+"c": 7,
+"s": 1746.83,
+"e": 1747.08,
+"n": 1,
+"t": "Yeah.",
+"interp": 1.0
+},
+{
+"id": 517,
+"c": 7,
+"s": 1747.33,
+"e": 1748.18,
+"n": 4,
+"t": "And that's their grind.",
+"interp": 0.25
+},
+{
+"id": 518,
+"c": 7,
+"s": 1748.18,
+"e": 1758.61,
+"n": 26,
+"t": "You know, and those people are super valuable because they change everybody's perspective of like what what's possible, what to strive for and what it takes.",
+"interp": 0.34615384615384615
+},
+{
+"id": 519,
+"c": 7,
+"s": 1758.61,
+"e": 1760.9,
+"n": 9,
+"t": "Like, do you really want to be a champion?",
+"interp": 0.3333333333333333
+},
+{
+"id": 520,
+"c": 7,
+"s": 1760.9,
+"e": 1761.34,
+"n": 1,
+"t": "Why?",
+"interp": 0.0
+},
+{
+"id": 521,
+"c": 7,
+"s": 1761.34,
+"e": 1762.62,
+"n": 7,
+"t": "Because you just want to be cool.",
+"interp": 0.2857142857142857
+},
+{
+"id": 522,
+"c": 7,
+"s": 1762.62,
+"e": 1765.39,
+"n": 12,
+"t": "You want to be the coolest guy on the block like that.",
+"interp": 0.8333333333333334
+},
+{
+"id": 523,
+"c": 7,
+"s": 1765.39,
+"e": 1766.09,
+"n": 5,
+"t": "You're not going to win.",
+"interp": 1.0
+},
+{
+"id": 524,
+"c": 7,
+"s": 1766.09,
+"e": 1768.45,
+"n": 11,
+"t": "You're going to find some fucking psychopath who just lives it.",
+"interp": 0.7272727272727273
+},
+{
+"id": 525,
+"c": 7,
+"s": 1768.45,
+"e": 1770.45,
+"n": 5,
+"t": "It's it's their whole life.",
+"interp": 0.2
+},
+{
+"id": 526,
+"c": 7,
+"s": 1770.45,
+"e": 1772.18,
+"n": 9,
+"t": "And if it's not your whole life, get out.",
+"interp": 0.6666666666666666
+},
+{
+"id": 527,
+"c": 7,
+"s": 1772.83,
+"e": 1773.24,
+"n": 2,
+"t": "Get out.",
+"interp": 0.0
+},
+{
+"id": 528,
+"c": 7,
+"s": 1773.7,
+"e": 1774.5,
+"n": 3,
+"t": "Just get up.",
+"interp": 0.0
+},
+{
+"id": 529,
+"c": 7,
+"s": 1775.66,
+"e": 1778.61,
+"n": 8,
+"t": "Move towards that challenge, whatever that challenge is.",
+"interp": 0.5
+},
+{
+"id": 530,
+"c": 7,
+"s": 1778.61,
+"e": 1782.1,
+"n": 8,
+"t": "Move towards that challenge and go attack it.",
+"interp": 1.0
+},
+{
+"id": 531,
+"c": 7,
+"s": 1782.54,
+"e": 1787.01,
+"n": 16,
+"t": "And you may be successful and you may not be successful, but you will be better.",
+"interp": 0.0
+},
+{
+"id": 532,
+"c": 7,
+"s": 1787.01,
+"e": 1788.36,
+"n": 7,
+"t": "You can speak about it all day.",
+"interp": 0.7142857142857143
+},
+{
+"id": 533,
+"c": 7,
+"s": 1788.36,
+"e": 1792.89,
+"n": 16,
+"t": "The easiest thing in the world to do is to complain, blame, and quit and settle.",
+"interp": 0.5
+},
+{
+"id": 534,
+"c": 7,
+"s": 1792.89,
+"e": 1795.21,
+"n": 9,
+"t": "That's the easiest thing in the world to do.",
+"interp": 0.6666666666666666
+},
+{
+"id": 535,
+"c": 7,
+"s": 1795.35,
+"e": 1805.14,
+"n": 25,
+"t": "But it takes real work to deconstruct and to reconstruct the thought process and the mindset of an individual when they're trying to change something.",
+"interp": 0.48
+},
+{
+"id": 536,
+"c": 7,
+"s": 1805.14,
+"e": 1811.07,
+"n": 17,
+"t": "That's why I always say to people, what's more important, what we acquire or who we become?",
+"interp": 0.6470588235294118
+},
+{
+"id": 537,
+"c": 7,
+"s": 1811.07,
+"e": 1812.88,
+"n": 5,
+"t": "You just got to grind.",
+"interp": 1.0
+},
+{
+"id": 538,
+"c": 7,
+"s": 1813.24,
+"e": 1816.55,
+"n": 10,
+"t": "There's never been more opportunity than there is right now.",
+"interp": 0.3
+},
+{
+"id": 539,
+"c": 7,
+"s": 1816.55,
+"e": 1823.29,
+"n": 28,
+"t": "If you're a fucking savage and you get out there and you grind hard and you want it bad enough, you can run all these guys over, man.",
+"interp": 0.6071428571428571
+},
+{
+"id": 540,
+"c": 7,
+"s": 1823.29,
+"e": 1829.56,
+"n": 12,
+"t": "This next generation is just such a fucking group of pussies, man.",
+"interp": 0.8333333333333334
+},
+{
+"id": 541,
+"c": 7,
+"s": 1829.56,
+"e": 1834.16,
+"n": 17,
+"t": "I just, for the small group of savages out there, run these fucking kids right over, man.",
+"interp": 0.5294117647058824
+},
+{
+"id": 542,
+"c": 7,
+"s": 1834.16,
+"e": 1835.6,
+"n": 5,
+"t": "Just run them all over.",
+"interp": 0.8
+},
+{
+"id": 543,
+"c": 7,
+"s": 1835.6,
+"e": 1838.11,
+"n": 11,
+"t": "Don't ever be ashamed of anything you've done in your life.",
+"interp": 0.5454545454545454
+},
+{
+"id": 544,
+"c": 7,
+"s": 1838.14,
+"e": 1839.91,
+"n": 7,
+"t": "Face it, fix it, make it better.",
+"interp": 0.2857142857142857
+},
+{
+"id": 545,
+"c": 7,
+"s": 1841.09,
+"e": 1847.36,
+"n": 19,
+"t": "Build belief, build confidence to the point where nothing can hurt you because you know exactly who you are.",
+"interp": 0.21052631578947367
+},
+{
+"id": 546,
+"c": 7,
+"s": 1847.36,
+"e": 1849.58,
+"n": 4,
+"t": "You've faced your demons.",
+"interp": 0.5
+},
+{
+"id": 547,
+"c": 7,
+"s": 1849.69,
+"e": 1851.66,
+"n": 9,
+"t": "You were able to hear all your past trials.",
+"interp": 0.3333333333333333
+},
+{
+"id": 548,
+"c": 7,
+"s": 1851.66,
+"e": 1853.11,
+"n": 4,
+"t": "I'm no longer embarrassed.",
+"interp": 0.5
+},
+{
+"id": 549,
+"c": 7,
+"s": 1853.11,
+"e": 1854.17,
+"n": 4,
+"t": "I'm no longer ashamed.",
+"interp": 1.0
+},
+{
+"id": 550,
+"c": 7,
+"s": 1854.17,
+"e": 1859.86,
+"n": 20,
+"t": "Being ashamed is one of the biggest things that kill people nowadays in their minds, kill them from moving forward.",
+"interp": 0.55
+},
+{
+"id": 551,
+"c": 7,
+"s": 1859.86,
+"e": 1860.88,
+"n": 4,
+"t": "I'm ashamed of myself.",
+"interp": 1.0
+},
+{
+"id": 552,
+"c": 7,
+"s": 1861.14,
+"e": 1862.54,
+"n": 6,
+"t": "How bad do you want this?",
+"interp": 0.5
+},
+{
+"id": 553,
+"c": 7,
+"s": 1862.54,
+"e": 1869.77,
+"n": 24,
+"t": "If it's as bad as you want to live or breathe or sleep, whatever the hell it may be, I can work with you.",
+"interp": 0.5833333333333334
+},
+{
+"id": 554,
+"c": 7,
+"s": 1869.77,
+"e": 1876.19,
+"n": 29,
+"t": "But a lot of people, most people don't want it that badly, which is why they always ask the question, man, how did you get to where you are?",
+"interp": 0.41379310344827586
+},
+{
+"id": 555,
+"c": 7,
+"s": 1876.79,
+"e": 1877.66,
+"n": 6,
+"t": "You know how to do it.",
+"interp": 0.5
+},
+{
+"id": 556,
+"c": 7,
+"s": 1878.8,
+"e": 1881.99,
+"n": 12,
+"t": "You know exactly how to be you or how to be me.",
+"interp": 0.8333333333333334
+},
+{
+"id": 557,
+"c": 7,
+"s": 1882.24,
+"e": 1884.26,
+"n": 6,
+"t": "You don't want to do it.",
+"interp": 0.3333333333333333
+},
+{
+"id": 558,
+"c": 7,
+"s": 1884.26,
+"e": 1886.48,
+"n": 15,
+"t": "Do you ever wake up and you're saying, I don't want to do it today?",
+"interp": 1.0
+},
+{
+"id": 559,
+"c": 7,
+"s": 1886.48,
+"e": 1888.11,
+"n": 5,
+"t": "I fight against my mind.",
+"interp": 0.2
+},
+{
+"id": 560,
+"c": 7,
+"s": 1888.11,
+"e": 1889.85,
+"n": 4,
+"t": "Yes, sometimes it happens.",
+"interp": 0.75
+},
+{
+"id": 561,
+"c": 7,
+"s": 1890.34,
+"e": 1891.73,
+"n": 5,
+"t": "We are all human beings.",
+"interp": 0.0
+},
+{
+"id": 562,
+"c": 7,
+"s": 1891.73,
+"e": 1892.6,
+"n": 6,
+"t": "We are not happy every day.",
+"interp": 0.6666666666666666
+},
+{
+"id": 563,
+"c": 7,
+"s": 1892.68,
+"e": 1897.44,
+"n": 9,
+"t": "We are not in a good mood every day.",
+"interp": 0.2222222222222222
+},
+{
+"id": 564,
+"c": 7,
+"s": 1897.68,
+"e": 1898.28,
+"n": 2,
+"t": "It's normal.",
+"interp": 0.0
+},
+{
+"id": 565,
+"c": 7,
+"s": 1898.28,
+"e": 1899.44,
+"n": 4,
+"t": "It's part of us.",
+"interp": 0.5
+},
+{
+"id": 566,
+"c": 7,
+"s": 1900.05,
+"e": 1901.03,
+"n": 4,
+"t": "It's the big challenge.",
+"interp": 0.5
+},
+{
+"id": 567,
+"c": 7,
+"s": 1901.03,
+"e": 1905.87,
+"n": 14,
+"t": "It's when you're not willing to do something, but you have to do it.",
+"interp": 0.21428571428571427
+},
+{
+"id": 568,
+"c": 7,
+"s": 1906.45,
+"e": 1907.41,
+"n": 5,
+"t": "This is the main point.",
+"interp": 0.6
+},
+{
+"id": 569,
+"c": 7,
+"s": 1907.56,
+"e": 1920.01,
+"n": 21,
+"t": "This is why I say our mind, it's a box of surprises and you have to challenge yourself to be consistent.",
+"interp": 0.3333333333333333
+},
+{
+"id": 570,
+"c": 7,
+"s": 1920.06,
+"e": 1921.51,
+"n": 5,
+"t": "I repeat, sometimes it's hard.",
+"interp": 1.0
+},
+{
+"id": 571,
+"c": 8,
+"s": 1920.73,
+"e": 1925.45,
+"n": 17,
+"t": "What many people say, uh, \"You like to go to the gym every day?\" Of course not.",
+"interp": 0.0
+},
+{
+"id": 572,
+"c": 8,
+"s": 1926.15,
+"e": 1926.83,
+"n": 3,
+"t": "It's not true.",
+"interp": 0.0
+},
+{
+"id": 573,
+"c": 8,
+"s": 1926.86,
+"e": 1928.74,
+"n": 9,
+"t": "Nobody like to go to the gym every day.",
+"interp": 0.0
+},
+{
+"id": 574,
+"c": 8,
+"s": 1929.77,
+"e": 1941.13,
+"n": 28,
+"t": "But you have to do it because your mental strength is coming from that, from that moment that in a hard moment you know you should do it.",
+"interp": 0.0
+},
+{
+"id": 575,
+"c": 8,
+"s": 1941.34,
+"e": 1954.11,
+"n": 35,
+"t": "And I do it because after that, maybe in the beginning you feel hard to start, but after when you finish the gym, or cold plunge, or, or even the training, you will feel better.",
+"interp": 0.0
+},
+{
+"id": 576,
+"c": 8,
+"s": 1954.27,
+"e": 1955.56,
+"n": 5,
+"t": "I don't give a fuck.",
+"interp": 0.0
+},
+{
+"id": 577,
+"c": 8,
+"s": 1956.24,
+"e": 1957.03,
+"n": 5,
+"t": "I don't give a fuck.",
+"interp": 0.0
+},
+{
+"id": 578,
+"c": 8,
+"s": 1957.29,
+"e": 1957.44,
+"n": 1,
+"t": "Yeah.",
+"interp": 0.0
+},
+{
+"id": 579,
+"c": 8,
+"s": 1957.44,
+"e": 1960.25,
+"n": 12,
+"t": "I don't give a shit what anybody says or what anybody thinks.",
+"interp": 0.0
+},
+{
+"id": 580,
+"c": 8,
+"s": 1960.25,
+"e": 1963.89,
+"n": 12,
+"t": "I have this mindset, I know exactly who the fuck I am.",
+"interp": 0.0
+},
+{
+"id": 581,
+"c": 8,
+"s": 1964.41,
+"e": 1975.54,
+"n": 35,
+"t": "I have my circle of people that I hang around with who know me and know what I'm about and whatever, and, uh, anybody else who doesn't like it or doesn't wanna, fuck 'em bad.",
+"interp": 0.0
+},
+{
+"id": 582,
+"c": 8,
+"s": 1976.28,
+"e": 1982.25,
+"n": 14,
+"t": "Do you wanna be on your deathbed knowing that you could but you didn't?",
+"interp": 0.0
+},
+{
+"id": 583,
+"c": 8,
+"s": 1982.7,
+"e": 1989.54,
+"n": 23,
+"t": "So why do you care about what people are thinking when they're not trying to go where the fuck you're trying to go?",
+"interp": 0.0
+},
+{
+"id": 584,
+"c": 8,
+"s": 1989.97,
+"e": 1991.06,
+"n": 2,
+"t": "Don't complain.",
+"interp": 0.0
+},
+{
+"id": 585,
+"c": 8,
+"s": 1991.72,
+"e": 1992.61,
+"n": 2,
+"t": "Don't murmur.",
+"interp": 0.0
+},
+{
+"id": 586,
+"c": 8,
+"s": 1993.06,
+"e": 1994.21,
+"n": 3,
+"t": "Don't talk negative.",
+"interp": 0.0
+},
+{
+"id": 587,
+"c": 8,
+"s": 1994.48,
+"e": 1997.39,
+"n": 6,
+"t": "That's ar- average people talk normal.",
+"interp": 0.0
+},
+{
+"id": 588,
+"c": 8,
+"s": 1997.61,
+"e": 1999.31,
+"n": 4,
+"t": "Average people talk problem.",
+"interp": 0.0
+},
+{
+"id": 589,
+"c": 8,
+"s": 1999.47,
+"e": 2000.81,
+"n": 4,
+"t": "The greats talk solutions.",
+"interp": 0.0
+},
+{
+"id": 590,
+"c": 8,
+"s": 2001.56,
+"e": 2005.29,
+"n": 14,
+"t": "I have to become someone in this world or I'm no good for anybody.",
+"interp": 0.0
+},
+{
+"id": 591,
+"c": 8,
+"s": 2005.55,
+"e": 2007.24,
+"n": 7,
+"t": "Where, and where does that come from?",
+"interp": 0.0
+},
+{
+"id": 592,
+"c": 8,
+"s": 2007.47,
+"e": 2020.09,
+"n": 28,
+"t": "That, where did that compulsion, that drive- It comes from a disgusting place of not being fulfilled in your life, of afraid of dying having never accomplished anything.",
+"interp": 0.0
+},
+{
+"id": 593,
+"c": 8,
+"s": 2020.97,
+"e": 2024.69,
+"n": 14,
+"t": "That's a fear that some people run away from, that people don't wanna face.",
+"interp": 0.0
+},
+{
+"id": 594,
+"c": 8,
+"s": 2025.72,
+"e": 2032.83,
+"n": 20,
+"t": "When you have a real fear of dying and being just another person, that I live to pay the bills.",
+"interp": 0.0
+},
+{
+"id": 595,
+"c": 8,
+"s": 2032.83,
+"e": 2034.38,
+"n": 7,
+"t": "I made a thousand dollars a month.",
+"interp": 0.0
+},
+{
+"id": 596,
+"c": 8,
+"s": 2035.07,
+"e": 2035.76,
+"n": 4,
+"t": "This is my life.",
+"interp": 0.0
+},
+{
+"id": 597,
+"c": 8,
+"s": 2035.76,
+"e": 2037.19,
+"n": 5,
+"t": "I spray for cockroaches, man.",
+"interp": 0.0
+},
+{
+"id": 598,
+"c": 8,
+"s": 2037.84,
+"e": 2040.17,
+"n": 9,
+"t": "If, if that makes you feel good, that's great.",
+"interp": 0.0
+},
+{
+"id": 599,
+"c": 8,
+"s": 2040.17,
+"e": 2041.32,
+"n": 6,
+"t": "It didn't make me feel good.",
+"interp": 0.0
+},
+{
+"id": 600,
+"c": 8,
+"s": 2041.98,
+"e": 2049.11,
+"n": 23,
+"t": "I wanted to, the first time in my life after 26 years, it was 24, 25, wherever I was, I wanted to feel good about myself.",
+"interp": 0.0
+},
+{
+"id": 601,
+"c": 8,
+"s": 2049.11,
+"e": 2052.37,
+"n": 11,
+"t": "You have to be crazy enough to think that it's possible.",
+"interp": 0.0
+},
+{
+"id": 602,
+"c": 8,
+"s": 2054.56,
+"e": 2056.93,
+"n": 7,
+"t": "That's how you fucking do something worthwhile.",
+"interp": 0.0
+},
+{
+"id": 603,
+"c": 8,
+"s": 2057.56,
+"e": 2059.31,
+"n": 7,
+"t": "That's how you beat the fucking odds.",
+"interp": 0.0
+},
+{
+"id": 604,
+"c": 8,
+"s": 2060.84,
+"e": 2063.77,
+"n": 7,
+"t": "You have to believe it's possible, okay?",
+"interp": 0.0
+},
+{
+"id": 605,
+"c": 8,
+"s": 2063.77,
+"e": 2069.28,
+"n": 13,
+"t": "And when you believe something is possible, everything else will figure itself out.",
+"interp": 0.0
+},
+{
+"id": 606,
+"c": 8,
+"s": 2069.28,
+"e": 2074.07,
+"n": 12,
+"t": "Your only focus should be on getting better at what you're doing.",
+"interp": 0.0
+},
+{
+"id": 607,
+"c": 8,
+"s": 2074.48,
+"e": 2077.16,
+"n": 11,
+"t": "Focus on what you're doing, get better at what you're doing.",
+"interp": 0.0
+},
+{
+"id": 608,
+"c": 8,
+"s": 2077.43,
+"e": 2079.57,
+"n": 8,
+"t": "Everything else is a complete waste of time.",
+"interp": 0.0
+},
+{
+"id": 609,
+"c": 8,
+"s": 2079.57,
+"e": 2080.89,
+"n": 8,
+"t": "Do you actually wanna do this or not?",
+"interp": 0.0
+},
+{
+"id": 610,
+"c": 8,
+"s": 2082.29,
+"e": 2084.4,
+"n": 8,
+"t": "Do you actually wanna do this or not?",
+"interp": 0.0
+},
+{
+"id": 611,
+"c": 8,
+"s": 2084.59,
+"e": 2087.29,
+"n": 11,
+"t": "'Cause if you actually wanna do it, what's gonna stop you?",
+"interp": 0.0
+},
+{
+"id": 612,
+"c": 8,
+"s": 2087.29,
+"e": 2087.75,
+"n": 1,
+"t": "Nothing.",
+"interp": 0.0
+},
+{
+"id": 613,
+"c": 8,
+"s": 2088.52,
+"e": 2092.41,
+"n": 12,
+"t": "And if you don't really wanna do it, what's gonna stop you?",
+"interp": 0.0
+},
+{
+"id": 614,
+"c": 8,
+"s": 2092.41,
+"e": 2094.13,
+"n": 6,
+"t": "Just about anything that comes up.",
+"interp": 0.0
+},
+{
+"id": 615,
+"c": 8,
+"s": 2094.49,
+"e": 2097.55,
+"n": 12,
+"t": "Just about any obstacle that gets in your way becomes an excuse.",
+"interp": 0.0
+},
+{
+"id": 616,
+"c": 8,
+"s": 2098.19,
+"e": 2102.16,
+"n": 14,
+"t": "It becomes a reason, it becomes a rationale for not proceeding down that path.",
+"interp": 0.0
+},
+{
+"id": 617,
+"c": 8,
+"s": 2102.57,
+"e": 2106.83,
+"n": 13,
+"t": "It's not easy, but through practice and practice and practice, practice makes what?",
+"interp": 0.0
+},
+{
+"id": 618,
+"c": 8,
+"s": 2106.83,
+"e": 2107.53,
+"n": 1,
+"t": "Perfect.",
+"interp": 0.0
+},
+{
+"id": 619,
+"c": 8,
+"s": 2107.53,
+"e": 2108.33,
+"n": 2,
+"t": "Absolutely not.",
+"interp": 0.0
+},
+{
+"id": 620,
+"c": 8,
+"s": 2108.33,
+"e": 2109.55,
+"n": 4,
+"t": "Dismantle that belief system.",
+"interp": 0.0
+},
+{
+"id": 621,
+"c": 8,
+"s": 2110.15,
+"e": 2111.82,
+"n": 3,
+"t": "Practice makes improvement.",
+"interp": 0.0
+},
+{
+"id": 622,
+"c": 8,
+"s": 2112.7,
+"e": 2114.38,
+"n": 6,
+"t": "You can always better your best.",
+"interp": 0.0
+},
+{
+"id": 623,
+"c": 8,
+"s": 2114.38,
+"e": 2117.04,
+"n": 11,
+"t": "You can always go beyond anything that you have ever done.",
+"interp": 0.0
+},
+{
+"id": 624,
+"c": 8,
+"s": 2117.63,
+"e": 2119.31,
+"n": 7,
+"t": "You never hit a state of perfection.",
+"interp": 0.0
+},
+{
+"id": 625,
+"c": 8,
+"s": 2119.8,
+"e": 2121.72,
+"n": 7,
+"t": "You're always bigger than what you do.",
+"interp": 0.0
+}
+]

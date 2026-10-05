@@ -1,0 +1,18 @@
+import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { Keypair } from "@solana/web3.js";
+const path = fileURLToPath(new URL("../.env.local", import.meta.url));
+copyFileSync(path, path + ".bak");
+let env = readFileSync(path, "utf8");
+const kp = Keypair.generate();
+const secret = Buffer.from(kp.secretKey).toString("base64");
+const addr = kp.publicKey.toBase58();
+const line = "PLATFORM_FEE_PAYER_SECRET=" + secret;
+if (/^PLATFORM_FEE_PAYER_SECRET=.*$/m.test(env)) env = env.replace(/^PLATFORM_FEE_PAYER_SECRET=.*$/m, line);
+else env = (env.endsWith("\n") ? env : env + "\n") + line + "\n";
+writeFileSync(path, env);
+console.log("Backed up .env.local -> .env.local.bak  (revert if you find your original clean secret)");
+console.log("New valid fee-payer written to .env.local (secret kept out of this log).\n");
+console.log("FUND THIS ADDRESS (devnet):");
+console.log("  " + addr);
+console.log("  solana airdrop 2 " + addr + " --url devnet   (or paste into https://faucet.solana.com)");

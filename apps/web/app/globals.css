@@ -1,0 +1,1401 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+/* Light-mode variant — mirror of `dark`, so components can opt a surface into a
+   light look with `light:bg-white` etc. once `html.light` is set by the theme toggle. */
+@custom-variant light (&:is(.light *));
+
+/* Neoris — brand display font for the landing hero headline. Drop the font
+   files into /public/fonts/ (neoris.woff2 preferred) and this wires up.
+   Falls back to the sans stack until the file is present. */
+@font-face {
+  font-family: "Neoris";
+  src: url("/fonts/neoris.woff2") format("woff2"),
+       url("/fonts/neoris.woff") format("woff"),
+       url("/fonts/neoris.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-neoris: "Neoris", var(--font-inter), system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(0.12 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.15 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: #d7ff00;
+  --primary-foreground: #090a0b;
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.85 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.65 0.18 293);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.65 0.18 293);
+  --chart-1: oklch(0.65 0.22 293);
+  --chart-2: oklch(0.60 0.20 260);
+  --chart-3: oklch(0.68 0.18 150);
+  --chart-4: oklch(0.72 0.18 75);
+  --chart-5: oklch(0.60 0.18 220);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.13 0 0);
+  --sidebar-foreground: oklch(0.85 0 0);
+  --sidebar-primary: oklch(0.65 0.18 293);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.17 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: oklch(0.65 0.18 293);
+}
+
+/* LIGHT THEME — the theme toggle sets `html.light`, flipping every design token to
+   a light value. Variable-driven UI (bg-background / text-foreground / bg-card /
+   border-border / text-muted-foreground / the shadcn primitives) flips automatically.
+   The brand primary (purple) is kept so accents stay on-brand in both themes. */
+html.light {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.20 0 0);
+  --card: oklch(0.98 0 0);
+  --card-foreground: oklch(0.20 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0 0);
+  --primary: #d7ff00;
+  --primary-foreground: #090a0b;
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.55 0.20 293);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.90 0 0);
+  --input: oklch(0.90 0 0);
+  --ring: oklch(0.55 0.20 293);
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.25 0 0);
+  --sidebar-primary: oklch(0.55 0.20 293);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0 0);
+  --sidebar-accent-foreground: oklch(0.20 0 0);
+  --sidebar-border: oklch(0.90 0 0);
+  --sidebar-ring: oklch(0.55 0.20 293);
+}
+
+/* ── ME palette (the inline-style pages: /agents, /stage, /arena, /generations,
+   HireGenerateModal, video-wall). Those pages hold their surface colours in an
+   `ME` object consumed via inline style={{…}} — swapping the hex for these vars
+   makes the WHOLE page flip with the theme, no component refactor. Accents (pink /
+   lime / green / orange / gold) stay literal in each ME object — brand colours that
+   read on both themes. Dark defaults here; light overrides in `html.light`. */
+:root {
+  --me-bg: #0a0b0e;
+  --me-panel: #0e0f13;
+  --me-card: #15171d;
+  --me-card-hover: #1a1d24;
+  --me-border: #1d2027;
+  --me-border-lit: #2a2e37;
+  --me-text: #f3f4f6;
+  --me-sub: #8a8f9a;
+  --me-sub-dim: #5b606b;
+}
+html.light {
+  --me-bg: #f7f7f8;
+  --me-panel: #ffffff;
+  --me-card: #ffffff;
+  --me-card-hover: #f1f1f3;
+  --me-border: #e7e7ea;
+  --me-border-lit: #d6d6dc;
+  --me-text: #18181b;
+  --me-sub: #56565e;
+  --me-sub-dim: #8a8a93;
+}
+
+/* ── Light-mode override for the neutral (zinc) Tailwind scale used by the
+   class-based pages (/studio, /market, /wallet, …). `html.light .foo` is higher
+   specificity than a bare `.foo`, so it wins without !important. We deliberately
+   flip ONLY the neutral scale + neutral overlays — NOT text-white / bg colours —
+   so coloured buttons and brand surfaces keep their look. */
+html.light .bg-zinc-950, html.light .bg-neutral-950 { background-color: #f7f7f8; }
+html.light .bg-zinc-900, html.light .bg-neutral-900 { background-color: #ffffff; }
+html.light .bg-zinc-850 { background-color: #f4f4f5; }
+html.light .bg-zinc-800, html.light .bg-neutral-800 { background-color: #f1f1f3; }
+html.light .text-white { color: #18181b; }
+html.light .text-zinc-50, html.light .text-zinc-100, html.light .text-zinc-200, html.light .text-neutral-100, html.light .text-neutral-200 { color: #1c1c1f; }
+html.light .text-zinc-300, html.light .text-zinc-400, html.light .text-neutral-300, html.light .text-neutral-400 { color: #52525b; }
+html.light .text-zinc-500, html.light .text-neutral-500 { color: #6b6b73; }
+html.light .border-zinc-950, html.light .border-zinc-900, html.light .border-zinc-850, html.light .border-zinc-800, html.light .border-neutral-800 { border-color: #e7e7ea; }
+html.light .border-zinc-700, html.light .border-neutral-700 { border-color: #d6d6dc; }
+/* Neutral translucent overlays flip from white-on-dark to black-on-light. */
+html.light .bg-white\/5 { background-color: rgba(0,0,0,0.035); }
+html.light .bg-white\/10 { background-color: rgba(0,0,0,0.06); }
+html.light .hover\:bg-white\/5:hover { background-color: rgba(0,0,0,0.05); }
+html.light .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07); }
+html.light .border-white\/10 { border-color: rgba(0,0,0,0.10); }
+html.light .border-white\/5 { border-color: rgba(0,0,0,0.06); }
+html.light .ring-white\/10 { --tw-ring-color: rgba(0,0,0,0.10); }
+
+/* Buttons/badges that use text-white ON a coloured/brand background must KEEP white
+   text — re-assert it for the common brand bg utilities the override above touched. */
+html.light [class*="bg-pink-"] .text-white, html.light [class*="bg-purple-"] .text-white,
+html.light [class*="bg-violet-"] .text-white, html.light [class*="bg-emerald-"] .text-white,
+html.light [class*="bg-teal-"] .text-white, html.light [class*="bg-blue-"] .text-white,
+html.light [class*="bg-indigo-"] .text-white, html.light [class*="bg-rose-"] .text-white,
+html.light [class*="bg-lime-"] .text-white, html.light [class*="bg-green-"] .text-white,
+html.light [class*="bg-black"] .text-white { color: #ffffff; }
+html.light [class*="bg-pink-"].text-white, html.light [class*="bg-purple-"].text-white,
+html.light [class*="bg-violet-"].text-white, html.light [class*="bg-emerald-"].text-white,
+html.light [class*="bg-teal-"].text-white, html.light [class*="bg-blue-"].text-white,
+html.light [class*="bg-indigo-"].text-white, html.light [class*="bg-rose-"].text-white,
+html.light [class*="bg-lime-"].text-white, html.light [class*="bg-green-"].text-white { color: #ffffff; }
+
+/* Smooth cross-fade when the theme flips (respecting reduced-motion). */
+html.light, html.dark { transition: none; }
+html.light body, html.dark body,
+html.light body *, html.dark body * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.light body, html.dark body, html.light body *, html.dark body * { transition: none; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
+  /* Thin scrollbars — neutral white (was purple), site-wide */
+  * {
+    scrollbar-width: thin;                              /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
+@layer utilities {
+  /* ── Page-entrance reveal (fade + slide-up, no blur) ─────────────────────
+     Applied by app/template.tsx so every page slides in on open/navigate.
+     `backwards` fill paints the from-state on the first frame (no flash) and
+     leaves NO lingering transform afterwards — so position:fixed and
+     backdrop-blur children behave normally once the entrance finishes.
+     App pages render their own header inside the page (AppHeaderShell /
+     AppShell), so the wrapper would animate the menu too — there the wrapper
+     stands still and only the content column ([data-app-content]) animates,
+     keeping the menu fixed in place across navigations. */
+  @keyframes pageReveal {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .page-reveal {
+    animation: pageReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .page-reveal:has([data-app-chrome]) {
+    animation: none;
+  }
+  [data-app-content] {
+    animation: pageReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  /* Optional staggered children for pages that opt in (header → body → footer). */
+  .reveal-stagger > * {
+    animation: pageReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .reveal-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+  .reveal-stagger > *:nth-child(2) { animation-delay: 0.10s; }
+  .reveal-stagger > *:nth-child(3) { animation-delay: 0.16s; }
+  .reveal-stagger > *:nth-child(4) { animation-delay: 0.22s; }
+  @media (prefers-reduced-motion: reduce) {
+    .page-reveal,
+    [data-app-content],
+    .reveal-stagger > * { animation: none !important; }
+  }
+
+  /* ── Card grid reveal (blur + slide + settle) ────────────────────────────
+     Applied to the /agents grid; keying the grid on the active tab remounts it
+     so this stagger replays on every tab switch. `backwards` fill leaves no
+     lingering transform, so the cards' own group-hover transforms still work. */
+  @keyframes cardReveal {
+    from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.97); filter: blur(9px); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1);       filter: blur(0); }
+  }
+  .cards-reveal-grid > * {
+    animation: cardReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .cards-reveal-grid > *:nth-child(1)  { animation-delay: 0.00s; }
+  .cards-reveal-grid > *:nth-child(2)  { animation-delay: 0.03s; }
+  .cards-reveal-grid > *:nth-child(3)  { animation-delay: 0.06s; }
+  .cards-reveal-grid > *:nth-child(4)  { animation-delay: 0.09s; }
+  .cards-reveal-grid > *:nth-child(5)  { animation-delay: 0.12s; }
+  .cards-reveal-grid > *:nth-child(6)  { animation-delay: 0.15s; }
+  .cards-reveal-grid > *:nth-child(7)  { animation-delay: 0.18s; }
+  .cards-reveal-grid > *:nth-child(8)  { animation-delay: 0.21s; }
+  .cards-reveal-grid > *:nth-child(9)  { animation-delay: 0.24s; }
+  .cards-reveal-grid > *:nth-child(10) { animation-delay: 0.27s; }
+  .cards-reveal-grid > *:nth-child(11) { animation-delay: 0.30s; }
+  .cards-reveal-grid > *:nth-child(12) { animation-delay: 0.33s; }
+  .cards-reveal-grid > *:nth-child(n+13) { animation-delay: 0.36s; }
+  @media (prefers-reduced-motion: reduce) {
+    .cards-reveal-grid > * { animation: none !important; }
+  }
+
+  /* Standalone one-shot version of cardReveal — for a SINGLE card that pops in
+   * on its own (e.g. a new asset card appended to a masonry grid), rather than
+   * a whole grid revealing together. Native `draggable`/`onDragStart` HTML5 DnD
+   * can't live on a framer-motion `motion.*` element (it hijacks those props for
+   * its own drag gesture), so drag-enabled cards use this CSS animation instead. */
+  @keyframes vello-cardPop {
+    from { opacity: 0; transform: scale(0.92); filter: blur(6px); }
+    to   { opacity: 1; transform: scale(1);    filter: blur(0); }
+  }
+  .vello-card-pop {
+    animation: vello-cardPop 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vello-card-pop { animation: none !important; }
+  }
+
+  /* Black-themed scrollbar — used by the agent profile sidebar + body */
+  .scroll-black {
+    scrollbar-width: thin;
+    scrollbar-color: #1c1c1f #000000;
+  }
+  .scroll-black::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-black::-webkit-scrollbar-track {
+    background: #000000;
+  }
+  .scroll-black::-webkit-scrollbar-thumb {
+    background: #1c1c1f;
+    border-radius: 9999px;
+    border: 2px solid #000000;
+  }
+  .scroll-black::-webkit-scrollbar-thumb:hover {
+    background: #2e2e33;
+  }
+
+  /* White scrollbar — the Video Editor's dark panels. Overrides the global
+   * purple thumb (::-webkit-scrollbar-thumb above) which reads wrong on a
+   * near-black background. */
+  .editor-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+  }
+  .editor-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .editor-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .editor-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 9999px;
+  }
+  .editor-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px oklch(0.65 0.22 293 / 0.15);
+  }
+  .glow-emerald {
+    box-shadow: 0 0 20px oklch(0.68 0.18 150 / 0.15);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, oklch(0.75 0.22 293), oklch(0.70 0.20 260));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .glass {
+    background: oklch(0.15 0 0 / 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(0.25 0.05 293 / 0.3);
+  }
+}
+
+/* Smooth thin scrollbar for the trader skills marketplace */
+.marketplace-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.marketplace-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.marketplace-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.marketplace-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.marketplace-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+/* ─── Duolingo 3D flat button system ───────────────────────────────────────
+   Solid color top + same-color-darker shadow that gives the lift, press-down
+   on :active. Use one of the color variants below + the .duo-btn base class. */
+
+.duo-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 16px;
+  padding: 0.625rem 1.25rem;
+  font-size: 13.5px;
+  line-height: 1;
+  border: 2px solid transparent;
+  transition:
+    transform 70ms ease-out,
+    box-shadow 70ms ease-out,
+    background-color 120ms ease-out,
+    filter 120ms ease-out;
+  white-space: nowrap;
+  outline: none;
+}
+.duo-btn:focus-visible {
+  outline: 3px solid rgba(88, 204, 2, 0.4);
+  outline-offset: 2px;
+}
+.duo-btn svg {
+  flex-shrink: 0;
+}
+.duo-btn:disabled,
+.duo-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Sizes */
+.duo-btn-sm  { padding: 0.4rem 0.9rem;   font-size: 12px;   border-radius: 12px; }
+.duo-btn-xs  { padding: 0.3rem 0.7rem;   font-size: 11.5px; border-radius: 10px; }
+.duo-btn-lg  { padding: 0.85rem 1.6rem;  font-size: 15px;   border-radius: 18px; }
+
+/* Color: emerald (primary) — Duolingo's signature green */
+.duo-btn-emerald {
+  background-color: #58cc02;
+  color: #ffffff;
+  box-shadow: 0 4px 0 0 #46a302, inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.duo-btn-emerald:hover:not(:disabled) { background-color: #61d406; }
+.duo-btn-emerald:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #46a302;
+}
+
+/* Color: ink (secondary — black/dark) */
+.duo-btn-ink {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  box-shadow: 0 4px 0 0 #000000, inset 0 -1px 0 rgba(255,255,255,0.05);
+}
+.duo-btn-ink:hover:not(:disabled) { background-color: #2a2a2a; }
+.duo-btn-ink:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #000000;
+}
+
+/* Color: white (ghost on light bg) */
+.duo-btn-white {
+  background-color: #ffffff;
+  color: #18181b;
+  box-shadow: 0 4px 0 0 #d4d4d8, inset 0 -1px 0 rgba(0,0,0,0.03);
+  border-color: #e4e4e7;
+}
+.duo-btn-white:hover:not(:disabled) { background-color: #fafafa; }
+.duo-btn-white:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #d4d4d8;
+}
+
+/* Color: rose (destructive / sell / pause) */
+.duo-btn-rose {
+  background-color: #ff4b4b;
+  color: #ffffff;
+  box-shadow: 0 4px 0 0 #cc3434, inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.duo-btn-rose:hover:not(:disabled) { background-color: #ff6262; }
+.duo-btn-rose:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #cc3434;
+}
+
+/* Color: amber (warning / setup / approve) */
+.duo-btn-amber {
+  background-color: #ffc800;
+  color: #1a1a1a;
+  box-shadow: 0 4px 0 0 #d4a504, inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.duo-btn-amber:hover:not(:disabled) { background-color: #ffd024; }
+.duo-btn-amber:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #d4a504;
+}
+
+/* Color: sky (informational / market trade) */
+.duo-btn-sky {
+  background-color: #1cb0f6;
+  color: #ffffff;
+  box-shadow: 0 4px 0 0 #1191cc, inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.duo-btn-sky:hover:not(:disabled) { background-color: #2cb9f6; }
+.duo-btn-sky:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #1191cc;
+}
+
+/* Color: violet (intelligence / AI features) */
+.duo-btn-violet {
+  background-color: #8b5cf6;
+  color: #ffffff;
+  box-shadow: 0 4px 0 0 #6d3fd9, inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.duo-btn-violet:hover:not(:disabled) { background-color: #9968f8; }
+.duo-btn-violet:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #6d3fd9;
+}
+
+/* Ghost-style — soft surface with full press */
+.duo-btn-ghost {
+  background-color: rgba(255,255,255,0.04);
+  color: #d4d4d8;
+  box-shadow: 0 4px 0 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+}
+.duo-btn-ghost:hover:not(:disabled) {
+  background-color: rgba(255,255,255,0.08);
+  color: #ffffff;
+}
+.duo-btn-ghost:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 rgba(255,255,255,0.07);
+}
+
+/* ─── Duolingo-style 3D-flat cards ──────────────────────────────────────────
+   Same visual language as .duo-btn: a flat fill, a 2px border, and a solid
+   offset "ledge" shadow underneath that makes the card sit on the page like a
+   physical tile. Pair with .duo-card-interactive on clickable cards. */
+.duo-card {
+  background-color: #ffffff;
+  border: 2px solid #e6e4dd;
+  border-radius: 20px;
+  box-shadow: 0 4px 0 0 #e0ddd3, inset 0 -1px 0 rgba(0,0,0,0.02);
+}
+.duo-card-dark {
+  background-color: #0c0f14;
+  border: 2px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 0 0 rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.03);
+}
+/* Clickable cards press down like the buttons do. */
+.duo-card-interactive {
+  cursor: pointer;
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out, border-color 120ms ease-out;
+}
+.duo-card-interactive:hover {
+  border-color: #d6d3c8;
+}
+.duo-card-interactive:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 #e0ddd3, inset 0 -1px 0 rgba(0,0,0,0.02);
+}
+.duo-card-dark.duo-card-interactive:hover {
+  border-color: rgba(255,255,255,0.16);
+}
+.duo-card-dark.duo-card-interactive:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.03);
+}
+
+/* ═══════ Editorial "newspaper" theme — Builder page ═══════════════════════
+   A light, print-inspired surface: cream paper, ink text, serif display type,
+   monospace eyebrow labels, hairline rules. Lime stays the single accent but is
+   darkened for contrast on the light ground. Scope: wrap the builder in
+   `.ed-page`; use these atoms for cards/labels/rules so the whole surface reads
+   like the reference layout. */
+.ed-page {
+  background-color: #fcfbf7;
+  color: #18181b; /* ink */
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
+}
+/* Faint paper grid so large empty areas don't feel flat (very subtle). */
+.ed-paper-bg {
+  background-color: #fcfbf7;
+  background-image:
+    linear-gradient(rgba(24,24,27,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24,24,27,0.018) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+/* Cream card with a hairline border + a whisper-thin bottom ledge. */
+.ed-card {
+  background-color: #fbfaf6;
+  border: 1px solid rgba(212,212,216,0.7); /* zinc-300/70 */
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+}
+.ed-card-interactive { transition: border-color 120ms ease, box-shadow 120ms ease, transform 90ms ease; }
+.ed-card-interactive:hover { border-color: rgba(161,161,170,0.85); box-shadow: 0 2px 0 rgba(0,0,0,0.05); }
+/* Heavy section rule under a serif heading. */
+.ed-rule { height: 1px; background-color: rgba(24,24,27,0.85); }
+.ed-rule-thin { height: 1px; background-color: rgba(24,24,27,0.12); }
+/* Monospace, tracked, uppercase eyebrow label. */
+.ed-label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 10px;
+  font-weight: 600;
+  color: #71717a; /* zinc-500 */
+}
+/* Light input that matches the paper surface. */
+.ed-input {
+  background-color: #ffffff;
+  border: 1px solid rgba(212,212,216,0.8);
+  color: #18181b;
+  border-radius: 0.375rem;
+}
+.ed-input::placeholder { color: rgba(113,113,122,0.6); }
+.ed-input:focus { outline: none; border-color: #65a30d; box-shadow: 0 0 0 2px rgba(101,163,13,0.18); }
+/* Lime accent tuned for a light ground. */
+.ed-accent { color: #4d7c0f; }                 /* lime-700 — accessible on cream */
+.ed-tag-accent {                                /* outlined pill tag, e.g. "TONIGHT" */
+  color: #4d7c0f;
+  background-color: rgba(132,204,22,0.10);
+  border: 1px solid rgba(132,204,22,0.45);
+}
+.ed-tag-neutral {                               /* plain mono tag, e.g. "RESEARCH" */
+  color: #52525b;
+  background-color: transparent;
+  border: 1px solid rgba(212,212,216,0.9);
+}
+/* Light scrollbar for editorial panes. */
+.scroll-ed { scrollbar-width: thin; scrollbar-color: rgba(24,24,27,0.18) transparent; }
+.scroll-ed::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-ed::-webkit-scrollbar-track { background: transparent; }
+.scroll-ed::-webkit-scrollbar-thumb { background: rgba(24,24,27,0.16); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+.scroll-ed::-webkit-scrollbar-thumb:hover { background: rgba(24,24,27,0.28); background-clip: padding-box; }
+
+/* ═══════ Builder body — section blur slide-UP stagger ═════════════════════
+   Each section in a column cascades in on mount (and on every tab-open, since
+   the Home content is keyed in AnimatePresence and remounts). Premium feel:
+   rise-from-below + fade + de-blur, one section clearly after another with a
+   readable gap between them. GPU-only (transform/opacity/filter), `backwards`
+   fill paints the from-state on frame 1 (no flash) and leaves no lingering
+   transform afterward.
+
+   STORYBOARD (absolute ms from mount, per column):
+     §1  ░░░░░ rise+deblur ░░░░░                       80ms ──▶  880ms
+     §2            ░░░░░ rise+deblur ░░░░░            300ms ──▶ 1100ms
+     §3                      ░░░░░ rise+deblur ░░░░░  520ms ──▶ 1320ms
+     …each +220ms (half-overlap, so it reads one-by-one)                  */
+@keyframes nbSectionReveal {
+  from { opacity: 0; transform: translate3d(0, 26px, 0); filter: blur(10px); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0);    filter: blur(0); }
+}
+.nb-reveal > * {
+  animation: nbSectionReveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.nb-reveal > *:nth-child(1)  { animation-delay: 0.08s; }
+.nb-reveal > *:nth-child(2)  { animation-delay: 0.30s; }
+.nb-reveal > *:nth-child(3)  { animation-delay: 0.52s; }
+.nb-reveal > *:nth-child(4)  { animation-delay: 0.74s; }
+.nb-reveal > *:nth-child(5)  { animation-delay: 0.96s; }
+.nb-reveal > *:nth-child(6)  { animation-delay: 1.18s; }
+.nb-reveal > *:nth-child(7)  { animation-delay: 1.40s; }
+.nb-reveal > *:nth-child(n+8) { animation-delay: 1.55s; }
+@media (prefers-reduced-motion: reduce) {
+  .nb-reveal > * { animation: none !important; }
+}
+
+/* ═══════ Light beige neobrutalist — Builder body (workspace) ═══════════════
+   A warm, readable beige surface framed inside the dark copilot shell. Boxy
+   panels: cream fill, bold black border, hard black offset shadow. Lime is the
+   single accent. Dark-on-light text stays legible — no palette flipping needed.
+   `.nb-body` wraps the workspace; all tabs share these atoms. */
+.nb-body {
+  background-color: #ece5d6; /* warm beige */
+  color: #1c1c1f;
+}
+/* Boxy panel — the core neobrutalist card. */
+.nb-card {
+  background-color: #fffdf7; /* warm near-white, lifts off the beige */
+  border: 2px solid #1c1c1f;
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 0 #1c1c1f;
+}
+.nb-card-interactive {
+  transition: transform 90ms ease, box-shadow 90ms ease;
+  cursor: pointer;
+}
+.nb-card-interactive:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0 0 #1c1c1f;
+}
+.nb-card-interactive:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 #1c1c1f;
+}
+/* Boxy chip — thick-bordered monospace tag. */
+.nb-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #1c1c1f;
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 10px;
+  font-weight: 700;
+  color: #3f3f46;
+}
+/* Lime accent tag (e.g. TONIGHT) — colored fill + black border. */
+.nb-tag-accent { color: #1a2e05; border-color: #1c1c1f; background-color: #bef264; }
+
+/* ─── Landing page (marketing index) — "Lime Workshop" 3D-plated system ──────
+   Charcoal plated surfaces, single lime accent, animated technical illustrations.
+   All motion is transform / opacity / stroke-dashoffset; disabled under
+   reduced-motion. Used only by app/page.tsx + components/landing/*. */
+
+/* Plated tile: physical charcoal tray with a top highlight and a solid ledge. */
+.vello-plate {
+  background-color: #12150F;
+  border: 1.5px solid rgba(255,255,255,0.07);
+  border-radius: 1.6rem;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255,255,255,0.05),
+    0 16px 34px -20px rgba(0,0,0,0.85),
+    0 7px 0 -1px #090b07;
+}
+.vello-plate-core { background-color: #171B12; border-radius: 1.1rem; box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.04); }
+.vello-plate-int { transition: transform .55s cubic-bezier(.32,.72,0,1), box-shadow .55s cubic-bezier(.32,.72,0,1), border-color .45s ease; }
+.vello-plate-int:hover {
+  transform: translateY(-3px);
+  border-color: rgba(163,230,53,0.38);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.06), 0 26px 54px -22px rgba(0,0,0,0.9), 0 10px 0 -1px #090b07;
+}
+.vello-plate-int:active { transform: translateY(1px); box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05), 0 10px 24px -18px rgba(0,0,0,0.85), 0 3px 0 -1px #090b07; }
+
+/* Lime CTA — tactile push, solid lime ledge (no neon glow). */
+.vello-cta {
+  background-color: #A3E635; color: #0B0D0A;
+  box-shadow: 0 4px 0 0 #6ba80f, 0 12px 22px -14px rgba(0,0,0,0.7);
+  transition: transform .14s cubic-bezier(.32,.72,0,1), box-shadow .14s cubic-bezier(.32,.72,0,1), background-color .3s;
+}
+.vello-cta:hover { background-color: #b6ee5a; }
+.vello-cta:active { transform: translateY(3px); box-shadow: 0 1px 0 0 #6ba80f, 0 6px 14px -12px rgba(0,0,0,0.7); }
+
+/* Blueprint background: faint grid + one soft lime wash (not a neon orb). */
+.vello-bg {
+  background-color: #0B0D0A;
+  background-image:
+    radial-gradient(900px 520px at 78% -8%, rgba(163,230,53,0.10), transparent 60%),
+    radial-gradient(760px 520px at 8% 18%, rgba(163,230,53,0.05), transparent 55%),
+    linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 46px 46px, 46px 46px;
+}
+
+/* Fixed film-grain (never on scrolling content). */
+.vello-grain::after {
+  content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  opacity: 0.04; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes vello-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+
+/* Cofounder landing — gentle float for the floating task cards. Motion is
+   gated behind prefers-reduced-motion so the cards sit still for users who
+   ask for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .cf-float { animation: vello-float 6s ease-in-out infinite; }
+}
+
+/* Cofounder landing — 3D flip cycle for the live-activity cards. The cards are
+   stacked in one spot and take turns: each flips in on the X axis (top-hinged,
+   so it reads as folding down into view), holds, then flips out, while the next
+   one (offset by an inline animation-delay) folds in. A 6s period with 0s/2s/4s
+   delays keeps roughly one card visible at a time. Reduced-motion users see a
+   single static card. */
+@keyframes cf-card3d {
+  0%   { opacity: 0; transform: rotateX(-60deg) translateY(16px) scale(0.93); }
+  5%   { opacity: 1; transform: rotateX(0deg) translateY(0) scale(1); }
+  28%  { opacity: 1; transform: rotateX(0deg) translateY(0) scale(1); }
+  34%  { opacity: 0; transform: rotateX(58deg) translateY(-16px) scale(0.93); }
+  100% { opacity: 0; transform: rotateX(58deg) translateY(-16px) scale(0.93); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cf-card3d {
+    transform-origin: center top;
+    animation: cf-card3d 6s cubic-bezier(0.22, 1, 0.36, 1) infinite both;
+    will-change: transform, opacity;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Show only the first (top) card, settled and flat. */
+  .cf-card3d:not(:first-child) { display: none; }
+}
+
+/* Pricing page — light range slider for the cost estimator. Cream track with a
+   dark neutral thumb to match the page's editorial palette. */
+.pricing-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.12);
+  outline: none;
+  cursor: pointer;
+}
+.pricing-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #171717;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.pricing-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #171717;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.pricing-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15); }
+.pricing-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15); }
+
+/* Cofounder landing — slow ambient pan/zoom on the hero artwork so the scene
+   drifts gently to the right. Scaled up a touch to give the translate room
+   without exposing the image edges. Gated behind reduced-motion. */
+@keyframes cf-hero-pan {
+  0%, 100% { transform: scale(1.12) translateX(1.4%); }
+  50%      { transform: scale(1.12) translateX(-1.4%); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cf-hero-pan { animation: cf-hero-pan 20s ease-in-out infinite; will-change: transform; }
+}
+
+/* Cofounder landing — "Made on Vello" video marquee. The track holds the clip set
+   twice; sliding it -50% loops one set-width seamlessly. Paused on hover; static
+   for reduced-motion. Edge mask fades the row into the page on both sides. */
+@keyframes cf-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cf-marquee { animation: cf-marquee 48s linear infinite; will-change: transform; }
+  .cf-marquee:hover { animation-play-state: paused; }
+}
+.cf-marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%);
+}
+
+/* Video-showcase cards — a gentle continuous float that gives the stacked 3D fan
+   life. Uses the `translate` property (NOT `transform`) so it composes cleanly with
+   each card's inline 3D transform instead of overriding it. Reduced-motion: static. */
+@keyframes vello-cardfloat {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -8px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .vello-cardfloat { animation: vello-cardfloat 5.5s ease-in-out infinite; }
+}
+
+/* ── "How it works" orchestration graph — ambient motion ──────────────────
+   The dashed orbit ring rotates slowly, connector strokes flow outward from
+   the centre (data reaching each capability), the central sprout sways, and
+   the centre node breathes. All gated behind reduced-motion. */
+@keyframes vello-spin { to { transform: rotate(360deg); } }
+@keyframes vello-dash { to { stroke-dashoffset: -16; } }
+@keyframes vello-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(101, 163, 13, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(101, 163, 13, 0.06); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .vello-orbit { animation: vello-spin 90s linear infinite; }
+  .vello-dash  { animation: vello-dash 1.4s linear infinite; }
+  .vello-sway  { animation: vello-float 5s ease-in-out infinite; }
+  .vello-breathe { animation: vello-breathe 4s ease-in-out infinite; }
+}
+@keyframes vello-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes vello-vscroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.vello-vscroll { animation: vello-vscroll linear infinite; }
+
+/* ── "How it works" builder canvas — n8n-style drag-and-drop flow ──────────
+   Connector edges have marching-ants dashes flowing source→target (data being
+   built), nodes gently pop in, and the render-video node runs a sweeping
+   shimmer as if it's producing a frame. All gated behind reduced-motion. */
+@keyframes cf-flow { to { stroke-dashoffset: -24; } }
+@keyframes cf-shimmer { 0% { background-position: -150% 0; } 100% { background-position: 250% 0; } }
+@keyframes cf-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(101,163,13,0.35); }
+  70%  { box-shadow: 0 0 0 8px rgba(101,163,13,0); }
+  100% { box-shadow: 0 0 0 0 rgba(101,163,13,0); }
+}
+.cf-shimmer {
+  background-image: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+  background-size: 200% 100%;
+}
+/* Vertical connector for the MOBILE portrait flow — a lime dashed line with the
+   dashes marching downward (source→target), matching the desktop wire feel. */
+@keyframes cf-flow-v { to { background-position: 0 12px; } }
+.cf-flow-v {
+  background-image: repeating-linear-gradient(to bottom, #65a30d 0 4px, transparent 4px 10px);
+  background-size: 100% 12px;
+  background-repeat: repeat-y;
+}
+/* Tiny equalizer bars + a scrubbing playhead — used on the "go viral" pillar
+   illustrations to read as a video that's actively playing / being edited. */
+@keyframes cf-eq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+@keyframes cf-scrub { 0% { left: 8%; } 100% { left: 82%; } }
+@keyframes cf-twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes cf-shoot {
+  0% { transform: translate3d(0, 0, 0) rotate(18deg); opacity: 0; }
+  6% { opacity: 1; }
+  22% { opacity: 1; }
+  38%, 100% { transform: translate3d(320px, 104px, 0) rotate(18deg); opacity: 0; }
+}
+@keyframes cf-galaxy { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: no-preference) {
+  .cf-flow { animation: cf-flow 0.9s linear infinite; }
+  .cf-flow-v { animation: cf-flow-v 0.6s linear infinite; }
+  .cf-shimmer { animation: cf-shimmer 2.4s linear infinite; }
+  .cf-pulse-ring { animation: cf-pulse-ring 2s ease-out infinite; }
+  .cf-eq { animation: cf-eq 0.7s ease-in-out infinite; transform-origin: bottom; }
+  .cf-scrub { animation: cf-scrub 3.2s ease-in-out infinite alternate; }
+  .cf-twinkle { animation: cf-twinkle 3.4s ease-in-out infinite; }
+  .cf-shoot { animation: cf-shoot 7s ease-in infinite; }
+  .cf-galaxy { animation: cf-galaxy 90s linear infinite; }
+}
+
+/* ── Shining emerald gem ──────────────────────────────────────────────────
+   A small faceted emerald with a glossy top facet, a soft outer glow that
+   breathes, and a diagonal shine that sweeps across — reads as a real gemstone,
+   not an icon. Used as the "minted" mark in the builder top bar. */
+.vello-gem {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background:
+    linear-gradient(135deg, #a7f3d0 0%, #34d399 38%, #10b981 62%, #047857 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.65),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    0 0 7px rgba(16, 185, 129, 0.65);
+  overflow: hidden;
+  animation: vello-gem-glow 2.8s ease-in-out infinite;
+}
+/* top-left facet highlight */
+.vello-gem::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, transparent 42%);
+}
+/* sweeping shine */
+.vello-gem::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.9) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: vello-gem-shine 2.8s ease-in-out infinite;
+}
+@keyframes vello-gem-shine {
+  0%, 18% { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(130%); }
+}
+@keyframes vello-gem-glow {
+  0%, 100% { box-shadow: inset 0 1px 1px rgba(255,255,255,0.65), inset 0 -2px 3px rgba(0,0,0,0.35), 0 0 6px rgba(16,185,129,0.55); }
+  50%      { box-shadow: inset 0 1px 1px rgba(255,255,255,0.7),  inset 0 -2px 3px rgba(0,0,0,0.35), 0 0 12px rgba(16,185,129,0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vello-gem, .vello-gem::after { animation: none; }
+}
+@keyframes vello-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes vello-orbit-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes vello-spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes vello-pulse-ring { 0% { transform: scale(0.9); opacity: 0.7; } 70% { transform: scale(1.6); opacity: 0; } 100% { opacity: 0; } }
+@keyframes vello-wave { 0% { transform: scale(0.35); opacity: 0.7; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes vello-draw { 0% { stroke-dashoffset: var(--len, 600); } 55% { stroke-dashoffset: 0; } 88% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: var(--len, 600); opacity: 0.25; } }
+@keyframes vello-dash-flow { to { stroke-dashoffset: -36; } }
+@keyframes vello-rise { 0% { transform: translateY(8px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+@keyframes vello-type { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-3px); opacity: 1; } }
+@keyframes vello-bob { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-6px) rotate(1.5deg); } }
+
+.vello-float { animation: vello-float 6s cubic-bezier(.45,0,.55,1) infinite; }
+.vello-marquee { animation: vello-marquee 40s linear infinite; }
+.vello-marquee-slow { animation: vello-marquee 64s linear infinite; }
+.vello-orbit { animation: vello-orbit 16s linear infinite; transform-origin: center; }
+.vello-orbit-rev { animation: vello-orbit-rev 22s linear infinite; transform-origin: center; }
+.vello-spin-slow { animation: vello-spin-slow 28s linear infinite; transform-origin: center; }
+.vello-pulse-ring { animation: vello-pulse-ring 2.6s cubic-bezier(.32,.72,0,1) infinite; }
+.vello-wave { animation: vello-wave 3s cubic-bezier(.32,.72,0,1) infinite; transform-origin: center; }
+.vello-draw { animation: vello-draw 6s cubic-bezier(.45,0,.55,1) infinite; }
+.vello-dash-flow { stroke-dasharray: 6 10; animation: vello-dash-flow 1.4s linear infinite; }
+.vello-rise { animation: vello-rise 4s ease-in-out infinite; }
+.vello-type { animation: vello-type 1.4s ease-in-out infinite; }
+.vello-bob { animation: vello-bob 5s cubic-bezier(.45,0,.55,1) infinite; }
+
+/* Live candlesticks — each body breathes between a low and full height (origin
+   bottom), staggered so the row reads like a forming chart; the last is "live". */
+@keyframes vello-candle { 0%,100% { transform: scaleY(var(--lo,0.5)); } 50% { transform: scaleY(1); } }
+.vello-candle { transform-origin: bottom; animation: vello-candle 2.8s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes vello-candle-live { 0%,100% { transform: scaleY(0.62); } 45% { transform: scaleY(1); } }
+.vello-candle-live { transform-origin: bottom; animation: vello-candle-live 1.3s cubic-bezier(.45,0,.55,1) infinite; }
+
+/* Chat thread — bubbles fade/slide in on a staggered loop so it feels live. */
+@keyframes vello-msg { 0%,5% { opacity: 0; transform: translateY(10px); } 16%,90% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-4px); } }
+.vello-msg { animation: vello-msg 6.5s cubic-bezier(.32,.72,0,1) infinite both; }
+
+/* Reel player — scrubbing progress bar + equalizer bars + panning "footage". */
+@keyframes vello-scrub { 0% { transform: scaleX(0.04); } 100% { transform: scaleX(1); } }
+.vello-scrub { transform-origin: left; animation: vello-scrub 6s linear infinite; }
+@keyframes vello-eq { 0%,100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+.vello-eq { transform-origin: bottom; animation: vello-eq 0.9s ease-in-out infinite; }
+@keyframes vello-reel-pan { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+.vello-reel-pan { background-size: 200% 200%; animation: vello-reel-pan 7s linear infinite; }
+
+/* Docs scroll rail — the leading tip breathes (scale + glow) so the indicator
+   reads as "live", and a sharper flash runs briefly on each scroll event. */
+@keyframes docs-rail-pulse {
+  0%, 100% { transform: scale(0.78); opacity: 0.85; }
+  50%      { transform: scale(1.12); opacity: 1; }
+}
+.docs-rail-tip { animation: docs-rail-pulse 1.7s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes docs-rail-flash {
+  0%   { transform: scale(0.7); opacity: 0.6; }
+  40%  { transform: scale(1.55); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.docs-rail-scrolling .docs-rail-tip { animation: docs-rail-flash 0.55s cubic-bezier(.32,.72,0,1); }
+
+/* ── Docs scrollbars ──────────────────────────────────────────────────────────
+   The body scroll container carries a custom rounded "wave" scrollbar whose
+   highlight flows down the thumb while the user is actively scrolling; the
+   sidebar carries its own slim, independent scrollbar so the two never mix. */
+.docs-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(132, 204, 22, 0.5) transparent;
+}
+.docs-scroll-area::-webkit-scrollbar { width: 11px; }
+.docs-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.docs-scroll-area::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  border: 3px solid transparent;          /* inset the visible thumb */
+  background-clip: padding-box;
+  background-color: rgba(132, 204, 22, 0.55);
+  /* a soft light band repeated along the thumb — animated into a flowing wave */
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.45) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 100% 220%;
+}
+.docs-scroll-area::-webkit-scrollbar-thumb:hover { background-color: rgba(132, 204, 22, 0.82); }
+
+.docs-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(38, 38, 38, 0.2) transparent;
+}
+.docs-scroll::-webkit-scrollbar { width: 6px; }
+.docs-scroll::-webkit-scrollbar-track { background: transparent; }
+.docs-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: rgba(38, 38, 38, 0.18);
+}
+.docs-scroll::-webkit-scrollbar-thumb:hover { background-color: rgba(38, 38, 38, 0.34); }
+
+@keyframes docs-scrollbar-wave {
+  from { background-position: 0 0; }
+  to   { background-position: 0 220%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .docs-scrolling::-webkit-scrollbar-thumb {
+    animation: docs-scrollbar-wave 1.05s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vello-float, .vello-marquee, .vello-marquee-slow, .vello-orbit, .vello-orbit-rev,
+  .vello-spin-slow, .vello-pulse-ring, .vello-wave, .vello-draw, .vello-dash-flow,
+  .vello-rise, .vello-type, .vello-bob,
+  .vello-candle, .vello-candle-live, .vello-msg, .vello-scrub, .vello-eq, .vello-reel-pan,
+  .docs-rail-tip { animation: none !important; }
+}
+
+/* ─── Mint overlay backdrop (builder) ──────────────────────────────────────
+   A premium dark, slowly-drifting lime gradient behind the centered mint card.
+   Used by components/builder/MintOverlay.tsx. */
+@keyframes vello-mint-sweep {
+  0%   { transform: translate3d(-8%, -6%, 0) rotate(0deg) scale(1.2); }
+  50%  { transform: translate3d(8%, 6%, 0) rotate(180deg) scale(1.35); }
+  100% { transform: translate3d(-8%, -6%, 0) rotate(360deg) scale(1.2); }
+}
+.vello-mint-sweep {
+  background:
+    radial-gradient(40% 40% at 30% 30%, rgba(163,230,53,0.22), transparent 70%),
+    radial-gradient(45% 45% at 70% 65%, rgba(132,204,22,0.18), transparent 70%);
+  animation: vello-mint-sweep 14s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) { .vello-mint-sweep { animation: none !important; } }
+
+/* ════════ Vello landing (scoped utilities) ════════ */
+.film-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08' /%3E%3C/svg%3E");
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 2;
+}
+.city-grid {
+  background-image:
+    linear-gradient(rgba(176, 176, 204, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176, 176, 204, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.mach-pulse-live { animation: mach-pulse-live 2s ease-in-out infinite; }
+.mach-marquee-left { animation: mach-marquee-left 42s linear infinite; }
+.mach-marquee-right { animation: mach-marquee-right 42s linear infinite; }
+
+@keyframes mach-pulse-live {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+  50% { box-shadow: 0 0 0 7px rgba(0, 255, 136, 0); }
+}
+@keyframes mach-marquee-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes mach-marquee-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+/* ── Live city map (The city is alive) ─────────────────────────────────── */
+.mach-map-dots {
+  background-image: radial-gradient(rgba(150, 165, 215, 0.13) 1.1px, transparent 1.3px);
+  background-size: 28px 28px;
+}
+.mach-ping { animation: vello-pulse-ring 3.2s cubic-bezier(0.32, 0.72, 0, 1) infinite; }
+.mach-ping-slow { animation: vello-pulse-ring 3.2s cubic-bezier(0.32, 0.72, 0, 1) infinite; animation-delay: 1.1s; }
+.mach-drift { animation: mach-drift 7s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+.mach-flow { animation: vello-dash-flow 2.4s linear infinite; }
+
+@keyframes mach-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mach-marquee-left, .mach-marquee-right, .mach-pulse-live,
+  .mach-ping, .mach-ping-slow, .mach-drift, .mach-flow { animation: none !important; }
+}
+
+/* AI-influencer card hover overlay — thin, subtle scrollbar so a long agent
+   description scrolls cleanly inside the image area (see app/agents CardHoverInfo). */
+.card-hover-overlay {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  overscroll-behavior: contain;
+}
+.card-hover-overlay::-webkit-scrollbar { width: 6px; }
+.card-hover-overlay::-webkit-scrollbar-track { background: transparent; }
+.card-hover-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 9999px;
+}
+.card-hover-overlay::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-hover-overlay { transition-duration: 0.01ms !important; }
+}
+
+/* ── /control chat: Grok-style streaming reply ─────────────────────────────── */
+/* Each newly revealed word fades up out of a slight blur. */
+@keyframes vello-word-in {
+  from { opacity: 0; filter: blur(5px); }
+  to { opacity: 1; filter: blur(0); }
+}
+.vello-word { animation: vello-word-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* Inline end-of-text cursor: a soft pulsing dot riding on the text baseline. */
+@keyframes vello-caret-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+.vello-caret {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-left: 0.3em;
+  border-radius: 9999px;
+  background: currentColor;
+  vertical-align: -0.02em;
+  animation: vello-caret-pulse 1s ease-in-out infinite;
+}
+/* "Thinking…" label with a light sweep across it while the agent composes. */
+@keyframes vello-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+.vello-shimmer {
+  background: linear-gradient(90deg, #71717a 0%, #71717a 35%, #f4f4f5 50%, #71717a 65%, #71717a 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: vello-shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vello-word, .vello-caret, .vello-shimmer { animation: none; }
+  .vello-shimmer { color: #a1a1aa; background: none; }
+}
+
+/* Glossy status chip: a soft sweep with a quiet pause between passes. */
+@keyframes accepting-clips-sheen {
+  0%, 20% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
+  30% { opacity: 0.7; }
+  60% { transform: translateX(260%) skewX(-20deg); opacity: 0; }
+  100% { transform: translateX(260%) skewX(-20deg); opacity: 0; }
+}
+.accepting-clips-sheen {
+  width: 55%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .accepting-clips-sheen { animation: accepting-clips-sheen 4.8s ease-in-out infinite; }
+}
+
+/* Builder workspace: each tab fades/slides/unblurs in when it becomes the visible one
+   (keep-alive tabs flip display:none → flex, which restarts the animation). `backwards`
+   leaves no lingering transform/filter afterwards, so fixed + blur children behave. */
+@keyframes ws-tab-enter {
+  from { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.992); filter: blur(8px); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+.ws-tab-enter { animation: ws-tab-enter 0.46s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@media (prefers-reduced-motion: reduce) { .ws-tab-enter { animation: none; } }
+
+/* Solcameo application palette shared by shadcn primitives and portalled dialogs. */
+:root:not(.light) {
+  --primary: #d7ff00;
+  --primary-foreground: #090a0b;
+  --accent: #1a2920;
+  --accent-foreground: #a2f2bf;
+  --ring: #d7ff00;
+  --sidebar-primary: #d7ff00;
+  --sidebar-primary-foreground: #0b1710;
+  --sidebar-ring: #d7ff00;
+}
+.solcameo-app {
+  --background: #0b0b0e;
+  --card: #111114;
+  --popover: #141417;
+  --border: #252529;
+  --input: #252529;
+  --muted: #18181c;
+  --muted-foreground: #8a8a94;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+.solcameo-app [data-slot="sidebar-menu-button"][data-active="true"] { color: #a2f2bf; }
+.solcameo-app [data-slot="sidebar-menu-button"] { flex-shrink: 0; }
+.solcameo-app [data-slot="sidebar-menu-button"][data-size="default"] { min-height: 2.5rem; }
+.solcameo-app [data-slot="sidebar-menu-button"]:focus-visible { outline: 2px solid #8aefb0; outline-offset: 2px; }
+
+/* Collapsed shadcn rail: match the logo/create hit boxes to the other icons. */
+.solcameo-app [data-collapsible="icon"] [data-slot="sidebar-menu-button"][data-size="default"] {
+  min-height: 2rem;
+}
+
+/* Market chrome shares the charcoal and lime application palette. */
+.vello-market-theme { --primary: #d7ff00; --primary-foreground: #090a0b; }
+.vello-market-theme [data-slot="sidebar-inner"],
+.vello-market-theme [data-slot="sidebar-inset"],
+.vello-market-theme [data-slot="sidebar-inset"] > header { background-color: #181a1c !important; }
+.vello-market-theme [data-slot="sidebar-menu-button"][data-active="true"] { color: #d7ff00; background: #d7ff0012; }
+.vello-market-theme [data-slot="sidebar-header"] a > span:first-child,
+.vello-market-theme [data-slot="sidebar-footer"] a[href="/create"] { background-color: #d7ff00; color: #090a0b; }
+
+/* Compact sidebar sits flush against the workspace divider. */
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-inner"] {
+  background: #111314 !important;
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+  height: 100%;
+  box-shadow: none;
+}
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-menu"] { gap: 2px; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-menu-button"] {
+  height: 34px;
+  min-height: 34px !important;
+  gap: 9px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #a8abad;
+  font-size: 12px;
+  font-weight: 500;
+}
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-menu-button"][data-active="true"] {
+  color: #f5f5f5 !important;
+  background: #ffffff07 !important;
+}
+.solcameo-nav-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #a8abad;
+}
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) .solcameo-nav-icon svg { width: 17px; height: 17px; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] [data-slot="sidebar-menu-button"] {
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 4px !important;
+  justify-content: center;
+}
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] [data-slot="sidebar-menu-button"] > span:last-child:not(.solcameo-nav-icon) { display: none; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-header"] a > span:first-child {
+  background: #d6fc42 !important;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-header"] a > span:first-child svg { width: 16px; height: 16px; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) .solcameo-rail-search button { height: 28px; min-height: 28px; padding: 0 8px; background: transparent; border: 0; color: #787d80; font-size: 11px; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] .solcameo-rail-search button { width: 32px; margin-inline: auto; justify-content: center; padding: 0; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] .solcameo-rail-search span,
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] .solcameo-rail-search kbd { display: none; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-footer"] { border: 0; padding-bottom: 10px; gap: 4px; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-footer"] [data-slot="sidebar-menu"] { margin-top: 0; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-slot="sidebar-footer"] a[href="/create"] { background: #d6fc42 !important; color: #131510 !important; }
+.solcameo-menu-divider { margin: 7px 0 3px; padding-top: 5px; border-top: 1px solid #ffffff0b; }
+.solcameo-menu-divider-first { margin-top: 0; padding-top: 0; border-top: 0; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] .solcameo-menu-divider { margin: 5px 7px 3px; padding: 0; }
+:is(.solcameo-app, [data-slot="sidebar"][data-mobile="true"]) [data-collapsible="icon"] .solcameo-menu-divider-first { margin: 0; }
+[data-slot="sidebar"][data-mobile="true"] { width: min(13.5rem, calc(100vw - 2rem)) !important; }
+.solcameo-app.vello-market-theme [data-slot="sidebar-inner"] { background: #181a1c !important; }
+.solcameo-app.vello-market-theme [data-slot="sidebar-menu-button"][data-active="true"] { color: #d7ff00 !important; background: #d7ff0012 !important; }
+.solcameo-app.vello-market-theme [data-slot="sidebar-header"] a > span:first-child,
+.solcameo-app.vello-market-theme [data-slot="sidebar-footer"] a[href="/create"] { background: #ec7352 !important; color: #181a1c !important; }
+.solcameo-app.vello-market-theme [data-slot="sidebar-inset"] > header button.bg-emerald-300 { background: #d7ff00; }
+
+/* Compact global header controls. */
+.solcameo-topbar button,
+.solcameo-topbar [data-slot="dropdown-menu-trigger"],
+.solcameo-topbar [data-slot="sidebar-trigger"] { min-height: 0; height: 32px; border-radius: 6px; }
+.solcameo-topbar button img { width: 22px; height: 22px; }
+.solcameo-topbar .h-9,
+.solcameo-topbar .h-11 { height: 32px; }
+
+/* Let the Control route fill only the space allocated beneath app chrome. */
+.solcameo-control-content > .page-reveal { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; animation: none; }

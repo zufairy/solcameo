@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Reward gem">
+  <defs>
+    <linearGradient id="gE" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bbf7d0"/>
+      <stop offset="35%" stop-color="#22c55e"/>
+      <stop offset="70%" stop-color="#15803d"/>
+      <stop offset="100%" stop-color="#052e16"/>
+    </linearGradient>
+    <linearGradient id="gF" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ecfccb" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#4ade80" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#14532d" stop-opacity="0.9"/>
+    </linearGradient>
+    <radialGradient id="gS" cx="35%" cy="28%" r="55%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="40%" stop-color="#86efac" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#14532d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path fill="url(#gE)" filter="url(#glow)" d="M32 4L8 24l8 32h32l8-32L32 4z"/>
+  <path fill="url(#gF)" d="M32 4L20 24h24L32 4zm-12 20L8 24l8 32 12-32zm24 0l12-4-8 32-12-28zM20 24l12 32 12-32H20z"/>
+  <path fill="url(#gS)" d="M32 4L8 24l8 32h32l8-32L32 4z" opacity="0.85"/>
+  <path fill="none" stroke="#bbf7d0" stroke-opacity="0.35" stroke-width="0.5" d="M32 4v52M8 24h48M20 56L44 12M44 56L20 12"/>
+</svg>

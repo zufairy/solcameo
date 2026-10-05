@@ -1,0 +1,15 @@
+{
+  "//": "Isolated CommonJS tsconfig for the Anchor ts-mocha suite. The repo-root tsconfig.json is esnext/bundler (Next), which makes ts-mocha load ESM and breaks `import { BN }` interop. Anchor + spl-token need CommonJS + esModuleInterop + resolveJsonModule (to import the freshly built IDL).",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true
+  },
+  "include": ["./**/*.ts"]
+}

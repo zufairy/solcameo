@@ -1,0 +1,88 @@
+E0|elon|0.26|2.11|You just wanted to get people interested in space again.
+E1|elon|2.37|0.56|Yes, yeah.
+E2|elon|2.93|1.35|Capture the imagination.
+E3|elon|4.39|0.29|Yes.
+E4|elon|5.09|0.96|That was the idea.
+E5|elon|12.76|3.95|You know, there are American heroes who don't like this idea.
+E6|elon|17.41|7.29|Neil Armstrong, Gene Cernan have both testified against commercial spaceflight in the way that you're developing it.
+E7|elon|24.70|1.61|And I wonder what you think of that.
+E8|elon|42.13|3.88|I was very sad to see that because those guys are, yeah.
+E9|elon|46.01|4.35|You know, those guys are heroes of mine, so it's really tough.
+E10|elon|52.92|12.48|They inspired you to do this, didn't they?
+E11|elon|65.64|0.15|Yeah.
+E12|elon|65.79|13.67|And to see them casting stones in your direction.
+E13|elon|83.16|0.54|It's difficult.
+E14|elon|83.70|6.43|I was like, I don't get it.
+E15|elon|90.13|0.92|Fuck, I got hit twice.
+E16|elon|91.05|10.18|And then when I looked at it, I got two earrings because that's what she put in.
+E17|elon|101.23|6.80|When you had that third failure in a row, did you think, I need to pack this in?
+E18|elon|108.03|0.51|Never.
+E19|elon|109.98|0.97|Why not?
+E20|elon|110.95|1.00|I don't ever give up.
+E21|elon|124.50|2.82|And the falcons have landed.
+E22|elon|127.72|2.50|So the place is a fucking shit.
+E23|elon|130.22|17.54|Because I don't lose anything.
+E24|elon|148.41|2.85|And now that it's doing that, so I'm just probably enough.
+E25|elon|151.26|4.27|I'd say guys, it's kind of tough to have a man on the moon or whatever.
+E26|elon|155.53|0.91|I don't know.
+E27|elon|156.86|5.79|It's a big energy, but So I think I'm going to do this.
+E28|elon|162.65|1.11|It's amazing.
+E29|elon|163.76|0.48|It's amazing.
+E30|elon|164.53|1.47|I'm not in a matter of some way.
+E31|elon|166.00|1.96|I think it's a little crazy.
+E32|elon|167.96|1.96|I thought it's pretty crazy how they were here.
+E33|elon|170.52|0.58|It's material.
+E34|elon|171.10|1.03|It's a shit.
+E35|elon|172.51|0.81|It's a cycle.
+E36|elon|173.32|2.45|It's fundamentally fucking a steam symptom.
+E37|elon|176.69|8.02|I'll call you when I'm in shit.
+T0|tgm|0.31|5.28|Sir, Overwatch reports an F-14 Tomcat is airborne and on course for our position.
+T1|tgm|6.65|0.44|Can't be.
+T2|tgm|7.09|1.63|It, it can't be.
+T3|tgm|9.66|0.17|Yeah.
+T4|tgm|11.22|0.41|Maverick.
+T5|tgm|17.48|5.37|You're all Top Gun graduates, elite, the best of the best.
+T6|tgm|24.22|0.89|That was yesterday.
+T7|tgm|26.88|5.92|Your instructor is a Top Gun graduate with real-world experience in every mission aspect you will be expected to master.
+T8|tgm|34.46|8.22|His exploits are legendary, and he's considered to be one of the finest pilots this program has ever produced.
+T9|tgm|42.68|1.06|Come around, yeah.
+T10|tgm|43.74|6.06|What he ha- When you make every- May very well mean the difference between life and death.
+T11|tgm|49.80|1.11|I'm waiting.
+T12|tgm|50.91|1.92|I give you Captain Pete Mitchell.
+T13|tgm|52.83|0.92|Lay it down, yeah.
+T14|tgm|53.75|2.81|Call sign- I get those goosebumps every time.
+T15|tgm|57.25|1.57|I need the Heimlich.
+T16|tgm|58.82|1.98|Throw that to the side.
+T17|tgm|60.80|3.54|I get those goosebumps every time, yeah.
+T18|tgm|64.34|3.35|When you not around, when you throw that to the side.
+T19|tgm|69.25|2.48|I get those goosebumps every time, yeah.
+T20|tgm|71.73|3.45|Seven one three to the three one, yeah, I'm riding.
+T21|tgm|75.18|1.19|Why they only
+P0|pplan|0.40|1.28|Good morning, aviators.
+P1|pplan|1.68|1.23|This is your Captain Speaking.
+P2|pplan|3.20|1.79|Welcome to basic fighter maneuvers.
+P3|pplan|5.90|2.89|Working as a team, you have to shoot me down, or else.
+P4|pplan|8.79|1.16|Or else what, sir?
+P5|pplan|10.62|1.03|Or else I shoot back.
+P6|pplan|11.65|5.76|[laughs] [singing] If you catch me at the [singing] in my hand.
+P7|pplan|17.41|2.77|If you come around, I'll make more than.
+P8|pplan|20.35|2.60|I get one done in a second if you work.
+P9|pplan|22.95|6.56|I have to earn a pip [singing] He woulda had to visit him in to become a mother.
+P10|pplan|30.97|0.75|Come on, Mav.
+P11|pplan|32.81|2.04|Don't think, just do.
+P12|pplan|41.31|2.13|[jet flying] [singing]
+F0|fvf|0.00|8.54|I can push her harder than Seashell.
+F1|fvf|8.54|4.97|I can feel it.
+F2|fvf|13.51|12.81|Gonna build a car to beat old man Ferrari.
+F3|fvf|26.32|1.05|With Ford.
+F4|fvf|27.37|1.58|With a Ford.
+F5|fvf|28.95|7.38|I want to say that I want to say that so you can help me out with therapy that you can do it on your own.
+F6|fvf|36.33|1.12|So I'm a woman writing in a dictionary.
+F7|fvf|37.45|0.28|I want to be reading it.
+F8|fvf|37.73|0.32|It doesn't answer until they call me.
+F9|fvf|38.05|0.18|So I don't care.
+F10|fvf|38.23|0.09|It's gossip.
+F11|fvf|38.32|0.27|I don't need none of that.
+F12|fvf|38.59|0.37|I'm sure I'll find a way to stop.
+F13|fvf|38.96|1.02|Perhaps we use it as some advice.
+F14|fvf|40.03|0.66|What's several minutes?

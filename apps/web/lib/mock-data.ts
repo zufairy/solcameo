@@ -1,0 +1,200 @@
+import type {
+  AIInfluencer,
+  Campaign,
+  UserInvestment,
+  UserInfluencer,
+} from "./types";
+
+export const MOCK_INFLUENCERS: AIInfluencer[] = [
+  {
+    id: "inf-001",
+    name: "Aisha Rahman",
+    handle: "@aisha.rahman.ai",
+    avatarUrl: "https://api.dicebear.com/9.x/personas/svg?seed=aisha",
+    niche: "lifestyle",
+    language: "ms",
+    tvl: 42500,
+    monthlyEarnings: 3200,
+    sharePrice: 42.5,
+    totalShares: 1000,
+    availableShares: 380,
+    description:
+      "Malaysia's top lifestyle AI, covering modest fashion, family cooking, and travel to family-friendly destinations.",
+    personality: { warmth: 85, humor: 60, authority: 40, boldness: 55 },
+    contentHistory: [
+      {
+        id: "p-001",
+        platform: "tiktok",
+        thumbnailUrl: "https://placehold.co/400x700/1a1a2e/ffffff?text=Raya+Look",
+        views: 280000,
+        earnings: 840,
+        campaignId: "camp-001",
+        createdAt: "2026-05-10T08:00:00Z",
+      },
+      {
+        id: "p-002",
+        platform: "instagram",
+        thumbnailUrl: "https://placehold.co/400x400/16213e/ffffff?text=Breakfast",
+        views: 95000,
+        earnings: 285,
+        createdAt: "2026-05-08T09:30:00Z",
+      },
+    ],
+    earningsHistory: [
+      { date: "2026-01-01", earnings: 1200 },
+      { date: "2026-02-01", earnings: 1800 },
+      { date: "2026-03-01", earnings: 2100 },
+      { date: "2026-04-01", earnings: 2600 },
+      { date: "2026-05-01", earnings: 3200 },
+    ],
+    shareholders: [
+      { address: "7xKy...3fPq", shares: 150, percentage: 15 },
+      { address: "9mBz...2wRt", shares: 80, percentage: 8 },
+    ],
+    createdAt: "2025-12-01T00:00:00Z",
+  },
+  {
+    id: "inf-002",
+    name: "Marcus Chen",
+    handle: "@marcus.tech.ai",
+    avatarUrl: "https://api.dicebear.com/9.x/personas/svg?seed=marcus",
+    niche: "tech",
+    language: "en",
+    tvl: 78200,
+    monthlyEarnings: 6100,
+    sharePrice: 78.2,
+    totalShares: 1000,
+    availableShares: 210,
+    description:
+      "English-language tech reviewer covering gadgets, AI tools, and startup culture with sharp takes.",
+    personality: { warmth: 45, humor: 75, authority: 80, boldness: 85 },
+    contentHistory: [
+      {
+        id: "p-003",
+        platform: "youtube",
+        thumbnailUrl: "https://placehold.co/640x360/0f3460/ffffff?text=AI+Review",
+        views: 520000,
+        earnings: 1560,
+        campaignId: "camp-002",
+        createdAt: "2026-05-12T14:00:00Z",
+      },
+    ],
+    earningsHistory: [
+      { date: "2026-01-01", earnings: 3100 },
+      { date: "2026-02-01", earnings: 4200 },
+      { date: "2026-03-01", earnings: 4800 },
+      { date: "2026-04-01", earnings: 5500 },
+      { date: "2026-05-01", earnings: 6100 },
+    ],
+    shareholders: [
+      { address: "3nFg...8kMz", shares: 250, percentage: 25 },
+    ],
+    createdAt: "2025-11-15T00:00:00Z",
+  },
+  {
+    id: "inf-003",
+    name: "Sari Dewi",
+    handle: "@sari.fashion.ai",
+    avatarUrl: "https://api.dicebear.com/9.x/personas/svg?seed=sari",
+    niche: "fashion",
+    language: "id",
+    tvl: 31000,
+    monthlyEarnings: 2400,
+    sharePrice: 31.0,
+    totalShares: 1000,
+    availableShares: 620,
+    description:
+      "Indonesian fashion AI covering modest streetwear, batik modern, and beauty routines.",
+    personality: { warmth: 90, humor: 50, authority: 35, boldness: 40 },
+    contentHistory: [],
+    earningsHistory: [
+      { date: "2026-03-01", earnings: 800 },
+      { date: "2026-04-01", earnings: 1600 },
+      { date: "2026-05-01", earnings: 2400 },
+    ],
+    shareholders: [],
+    createdAt: "2026-03-01T00:00:00Z",
+  },
+];
+
+export const MOCK_CAMPAIGNS: Campaign[] = [
+  {
+    id: "camp-001",
+    brandName: "Zalora",
+    brandLogoUrl: "https://placehold.co/80x80/ff6b6b/ffffff?text=Z",
+    title: "Raya Collection 2026 Launch",
+    brief:
+      "Showcase our new Raya modest fashion collection in authentic lifestyle settings. 30-60s vertical video. Must show at least 3 pieces.",
+    budget: 15000,
+    ratePerThousandViews: 3,
+    targetNiche: ["lifestyle", "fashion"],
+    targetLanguage: ["ms", "id"],
+    status: "open",
+    submissionsCount: 4,
+    deadline: "2026-06-15T00:00:00Z",
+    createdAt: "2026-05-20T00:00:00Z",
+    creatorWallet: "DZnYwVFZiM6K3PrByKrr4V6G6b5nT4PmVP5nVf8YqHD1",
+  },
+  {
+    id: "camp-002",
+    brandName: "Notion",
+    brandLogoUrl: "https://placehold.co/80x80/000000/ffffff?text=N",
+    title: "AI Workspace for Builders",
+    brief:
+      "Demo how Notion AI helps tech builders ship faster. Focus on the AI features. English only, 2-5 min video.",
+    budget: 30000,
+    ratePerThousandViews: 5,
+    targetNiche: ["tech"],
+    targetLanguage: ["en"],
+    status: "in_progress",
+    submissionsCount: 7,
+    deadline: "2026-06-30T00:00:00Z",
+    createdAt: "2026-05-15T00:00:00Z",
+    creatorWallet: "EJwt8r9pXnW3K2mVxQgRs5L1T7hNpQrYu9YzAbCdEfG2",
+  },
+  {
+    id: "camp-003",
+    brandName: "Wise",
+    brandLogoUrl: "https://placehold.co/80x80/9fe870/000000?text=W",
+    title: "Send Money Home — Southeast Asia",
+    brief:
+      "Personal story format: how sending money home is easier with Wise. Authentic, emotional, conversational.",
+    budget: 20000,
+    ratePerThousandViews: 4,
+    targetNiche: ["lifestyle", "finance"],
+    targetLanguage: ["ms", "id", "en"],
+    status: "open",
+    submissionsCount: 2,
+    deadline: "2026-07-10T00:00:00Z",
+    createdAt: "2026-05-22T00:00:00Z",
+    creatorWallet: "FkMnJpQsRtUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYzA1",
+  },
+];
+
+export const MOCK_USER_INVESTMENTS: UserInvestment[] = [
+  {
+    influencerId: "inf-001",
+    shares: 50,
+    avgBuyPrice: 38.0,
+    currentValue: 2125,
+    totalEarned: 284,
+  },
+  {
+    influencerId: "inf-002",
+    shares: 20,
+    avgBuyPrice: 65.0,
+    currentValue: 1564,
+    totalEarned: 164,
+  },
+];
+
+export const MOCK_USER_INFLUENCERS: UserInfluencer[] = [
+  {
+    id: "inf-001",
+    name: "Aisha Rahman",
+    avatarUrl: "https://api.dicebear.com/9.x/personas/svg?seed=aisha",
+    tvl: 42500,
+    monthlyEarnings: 3200,
+    activeCampaigns: 2,
+  },
+];

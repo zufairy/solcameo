@@ -1,0 +1,11 @@
+import {expect,it,vi,beforeEach} from "vitest";
+import {NextRequest,NextResponse} from "next/server";
+const m=vi.hoisted(()=>({auth:vi.fn(),mutation:vi.fn()}));
+vi.mock("@/lib/server/requireAuth",()=>({requireAuth:m.auth}));
+vi.mock("@/lib/server/solstarRoute",async()=>{const actual=await vi.importActual("@/lib/server/solstarRoute");return {...actual,internalSecret:()=>"secret",convexClient:()=>({mutation:m.mutation})};});
+import {POST} from "./route";
+const req=(body:object)=>new NextRequest("http://localhost/api/market/chat",{method:"POST",body:JSON.stringify(body)});
+beforeEach(()=>{vi.clearAllMocks();m.auth.mockResolvedValue({user:{id:"private-account"}});m.mutation.mockResolvedValue("message");});
+it("requires sign-in",async()=>{m.auth.mockResolvedValue({error:NextResponse.json({error:"Sign in"},{status:401})});expect((await POST(req({characterId:"coin",message:"hello"}))).status).toBe(401);expect(m.mutation).not.toHaveBeenCalled();});
+it("posts a public message without exposing the account id or generating an immediate reply",async()=>{expect((await POST(req({characterId:"coin",message:"hello"}))).status).toBe(200);expect(m.mutation.mock.calls[0][1].author).toMatch(/^Fan [a-f0-9]{8}$/);expect(m.mutation.mock.calls[0][1].body).toBe("hello");});
+it("bounds messages",async()=>{expect((await POST(req({characterId:"coin",message:"x".repeat(1001)}))).status).toBe(400);});

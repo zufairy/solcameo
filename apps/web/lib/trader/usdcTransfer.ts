@@ -1,0 +1,305 @@
+/**
+ * Server-side USDC transfers signed with an agent or treasury keypair.
+ *
+ * Used for prediction bet escrow + payout:
+ *   - placeBet: agent wallet → treasury (stake locked)
+ *   - settleBet (win): treasury → agent wallet (stake + winnings)
+ *   - settleBet (loss): no transfer (treasury keeps stake)
+ */
+
+import {
+  Connection, Keypair, PublicKey, Transaction, LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountInstruction, createTransferInstruction,
+  getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { getUsdcMint, getNetwork, getRpcUrl } from "@/lib/solana/network";
+
+// Single source of truth via lib/solana/network — devnet returns the PUBLIC
+// endpoint (the configured Helius devnet key is suspended → 403 on every call).
+const NETWORK = getNetwork();
+const RPC_URL = getRpcUrl(NETWORK);
+
+const USDC_MINT = new PublicKey(getUsdcMint(NETWORK));
+const USDC_DECIMALS = 6;
+
+export function getRpcConnection() {
+  return new Connection(RPC_URL, "confirmed");
+}
+
+export function loadKeypair(secretBase64: string): Keypair {
+  const bytes = Buffer.from(secretBase64, "base64");
+  return Keypair.fromSecretKey(bytes);
+}
+
+/**
+ * STRICT USDC balance: `0` only for a genuinely-missing token account
+ * (TokenAccountNotFound), and `null` when the balance could NOT be read (RPC
+ * timeout / 429 / socket drop). Callers that PERSIST this value — reconcile — MUST
+ * treat null as "unknown" and skip the write: swallowing an RPC error to 0 would
+ * zero a funded agent's escrow/NAV mirror and flip it to needs_funding.
+ */
+export async function getUsdcBalanceStrict(pubkey: string): Promise<number | null> {
+  const conn = getRpcConnection();
+  const owner = new PublicKey(pubkey);
+  try {
+    const ata = await getAssociatedTokenAddress(USDC_MINT, owner);
+    const account = await getAccount(conn, ata, "confirmed");
+    return Number(account.amount) / Math.pow(10, USDC_DECIMALS);
+  } catch (e) {
+    if (e instanceof TokenAccountNotFoundError) return 0; // account exists-check: real 0
+    return null; // RPC/read error — UNKNOWN, do not treat as 0
+  }
+}
+
+/** Lenient wrapper — 0 for both missing AND unreadable. Only for best-effort
+ *  display/preflight callers that must not throw; NEVER for reconcile. */
+export async function getUsdcBalance(pubkey: string): Promise<number> {
+  return (await getUsdcBalanceStrict(pubkey)) ?? 0;
+}
+
+/**
+ * USDC balance of a SPECIFIC token account, addressed by the ATA itself (not by
+ * its owner). Unlike `getUsdcBalance` — which derives the owner's ATA and so
+ * rejects an off-curve (PDA) owner — this reads the given account directly, so it
+ * works for a program-owned ATA such as an agent-vault vault ATA. Returns 0 for a
+ * missing account (never throws), matching `getUsdcBalance`.
+ */
+/** STRICT variant of {@link getUsdcBalanceForAta}: `0` for a missing account,
+ *  `null` when the read failed (see getUsdcBalanceStrict). */
+export async function getUsdcBalanceForAtaStrict(ata: string): Promise<number | null> {
+  const conn = getRpcConnection();
+  try {
+    const account = await getAccount(conn, new PublicKey(ata), "confirmed");
+    return Number(account.amount) / Math.pow(10, USDC_DECIMALS);
+  } catch (e) {
+    if (e instanceof TokenAccountNotFoundError) return 0;
+    return null; // RPC/read error — UNKNOWN
+  }
+}
+
+/** Lenient wrapper — 0 for both missing AND unreadable. NEVER for reconcile. */
+export async function getUsdcBalanceForAta(ata: string): Promise<number> {
+  return (await getUsdcBalanceForAtaStrict(ata)) ?? 0;
+}
+
+export async function getSolBalance(pubkey: string): Promise<number> {
+  const conn = getRpcConnection();
+  try {
+    const lamports = await conn.getBalance(new PublicKey(pubkey), "confirmed");
+    return lamports / LAMPORTS_PER_SOL;
+  } catch { return 0; }
+}
+
+/**
+ * STRICT SOL balance: `null` when the balance could NOT be read (RPC timeout / 429 /
+ * socket drop), so a caller can fail-OPEN on an unknown read instead of mistaking a
+ * swallowed error for `0`. Mirrors {@link getUsdcBalanceStrict}. Used by the
+ * settlement fee-payer health pre-flight, which must NOT strand payouts on a flaky
+ * RPC (a false 0 would falsely page + skip a perfectly-funded signer).
+ */
+export async function getSolBalanceStrict(pubkey: string): Promise<number | null> {
+  const conn = getRpcConnection();
+  try {
+    const lamports = await conn.getBalance(new PublicKey(pubkey), "confirmed");
+    return lamports / LAMPORTS_PER_SOL;
+  } catch {
+    return null; // RPC/read error — UNKNOWN, fail-open
+  }
+}
+
+/**
+ * Verify whether a tx signature landed on-chain. Used by the settlement recovery
+ * keeper to disambiguate a confirm-step failure (transferUsdc returned ok:false
+ * WITH a txSignature — the USDC MAY have moved): if the signature actually landed
+ * we mark the settlement paid; otherwise we re-transfer. NEVER re-transfer
+ * without calling this first — that would risk a double transfer.
+ *
+ * Returns:
+ *   "landed"   — confirmed/finalized on-chain with no error → settlement is paid
+ *   "failed"   — the tx is known to the cluster but errored → safe to re-transfer
+ *   "unknown"  — the cluster has no record (dropped/expired) → the keeper must
+ *                additionally check the blockhash expiry (current tip vs the tx's
+ *                lastValidBlockHeight) before re-transferring: only an expired
+ *                blockhash proves the sig can never land. See
+ *                `decideUnknownSettlement` in the recovery keeper.
+ */
+export async function getSignatureStatus(
+  signature: string,
+): Promise<"landed" | "failed" | "unknown"> {
+  try {
+    const conn = getRpcConnection();
+    const res = await conn.getSignatureStatus(signature, { searchTransactionHistory: true });
+    const status = res?.value;
+    if (!status) return "unknown";
+    if (status.err) return "failed";
+    const conf = status.confirmationStatus;
+    if (conf === "confirmed" || conf === "finalized") return "landed";
+    // Seen by the cluster, no error yet, but not durably confirmed — treat as
+    // unknown so the keeper retries verification on a later tick rather than
+    // prematurely re-transferring.
+    return "unknown";
+  } catch {
+    // RPC error: we cannot prove the tx failed, so DO NOT signal "failed" (which
+    // would green-light a re-transfer). Unknown keeps the keeper conservative —
+    // it will re-verify next tick.
+    return "unknown";
+  }
+}
+
+/** The current cluster block height (the live tip). Used by the recovery keeper
+ *  to prove a confirm-ambiguous tx's blockhash has expired: if `currentHeight >
+ *  lastValidBlockHeight`, that signature can NEVER land → safe to re-transfer.
+ *  Returns null on any RPC error so the keeper stays conservative (treats the
+ *  height as unknown → DEFERS rather than re-transferring on uncertainty). */
+export async function getCurrentBlockHeight(): Promise<number | null> {
+  try {
+    return await getRpcConnection().getBlockHeight("confirmed");
+  } catch {
+    return null;
+  }
+}
+
+export interface TransferResult {
+  ok: boolean;
+  txSignature?: string;
+  error?: string;
+  step?: string;
+  /** Present whenever a signature was broadcast (ok, or a confirm-step failure
+   *  that kept the sig). It is the blockhash's last valid block height — once the
+   *  cluster tip passes it, that signature can NEVER land, so the keeper can
+   *  safely re-transfer a dropped tx. Sig-less pre-broadcast failures omit it. */
+  lastValidBlockHeight?: number;
+}
+
+/**
+ * Transfer USDC from `from` to `to`. `from` must be a wallet we control
+ * (operator agent or platform treasury) — we pass its base64 secret.
+ *
+ * Creates the recipient's USDC ATA if missing (payer = `from`, ~$0.002).
+ */
+export async function transferUsdc(opts: {
+  fromSecretBase64: string;
+  fromPubkey: string;
+  toPubkey: string;
+  amountUsdc: number;
+  /** Sponsored gas: when set, this platform wallet pays the SOL fee + any ATA
+   *  rent and is the tx fee payer, so `from` (the agent) needs ZERO SOL. Both
+   *  sign — the agent authorizes the USDC transfer, the fee payer covers gas. */
+  feePayerSecretBase64?: string;
+}): Promise<TransferResult> {
+  const { fromSecretBase64, fromPubkey, toPubkey, amountUsdc } = opts;
+  if (amountUsdc <= 0) return { ok: false, error: "amountUsdc must be positive", step: "validate" };
+
+  let signer: Keypair;
+  try {
+    signer = loadKeypair(fromSecretBase64);
+  } catch (e) {
+    return { ok: false, error: `Invalid keypair: ${(e as Error).message.slice(0, 80)}`, step: "load-key" };
+  }
+  if (signer.publicKey.toBase58() !== fromPubkey) {
+    return { ok: false, error: "Keypair / pubkey mismatch", step: "load-key" };
+  }
+
+  // Sponsored gas: the fee payer (a platform wallet) pays SOL + ATA rent.
+  let feePayer: Keypair | null = null;
+  if (opts.feePayerSecretBase64) {
+    try { feePayer = loadKeypair(opts.feePayerSecretBase64); }
+    catch (e) { return { ok: false, error: `Invalid fee-payer keypair: ${(e as Error).message.slice(0, 80)}`, step: "load-feepayer" }; }
+  }
+
+  const conn = getRpcConnection();
+  const fromKey = signer.publicKey;
+  const toKey = new PublicKey(toPubkey);
+  const gasKey = feePayer ? feePayer.publicKey : fromKey; // who pays SOL + ATA rent
+
+  // The GAS PAYER (fee payer if sponsored, else the sender) needs SOL for fees.
+  const solBalance = await conn.getBalance(gasKey, "confirmed");
+  if (solBalance < 5000) { // ~5000 lamports min for tx fee
+    return {
+      ok: false,
+      error: `${feePayer ? "Platform fee-payer" : "Wallet"} ${gasKey.toBase58().slice(0, 8)}… has insufficient SOL for fees (${(solBalance / 1e9).toFixed(6)}). Fund with ~0.01 SOL.`,
+      step: "fees",
+    };
+  }
+
+  let tx: Transaction;
+  try {
+    const fromAta = await getAssociatedTokenAddress(USDC_MINT, fromKey);
+    const toAta   = await getAssociatedTokenAddress(USDC_MINT, toKey);
+
+    tx = new Transaction();
+
+    // Create recipient ATA if needed
+    try {
+      await getAccount(conn, toAta, "confirmed");
+    } catch (e) {
+      if (e instanceof TokenAccountNotFoundError) {
+        // ATA rent paid by the gas payer (fee payer if sponsored, else sender).
+        tx.add(createAssociatedTokenAccountInstruction(gasKey, toAta, toKey, USDC_MINT));
+      }
+    }
+
+    // Make sure sender has the USDC
+    try {
+      const senderAcc = await getAccount(conn, fromAta, "confirmed");
+      const have = Number(senderAcc.amount) / Math.pow(10, USDC_DECIMALS);
+      if (have < amountUsdc) {
+        return { ok: false, error: `Insufficient USDC. Have $${have.toFixed(2)}, need $${amountUsdc.toFixed(2)}`, step: "balance" };
+      }
+    } catch (e) {
+      if (e instanceof TokenAccountNotFoundError) {
+        return { ok: false, error: `Sender ${fromPubkey.slice(0, 8)}… has no USDC token account`, step: "balance" };
+      }
+      throw e;
+    }
+
+    tx.add(createTransferInstruction(
+      fromAta, toAta, fromKey,
+      Math.floor(amountUsdc * Math.pow(10, USDC_DECIMALS)),
+      [], TOKEN_PROGRAM_ID,
+    ));
+
+    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+    tx.feePayer = gasKey;
+    tx.recentBlockhash = blockhash;
+    // Agent signs (transfer authority); fee payer also signs (gas + ATA rent).
+    if (feePayer) tx.sign(signer, feePayer);
+    else tx.sign(signer);
+
+    // BROADCAST. After this line the tx is on the wire and MAY land, so anything
+    // that follows must preserve `sig` on failure (else the keeper would treat a
+    // confirmed-but-unconfirmed transfer as never-sent and re-transfer → DOUBLE
+    // SPEND). `sendRawTransaction` itself failing throws BEFORE returning a sig,
+    // so it is correctly handled by the outer catch as a sig-less pre-broadcast
+    // failure (no USDC moved).
+    const sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
+
+    // Confirm in its own try: confirmTransaction can THROW on its own (web3.js
+    // TransactionExpiredBlockheightExceededError, RPC/socket timeout) even though
+    // the tx is already broadcast and may still confirm. Keep the sig in BOTH the
+    // on-chain-error and the throw branches so the result is AMBIGUOUS, never
+    // "pre-broadcast / safe to re-transfer".
+    try {
+      const confirmation = await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+      if (confirmation.value.err) {
+        // The tx landed but reverted on-chain. It will never move USDC, but it IS
+        // a known signature — keep it (+ lvbh) so the keeper verifies rather than
+        // blindly re-transferring.
+        return { ok: false, error: `Tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`, step: "confirm", txSignature: sig, lastValidBlockHeight };
+      }
+    } catch (e) {
+      // Confirmation is AMBIGUOUS: we have a sig but can't prove landed/failed.
+      // Keep the sig + lvbh so the keeper can verify on-chain (and, once the tip
+      // passes lvbh, know the sig can never land and re-transfer safely).
+      return { ok: false, error: (e as Error).message.slice(0, 120), step: "confirm-timeout", txSignature: sig, lastValidBlockHeight };
+    }
+
+    return { ok: true, txSignature: sig, lastValidBlockHeight };
+  } catch (e) {
+    // Pre-broadcast failure (ATA build, balance fetch, sendRawTransaction itself,
+    // etc.): no signature was ever produced, so no USDC moved. Stays sig-less.
+    return { ok: false, error: (e as Error).message.slice(0, 120), step: "send" };
+  }
+}

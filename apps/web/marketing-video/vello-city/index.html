@@ -1,0 +1,92 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:BG;src:url(fonts/bangers-latin-400-normal.woff2)}
+@font-face{font-family:AN;src:url(fonts/anton-latin-400-normal.woff2)}
+@font-face{font-family:DF;src:url(fonts/mr-dafoe-latin-400-normal.woff2)}
+@font-face{font-family:SG;src:url(fonts/space-grotesk-latin-700-normal.woff2);font-weight:700}
+@font-face{font-family:SG4;src:url(fonts/space-grotesk-latin-400-normal.woff2)}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#000}
+#c{position:absolute;inset:0;width:1920px;height:1080px}
+.L{position:absolute;inset:0;pointer-events:none}
+.stroke{-webkit-text-stroke:0;paint-order:stroke fill}
+/* HUD (GTA-like) */
+#hud{opacity:0}
+#clock{position:absolute;right:70px;top:46px;font-family:AN;font-size:44px;color:#fff;-webkit-text-stroke:7px #000;paint-order:stroke fill;letter-spacing:2px}
+#icon{position:absolute;right:250px;top:40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(#2b2440,#0d0b16);border:5px solid #000;box-shadow:0 0 0 3px #ffffff33;display:flex;align-items:center;justify-content:center}
+#icon img{width:74px}
+#money{position:absolute;right:70px;top:100px;font-family:AN;font-size:62px;color:#3fbf4a;-webkit-text-stroke:9px #000;paint-order:stroke fill;letter-spacing:1px}
+#stars{position:absolute;right:66px;top:182px;font-family:AN;font-size:22px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill;text-align:right}
+#stars .s{display:inline-block;font-size:50px;margin-left:4px;color:#555;-webkit-text-stroke:7px #000}
+#stars .s.on{color:#ffd23f}
+#clips{position:absolute;right:70px;top:262px;font-family:AN;font-size:30px;color:#c6ff5a;-webkit-text-stroke:6px #000;paint-order:stroke fill}
+#radarWrap{position:absolute;left:56px;bottom:56px;width:300px;height:300px;border-radius:50%;border:6px solid #000;box-shadow:0 0 0 3px rgba(255,255,255,.35);overflow:hidden}
+#radio{position:absolute;left:0;right:0;top:48px;text-align:center;font-family:AN;font-size:50px;color:#ff5fb3;-webkit-text-stroke:8px #000;paint-order:stroke fill;opacity:0;letter-spacing:2px}
+#radio small{display:block;font-size:26px;color:#7ff0ff;-webkit-text-stroke:5px #000}
+/* mission title & text */
+#mtitle{position:absolute;left:0;right:0;top:390px;text-align:center;font-family:BG;font-size:130px;color:#ffc53d;-webkit-text-stroke:12px #000;paint-order:stroke fill;letter-spacing:3px;opacity:0}
+#mtitle small{display:block;font-family:AN;font-size:36px;color:#fff;-webkit-text-stroke:7px #000;letter-spacing:6px;margin-bottom:-10px}
+#mtext{position:absolute;left:260px;right:260px;bottom:120px;text-align:center;font-family:SG;font-weight:700;font-size:50px;line-height:1.18;color:#fff;-webkit-text-stroke:8px #000;paint-order:stroke fill}
+#mtext b{color:#c6ff5a} #mtext i{font-style:normal;color:#ffd23f} #mtext u{text-decoration:none;color:#ff6fbf}
+#pops{}
+.pop{position:absolute;font-family:AN;font-size:46px;color:#3fbf4a;-webkit-text-stroke:8px #000;paint-order:stroke fill;white-space:nowrap}
+.pop.y{color:#ffd23f}.pop.w{color:#fff}.pop.l{color:#c6ff5a}
+#passed{position:absolute;left:0;right:0;top:330px;text-align:center;opacity:0}
+#passed .a{font-family:BG;font-size:170px;color:#ffc53d;-webkit-text-stroke:14px #000;paint-order:stroke fill;letter-spacing:4px}
+#passed .b{font-family:AN;font-size:80px;color:#fff;-webkit-text-stroke:10px #000;paint-order:stroke fill;margin-top:-10px}
+#passed .b span{color:#3fbf4a}
+/* phone */
+#phone{position:absolute;right:120px;bottom:-760px;width:360px;height:700px;border-radius:46px;background:#111;border:6px solid #000;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 0 0 3px #333}
+#phone .scr{position:absolute;left:18px;right:18px;top:60px;bottom:60px;border-radius:26px;background:linear-gradient(170deg,#1b1530,#0b0d0a);overflow:hidden;font-family:SG4;color:#fff}
+#phone .bar{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid #ffffff18}
+#phone .bar img{width:44px;height:44px}
+#phone .bar div{font-family:SG;font-weight:700;font-size:24px}
+#phone .msg{margin:22px 16px;padding:18px;border-radius:20px;background:#ffffff14;font-size:23px;line-height:1.3;opacity:0}
+#phone .msg b{font-family:SG;color:#c6ff5a}
+#phone .amt{margin:10px 16px;padding:20px;border-radius:20px;background:linear-gradient(135deg,#9945FF,#14F195);font-family:AN;font-size:52px;color:#fff;opacity:0}
+#phone .amt small{display:block;font-family:SG;font-weight:700;font-size:18px;opacity:.9}
+/* title */
+#title{opacity:0}
+#title .logo{position:absolute;left:560px;top:330px;width:800px}
+#title .city{position:absolute;left:1110px;top:470px;font-family:DF;font-size:210px;color:#ff5fc1;transform:rotate(-8deg);text-shadow:0 0 18px #ff2fa8,0 0 50px #ff2fa8,4px 4px 0 #3a0030}
+#title .load{position:absolute;left:560px;top:740px;width:800px;font-family:AN;font-size:28px;letter-spacing:5px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill}
+#title .barb{margin-top:14px;height:18px;border:4px solid #000;background:#1b1530;box-shadow:0 0 0 2px #fff4}
+#title .barf{height:100%;width:0;background:linear-gradient(90deg,#ff5fc1,#ffc53d,#c6ff5a)}
+/* end */
+#end{opacity:0}
+#end .logo{position:absolute;left:460px;top:250px;width:1000px}
+#end .tag{position:absolute;left:0;right:0;top:590px;text-align:center;font-family:SG;font-weight:700;font-size:72px;color:#fff;letter-spacing:-1px;-webkit-text-stroke:9px #000;paint-order:stroke fill}
+#end .tag b{color:#c6ff5a}
+#end .url{position:absolute;left:0;right:0;top:710px;text-align:center;font-family:AN;font-size:60px;color:#ffc53d;-webkit-text-stroke:9px #000;paint-order:stroke fill;letter-spacing:2px}
+#end .cta{position:absolute;left:50%;top:812px;transform:translateX(-50%);font-family:AN;font-size:34px;letter-spacing:3px;color:#0b0d0a;background:#c6ff5a;padding:14px 30px;border:5px solid #000;box-shadow:6px 6px 0 #000}
+#disc{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-family:SG4;font-size:19px;color:#ffffffb0;opacity:0;text-shadow:0 2px 4px #000}
+#fade{background:#000;opacity:1}
+</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<div class="L" id="hud">
+  <div id="icon"><img src="mark.png"></div>
+  <div id="clock">19:45</div>
+  <div id="money">$00000000</div>
+  <div id="stars">VIEWS <span class="s">&#9733;</span><span class="s">&#9733;</span><span class="s">&#9733;</span><span class="s">&#9733;</span><span class="s">&#9733;</span></div>
+  <div id="clips">CLIPS 000</div>
+  <div id="radarWrap"><canvas id="radar" width="300" height="300"></canvas></div>
+</div>
+<div class="L"><div id="radio">VELLO FM 99.9<small>SYNTHWAVE FOR CLIPPERS</small></div></div>
+<div class="L" id="pops"></div>
+<div class="L"><div id="mtitle"></div></div>
+<div class="L"><div id="mtext"></div></div>
+<div class="L"><div id="passed"><div class="a">MISSION PASSED!</div><div class="b">PAYOUT <span id="pamt">$2,490</span></div></div></div>
+<div class="L"><div id="phone"><div class="scr">
+  <div class="bar"><img src="mark.png"><div>Vello</div></div>
+  <div class="msg" id="m1"><b>Campaign payout verified.</b><br>830K views verified on your pages.</div>
+  <div class="amt" id="m2"><small>SENT TO YOUR WALLET &middot; SOLANA</small>+$2,490.00</div>
+  <div class="msg" id="m3">Your agents are already cutting tomorrow's clips.</div>
+</div></div></div>
+<div class="L" id="title"><img class="logo" src="logo.png"><div class="city">City</div><div class="load"><span id="loadtxt">LOADING</span><div class="barb"><div class="barf" id="barf"></div></div></div></div>
+<div class="L" id="end"><div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 50% 48%,rgba(10,6,20,.78),rgba(10,6,20,.35) 70%,rgba(10,6,20,0))"></div><img class="logo" src="logo.png"><div class="tag">Make money clipping. <b>Without editing.</b></div><div class="url">VELLOAGENTS.COM</div><div class="cta">START FREE &middot; FIRST 3 CLIPS ON US</div></div>
+<div class="L"><div id="disc">Game footage for illustration. Figures shown are examples; real payouts depend on each campaign's rates and verified views.</div></div>
+<div class="L" id="fade"></div>
+<script type="module" src="main.js"></script>
+</body></html>

@@ -1,0 +1,18 @@
+import { readFileSync } from "node:fs";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../convex/_generated/api.js";
+const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+const get = (k) => { const l = env.split("\n").find((x) => x.startsWith(k + "=")); return l ? l.slice(k.length + 1).trim().replace(/^["']|["']$/g, "") : ""; };
+const SECRET = get("INTERNAL_CRON_SECRET");
+const APP = "https://velloagents.com";
+const MINT = "2joeGtRPDroujFMWRHQXyx6YHfTHRhR3pFDGMtfaoAKf";
+const convex = new ConvexHttpClient(get("NEXT_PUBLIC_CONVEX_URL"));
+const before = await convex.query(api.usage.serviceSpendQuery, { mintAddress: MINT });
+console.log("Bamboms BEFORE:", JSON.stringify(before));
+const r = await fetch(APP + "/api/economy/recover-settlements", { method: "POST", headers: { "X-Internal-Secret": SECRET } });
+const j = await r.json().catch(() => ({}));
+console.log("\nRECOVER: HTTP " + r.status + " scanned=" + j.scanned + " recovered=" + j.recovered);
+console.log("outcomes: " + JSON.stringify(j.outcomes ?? j).slice(0, 700));
+await new Promise((res) => setTimeout(res, 5000));
+const after = await convex.query(api.usage.serviceSpendQuery, { mintAddress: MINT });
+console.log("\nBamboms AFTER:", JSON.stringify(after));

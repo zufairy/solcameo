@@ -1,0 +1,175 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`clip skills catalog > snapshot: caption style presets 1`] = `
+{
+  "clip.captions": {},
+  "clip.captionstyle": {},
+  "clip.keywords": {
+    "emoji": true,
+    "highlightColor": "#05F827",
+  },
+  "clip.style.beasty": {
+    "fontColor": "#FFFFFF",
+    "fontSize": 70,
+    "mode": "karaoke",
+    "position": "bottom",
+    "preset": "beasty",
+    "uppercase": true,
+  },
+  "clip.style.mozi": {
+    "fontColor": "#FFFFFF",
+    "fontSize": 70,
+    "highlightColor": "#39FF14",
+    "mode": "karaoke",
+    "position": "bottom",
+    "preset": "mozi",
+    "uppercase": true,
+  },
+  "clip.style.podp": {
+    "fontColor": "#FF2D78",
+    "fontSize": 64,
+    "mode": "karaoke",
+    "position": "bottom",
+    "preset": "podp",
+  },
+}
+`;
+
+exports[`clip skills catalog > snapshot: deterministic floor ops per skill (the guaranteed effects) 1`] = `
+{
+  "clip.brainrot": [],
+  "clip.campaignscout": [],
+  "clip.captions": [],
+  "clip.captionstyle": [],
+  "clip.facetrack": [
+    {
+      "op": "face_reframe",
+    },
+  ],
+  "clip.fillercut": [
+    {
+      "op": "remove_fillers",
+    },
+  ],
+  "clip.filters": [],
+  "clip.hook": [
+    {
+      "endSec": 5,
+      "op": "text_overlay",
+      "position": "top",
+      "startSec": 0,
+      "style": {
+        "bgColor": "#191919",
+        "bold": false,
+        "font": "barlowcondensed",
+        "fontColor": "#FFFFFF",
+        "fontSize": 100,
+        "hookLayout": "pov",
+        "hookMotion": {
+          "entrance": "wipe",
+          "shine": {
+            "alpha": 0.22,
+            "color": "#FFFFFF",
+            "periodSec": 3.2,
+          },
+        },
+        "outlineColor": "#000000",
+        "outlineWidth": 0,
+      },
+      "text": "MOST PEOPLE GET THIS WRONG",
+    },
+  ],
+  "clip.keywords": [],
+  "clip.meme": [
+    {
+      "endSec": 4,
+      "op": "text_overlay",
+      "position": "top",
+      "startSec": 1,
+      "style": {
+        "bgColor": "#000000",
+        "bold": true,
+        "fontColor": "#FFFFFF",
+        "fontSize": 64,
+        "outlineColor": "#000000",
+        "outlineWidth": 8,
+      },
+      "text": "MOST PEOPLE GET THIS",
+    },
+  ],
+  "clip.memeaudio": [],
+  "clip.multiscene": [
+    {
+      "op": "multi_scene_crop",
+    },
+  ],
+  "clip.overlayimage": [],
+  "clip.prompt": [],
+  "clip.sticker": [
+    {
+      "endSec": 3.3,
+      "op": "text_overlay",
+      "position": "top",
+      "startSec": 0.3,
+      "style": {
+        "bgColor": "#000000",
+        "bold": true,
+        "fontColor": "#FFFFFF",
+        "fontSize": 46,
+        "outlineWidth": 0,
+      },
+      "text": "MOST PEOPLE GET THIS",
+    },
+  ],
+  "clip.style.beasty": [],
+  "clip.style.mozi": [],
+  "clip.style.podp": [],
+  "clip.title": [],
+  "clip.trendingaudio": [],
+  "clip.zoom": [
+    {
+      "op": "blur_frame",
+      "style": "static",
+    },
+    {
+      "amount": 1.22,
+      "atSec": 12.5,
+      "kind": "zoom_punch",
+      "op": "emphasis",
+    },
+  ],
+}
+`;
+
+exports[`clip skills catalog > snapshot: skill ids, names and tags (marketplace contract) 1`] = `
+[
+  "clip.captions · Dynamic Captions · Captions",
+  "clip.title · Hook Title Card · Hook",
+  "clip.zoom · Zoom Punch · Framing",
+  "clip.meme · Meme Text · Overlay",
+  "clip.speed · Speed Ramp · Pacing",
+  "clip.hook · Auto Hook · Hook",
+  "clip.cta · Video Call To Action · CTA",
+  "clip.hookvideos · Hook Videos · Opener",
+  "clip.maincontent · Main Content · Body",
+  "clip.captionstyle · Smart Captions · Post caption",
+  "clip.guardrails · Guardrails · Pre-post QA",
+  "clip.keywords · Keyword Pop · Captions",
+  "clip.fillercut · Filler Cut · Pacing",
+  "clip.multiscene · Multi Clips · Pacing",
+  "clip.facetrack · Smart Framing · Reframe",
+  "clip.filters · Video Filters · Look",
+  "clip.sticker · Viral Sticker · Overlay",
+  "clip.overlayimage · Overlay Image · Overlay",
+  "clip.brainrot · Brain Rot · Background",
+  "clip.memeaudio · MEME reaction SFX · Audio",
+  "clip.trendingaudio · Trending Audio · Music",
+  "clip.campaignscout · Campaign Scout · Campaigns",
+  "clip.prompt · Prompt to Clip · Targeting",
+  "clip.style.beasty · Beasty Captions · Caption style",
+  "clip.style.mozi · Mozi Captions · Caption style",
+  "clip.style.podp · Pod P Captions · Caption style",
+  "clip.transitions · Transitions · Transitions",
+  "clip.carouselbuilder · Photo Carousel Builder · Apps",
+]
+`;

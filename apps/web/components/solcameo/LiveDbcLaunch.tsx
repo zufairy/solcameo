@@ -1,0 +1,239 @@
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Keypair, VersionedTransaction } from "@solana/web3.js";
+import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
+import { ensureSiwsViaRegistered } from "@/lib/client/siwsIdentity";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { getNetworkLabel } from "@/lib/solana/network";
+import { Button } from "@/components/ui/button";
+import { motion, useReducedMotion } from "framer-motion";
+import { Loader2, CheckCircle2, Rocket } from "lucide-react";
+import type { DbcOptions } from "@/lib/meteora/options";
+type Pending = {
+  mintSecret: number[];
+  configSecret: number[];
+  transaction: string;
+  receipt: string;
+  stage: "config" | "pool";
+  signature?: string;
+};
+const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function call(body: unknown) {
+  const res = await fetch("/api/meteora/launch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Launch failed.");
+  return data;
+}
+export function LiveDbcLaunch({
+  characterId,
+  options,
+  onComplete,
+  autoStart = false,
+}: {
+  characterId: string;
+  options: DbcOptions;
+  onComplete: () => void;
+  autoStart?: boolean;
+}) {
+  const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  const { setVisible } = useWalletModal();
+  const address = publicKey?.toBase58();
+  const [networkCheck, setPreflight] = useState<{ ready: boolean; balanceLamports?: number | null; error?: string; forAddress?: string; check: number } | null>(null);
+  const [check, setCheck] = useState(0);
+  const preflight = networkCheck?.forAddress === address && networkCheck?.check === check ? networkCheck : null;
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/meteora/readiness${address ? `?wallet=${encodeURIComponent(address)}` : ""}`, { signal: controller.signal }).then(r => r.json()).then(data => { if (!controller.signal.aborted) setPreflight({ ...data, forAddress: address, check }); }).catch(() => { if (!controller.signal.aborted) setPreflight({ ready: false, error: "Network check failed. Retry.", forAddress: address, check }); });
+    return () => controller.abort();
+  }, [address, check]);
+  const [busy, setBusy] = useState(false),
+    [status, setStatus] = useState(""),
+    [error, setError] = useState("");
+  const [launchStep, setLaunchStep] = useState(0);
+  const launchLock = useRef(false);
+  const autoStarted = useRef(false);
+  const reduced = useReducedMotion();
+  const launch = useCallback(async () => {
+    if (launchLock.current) return;
+    if (!publicKey || !signTransaction) {
+      setError("Connect your Solana wallet to approve the launch.");
+      return;
+    }
+    if (!preflight?.ready || preflight.balanceLamports === 0) {
+      setError("Verify the devnet connection and fund your wallet with test SOL first.");
+      return;
+    }
+    launchLock.current = true;
+    setBusy(true);
+    setError("");
+    const key = `vello-dbc-${characterId}-${publicKey.toBase58()}`;
+    const save = (v: Pending) => sessionStorage.setItem(key, JSON.stringify(v));
+    try {
+      if (!await ensureSiwsViaRegistered()) throw new Error("Verify your wallet before minting.");
+      let pending: Pending | null = JSON.parse(
+        sessionStorage.getItem(key) ?? "null",
+      );
+      if (!pending) {
+        setStatus("Building your Meteora configuration…");
+        const mint = Keypair.generate(),
+          config = Keypair.generate();
+        const prepared = await call({
+          action: "prepare",
+          characterId,
+          options,
+          mint: mint.publicKey.toBase58(),
+          config: config.publicKey.toBase58(),
+        });
+        // These are new, unfunded mint/config accounts, never the connected wallet's secret.
+        pending = {
+          mintSecret: [...mint.secretKey],
+          configSecret: [...config.secretKey],
+          transaction: prepared.transaction,
+          receipt: prepared.receipt,
+          stage: "config",
+        };
+        save(pending);
+      }
+      for (let phase = 0; phase < 2; phase++) {
+        if (!pending.signature) {
+          setStatus("Checking saved launch progress…");
+          const recovered = await call({
+            action: "refresh",
+            receipt: pending.receipt,
+            transaction: pending.transaction,
+          });
+          if (recovered.signature) {
+            pending.signature = recovered.signature;
+            save(pending);
+          } else {
+            pending.transaction = recovered.transaction;
+            pending.receipt = recovered.receipt;
+            save(pending);
+          }
+        }
+        if (!pending.signature) {
+          const tx = VersionedTransaction.deserialize(
+            decode(pending.transaction),
+          );
+          tx.sign([
+            Keypair.fromSecretKey(
+              Uint8Array.from(
+                pending.stage === "config"
+                  ? pending.configSecret
+                  : pending.mintSecret,
+              ),
+            ),
+          ]);
+          setStatus(
+            pending.stage === "config"
+              ? "Approve the curve configuration in your wallet."
+              : "Approve your token and pool creation in your wallet.",
+          );
+          setLaunchStep(1);
+          const signed = await signTransaction(tx);
+          pending.transaction = encode(signed.serialize());
+          save(pending);
+          const result = await call({
+            action: "submit",
+            receipt: pending.receipt,
+            transaction: pending.transaction,
+          });
+          pending.signature = result.signature;
+          save(pending);
+        }
+        setLaunchStep(2);
+        setStatus("Waiting for Solana confirmation…");
+        let result;
+        for (let attempt = 0; attempt < 24; attempt++) {
+          try {
+            result = await call({
+              action: "confirm",
+              receipt: pending.receipt,
+              signature: pending.signature,
+            });
+            break;
+          } catch (e) {
+            if (
+              !(e instanceof Error) ||
+              !e.message.includes("not confirmed") ||
+              attempt === 23
+            )
+              throw e;
+            await new Promise((r) => setTimeout(r, 2500));
+          }
+        }
+        if (result?.complete) {
+          sessionStorage.removeItem(key);
+          setStatus("Your Meteora pool is confirmed.");
+          onComplete();
+          return;
+        }
+        if (!result?.transaction)
+          throw new Error("Launch saved. Resume to continue.");
+        pending = {
+          ...pending,
+          stage: "pool",
+          transaction: result.transaction,
+          receipt: result.receipt,
+          signature: undefined,
+        };
+        save(pending);
+      }
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Launch needs attention. Progress is saved.",
+      );
+    } finally {
+      launchLock.current = false;
+      setBusy(false);
+    }
+  }, [publicKey, signTransaction, preflight, characterId, options, onComplete]);
+  useEffect(() => {
+    if (!autoStart || autoStarted.current || !publicKey || !signTransaction || !preflight?.ready || preflight.balanceLamports === 0) return;
+    autoStarted.current = true;
+    void launch();
+  }, [autoStart, publicKey, signTransaction, preflight, launch]);
+  return (
+    <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative space-y-4 overflow-hidden rounded-2xl border border-[#d7ff00]/25 bg-[#d7ff00]/5 p-5">
+      <div className="flex items-center gap-3"><motion.div animate={reduced ? {} : { y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }} className="grid size-10 place-items-center rounded-xl bg-[#d7ff00]/10"><Rocket className="size-5 text-[#d7ff00]" /></motion.div><div><h3 className="text-base font-semibold text-white">Your character is ready for launch</h3><p className="text-xs text-zinc-400">Two approvals. One new beginning on devnet.</p></div></div>
+      <div className="grid grid-cols-3 gap-2" aria-label="Launch progress">{["Prepare curve", "Approve launch", "Go live"].map((label, index) => <div key={label} className={`rounded-lg border px-2 py-2 text-center text-[10px] ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}><span className="mr-1">{index + 1}.</span>{label}</div>)}</div>
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="text-zinc-300">{getNetworkLabel()} launch</span>
+        <span className="text-[#d7ff00]">{preflight?.ready ? "RPC verified" : preflight ? "Needs attention" : "Checking network…"}</span>
+      </div>
+      {preflight?.balanceLamports != null && <p className="text-xs text-zinc-400">Wallet balance: {(preflight.balanceLamports / 1e9).toFixed(4)} SOL</p>}
+      {preflight?.error && <p role="alert" className="text-xs text-red-300">{preflight.error}</p>}
+      {(!preflight?.ready || preflight.balanceLamports === 0) && <div className="flex items-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
+            <p className="text-sm leading-6 text-zinc-400">
+        Two wallet approvals: your curve configuration, then your token and
+        pool. SOL is used for account rent and network fees. No token purchase
+        is included.
+      </p>
+      <Button
+        disabled={busy || (!!publicKey && (!preflight?.ready || preflight.balanceLamports === 0))}
+        onClick={() => publicKey ? void launch() : setVisible(true)}
+        className="w-full bg-[#d7ff00] text-zinc-950 hover:bg-[#e4ff59]"
+      >
+        {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+        {busy ? "Launching…" : !publicKey ? "Connect Solana wallet" : `Launch on ${getNetworkLabel().toLowerCase()}`}
+      </Button>
+      {status && (
+        <p role="status" className="text-xs text-[#d7ff00]">
+          {status}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-red-300">
+          {error} Keep this tab open; your launch progress is saved.
+        </p>
+      )}
+    </motion.div>
+  );
+}

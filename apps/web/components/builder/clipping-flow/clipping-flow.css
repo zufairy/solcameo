@@ -1,0 +1,100 @@
+.clipping-flow-root {
+  /* node accent vars consumed by node-visual.ts / clip-node.tsx */
+  --node-source: #84cc16;   /* lime-400 */
+  --node-compose: #a78bfa;  /* violet-400 */
+  --node-skill: #fbbf24;    /* amber-400 (visible on black; was ink) */
+  --node-publish: #38bdf8;  /* sky-400 */
+  /* Soft radial wash gives the canvas subtle depth (n8n-style) while staying in
+     the warm beige family the nodes were designed against. */
+  background: radial-gradient(130% 130% at 50% 0%, #f3eee2 0%, #e9e0cd 55%, #e4dac4 100%);
+  height: 100%;
+}
+.clipping-flow-root .react-flow__background { background: transparent; }
+.clipping-flow-root .react-flow__node { color: #1c1c1f; }
+.clipping-flow-root .react-flow__controls,
+.clipping-flow-root .react-flow__minimap { border: 2px solid #1c1c1f; border-radius: 8px; overflow: hidden; }
+.clipping-flow-root .react-flow__edge-path {
+  stroke: #1c1c1f;
+  stroke-width: 1.5;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+/* Compact minimap, docked bottom-left just to the right of the zoom controls. */
+.clipping-flow-root .react-flow__minimap.clip-minimap {
+  width: 132px !important;
+  height: 86px !important;
+  margin: 0;
+  left: 54px;
+  bottom: 14px;
+  box-shadow: 0 6px 18px -8px rgba(28, 28, 31, 0.5);
+}
+.clipping-flow-root .react-flow__minimap.clip-minimap svg { width: 132px !important; height: 86px !important; }
+
+/* One-time entrance for nodes as they mount - fade + gentle scale. `backwards`
+   fill applies the start frame before paint (no flash) but releases the transform
+   afterward so the Tailwind hover-lift still works. */
+.clipping-flow-root .clip-node-card {
+  animation: vello-node-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@keyframes vello-node-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Zoom / fit controls - make them visible on the cream canvas (default was white-on-white). */
+.clipping-flow-root .react-flow__controls { box-shadow: 0 1px 0 rgba(28, 28, 31, 0.9); }
+.clipping-flow-root .react-flow__controls-button {
+  background: #fffdf7;
+  border-bottom: 1px solid rgba(28, 28, 31, 0.12);
+}
+.clipping-flow-root .react-flow__controls-button:hover { background: #ece5d6; }
+.clipping-flow-root .react-flow__controls-button svg { fill: #1c1c1f; }
+
+/* Connection handles - minimal dots that stay out of the way until you approach a
+   node, then fade in smoothly. Only opacity + box-shadow are animated so React
+   Flow's positioning transform (which centers the dot on the border) is untouched. */
+.clipping-flow-root .react-flow__handle {
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  min-height: 9px;
+  background: #84cc16; /* lime-500 */
+  border: 1.5px solid #fffdf7;
+  box-shadow: 0 0 0 0 rgba(132, 204, 22, 0);
+  opacity: 0;
+  transition: opacity 200ms ease, box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 150ms ease;
+}
+/* Reveal every dot on the node the cursor is over, and any dot mid-connection. */
+.clip-node-card:hover .react-flow__handle,
+.clipping-flow-root .react-flow__handle.connectingfrom,
+.clipping-flow-root .react-flow__handle.connectingto,
+.clipping-flow-root .react-flow__handle:hover {
+  opacity: 1;
+}
+/* Direct hover / active connection: brighten + grow a soft lime halo. */
+.clipping-flow-root .react-flow__handle:hover,
+.clipping-flow-root .react-flow__handle.connectingfrom,
+.clipping-flow-root .react-flow__handle.connectingto {
+  background: #a3e635; /* lime-400 */
+  box-shadow: 0 0 0 5px rgba(132, 204, 22, 0.22);
+}
+
+/* Inspector inputs - visible fill/border on the dark panel. */
+.clip-inspector :is(input, textarea, select) {
+  background: #232634 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #f4f4f5 !important;
+}
+.clip-inspector :is(input, textarea, select)::placeholder { color: rgba(244, 244, 245, 0.4) !important; }
+
+/* Sliders in the inspector: lime fill + thumb (the global shadcn Slider uses the
+   purple --primary; the clipping builder's accent is lime, so override it here). */
+.clip-inspector [data-slot="slider-range"] { background-color: #84cc16 !important; } /* lime-500 */
+.clip-inspector [data-slot="slider-thumb"] { border-color: #84cc16 !important; }
+
+/* Running-node progress sweep (used by canvas/clip-node.tsx) */
+@keyframes vello-sweep {
+  from { left: -33%; }
+  to { left: 100%; }
+}

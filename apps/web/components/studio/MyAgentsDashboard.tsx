@@ -1,0 +1,808 @@
+"use client";
+
+import { useAgentQuota } from "@/hooks/use-agent-quota";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
+import { unionWalletAddresses } from "@/lib/solana/activeWallet";
+import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import { AppHeaderShell } from "@/components/home/app-shell";
+import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ConnectedPlatformStack } from "@/components/social/platform-icons";
+import {
+  Plus,
+  Search,
+  Wallet,
+  Loader2,
+  Trash2,
+  AlertTriangle,
+  Heart,
+  Clapperboard,
+  Gem,
+  ChevronDown,
+  Users,
+  CalendarClock,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
+  Eye,
+  Trophy,
+  MessagesSquare,
+} from "lucide-react";
+
+/** Blur-in entrance shared by every element on the page — content arrives
+ *  slightly blurred + lifted, settles crisp. `delay` staggers sections/cards. */
+const blurIn = (delay = 0) => ({
+  initial: { opacity: 0, y: 10, filter: "blur(10px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  transition: { duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] as const },
+});
+
+type CreatorDoc = FunctionReturnType<typeof api.influencers.listByCreators>[number];
+
+/** Relative time — "4hr ago", "5mins ago" — falls back to a date past 7d. */
+function timeAgo(ts: number): string {
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}min${m === 1 ? "" : "s"} ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}hr${h === 1 ? "" : "s"} ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** Minimal, premium agent card — identity + how much it's made, no
+ *  tokenomics (TVL/APR/share price) and no on-chain chrome. */
+function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; lastPostAt: number | null; onDelete: (mint: string, name: string) => void; onChat?: (mint: string) => void }) {
+  const operateHref = `/builder?type=${doc.agentType || "influencer"}&mint=${doc.mintAddress}`;
+  const isClipper = doc.agentType === "clipping";
+
+  return (
+    <div className="group relative flex items-stretch overflow-hidden rounded-lg border border-white/10 bg-[#121416] transition-colors hover:bg-[#191c1e]">
+      <Link href={operateHref} aria-label={`Open ${doc.name}`} className="absolute inset-0 z-[1] rounded-lg focus-visible:outline-2 focus-visible:outline-[#d7ff00]" />
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(doc.mintAddress, doc.name); }}
+        title="Delete agent"
+        className="absolute right-2 top-2 z-10 grid size-6 place-items-center bg-black/50 text-white/50 opacity-0 backdrop-blur-sm transition hover:bg-red-500/80 hover:text-white group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+
+      {onChat && (
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChat(doc.mintAddress); }}
+          title={`Chat with ${doc.name}`}
+          className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-xl transition hover:bg-white/20"
+        >
+          <MessagesSquare className="size-3" /> Chat
+        </button>
+      )}
+
+      <div className="pointer-events-none relative size-20 shrink-0 overflow-hidden bg-white/5 sm:size-24">
+        <AgentAvatar url={doc.avatarUrl} name={doc.name} className="size-full object-cover" initialClassName="text-3xl" />
+      </div>
+
+      <div className="pointer-events-none relative z-[2] flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-4">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-[15px] font-medium text-white">{doc.name}</p>
+          <p className="shrink-0 truncate text-[11px] text-white/40">@{doc.handle}</p>
+          {doc.solstarTokenId && <span className="rounded bg-[#d7ff00]/10 px-1.5 py-0.5 text-[9px] text-[#d7ff00]">Coin linked</span>}
+          {doc.heartbeatEnabled && (
+            <Heart className="size-3 shrink-0 animate-pulse fill-pink-500 text-pink-500" aria-label="Heartbeat on" role="img">
+              <title>Heartbeat on</title>
+            </Heart>
+          )}
+          {/* Agent-type badge — rightmost on the name row. Frosted-glass 3D
+              button look (monochrome white): soft top highlight + drop shadow
+              instead of colored fills. Clippers = clapperboard, AI influencers
+              = gem. */}
+          <span
+            title={isClipper ? "AI Clipper" : "AI Influencer"}
+            className="ml-auto grid size-7 shrink-0 place-items-center rounded-xl border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-200 group-hover:scale-105"
+          >
+            {isClipper ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
+          </span>
+        </div>
+        {doc.description && (
+          <p className="line-clamp-2 text-[11.5px] leading-snug text-white/45">{doc.description}</p>
+        )}
+        <div className="mt-1 flex items-center gap-2.5 text-[11.5px] text-white/45">
+          {lastPostAt != null && (
+            <span>Last post <b className="font-semibold text-white/80">{timeAgo(lastPostAt)}</b></span>
+          )}
+          <ConnectedPlatformStack
+            platforms={doc.connectedPlatforms}
+            badgeClassName="size-5"
+            ringClassName="ring-[#131316]"
+          />
+        </div>
+      </div>
+      {doc.solstarCharacterId && <Link href={`/market/${doc.solstarCharacterId}`} className="absolute bottom-2 left-2 z-10 rounded-md border border-white/15 bg-black/70 px-2 py-1 text-[10px] text-[#d7ff00] backdrop-blur">View coin</Link>}
+    </div>
+  );
+}
+
+/** Account health — thresholds fixed per operator spec:
+ *  - "not-active": the last post is more than a week old (or there's never
+ *    been one) — the account isn't posting, period. Checked FIRST and wins
+ *    over the view-based grades below: a stale account isn't "bad content",
+ *    it's not producing at all, a different problem. Sorts LOWEST/last in
+ *    the list — nothing to action on content quality when nothing's posting.
+ *  - "bad": posted within the last week, but at least ONE of the recent
+ *    posts (not just the latest) is stuck under 100 views.
+ *  - "good": posted within the last week, latest post cleared 200+ views,
+ *    AND no recent post was stuck under 100 (a single good post after a run
+ *    of dead ones still needs eyes, not a clean bill of health).
+ *  - "monitor": posted within the last week, no post under 100, but the
+ *    latest hasn't cleared 200 yet — worth watching, not yet a fire.
+ *  `percent` scales 0-100% off the latest post's views against the 200-view
+ *  "good" bar — a quick-glance number, the `status` carries the actual verdict. */
+type HealthStatus = "good" | "monitor" | "bad" | "not-active";
+const HEALTH_GOOD_VIEWS = 200;
+const HEALTH_BAD_VIEWS = 100;
+const STALE_AFTER_MS = 7 * 24 * 3600 * 1000;
+function computeAccountHealth(recentViews: (number | null)[], lastPostAt: number | null): { status: HealthStatus; percent: number; latestViews: number | null } {
+  if (lastPostAt == null || Date.now() - lastPostAt > STALE_AFTER_MS) {
+    return { status: "not-active", percent: 0, latestViews: recentViews[0] ?? null };
+  }
+  const latestViews = recentViews[0] ?? 0;
+  const percent = Math.max(0, Math.min(100, Math.round((latestViews / HEALTH_GOOD_VIEWS) * 100)));
+  const hasLowRecent = recentViews.some((v) => (v ?? 0) < HEALTH_BAD_VIEWS);
+  const status: HealthStatus =
+    hasLowRecent ? "bad"
+      : latestViews >= HEALTH_GOOD_VIEWS ? "good"
+      : "monitor";
+  return { status, percent, latestViews };
+}
+const HEALTH_META: Record<HealthStatus, { label: string; icon: typeof ShieldCheck; color: string; ring: string; bg: string }> = {
+  good: { label: "Good", icon: ShieldCheck, color: "text-emerald-400", ring: "stroke-emerald-400", bg: "bg-emerald-400" },
+  monitor: { label: "Monitor", icon: ShieldQuestion, color: "text-amber-400", ring: "stroke-amber-400", bg: "bg-amber-400" },
+  bad: { label: "Bad", icon: ShieldAlert, color: "text-red-400", ring: "stroke-red-400", bg: "bg-red-400" },
+  "not-active": { label: "Not active", icon: ShieldQuestion, color: "text-white/40", ring: "stroke-white/25", bg: "bg-white/25" },
+};
+
+/** Small ring gauge — circumference-based stroke-dashoffset, no chart lib. */
+function HealthRing({ percent, status, size = 34 }: { percent: number; status: HealthStatus; size?: number }) {
+  const stroke = 3.5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - percent / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
+        className={`${HEALTH_META[status].ring} transition-[stroke-dashoffset] duration-700 ease-out`}
+        style={{ strokeDasharray: c, strokeDashoffset: offset }}
+      />
+    </svg>
+  );
+}
+
+/** ~28%-width floating account-health sidebar — sticky alongside the agent
+ *  grid. Per-agent verdict from computeAccountHealth (staleness first, then
+ *  latest post's views + whether any recent post is also stuck low), sorted
+ *  worst-first so the accounts that need attention are the first thing
+ *  seen — "not-active" sorts LAST since a dormant account isn't a content
+ *  problem to fix, just nothing happening. */
+function AccountHealthPanel({
+  agents, health, lastPostAtByMint,
+}: {
+  agents: AgentLite[];
+  health: Map<string, { status: HealthStatus; percent: number; latestViews: number | null }>;
+  lastPostAtByMint: Map<string, number | null>;
+}) {
+  const rows = useMemo(() => {
+    const order: Record<HealthStatus, number> = { bad: 0, monitor: 1, good: 2, "not-active": 3 };
+    return [...agents]
+      .map((a) => ({
+        agent: a,
+        h: health.get(a.mintAddress) ?? { status: "not-active" as HealthStatus, percent: 0, latestViews: null },
+        lastPostAt: lastPostAtByMint.get(a.mintAddress) ?? null,
+      }))
+      .sort((a, b) => order[a.h.status] - order[b.h.status]);
+  }, [agents, health, lastPostAtByMint]);
+  if (rows.length === 0) return null;
+  const counts = rows.reduce((acc, r) => { acc[r.h.status] += 1; return acc; }, { good: 0, monitor: 0, bad: 0, "not-active": 0 } as Record<HealthStatus, number>);
+
+  return (
+    <motion.div {...blurIn(0.15)} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_30px_70px_-45px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.16] to-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
+              <ShieldCheck className="size-3.5 text-white/80" strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Account Health</p>
+              <p className="text-[10.5px] text-white/40">Latest post performance</p>
+            </div>
+          </div>
+
+          {/* Fleet-wide summary strip */}
+          <div className="mt-3.5 grid grid-cols-4 gap-1.5 border-t border-white/[0.06] pt-3">
+            {(["good", "monitor", "bad", "not-active"] as const).map((s) => (
+              <div key={s} className="rounded-lg bg-white/[0.03] px-1.5 py-1.5 text-center">
+                <p className={`text-[15px] font-bold tabular-nums ${HEALTH_META[s].color}`}>{counts[s]}</p>
+                <p className="text-[8.5px] uppercase leading-tight tracking-wide text-white/35">{HEALTH_META[s].label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Per-agent rows, worst first — not-active sorts last */}
+          <div className="mt-3.5 space-y-1 border-t border-white/[0.06] pt-3">
+            {rows.map(({ agent, h, lastPostAt }) => {
+              const meta = HEALTH_META[h.status];
+              return (
+                <Link
+                  key={agent.mintAddress}
+                  href={`/builder?type=influencer&mint=${agent.mintAddress}`}
+                  className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-white/[0.05]"
+                >
+                  <div className="relative shrink-0">
+                    <HealthRing percent={h.percent} status={h.status} />
+                    <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} alt="" className="absolute inset-0 m-auto size-6 rounded-full object-cover" initialClassName="text-[10px]" />
+                    <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#131316] ${meta.bg}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-medium text-white/90">{agent.name}</p>
+                    <p className="flex items-center gap-1 text-[10.5px] text-white/40">
+                      <Eye className="size-2.5" />
+                      {h.latestViews == null ? "no posts" : `${h.latestViews.toLocaleString()} views`}
+                    </p>
+                    <p className="truncate text-[10px] text-white/35">
+                      Last post {lastPostAt == null ? "never" : timeAgo(lastPostAt)}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-[9.5px] font-semibold uppercase tracking-wide ${meta.color}`}>{meta.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+    </motion.div>
+  );
+}
+
+type SchedRow = FunctionReturnType<typeof api.scheduledContent.listByMintsInRange>[number];
+type AgentLite = { mintAddress: string; name: string; avatarUrl: string };
+
+const DAY_MS = 86_400_000;
+// The day is divided into 4 fixed quarters (bands), not a continuous 24h
+// canvas — every scheduled row snaps into one of these, sorted by time and
+// laid out LEFT-TO-RIGHT within its band (wrapping to a 2nd line only if a
+// single 6h window gets crowded). That's what makes "same time" rows read as
+// a clean row instead of colliding avatars stacked at slightly-different
+// pixel heights.
+const QUARTERS = [
+  { label: "12–6a", from: 0 },
+  { label: "6–12p", from: 6 },
+  { label: "12–6p", from: 12 },
+  { label: "6–12a", from: 18 },
+] as const;
+
+function dayKey(ts: number) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function quarterOf(ts: number): number {
+  return Math.floor(new Date(ts).getHours() / 6);
+}
+
+/** One scheduled row's avatar chip — its own hover scope (Tailwind's
+ *  `group/chip`) so hovering ONE avatar in a crowded band only reveals ITS
+ *  own tooltip card, not the whole band's. */
+function ScheduleChip({ row, agent }: { row: SchedRow; agent: AgentLite | undefined }) {
+  const time = new Date(row.scheduledFor).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return (
+    <span className="group/chip relative">
+      <span
+        className={`block size-6 shrink-0 overflow-hidden rounded-full ring-2 transition-transform duration-150 group-hover/chip:z-30 group-hover/chip:scale-125 ${
+          row.status === "failed"
+            ? "ring-red-400/70"
+            : row.status === "posting"
+              ? "ring-lime-400/80"
+              : "ring-white/10 group-hover/chip:ring-white/50"
+        }`}
+      >
+        {agent ? (
+          <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover" initialClassName="text-[8px]" />
+        ) : (
+          <span className="grid size-full place-items-center bg-white/10 text-[8px] font-bold text-white/50">
+            ?
+          </span>
+        )}
+      </span>
+      {/* Custom hover card — replaces the old native `title` tooltip, which
+         can't be styled and pops up slowly/inconsistently across browsers. */}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 w-max max-w-[160px] -translate-x-1/2 rounded-lg border border-white/10 bg-[#17171b] px-2 py-1.5 text-left opacity-0 shadow-xl shadow-black/50 transition-opacity duration-150 group-hover/chip:opacity-100">
+        <span className="block truncate text-[10.5px] font-semibold text-white">{agent?.name ?? "Agent"}</span>
+        <span className="block text-[9.5px] text-white/45">{time}{row.status === "failed" ? " · failed" : row.status === "posting" ? " · posting" : ""}</span>
+        {row.topic && <span className="mt-0.5 block truncate text-[9.5px] text-white/35">{row.topic}</span>}
+        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#17171b]" />
+      </span>
+    </span>
+  );
+}
+
+/** Weekly schedule strip — 7 day-columns × 4 fixed time-quarter bands each
+ *  (12–6a / 6–12p / 12–6p / 6–12a). Every scheduled drip row sorts into its
+ *  band and lays out left-to-right as a small avatar chip, wrapping only if
+ *  a band gets crowded — a real calendar grid instead of free-floating
+ *  absolute-positioned circles that could collide at close-but-different
+ *  pixel heights. Gives an at-a-glance "scheduled until when" read per agent. */
+function WeeklyScheduleStrip({ mintAddresses, agentsByMint }: { mintAddresses: string[]; agentsByMint: Map<string, AgentLite> }) {
+  const { startMs, endMs, days } = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const end = start + 7 * DAY_MS;
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const ts = start + i * DAY_MS;
+      const d = new Date(ts);
+      return {
+        ts,
+        key: dayKey(ts),
+        weekday: d.toLocaleDateString(undefined, { weekday: "short" }),
+        date: d.getDate(),
+        isToday: i === 0,
+      };
+    });
+    return { startMs: start, endMs: end, days };
+  }, []);
+
+  const rows = useQuery(
+    api.scheduledContent.listByMintsInRange,
+    mintAddresses.length ? { mintAddresses, startMs, endMs } : "skip",
+  ) as SchedRow[] | undefined;
+
+  // day key → 4 quarters, each already time-sorted.
+  const byDayQuarter = useMemo(() => {
+    const m = new Map<string, SchedRow[][]>();
+    for (const r of rows ?? []) {
+      const k = dayKey(r.scheduledFor);
+      const quarters = m.get(k) ?? [[], [], [], []];
+      quarters[quarterOf(r.scheduledFor)].push(r);
+      m.set(k, quarters);
+    }
+    for (const quarters of m.values()) for (const q of quarters) q.sort((a, b) => a.scheduledFor - b.scheduledFor);
+    return m;
+  }, [rows]);
+
+  const totalCount = rows?.length ?? 0;
+  const loading = mintAddresses.length > 0 && rows === undefined;
+  const [nowQuarter] = useState(() => quarterOf(Date.now()));
+
+  return (
+    <motion.div {...blurIn(0.04)} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_30px_70px_-45px_rgba(0,0,0,0.9)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04]">
+            <CalendarClock className="size-3.5 text-white/75" strokeWidth={1.75} />
+          </span>
+          <div>
+            <p className="text-[13px] font-semibold text-white">Weekly schedule</p>
+            <p className="text-[10.5px] text-white/35">When your agents are posting next, at a glance</p>
+          </div>
+        </div>
+        {!loading && (
+          <p className="text-[11px] text-white/35">
+            <span className="font-semibold tabular-nums text-white/70">{totalCount}</span> scheduled this week
+          </p>
+        )}
+      </div>
+
+      <div className="relative mt-4 grid grid-cols-7 gap-px overflow-hidden rounded-xl bg-white/[0.06]">
+        {days.map((day, di) => {
+          const quarters = byDayQuarter.get(day.key) ?? [[], [], [], []];
+          return (
+            <motion.div
+              key={day.key}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.06 + di * 0.045, ease: [0.16, 1, 0.3, 1] }}
+              className={`relative bg-[#0b0b0e] px-1.5 pb-1.5 pt-1.5 ${day.isToday ? "bg-white/[0.03]" : ""}`}
+            >
+              <div className="flex flex-col items-center gap-0.5 pb-1.5">
+                <span className={`text-[9.5px] font-semibold uppercase tracking-wide ${day.isToday ? "text-lime-300" : "text-white/35"}`}>
+                  {day.weekday}
+                </span>
+                <span
+                  className={`grid size-5 place-items-center rounded-full text-[10.5px] font-bold tabular-nums ${
+                    day.isToday ? "bg-lime-400 text-black" : "text-white/55"
+                  }`}
+                >
+                  {day.date}
+                </span>
+              </div>
+
+              <div className="flex flex-col divide-y divide-white/[0.05]">
+                {QUARTERS.map((q, qi) => {
+                  const qRows = quarters[qi];
+                  const isNow = day.isToday && qi === nowQuarter;
+                  return (
+                    <div key={q.label} className={`flex min-h-[30px] items-center gap-2 py-1.5 ${isNow ? "bg-lime-400/[0.06]" : ""}`}>
+                      {di === 0 && (
+                        <span className={`w-[30px] shrink-0 text-[8px] font-medium tabular-nums ${isNow ? "text-lime-300" : "text-white/25"}`}>
+                          {q.label}
+                        </span>
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                        {qRows.length === 0 ? (
+                          <span className="size-1 rounded-full bg-white/[0.08]" />
+                        ) : (
+                          qRows.map((r, ri) => (
+                            <motion.div
+                              key={r._id}
+                              initial={{ opacity: 0, scale: 0.5 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ type: "spring", stiffness: 420, damping: 24, delay: 0.1 + di * 0.03 + qi * 0.02 + ri * 0.015 }}
+                            >
+                              <ScheduleChip row={r} agent={agentsByMint.get(r.mintAddress)} />
+                            </motion.div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          );
+        })}
+
+        {!loading && totalCount === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <p className="rounded-full border border-white/10 bg-[#0b0b0e]/90 px-3 py-1 text-[11px] text-white/35">
+              Nothing scheduled this week yet
+            </p>
+          </div>
+        )}
+        {loading && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Loader2 className="size-4 animate-spin text-white/25" />
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/** A quiet identity mark and one clear creation action. */
+function NoAgentsIllustration() {
+  return <div aria-hidden className="relative grid size-28 place-items-center">
+    <div className="absolute inset-0 rounded-full border border-white/[0.05]" />
+    <div className="absolute inset-3 rounded-full border border-white/[0.09]" />
+    <div className="grid size-14 place-items-center rounded-2xl border border-[#d7ff00]/20 bg-[#d7ff00]/5"><Users className="size-6 text-[#d7ff00]" strokeWidth={1.25} /></div>
+    <span className="absolute right-3 top-4 size-1.5 rounded-full bg-[#d7ff00]" />
+  </div>;
+}
+
+function EmptyDashboard() {
+  return <motion.div {...blurIn(0.08)} className="flex min-h-[360px] flex-col items-center justify-center px-4 py-12 text-center">
+    <NoAgentsIllustration />
+    <h2 className="mt-5 text-xl font-medium tracking-tight text-white">Your influencers start here</h2>
+    <p className="mt-2 text-xs text-zinc-500">One character. One coin. One agent.</p>
+    <Button nativeButton={false}
+                render={<Link href="/create" />} className="mt-6 h-9 rounded-lg bg-[#d7ff00] px-4 text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"><Plus className="size-3.5" /> Create AI influencer</Button>
+  </motion.div>;
+}
+
+/** Plain wrapper used when the dashboard is embedded (e.g. /control) — the
+ *  host page already owns the app header. */
+function Embedded({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}
+
+/** The whole My Agents dashboard. Rendered full-page at /studio, and embedded
+ *  as the /control panel's home view (no header, "Chat" on every card). */
+export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boolean; onChat?: (mint: string) => void } = {}) {
+  const Shell = embedded ? Embedded : AppHeaderShell;
+  // Privy-aware: resolves the active address whether the user logged in with an
+  // external wallet OR a Google login that minted an embedded Privy wallet.
+  // Plain useWallet() misses the embedded case, so those owners' agents never
+  // show. Mirrors app/studio/build/page.tsx.
+  const { connected, publicKey } = useUnifiedSolanaWallet();
+  const { setVisible } = useWalletModal();
+  // IDENTITY: an agent is keyed to the wallet it was MINTED under, which for a
+  // Privy/Google user is frequently NOT the active wallet resolved above. Union
+  // the account's full linked-wallet set (profile.walletAddresses) with the
+  // active wallet -- same fix as /wallet (app/wallet/page.tsx) -- otherwise
+  // listByCreator (single wallet) returns [] for a multi-wallet operator even
+  // though they own funded agents.
+  const { profile, authenticated, loading: authLoading } = useSupabaseAuth();
+  const { quota } = useAgentQuota();
+  const address = connected && publicKey ? publicKey.toBase58() : null;
+  const creatorWallets = useMemo(
+    () => unionWalletAddresses(profile?.walletAddresses, address || profile?.walletAddress || null),
+    [profile?.walletAddresses, profile?.walletAddress, address],
+  );
+  const [search, setSearch] = useState("");
+  // Agent-type filter for the dropdown next to search.
+  const [typeFilter, setTypeFilter] = useState<"all" | "clipper" | "influencer">("influencer");
+
+  // Delete-agent flow. The route refunds the agent wallet's USDC to the owner,
+  // frees the upload-post slot, and cascade-deletes the agent's data. Convex
+  // reactivity drops the card from listByCreators once the row is gone.
+  const [delTarget, setDelTarget] = useState<{ mint: string; name: string } | null>(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState<string | null>(null);
+  const [delDone, setDelDone] = useState<string | null>(null);
+  const handleDelete = async () => {
+    if (!delTarget) return;
+    setDelBusy(true);
+    setDelErr(null);
+    try {
+      // Owner auth (Privy Bearer + X-Siws-Session) is auto-attached by the global fetch interceptor.
+      const res = await fetch("/api/agents/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mintAddress: delTarget.mint }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.ok === false) {
+        setDelErr(j.error || `Delete failed (${res.status})`);
+        return;
+      }
+      const refunded = j.refund?.attempted ? ` Refunded $${Number(j.refund.amountUsdc ?? 0).toFixed(2)} USDC to your wallet.` : "";
+      setDelDone(`Deleted ${delTarget.name}.${refunded}`);
+      setDelTarget(null);
+      window.dispatchEvent(new Event("agents-changed"));
+    } catch (e) {
+      setDelErr(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDelBusy(false);
+    }
+  };
+
+  const rawDocs = useQuery(
+    api.influencers.listByCreators,
+    creatorWallets.length ? { creatorWallets } : "skip"
+  ) as CreatorDoc[] | undefined;
+  const docs = useMemo(() => rawDocs ?? [], [rawDocs]);
+
+  const mintAddresses = useMemo(() => docs.map((d) => d.mintAddress), [docs]);
+  const agentsByMint = useMemo(
+    () => new Map(docs.map((d) => [d.mintAddress, { mintAddress: d.mintAddress, name: d.name, avatarUrl: d.avatarUrl }])),
+    [docs],
+  );
+  const feedResult = useQuery(api.clipJobs.videoFeedByMints, mintAddresses.length ? { mintAddresses } : "skip") as
+    | { items: { mint: string; createdAt: number; viewCount?: number | null }[] }
+    | undefined;
+  const agentStats = useMemo(() => {
+    // `feedResult.items` arrives globally sorted newest-first (clipJobs.ts's
+    // videoFeedByMints), so the first few items encountered per mint here ARE
+    // that mint's most recent posts, in order — no extra sort needed.
+    const RECENT_WINDOW = 5;
+    const stats = new Map<string, { count: number; lastPostAt: number | null; recentViews: (number | null)[] }>();
+    for (const item of feedResult?.items ?? []) {
+      const cur = stats.get(item.mint) ?? { count: 0, lastPostAt: null, recentViews: [] };
+      cur.count += 1;
+      if (cur.lastPostAt == null || item.createdAt > cur.lastPostAt) cur.lastPostAt = item.createdAt;
+      if (cur.recentViews.length < RECENT_WINDOW) cur.recentViews.push(item.viewCount ?? null);
+      stats.set(item.mint, cur);
+    }
+    return stats;
+  }, [feedResult]);
+  const healthByMint = useMemo(() => {
+    const m = new Map<string, { status: HealthStatus; percent: number; latestViews: number | null }>();
+    for (const [mint, s] of agentStats) m.set(mint, computeAccountHealth(s.recentViews, s.lastPostAt));
+    return m;
+  }, [agentStats]);
+  const lastPostAtByMint = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const [mint, s] of agentStats) m.set(mint, s.lastPostAt);
+    return m;
+  }, [agentStats]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return docs.filter((d) => {
+      const isClipper = d.agentType === "clipping";
+      if (typeFilter === "clipper" && !isClipper) return false;
+      if (typeFilter === "influencer" && isClipper) return false;
+      if (!q) return true;
+      return d.name.toLowerCase().includes(q) || d.handle.toLowerCase().includes(q) || d.niche.toLowerCase().includes(q);
+    });
+  }, [docs, search, typeFilter]);
+
+  const hasAccount = authenticated || connected;
+  const loading = authLoading || (creatorWallets.length > 0 && rawDocs === undefined);
+
+  return (
+    <Shell>
+      <div className="min-h-full bg-[#090a0b] text-white">
+        <div className="mx-auto flex max-w-7xl items-start gap-6 px-6 pt-4 pb-12">
+        <div className="min-w-0 flex-1">
+          {/* ── Header ── the Create Agent + Leaderboards buttons now live at
+                 the top of the desktop sidebar (below), stacked above Account
+                 Health; this row keeps a compact fallback pair so mobile (no
+                 sidebar) still has both. ── */}
+          <motion.div {...blurIn(0)} className="flex flex-wrap items-end justify-between gap-4 xl:min-h-16">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">My influencers<span className="text-[#d7ff00]">.</span></h1>
+              <p className="mt-1.5 text-xs text-zinc-500">Create, chat, and manage your characters and their coins.</p>
+            </div>
+            <div className="flex items-center gap-2 xl:hidden">
+              <Button
+                className="h-9 gap-1.5 rounded-lg bg-[#d7ff00] text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"
+                nativeButton={false}
+                render={<Link href="/create" />}
+              >
+                <Plus className="size-3.5" />
+                {quota && !quota.canCreate ? "Agent limit reached" : "Create influencer"}
+              </Button>
+              <Button
+                className="h-9 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
+                nativeButton={false}
+                render={<Link href="/tournament" />}
+              >
+                <Trophy className="size-3.5" />
+                Leaderboards
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* ── Weekly schedule strip — sits above search, one query shared
+                 across all of this operator's agents. ── */}
+          {hasAccount && docs.length > 0 && (
+            <div className="mt-8">
+              <WeeklyScheduleStrip mintAddresses={mintAddresses} agentsByMint={agentsByMint} />
+            </div>
+          )}
+
+          {/* ── Search + type filter ── */}
+          {hasAccount && docs.length > 0 && (
+            <motion.div {...blurIn(0.08)} className="mt-8 flex flex-wrap items-center gap-2.5">
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
+                <Input
+                  placeholder="Search agents..."
+                  className="h-9 rounded-full border-white/10 bg-white/[0.04] pl-9 text-[13px] text-white placeholder:text-white/30 backdrop-blur-xl focus-visible:ring-white/20"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+                  title="Filter by agent type"
+                  className="h-9 appearance-none rounded-full border border-white/10 bg-white/[0.04] pl-4 pr-8 text-[13px] text-white/80 backdrop-blur-xl outline-none transition-colors hover:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-white/20 [&>option]:bg-neutral-900"
+                >
+                  <option value="all">All agents</option>
+                  <option value="influencer">AI Influencers only</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Body ── */}
+          <div className="mt-8">
+            {!hasAccount && (
+              <motion.div {...blurIn(0.08)} className="flex flex-col items-center justify-center gap-5 py-32 text-center">
+                <div className="grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
+                  <Wallet className="size-7 text-white/40" />
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-lg font-medium text-white">Connect your wallet</h2>
+                  <p className="max-w-xs text-[13px] text-white/40">Connect to view and manage your AI agents.</p>
+                </div>
+                <Button className="gap-2 rounded-full border border-white/15 bg-white/10 text-white backdrop-blur-xl hover:bg-white/20" onClick={() => setVisible(true)}>
+                  <Wallet className="size-4" />
+                  Connect Wallet
+                </Button>
+              </motion.div>
+            )}
+
+            {loading && (
+              <div className="flex items-center justify-center py-32">
+                <Loader2 className="size-5 animate-spin text-white/30" />
+              </div>
+            )}
+
+            {hasAccount && !loading && docs.length === 0 && <EmptyDashboard />}
+
+            {hasAccount && !loading && filtered.length > 0 && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {filtered.map((doc, i) => {
+                  const stats = agentStats.get(doc.mintAddress);
+                  return (
+                    <motion.div key={doc._id} {...blurIn(0.14 + Math.min(i, 8) * 0.06)}>
+                      <AgentCard
+                        doc={doc}
+                        lastPostAt={stats?.lastPostAt ?? null}
+                        onDelete={(mint, name) => { setDelErr(null); setDelTarget({ mint, name }); }}
+                        onChat={onChat}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop sidebar — Create Agent + Leaderboards share the header's
+            64px row (bottom-aligned with the subtitle), Account Health starts
+            on the same line as the Weekly schedule (same mt-8). Both sticky
+            together as one unit. */}
+        <motion.aside {...blurIn(0.05)} className="hidden shrink-0 xl:block xl:w-[28%] xl:min-w-[300px] xl:max-w-[400px]">
+          <div className="sticky top-6">
+            <div className="flex h-16 items-end gap-2">
+              <Button
+                className="h-9 flex-1 gap-1.5 rounded-lg bg-[#d7ff00] text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"
+                nativeButton={false}
+                render={<Link href="/create" />}
+              >
+                <Plus className="size-3.5" />
+                {quota && !quota.canCreate ? "Agent limit reached" : "Create influencer"}
+              </Button>
+              <Button
+                className="h-9 flex-1 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
+                nativeButton={false}
+                render={<Link href="/tournament" />}
+              >
+                <Trophy className="size-3.5" />
+                Leaderboards
+              </Button>
+            </div>
+            {hasAccount && !loading && docs.length > 0 && (
+              <div className="mt-8">
+                <AccountHealthPanel
+                  agents={docs.map((d) => ({ mintAddress: d.mintAddress, name: d.name, avatarUrl: d.avatarUrl }))}
+                  health={healthByMint}
+                  lastPostAtByMint={lastPostAtByMint}
+                />
+              </div>
+            )}
+          </div>
+        </motion.aside>
+        </div>
+
+        {/* Delete confirm modal */}
+        {delTarget && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => { if (!delBusy) setDelTarget(null); }}>
+            <div className="w-full max-w-md space-y-3 rounded-2xl border border-white/10 bg-[#111114]/95 p-5 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="size-5" />
+                <h3 className="text-base font-bold text-white">Delete agent</h3>
+              </div>
+              <p className="text-sm text-white/60">
+                Permanently delete <b className="text-white">{delTarget.name}</b>? This removes the agent and its clips, schedule, skills, and node graph, and <b className="text-white">frees its upload-post slot</b>. Any USDC in the agent wallet is <b className="text-white">refunded to the owner wallet</b> first. This can&apos;t be undone.
+              </p>
+              {delErr && <p className="rounded bg-red-950/40 p-2 text-xs text-red-300">{delErr}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button className="rounded-full bg-white/10 hover:bg-white/20" onClick={() => setDelTarget(null)} disabled={delBusy}>Cancel</Button>
+                <Button className="gap-1.5 rounded-full bg-red-600 hover:bg-red-500" onClick={handleDelete} disabled={delBusy}>
+                  {delBusy ? (<><Loader2 className="size-4 animate-spin" /> Deleting…</>) : "Delete + refund"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success toast */}
+        {delDone && (
+          <button
+            type="button"
+            onClick={() => setDelDone(null)}
+            className="fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border border-emerald-500/30 bg-emerald-950/80 px-4 py-3 text-left text-sm text-emerald-100 backdrop-blur-xl"
+          >
+            {delDone}
+          </button>
+        )}
+      </div>
+    </Shell>
+  );
+}

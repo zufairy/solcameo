@@ -1,0 +1,2396 @@
+{
+  "address": "Gztj63kcdst6YrdyCGPoWAgLqDGJZAG43UQqtDY8HVxx",
+  "metadata": {
+    "name": "vello_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Vello Protocol escrow for campaign treasury"
+  },
+  "instructions": [
+    {
+      "name": "cancel_campaign",
+      "docs": [
+        "Cancel an active campaign and refund the ACTUAL vault balance to the",
+        "creator. No approved_count gate. Halts future accruals via status."
+      ],
+      "discriminator": [
+        66,
+        10,
+        32,
+        138,
+        122,
+        36,
+        134,
+        202
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.usdc_mint",
+                "account": "Campaign"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "creator_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "claim_payout",
+      "docs": [
+        "Pay the newly-owed delta for one clip, capped to the remaining budget,",
+        "skimming the protocol fee. Checked-effects-interactions: accounting is",
+        "bumped BEFORE the PDA-signed CPI transfers, so a retry/concurrent crank",
+        "pays exactly zero the second time. Idempotent no-op when nothing is owed."
+      ],
+      "discriminator": [
+        127,
+        240,
+        132,
+        62,
+        227,
+        198,
+        146,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cranker",
+          "docs": [
+            "Permissionless crank — pays the gas, gains nothing. Funds can only flow",
+            "to the claim's recorded beneficiary ATA + the configured treasury."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.creator",
+                "account": "Campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "submission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.usdc_mint",
+                "account": "Campaign"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "beneficiary_usdc_ata",
+          "docs": [
+            "Beneficiary's USDC ATA — must be the wallet recorded by the oracle.",
+            "init_if_needed so a never-before-paid clipper can be paid in one crank."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "beneficiary"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "beneficiary"
+        },
+        {
+          "name": "treasury_usdc_ata",
+          "docs": [
+            "Protocol-fee sink — must be owned by PlatformConfig.treasury."
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "_submission_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "create_campaign",
+      "docs": [
+        "Create a per-campaign vault. Transfers `initial_budget` USDC from the",
+        "creator's ATA into the PDA-owned escrow ATA. reserved starts at 0."
+      ],
+      "discriminator": [
+        111,
+        131,
+        187,
+        98,
+        160,
+        193,
+        114,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "creator_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "rate_per_1k",
+          "type": "u64"
+        },
+        {
+          "name": "initial_budget",
+          "type": "u64"
+        },
+        {
+          "name": "deadline_unix",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "init_platform_config",
+      "docs": [
+        "Initialize the global platform config (called once at deploy time).",
+        "`authority` (the signer) becomes the admin / sweep authority.",
+        "`oracle` is the only signer allowed to call record_performance / reject_clip."
+      ],
+      "discriminator": [
+        101,
+        52,
+        47,
+        49,
+        156,
+        16,
+        32,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "program",
+          "address": "Gztj63kcdst6YrdyCGPoWAgLqDGJZAG43UQqtDY8HVxx"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        },
+        {
+          "name": "oracle",
+          "type": "pubkey"
+        },
+        {
+          "name": "protocol_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "dispute_window_slots",
+          "type": "u64"
+        },
+        {
+          "name": "max_staleness_slots",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "record_performance",
+      "docs": [
+        "Record the oracle's cumulative verified views for one (campaign, submission).",
+        "Idempotent + monotonic: verified_views must never decrease. Accrual is",
+        "floor(verified_views * rate_per_1k / 1000) using a u128 intermediate.",
+        "Does NOT transfer any tokens — disbursement is the separate claim_payout."
+      ],
+      "discriminator": [
+        181,
+        118,
+        229,
+        160,
+        226,
+        62,
+        99,
+        27
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle",
+          "docs": [
+            "The oracle key pinned in PlatformConfig.oracle — must sign."
+          ],
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.creator",
+                "account": "Campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "submission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "submission_id",
+          "type": "string"
+        },
+        {
+          "name": "beneficiary",
+          "type": "pubkey"
+        },
+        {
+          "name": "verified_views",
+          "type": "u64"
+        },
+        {
+          "name": "score_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "attest_tx",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refund_remaining",
+      "docs": [
+        "Sweep the remaining vault balance back to the creator after the deadline",
+        "(or once Closed/Cancelled). Sweeps the ACTUAL ATA balance (unspent budget",
+        "+ rounding dust). Sets status = Closed."
+      ],
+      "discriminator": [
+        199,
+        38,
+        153,
+        103,
+        248,
+        172,
+        243,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.usdc_mint",
+                "account": "Campaign"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "creator_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "register_agent_wallet",
+      "docs": [
+        "Register an AgentWallet PDA for a newly minted Vello agent.",
+        "Called once per agent mint (off-chain, via the /api/nft/mint route)."
+      ],
+      "discriminator": [
+        40,
+        57,
+        22,
+        0,
+        76,
+        120,
+        80,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "agent_wallet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "session_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "agent_usdc_ata",
+          "docs": [
+            "ATA owned by the agent_wallet PDA — receives USDC campaign payouts"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "agent_wallet"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "session_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reject_clip",
+      "docs": [
+        "Freeze a clip (fraud / ineligible). Oracle- or authority-gated.",
+        "A frozen ClaimRecord can never be paid or re-recorded."
+      ],
+      "discriminator": [
+        22,
+        226,
+        172,
+        254,
+        118,
+        25,
+        116,
+        140
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Either the oracle key or the admin authority (checked above)."
+          ],
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.creator",
+                "account": "Campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "submission_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "_submission_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "sweep_to_treasury",
+      "docs": [
+        "Sweep accumulated USDC from the agent's on-chain ATA to the Vello treasury.",
+        "Only the configured platform authority may call this, and funds can only",
+        "move to the treasury account recorded in PlatformConfig.",
+        "Used for the hybrid settlement model: on-chain USDC sweeps replenish compute credits."
+      ],
+      "discriminator": [
+        125,
+        86,
+        92,
+        143,
+        51,
+        170,
+        15,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "agent_wallet"
+        },
+        {
+          "name": "agent_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "agent_wallet"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent_wallet.usdc_mint",
+                "account": "AgentWallet"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "treasury_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Vello platform authority — must match PlatformConfig.authority and sign sweeps"
+          ],
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "top_up",
+      "docs": [
+        "Add more USDC to an existing campaign vault. Permissionless funder.",
+        "budget += amount (checked). Sound, kept from the original program."
+      ],
+      "discriminator": [
+        236,
+        225,
+        96,
+        9,
+        60,
+        106,
+        77,
+        208
+      ],
+      "accounts": [
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.creator",
+                "account": "Campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.usdc_mint",
+                "account": "Campaign"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "funder_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_campaign_rate",
+      "docs": [
+        "Change the per-1,000-view USDC payout rate for FUTURE view growth.",
+        "PROSPECTIVE ONLY: bumping `rate_epoch` makes each clip's next",
+        "record_performance settle its accrued-at-old-rate into a baseline BEFORE",
+        "applying the new rate, so already-attested views keep their old price",
+        "(Appendix B.1 — the retroactive-repricing trap the audit must enforce).",
+        "Creator-only; emits CampaignRateChanged for the off-chain audit log. Has no",
+        "effect on accrued/paid until the next attestation, so a rate change can",
+        "never claw back owed-unpaid and never reprices already-counted views."
+      ],
+      "discriminator": [
+        240,
+        42,
+        232,
+        141,
+        1,
+        148,
+        162,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_campaign_id",
+          "type": "string"
+        },
+        {
+          "name": "new_rate_per_1k",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_platform_config",
+      "docs": [
+        "Rotate any of the config fields. Admin-only."
+      ],
+      "discriminator": [
+        195,
+        60,
+        76,
+        129,
+        146,
+        45,
+        67,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  108,
+                  108,
+                  111,
+                  58,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_treasury",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_oracle",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_fee_bps",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "new_dispute_window_slots",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "new_max_staleness_slots",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AgentWallet",
+      "discriminator": [
+        127,
+        35,
+        180,
+        143,
+        201,
+        1,
+        100,
+        50
+      ]
+    },
+    {
+      "name": "Campaign",
+      "discriminator": [
+        50,
+        40,
+        49,
+        11,
+        157,
+        220,
+        229,
+        192
+      ]
+    },
+    {
+      "name": "ClaimRecord",
+      "discriminator": [
+        57,
+        229,
+        0,
+        9,
+        65,
+        62,
+        96,
+        7
+      ]
+    },
+    {
+      "name": "PlatformConfig",
+      "discriminator": [
+        160,
+        78,
+        128,
+        0,
+        248,
+        83,
+        230,
+        160
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CampaignRateChanged",
+      "discriminator": [
+        43,
+        112,
+        162,
+        154,
+        207,
+        150,
+        72,
+        103
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Caller is not authorized for this action"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidDeadline",
+      "msg": "Campaign deadline must be in the future"
+    },
+    {
+      "code": 6003,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6004,
+      "name": "MintMismatch",
+      "msg": "USDC mint mismatch"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidTreasury",
+      "msg": "Treasury account does not match the configured platform treasury"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidFeeBps",
+      "msg": "Protocol fee bps exceeds the maximum allowed"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidWindowConfig",
+      "msg": "dispute_window_slots must be strictly less than max_staleness_slots"
+    },
+    {
+      "code": 6008,
+      "name": "CampaignNotActive",
+      "msg": "Campaign is not active"
+    },
+    {
+      "code": 6009,
+      "name": "CampaignExpired",
+      "msg": "Campaign deadline has passed; no new accrual"
+    },
+    {
+      "code": 6010,
+      "name": "CampaignStillActive",
+      "msg": "Campaign is still active (deadline not reached and not closed)"
+    },
+    {
+      "code": 6011,
+      "name": "RefundGraceActive",
+      "msg": "Refund grace window after the deadline has not yet elapsed"
+    },
+    {
+      "code": 6012,
+      "name": "NonMonotonicViews",
+      "msg": "Verified views must be monotonically non-decreasing"
+    },
+    {
+      "code": 6013,
+      "name": "ClipFrozen",
+      "msg": "This clip has been frozen and cannot be paid"
+    },
+    {
+      "code": 6014,
+      "name": "InDisputeWindow",
+      "msg": "Attestation is still inside the dispute window"
+    },
+    {
+      "code": 6015,
+      "name": "AttestationStale",
+      "msg": "Attestation is too stale to claim against"
+    },
+    {
+      "code": 6016,
+      "name": "BeneficiaryMismatch",
+      "msg": "Beneficiary account does not match the recorded claim beneficiary"
+    },
+    {
+      "code": 6017,
+      "name": "ClaimCampaignMismatch",
+      "msg": "Claim record does not belong to this campaign"
+    }
+  ],
+  "types": [
+    {
+      "name": "AgentWallet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "docs": [
+              "Wallet that minted this agent (the \"owner\" in Vello terms)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "session_hash",
+            "docs": [
+              "SHA-256 of the sessionId — uniquely identifies the agent mint"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "USDC mint this wallet holds"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Campaign",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator",
+            "docs": [
+              "Brand/owner; only key that may refund/cancel (has_one)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign_id",
+            "docs": [
+              "Convex campaigns._id mirror key."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "rate_per_1k",
+            "docs": [
+              "USDC base units (6 dp) per 1,000 verified views."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "budget",
+            "docs": [
+              "Total funds committed (deposited), base units."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserved",
+            "docs": [
+              "Total already paid out, base units. Invariant: reserved <= budget."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_verified_views",
+            "docs": [
+              "Running sum of verified views across clips (analytics)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deadline_unix",
+            "docs": [
+              "Unix secs; refund/cancel allowed at/after this."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "0 Active | 1 Cancelled | 2 Closed."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "rate_epoch",
+            "docs": [
+              "Bumped by update_campaign_rate. A claim whose rate_epoch lags the campaign's",
+              "is settled (accrued frozen into a baseline) on its next record_performance,",
+              "so a rate change is PROSPECTIVE — old views are never repriced (Appendix B.1)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "Forward-compat padding. NAMED `padding`, not `_reserved`: a leading-underscore",
+              "field camelCases to `reserved` in the generated IDL/JS client and would SHADOW",
+              "the real `reserved` u64 — a client reading `campaign.reserved` would get this",
+              "byte array instead of the paid-out accumulator. (Caught by anchor test.)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CampaignRateChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_rate_per_1k",
+            "type": "u64"
+          },
+          {
+            "name": "new_rate_per_1k",
+            "type": "u64"
+          },
+          {
+            "name": "rate_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "submission_id",
+            "docs": [
+              "Convex submissions._id mirror key (one per (campaign, agent))."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "beneficiary",
+            "docs": [
+              "Agent payout wallet (AgentWallet PDA or raw wallet)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "verified_views",
+            "docs": [
+              "Oracle-attested cumulative views — monotonic high-water mark."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "accrued",
+            "docs": [
+              "floor(verified_views * rate_per_1k / 1000), pre-cap."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "paid",
+            "docs": [
+              "Amount already transferred for this clip. paid <= accrued always."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_recorded_slot",
+            "docs": [
+              "Chain slot of the latest accepted record — STALENESS basis (advances on",
+              "every accepted record, incl. dips + equal-views keep-alives)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_accrual_slot",
+            "docs": [
+              "Chain slot at which `accrued` last INCREASED — the DISPUTE-window basis.",
+              "Kept separate from last_recorded_slot so a keep-alive/dip re-record (which",
+              "only refreshes staleness) can't re-arm the dispute window and perpetually",
+              "block a payout for an already-earned delta (finding #3)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "frozen",
+            "docs": [
+              "Set by reject_clip; halts all future records + claims."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "last_attest_tx",
+            "docs": [
+              "Oracle attestation tx sig (audit)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "score_hash",
+            "docs": [
+              "Oracle evidence hash (audit, not verified on-chain)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "rate_epoch",
+            "docs": [
+              "Campaign rate_epoch this claim's baseline is settled to. When it lags the",
+              "campaign's, record_performance settles before accruing (prospective rate)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "accrued_baseline",
+            "docs": [
+              "Accrued amount locked in at prior rate epochs (the old-rate portion)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "views_baseline",
+            "docs": [
+              "verified_views already priced into accrued_baseline; only views ABOVE this",
+              "price at the current rate. Re-based on every rate change."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlatformConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Admin key — the only signer allowed to sweep agent wallets / rotate config."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Owner of the treasury ATA that sweeps + protocol fees must land in."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "docs": [
+              "The only signer allowed to record_performance / reject_clip."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_fee_bps",
+            "docs": [
+              "Protocol fee skimmed on each claim_payout, in basis points (500 = 5%). 0 disables."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "dispute_window_slots",
+            "docs": [
+              "A fresh attestation delta is not claimable until this many slots elapse."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_staleness_slots",
+            "docs": [
+              "claim_payout is blocked if the attestation is older than this many slots."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

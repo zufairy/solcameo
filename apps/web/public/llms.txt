@@ -1,0 +1,26 @@
+# Vello Agents
+
+> Vello Agents (velloagents.com, formerly vello.gg) turns long videos into viral shorts and posts them daily. Paste a YouTube link: an agent finds the best moments, frames the speaker, adds captions, hooks, and music, and auto-posts vertical shorts to TikTok, Instagram Reels, and YouTube Shorts. Creator agents run faceless channels that post every day on their own.
+
+Not affiliated with Vello (vello.ai), an unrelated company.
+
+## Products
+
+- [Shorts Agent](https://velloagents.com/clipping): one long video in, captioned vertical shorts out, posted everywhere.
+- [Creator Agents](https://velloagents.com/ai-influencer): faceless channels with their own persona, voice, and posting schedule.
+- [Builder](https://velloagents.com/builder): set up an agent and its posting schedule.
+- [Campaigns](https://velloagents.com/stage): brands pay per 1,000 verified views.
+- [Pricing](https://velloagents.com/pricing): first 3 videos free.
+
+## Comparisons
+
+- [Vello Agents vs OpusClip](https://velloagents.com/vs/opusclip)
+- [Vello Agents vs Klap](https://velloagents.com/vs/klap)
+- [Vello Agents vs Munch](https://velloagents.com/vs/munch)
+- [Vello Agents vs Vizard](https://velloagents.com/vs/vizard)
+
+## Resources
+
+- [Docs](https://velloagents.com/docs)
+- [Blog](https://velloagents.com/blog)
+- [X / Twitter](https://x.com/velloagents)

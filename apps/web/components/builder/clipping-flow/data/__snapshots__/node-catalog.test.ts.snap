@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`node catalog > snapshot: palette structure (keys, kinds, groups, default configs) 1`] = `
+[
+  {
+    "config": {
+      "clipLengthMax": 45,
+      "clipLengthMin": 20,
+      "maxClips": 1,
+      "provider": "google-drive",
+      "sourceUrl": "",
+    },
+    "group": "Sources",
+    "key": "source",
+    "kind": "source",
+  },
+  {
+    "config": {},
+    "group": "Skills",
+    "key": "compose",
+    "kind": "compose",
+  },
+  {
+    "config": {
+      "intensity": 40,
+      "pack": "city",
+      "variant": "broll",
+    },
+    "group": "Skills",
+    "key": "broll",
+    "kind": "skill",
+  },
+  {
+    "config": {
+      "focus": "auto",
+      "ratio": "9:16",
+      "variant": "crop",
+    },
+    "group": "Skills",
+    "key": "crop",
+    "kind": "skill",
+  },
+  {
+    "config": {
+      "caption": "",
+      "platforms": [],
+      "schedule": "now",
+    },
+    "group": "Publish",
+    "key": "publish",
+    "kind": "publish",
+  },
+]
+`;

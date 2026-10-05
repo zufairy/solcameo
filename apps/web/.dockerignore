@@ -1,0 +1,12 @@
+.git
+.gitignore
+.next
+node_modules
+target
+coverage
+dist
+tmp
+*.log
+.DS_Store
+marketing-video/node_modules
+.venv-jev

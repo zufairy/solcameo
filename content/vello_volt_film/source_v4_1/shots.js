@@ -1,0 +1,252 @@
+// ───────── VELLO v4 — synced to "let me know" (remix), beats from the track ─────────
+import { W, H, C, K, X, clamp, lerp, prog, E, rnd, mk, rrect, font, word, measure, vframe, img, cover, shot, glyph, GLYPHS, tile, lineArt, dots, flash } from './core.js';
+import { renderMark } from './gl.js';
+import { renderIntro, renderTunnel, renderGlobe, INTRO_URLS, TUNNEL_URLS, GLOBE_URLS } from './gl2.js';
+
+const LOGO = 'assets/vello-logo-white.png', MARK = 'assets/vello-mark-lime.png';
+const BW = ['seq/head/00040.jpg', 'seq/aerial/00060.jpg', 'seq/creator2/00120.jpg', 'seq/city/00050.jpg', 'seq/jet/00080.jpg', 'seq/chrome/00100.jpg', 'seq/earth2/00090.jpg', 'seq/runner/00120.jpg'];
+const JD = ['thumbs/jd8.jpg', 'thumbs/jd6.jpg', 'thumbs/jd4.jpg', 'thumbs/jd7.jpg', 'thumbs/jd1.jpg', 'thumbs/jd3.jpg'];
+const tintC = {}; function tinted(src, col) { const k = src + col; if (tintC[k]) return tintC[k]; const im = img(src); if (!im) return null; const c = mk(im.width, im.height), x = c.getContext('2d'); x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height); return (tintC[k] = c); }
+const bg = (c, col) => { c.fillStyle = col; c.fillRect(0, 0, W, H); };
+const BIG = 112, MID = 64; // text scale (bigger, per feedback)
+const D = (a, b) => K(b) - K(a); // duration between beats
+
+// ── digital glitch thumbnails: slide-in with trail, RGB split, tracking bands ──
+const GT = mk(1000, 1000), GX = GT.getContext('2d');
+function gthumbs(c, u, list, spots, step = 0.28) {
+  spots.forEach(([x, y, w, ar], i) => {
+    const t0 = i * step, q = clamp((u - t0) / 0.3); if (q <= 0) return;
+    const im = img(list[i % list.length]); if (!im) return;
+    const h = w * ar, p = E.outQuint(q), dir = i % 2 ? 1 : -1, off = (1 - p) * 320 * dir;
+    const live = u - t0, jitter = (live < 0.16) || (Math.floor(u * 25 + i * 7) % 37 === 0);
+    // render plate into buffer (grayscale, contrast)
+    GX.setTransform(1, 0, 0, 1, 0, 0); GX.clearRect(0, 0, 1000, 1000); GX.filter = 'grayscale(1) contrast(1.3) brightness(1.3)';
+    cover(GX, im, 0, 0, w, h, { zoom: 1.08 + live * 0.04 }); GX.filter = 'none';
+    // tracking band moving down
+    const by = ((live * 260 + i * 90) % (h + 60)) - 30; GX.fillStyle = 'rgba(255,255,255,0.10)'; GX.fillRect(0, by, w, 10); GX.fillStyle = 'rgba(255,255,255,0.05)'; GX.fillRect(0, by + 14, w, 3);
+    c.save(); c.translate(x + off + Math.sin(u * 0.9 + i) * 5, y - live * 8);
+    if (p < 1) { for (let k = 3; k >= 1; k--) { c.globalAlpha = 0.18 * (1 - p); c.drawImage(GT, 0, 0, w, h, -w / 2 - dir * k * 40 * (1 - p), -h / 2, w, h); } }
+    c.globalAlpha = 1;
+    if (jitter) { // RGB split + horizontal slice displacement
+      c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5;
+      c.filter = 'sepia(1) hue-rotate(-50deg) saturate(6)'; c.drawImage(GT, 0, 0, w, h, -w / 2 - 9, -h / 2, w, h);
+      c.filter = 'sepia(1) hue-rotate(140deg) saturate(6)'; c.drawImage(GT, 0, 0, w, h, -w / 2 + 9, -h / 2, w, h);
+      c.filter = 'none'; c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+      for (let s = 0; s < 6; s++) { const sy = rnd(Math.floor(u * 25) * 7 + s + i) * h, sh = 6 + rnd(s * 3 + i) * 30, sx = (rnd(s * 5 + Math.floor(u * 25)) - .5) * 60; c.drawImage(GT, 0, sy, w, sh, -w / 2 + sx, -h / 2 + sy, w, sh); }
+    } else c.drawImage(GT, 0, 0, w, h, -w / 2, -h / 2, w, h);
+    c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1; c.strokeRect(-w / 2, -h / 2, w, h);
+    c.restore();
+  });
+}
+
+// ════ ACT I (song breakdown) ════
+function I0(u) { // glass + urban plates stacking over the Vello logo, cut every half-beat
+  bg(X, '#050505');
+  INTRO_URLS.forEach(img); const lg = img(LOGO);
+  const g = renderIntro(u, 0.5573, lg); if (g) X.drawImage(g, 0, 0);
+  // hard-cut flash frames on half-beats + logo outline punch
+  const hb = u % (0.5573 / 2); if (hb < 0.03) flash(X, '#fff', 0.25);
+}
+function A1(u) {
+  shot(X, 'chrome', u, { off: 0.2, zs: 0.05 });
+  word(X, 'every', W * 0.30, H / 2, BIG, u - 0.1, { out: 1.05 });
+  word(X, 'feed,', W * 0.56, H / 2, BIG, u - 0.45, { out: 0.75 });
+  word(X, 'every second.', W / 2, H / 2, BIG, u - 1.25, { align: 'center' });
+}
+function A2(u) {
+  const cut = D(12, 14);
+  if (u < cut) shot(X, 'chart', u, { off: 0.2, zs: 0.08, rot: 0.01 }); else shot(X, 'earth', u - cut, { off: 0.5, zs: 0.05 });
+  const d = u - cut; if (d > -0.18 && d < 0.18) { bg(X, C.ink); dots(X, vframe(d < 0 ? 'chart' : 'earth', d < 0 ? 0.2 + u : 0.5 + Math.max(0, d)), u, 1 - Math.abs(d) / 0.18); }
+  word(X, 'attention never stops', W / 2, H / 2, BIG, u - 0.25, { align: 'center' });
+}
+function A3(u) {
+  const c1 = D(16, 17), c2 = D(16, 18);
+  if (u < c1) shot(X, 'runner', u, { off: 1.2, zs: 0.04 }); else if (u < c2) shot(X, 'warp', u - c1, { speed: 1.2, zs: 0.2 }); else { bg(X, C.ink); lineArt(X, vframe('creator2', 2 + u - c2), u); }
+  word(X, 'everywhere,', 110, H * 0.4, BIG, u - 0.15);
+  word(X, 'across 145 countries', W - 110, H * 0.62, BIG, u - c1, { align: 'right' });
+}
+function A4(u) { // 3D feed tunnel — billions of eyes
+  TUNNEL_URLS.forEach(img); const g = renderTunnel(u); if (g) X.drawImage(g, 0, 0);
+  const r = X.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 900); r.addColorStop(0, 'rgba(0,0,0,0.55)'); r.addColorStop(1, 'rgba(0,0,0,0)'); X.fillStyle = r; X.fillRect(0, 0, W, H);
+  const two = u >= D(20, 22);
+  word(X, two ? 'on every screen' : 'billions of eyes', W / 2, H / 2, BIG, two ? u - D(20, 22) : u - 0.05, { align: 'center', out: two ? 9 : D(20, 22) - 0.2 });
+}
+const SPOTS = [[0.24, 0.24], [0.74, 0.2], [0.86, 0.47], [0.16, 0.7], [0.55, 0.12], [0.64, 0.82], [0.36, 0.86], [0.9, 0.76], [0.42, 0.3], [0.08, 0.42]];
+function wall(c, inv) { const s = 128, gap = 10; for (let y = -s / 2; y < H + s; y += s + gap) for (let x = -s / 2; x < W + s; x += s + gap) { rrect(c, x, y, s, s, 22); c.fillStyle = inv ? '#FAFAFA' : '#0D0D0D'; c.fill(); c.strokeStyle = inv ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)'; c.lineWidth = 1.5; c.stroke(); } }
+function A6(u) {
+  bg(X, C.ink); wall(X, false);
+  SPOTS.forEach(([x, y], i) => { const q = clamp((u - i * 0.17) / 0.2); if (q > 0) tile(X, GLYPHS[i], x * W, y * H, 100 * E.outBack(q)); });
+  word(X, 'but your reach', W / 2, H / 2 - 50, MID + 10, u - 0.15, { align: 'center', shadow: false });
+  word(X, 'gets scattered', W / 2, H / 2 + 40, MID + 10, u - 0.8, { align: 'center', color: '#9a9a9a', shadow: false });
+}
+function B0(u) { // what if your agent did it all? → icons converge into the mark exactly on the drop
+  const conv = D(28, 30.5), inv = u < 0.1;
+  bg(X, inv ? '#F4F4F4' : C.ink); wall(X, inv);
+  const p = E.inOutExpo(clamp((u - conv) / (D(28, 32) - conv - 0.12)));
+  SPOTS.forEach(([x, y], i) => { const tx = W / 2 + (rnd(i) - .5) * 100 * (1 - p), ty = H / 2 + (rnd(i * 3) - .5) * 80 * (1 - p); tile(X, GLYPHS[i], lerp(x * W + Math.sin(u + i) * 8, tx, p), lerp(y * H, ty, p), 100 * lerp(1, 0.75, p), 1 - clamp((p - 0.92) / 0.08), inv); });
+  if (u < conv + 0.3) {
+    const ws = ['what', 'if', 'your', 'agent', 'did', 'it', 'all?'], size = MID; let tw = 0; const ww = ws.map(s => { const w = measure(s + ' ', size); tw += w; return w; });
+    let x = W / 2 - tw / 2; ws.forEach((s, i) => { const q = clamp((u - 0.15 - i * 0.2) / 0.25); font(X, size); X.textAlign = 'left'; X.textBaseline = 'middle'; X.fillStyle = inv ? C.ink : `rgba(244,244,242,${(0.12 + 0.88 * q) * (1 - clamp((u - conv) / 0.3))})`; X.fillText(s, x, H / 2); x += ww[i]; });
+  }
+}
+// ════ ACT II (the drop) ════
+function B2(u) {
+  bg(X, '#F2F2F0');
+  X.save(); X.strokeStyle = 'rgba(0,0,0,0.05)'; for (let i = 0; i < 30; i++) { X.beginPath(); X.arc(W * 0.8, -200, 300 + i * 60 + u * 30, 0, 7); X.stroke(); } X.restore();
+  const lg = tinted(LOGO, '#0a0a0a'); if (lg) { const w = 1180, h = w * lg.height / lg.width, s = lerp(1.12, 1, E.outQuint(clamp(u / 0.6))); X.save(); X.translate(W / 2, H / 2 - 30); X.scale(s, s); X.drawImage(lg, -w / 2, -h / 2, w, h); X.restore(); }
+  word(X, 'agents that create, publish and earn', W / 2, H / 2 + 250, MID - 10, u - 0.5, { align: 'center', color: '#444', shadow: false });
+}
+function B3(u) { const g = X.createRadialGradient(W / 2, H * 0.45, 50, W / 2, H * 0.45, 1100); g.addColorStop(0, '#2a2a2a'); g.addColorStop(1, '#030303'); X.fillStyle = g; X.fillRect(0, 0, W, H); X.drawImage(renderMark(u * 1.6), 0, 0); }
+function C0(u) {
+  bg(X, '#F4F4F2');
+  const bx = W * 0.52, bh = H * 0.52, bw = W - bx;
+  X.fillStyle = '#060606'; X.fillRect(bx, 0, bw, bh);
+  for (let y = 0; y < 9; y++) for (let x = 0; x < 15; x++) { const a = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(u * 3 + x * 0.6 + y)); X.fillStyle = `rgba(255,255,255,${a})`; X.fillRect(bx + 40 + x * 58 + (y % 2) * 29, 40 + y * 58, 3, 3); }
+  X.save(); X.setLineDash([4, 6]); X.strokeStyle = 'rgba(0,0,0,0.35)'; X.beginPath(); X.moveTo(0, bh); X.lineTo(W, bh); X.moveTo(bx, 0); X.lineTo(bx, H); X.stroke(); X.restore();
+  const n = 60, pr = E.outCubic(clamp(u / 1.6));
+  X.beginPath(); for (let i = 0; i <= n * pr; i++) { const x = W * 0.12 + i / n * (bx - W * 0.12), y = H * 0.9 - (i / n) * (H * 0.9 - bh) + Math.sin(i * 1.7) * 12 * (1 - i / n); i ? X.lineTo(x, y) : X.moveTo(x, y); } X.strokeStyle = '#0a0a0a'; X.lineWidth = 2.5; X.stroke();
+  X.fillStyle = '#0a0a0a'; X.beginPath(); X.arc(bx, bh, 7, 0, 7); X.fill();
+  word(X, '$' + (2071.79 + u * 3.7).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), bx + 26, bh + 46, 44, 0.5, { color: '#0a0a0a', shadow: false });
+  word(X, 'agents', 80, 130, BIG, u - 0.05, { color: '#0a0a0a', shadow: false });
+  word(X, 'get paid', 80, 250, BIG, u - 0.3, { color: '#0a0a0a', shadow: false });
+  word(X, 'for every', W - 80, H - 250, BIG, u - 0.8, { color: '#0a0a0a', shadow: false, align: 'right' });
+  word(X, 'verified view', W - 80, H - 130, BIG, u - 1.05, { color: '#0a0a0a', shadow: false, align: 'right' });
+}
+function C1(u) { shot(X, 'head', u, { off: 0.6, zs: 0.05, dark: 0.2 }); gthumbs(X, u, JD, [[330, 250, 420, 0.5625], [1600, 280, 440, 0.5625], [400, 840, 400, 0.5625], [1560, 840, 380, 0.5625]]); word(X, u < D(44, 45.6) ? 'brief in.' : 'edits out.', W / 2, H / 2, BIG + 20, u < D(44, 45.6) ? u - 0.05 : u - D(44, 45.6), { align: 'center' }); }
+function C2(u) { shot(X, 'jet', u, { off: 0.5, zs: 0.04, px: -30, dark: 0.45 }); gthumbs(X, u, BW, [[360, 240, 420, 0.5625], [1560, 820, 440, 0.5625], [330, 850, 380, 0.5625], [1580, 240, 400, 0.5625]]); word(X, 'no timeline.', W / 2, H / 2 - 75, BIG + 20, u - 0.05, { align: 'center' }); word(X, 'no editing.', W / 2, H / 2 + 85, BIG + 20, u - 0.6, { align: 'center', color: '#d0d0d0' }); }
+function C3(u) { const cut = D(52, 54); shot(X, u < cut ? 'aerial' : 'earth2', u < cut ? u : u - cut, { off: 0.5, zs: 0.05 }); gthumbs(X, u, JD.slice(2).concat(BW), [[1580, 230, 420, 0.5625], [340, 760, 420, 0.5625], [1560, 860, 380, 0.5625]]); word(X, 'one global network', W / 2, H / 2, BIG, u - 0.05, { align: 'center' }); }
+function C4(u) {
+  bg(X, '#F4F4F2');
+  X.save(); X.strokeStyle = 'rgba(0,0,0,0.08)'; [W / 3, 2 * W / 3].forEach(x => { X.beginPath(); X.moveTo(x, 0); X.lineTo(x, H); X.stroke(); }); [H / 3, 2 * H / 3].forEach(y => { X.beginPath(); X.moveTo(0, y); X.lineTo(W, y); X.stroke(); }); X.restore();
+  const i = Math.floor(u / 0.5573), clips = ['earth2', 'chrome2', 'city', 'chrome', 'aerial'];
+  const sq = 640, x0 = W / 2 - sq / 2, y0 = H / 2 - sq / 2, open = E.outExpo(clamp(u / 0.3));
+  X.save(); X.beginPath(); X.rect(x0 + sq / 2 * (1 - open), y0, sq * open, sq); X.clip(); X.fillStyle = '#000'; X.fillRect(x0, y0, sq, sq);
+  const im = vframe(clips[i % clips.length], 0.3 + u - i * 0.5573); if (im) { X.save(); X.translate(W / 2, H / 2); X.rotate(u * (i % 2 ? -0.25 : 0.25)); cover(X, im, -sq * 0.75, -sq * 0.75, sq * 1.5, sq * 1.5); X.restore(); }
+  const m = tinted(MARK, '#ffffff'); if (m) X.drawImage(m, W / 2 - 115, H / 2 - 115, 230, 230); X.restore();
+  word(X, 'earn', x0 - 20, y0 + 50, BIG, u - 0.2, { shadow: false, color: '#0a0a0a', align: 'right' });
+  word(X, 'anywhere', x0 + 20, y0 + 50, BIG, u - 0.45);
+  word(X, 'on', x0 + sq - 20, y0 + sq - 50, BIG, u - 1.0, { align: 'right' });
+  word(X, 'solana', x0 + sq + 20, y0 + sq - 50, BIG, u - 1.2, { color: '#0a0a0a', shadow: false });
+}
+function C5(u) {
+  bg(X, C.ink); const p = E.inOutCubic(clamp(u / 1.0)), cols = 30, rows = 12, sx = W / cols, sy = H / rows;
+  X.strokeStyle = C.white; X.lineWidth = 2.4; X.lineCap = 'round';
+  for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) { const i = r * cols + q, local = clamp(p * 1.8 - (1 - q / cols) * 0.8), ang = lerp(rnd(i) * 6.28 + u * (rnd(i * 3) - .5) * 6, (i % 2) * Math.PI / 2, E.outCubic(local)); const cx = q * sx + sx / 2 + (rnd(i * 5) - .5) * 30 * (1 - local), cy = r * sy + sy / 2 + (rnd(i * 7) - .5) * 30 * (1 - local), L = sx * 0.42; X.beginPath(); X.moveTo(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L); X.lineTo(cx + Math.cos(ang) * L, cy + Math.sin(ang) * L); X.stroke(); }
+}
+// ════ agents everywhere — point-cloud globe, cut per beat ════
+const GWORDS = [[0, 'agents'], [2, 'everywhere'], [4, 'create.'], [5, 'edit.'], [6, 'distribute.'], [7, 'earn.'], [8, '145 countries'], [10, 'one network'], [12, 'always on'], [14, 'the attention economy']];
+function G0(u) {
+  const kk = (() => { let k = 0; while (k < 16 && K(62 + k + 1) - K(62) <= u) k++; return k; })();
+  GLOBE_URLS.forEach(img);
+  const g = renderGlobe(u, 0.5573, kk); if (g) X.drawImage(g, 0, 0);
+  // fast B/W footage inserts on odd beats in the second half (fast-cut energy)
+  if (kk >= 8 && kk % 2 === 1 && kk < 14) { const lk = u - D(62, 62 + kk); const clip = ['aerial', 'city', 'head'][kk % 3]; X.save(); X.globalAlpha = 0.9; shot(X, clip, lk, { off: 1, zs: 0.2 }); X.restore(); }
+  let cur = null; for (const w of GWORDS) if (kk >= w[0]) cur = w;
+  const big = cur[1] === 'the attention economy', lu = u - D(62, 62 + cur[0]);
+  word(X, cur[1], W / 2, H / 2, big ? BIG + 30 : BIG + 20, lu - 0.02, { align: 'center', w: big ? 600 : 500, dur: 0.18 });
+  if (kk >= 4 && kk < 8) { const labels = ['create', 'edit', 'distribute', 'earn']; labels.forEach((s, i) => { const on = i <= kk - 4; font(X, 26, 500); X.textAlign = 'center'; X.fillStyle = on ? '#fff' : 'rgba(255,255,255,0.25)'; X.fillText(s.toUpperCase(), W / 2 + (i - 1.5) * 220, H - 110); }); }
+}
+function E0(u) { bg(X, C.ink); if (u < 0.08) flash(X, '#fff', 1 - u / 0.08); }
+function D0(u) {
+  bg(X, C.ink);
+  const lg = img(LOGO); if (lg) { const w = 760, h = w * lg.height / lg.width, p = E.outQuint(clamp(u / 0.8)); X.save(); X.globalAlpha = p * (1 - clamp((u - 2.2) / 0.5)); X.translate(W / 2 - (1 - p) * 60, H / 2 - 40); X.drawImage(lg, -w / 2, -h / 2, w, h); X.restore(); }
+  word(X, 'the global attention economy', W / 2, H / 2 + 140, MID - 10, u - 0.4, { align: 'center', color: '#a8a8a8', out: 2.2 });
+  X.save(); X.globalAlpha = clamp(u / 0.4) * (1 - clamp((u - 2.2) / 0.5)); trackLines(X, u); X.restore();
+}
+export const SHOTS = [
+  [0, I0], [K(8), A1], [K(12), A2], [K(16), A3], [K(20), A4a], [K(22), A4b], [K(24), A6], [K(28), B0],
+  [K(32), B2], [K(36), B3], [K(40), C0], [K(44), C1], [K(48), C2], [K(52), C3], [K(56), C4], [K(60), C5],
+  [K(62), M0], [K(76), M1], [K(80), D0]];
+export const DUR = 47.0;
+
+// ════════ v4.1 additions ════════
+// urban tracking lines: hairlines, crosshairs, coordinates, frame counter
+export function trackLines(c, u, col = 'rgba(255,255,255,0.55)', dark = false) {
+  c.save(); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
+  const hx = [0.18, 0.5, 0.82], hy = [0.16, 0.84];
+  hy.forEach((y, i) => { const yy = y * H + Math.sin(u * 0.9 + i) * 6; c.beginPath(); c.moveTo(0, yy); c.lineTo(W, yy); c.stroke(); });
+  hx.forEach((x, i) => { const xx = x * W + ((u * 40 * (i % 2 ? 1 : -1)) % 60); c.save(); c.setLineDash([2, 10]); c.beginPath(); c.moveTo(xx, 0); c.lineTo(xx, H); c.stroke(); c.restore(); });
+  [[0.18, 0.16], [0.82, 0.16], [0.18, 0.84], [0.82, 0.84]].forEach(([x, y]) => { const px = x * W, py = y * H; c.beginPath(); c.moveTo(px - 14, py); c.lineTo(px + 14, py); c.moveTo(px, py - 14); c.lineTo(px, py + 14); c.stroke(); });
+  font(c, 15, 500, 'JetBrains Mono'); c.textBaseline = 'middle';
+  const lat = (3.139 + Math.sin(u * 0.3) * 0.02).toFixed(4), lon = (101.6869 + u * 0.003).toFixed(4);
+  c.textAlign = 'left'; c.fillText(`N ${lat}°  E ${lon}°`, 0.18 * W + 22, 0.16 * H - 16);
+  c.textAlign = 'right'; c.fillText(`VLO-${String(Math.floor(u * 50)).padStart(5, '0')}  ●REC`, 0.82 * W - 22, 0.16 * H - 16);
+  c.textAlign = 'left'; c.fillText('THE GLOBAL ATTENTION ECONOMY', 0.18 * W + 22, 0.84 * H + 18);
+  c.textAlign = 'right'; c.fillText(`${(48213 + Math.floor(u * 917)).toLocaleString('en-US')} VIEWS / MIN`, 0.82 * W - 22, 0.84 * H + 18);
+  // scanning bar
+  const sy = ((u * 0.6) % 1) * H; c.globalAlpha = 0.25; c.fillRect(0, sy, W, 1.5);
+  c.restore();
+}
+// "billions of eyes" — white field, square window flashing b-roll every half-beat (earn-anywhere language)
+const EYECLIPS = ['city', 'aerial', 'head', 'bokeh', 'jet', 'creator', 'runner', 'car', 'chart', 'earth2'];
+function A4a(u) {
+  const hb = 0.5573 / 2, i = Math.floor(u / hb), inv = i % 4 === 3;
+  bg(X, inv ? '#060606' : '#F4F4F2');
+  const sq = 600, x0 = W / 2 - sq / 2 + 120, y0 = H / 2 - sq / 2, open = E.outExpo(clamp(u / 0.25));
+  X.save(); X.beginPath(); X.rect(x0, y0 + sq / 2 * (1 - open), sq, sq * open); X.clip(); X.fillStyle = '#000'; X.fillRect(x0, y0, sq, sq);
+  const im = vframe(EYECLIPS[i % EYECLIPS.length], 0.5 + (u - i * hb) * 1.5 + i * 0.3); if (im) { X.save(); X.translate(x0 + sq / 2, y0 + sq / 2); X.scale(1.15 + (u - i * hb) * 0.4, 1.15 + (u - i * hb) * 0.4); cover(X, im, -sq / 2, -sq / 2, sq, sq); X.restore(); }
+  X.restore();
+  word(X, 'billions', x0 - 24, y0 + 60, BIG, u - 0.05, { align: 'right', color: inv ? '#fff' : '#0a0a0a', shadow: false });
+  word(X, 'of eyes', x0 + 24, y0 + sq - 60, BIG, u - 0.35);
+  trackLines(X, u, inv ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)');
+}
+// "on every screen" — 3×2 wall of screens, each cutting b-roll, inverted flash per beat
+function A4b(u) {
+  const b = 0.5573, k = Math.floor(u / b), inv = k % 2 === 1 && (u % b) < 0.09;
+  bg(X, '#050505');
+  const cw = 520, ch = 292, gx = 40, gy = 40, ox = (W - (3 * cw + 2 * gx)) / 2, oy = (H - (2 * ch + gy)) / 2;
+  for (let r = 0; r < 2; r++) for (let q = 0; q < 3; q++) {
+    const n = r * 3 + q, born = n * 0.07, a = clamp((u - born) / 0.12); if (a <= 0) continue;
+    const sub = Math.floor((u + n * 0.13) / (b / 2)), clip = EYECLIPS[(sub + n * 3) % EYECLIPS.length];
+    const im = vframe(clip, 0.4 + ((u + n * 0.13) % (b / 2)) * 2 + n * 0.5); const x = ox + q * (cw + gx), y = oy + r * (ch + gy);
+    X.save(); X.globalAlpha = a; if (im) cover(X, im, x, y, cw, ch, { zoom: 1.1 }); X.strokeStyle = 'rgba(255,255,255,0.35)'; X.strokeRect(x, y, cw, ch); X.restore();
+  }
+  X.fillStyle = 'rgba(0,0,0,0.35)'; X.fillRect(0, 0, W, H);
+  word(X, 'on every screen', W / 2, H / 2, BIG + 10, u - 0.05, { align: 'center' });
+  trackLines(X, u);
+  if (inv) invert();
+}
+export function invert() { X.save(); X.globalCompositeOperation = 'difference'; X.fillStyle = '#fff'; X.fillRect(0, 0, W, H); X.restore(); }
+// ════ videos everywhere, earning views — calm world map, pinned live videos ════
+const MCITIES = [['SEOUL', 127, 37.5], ['TOKYO', 139.7, 35.7], ['KUALA LUMPUR', 101.7, 3.1], ['MUMBAI', 72.9, 19.1], ['DUBAI', 55.3, 25.2], ['LAGOS', 3.4, 6.5], ['PARIS', 2.35, 48.9], ['SÃO PAULO', -46.6, -23.5], ['MEXICO CITY', -99.1, 19.4], ['NEW YORK', -74, 40.7], ['JAKARTA', 106.8, -6.2], ['ISTANBUL', 29, 41]];
+const MCLIPS = ['creator', 'creator2', 'head', 'city', 'aerial', 'jet', 'bokeh', 'runner', 'edit', 'car', 'earth2', 'chart'];
+function M0(u) {
+  bg(X, '#050505');
+  const T = D(62, 76), p = E.inOutCubic(clamp(u / T)); // one slow, continuous move — no speed-up
+  const cell = 15, mw = 192 * cell, mh = 96 * cell;
+  const camLon = lerp(125, -60, p), camLat = lerp(22, 15, p), zoom = lerp(1.05, 0.92, p);
+  const toXY = (lon, lat) => [((lon + 180) / 360) * mw, ((90 - lat) / 180) * mh];
+  const [cx, cy] = toXY(camLon, camLat);
+  X.save(); X.translate(W / 2, H / 2); X.scale(zoom, zoom); X.translate(-cx, -cy);
+  const G = window.MAPGRID; X.fillStyle = 'rgba(255,255,255,0.28)';
+  for (let y = 0; y < 96; y++) for (let x = 0; x < 192; x++) if (G[y][x] === '1') { for (const dx of [-mw, 0, mw]) { const px = x * cell + dx; if (px * zoom < cx * zoom - W && px > cx + W / zoom) continue; X.fillRect(px + 4, y * cell + 4, 4, 4); } }
+  // pins: each city video pops on a half-beat, view counter ticks
+  MCITIES.forEach(([name, lon, lat], i) => {
+    const t0 = 0.15 + i * 0.5573 * 0.9, q = clamp((u - t0) / 0.35); if (q <= 0) return;
+    let [px, py] = toXY(lon, lat); if (px - cx > mw / 2) px -= mw; if (cx - px > mw / 2) px += mw;
+    const s = E.outQuint(q), tw = 200, th = 356, lift = 230;
+    X.fillStyle = '#fff'; X.beginPath(); X.arc(px, py, 6, 0, 7); X.fill();
+    X.strokeStyle = 'rgba(255,255,255,0.6)'; X.lineWidth = 1.2; X.beginPath(); X.arc(px, py, 12 + ((u * 30 + i * 7) % 26), 0, 7); X.stroke();
+    X.beginPath(); X.moveTo(px, py); X.lineTo(px, py - lift * s); X.stroke();
+    X.save(); X.translate(px, py - lift * s - th / 2); X.scale(s, s);
+    const im = vframe(MCLIPS[i % MCLIPS.length], 0.5 + (u - t0)); X.filter = 'grayscale(1) contrast(1.15)'; if (im) cover(X, im, -tw / 2, -th / 2, tw, th); X.filter = 'none';
+    X.strokeStyle = 'rgba(255,255,255,0.7)'; X.strokeRect(-tw / 2, -th / 2, tw, th);
+    const views = Math.floor((20 + rnd(i) * 80) * 1000 * (0.2 + (u - t0) * 1.4));
+    font(X, 24, 600); X.textAlign = 'left'; X.textBaseline = 'middle'; X.fillStyle = '#fff'; X.fillText(name, -tw / 2, th / 2 + 24);
+    font(X, 20, 500, 'JetBrains Mono'); X.fillStyle = '#C8FF00'; X.fillText(`▲ ${views.toLocaleString('en-US')} views`, -tw / 2, th / 2 + 54);
+    X.restore();
+  });
+  X.restore();
+  const vg = X.createLinearGradient(0, H * 0.55, 0, H); vg.addColorStop(0, 'rgba(5,5,5,0)'); vg.addColorStop(1, 'rgba(5,5,5,0.9)'); X.fillStyle = vg; X.fillRect(0, 0, W, H);
+  const lines = [[0, 'every video'], [4, 'earning views'], [8, 'all over the world'], [12, 'settled on solana']];
+  let cur = lines[0]; for (const l of lines) if (u >= D(62, 62 + l[0])) cur = l;
+  const lu = u - D(62, 62 + cur[0]);
+  word(X, cur[1], 110, H - 150, BIG + 10, lu - 0.03, { out: D(62, 66) - 0.18 });
+  if (cur[1] === 'settled on solana') { const g = X.createLinearGradient(110, 0, 700, 0); g.addColorStop(0, '#9945FF'); g.addColorStop(1, '#14F195'); X.fillStyle = g; X.fillRect(112, H - 78, 560 * E.outExpo(clamp(lu / 0.5)), 4); }
+  trackLines(X, u);
+}
+function M1(u) { // this is the attention economy — map dissolves to black with tracking lines
+  bg(X, '#050505'); trackLines(X, u + 9);
+  word(X, 'this is', W / 2, H / 2 - 80, BIG - 10, u - 0.02, { align: 'center', color: '#bdbdbd' });
+  word(X, 'the attention economy', W / 2, H / 2 + 50, BIG + 30, u - 0.2, { align: 'center', w: 600 });
+}

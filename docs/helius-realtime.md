@@ -1,0 +1,7 @@
+# Helius and live updates
+
+Helius is now primary for devnet and mainnet when NEXT_PUBLIC_HELIUS_API_KEY is configured. Same-cluster public endpoints remain fallback candidates. Wallet-adapter, Privy and DBC server connections use the shared network helpers; the local explicit RPC environment URL also points to Helius. Cluster remains devnet.
+
+The shared app shell mounts confirmed logs subscriptions scoped to up to 30 Solcameo DBC pools. Unrelated DBC launches do not trigger app refreshes. Pool/config/supply/genesis reads run concurrently. Successful notifications are coalesced for 750ms and trigger the existing market, ticker, pool/chart, holders and trade refresh listeners. Wallet SOL balances subscribe to account changes. Polling remains a reconnect fallback. Confirmed transaction details are cached for five minutes (bounded 500 entries); live balance and pool values are not cached. Holder refreshes do not overlap.
+
+Helius live verification: devnet genesis matched, HTTP request approximately 623ms; standard WebSocket DBC subscription accepted approximately 315ms. Thirteen targeted tests passed and targeted lint passed. Full type checking reports existing errors outside changed code. These measurements are endpoint/subscription checks, not a complete page-latency benchmark. Local Next development server restarted after requests timed out; initial compilation can still delay page loads. No mainnet spending or production frontend deployment performed.

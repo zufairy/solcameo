@@ -1,0 +1,25 @@
+[package]
+name = "agent-vault"
+version = "0.1.0"
+description = "Vello Agent Vault — per-agent PDA USDC vault with capped, idempotent fee debits"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "agent_vault"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.31.1", features = ["token", "associated_token"] }
+# Pin to the version solana-zk-sdk 2.1.0 (via spl-token-2022 6.0.0 → anchor-spl 0.31.1)
+# hard-requires (=2.1.0); anchor-lang's ^2 also accepts it. Resolves the
+# "failed to select a version for solana-program" conflict on this toolchain.
+solana-program = "=2.1.0"
