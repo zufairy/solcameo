@@ -23,12 +23,12 @@ import {
 import { legacyUiEnabled } from "@/lib/flags";
 import { BRAND } from "@/lib/solstar/brand";
 import { getMenuItems } from "@/lib/solstar/menu";
-import { CreateSpiral } from "./create-spiral";
 import { ShellAccount } from "./shell-account";
 import { ShellSearch } from "./shell-search";
 import { ShellProvider } from "./shell-context";
 import { OnchainUpdates } from "@/components/solstar/OnchainUpdates";
 import { TickerStrip } from "@/components/solstar/TickerStrip";
+import { playUiTick } from "@/lib/client/uiSound";
 
 function Logo() {
   const { setOpenMobile } = useSidebar();
@@ -120,8 +120,7 @@ function RailCreate() {
           tooltip="Create"
           className={CREATE_CLASS}
         >
-          <CreateSpiral />
-          <Plus className="relative size-4 shrink-0" strokeWidth={2.5} />
+          <Plus className="relative size-4 shrink-0 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]" strokeWidth={3} />
           <span className="group-data-[collapsible=icon]:hidden">Create</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -185,6 +184,13 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMarketTerminal = !legacyUiEnabled() && /^\/market\/[^/]+$/.test(pathname);
   const isControl = pathname === "/control" || pathname.startsWith("/control/");
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest?.('[data-slot="sidebar-menu-button"], [data-slot="sidebar-menu-sub-button"]')) playUiTick();
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
   return (
     <ShellProvider value={true}>
       <OnchainUpdates />
@@ -219,7 +225,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
             {!isMarketTerminal && <ShellAnnouncement />}
             <TopBar terminal={isMarketTerminal} />
-            {!isControl && !pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/market") && !pathname.startsWith("/agents") && <TickerStrip />}
+            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && <TickerStrip />}
             <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>

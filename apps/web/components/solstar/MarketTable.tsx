@@ -336,12 +336,10 @@ function Market() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-zinc-500" />
         </div>
-        <p className={`ml-auto flex h-10 items-center gap-2.5 rounded-lg border px-3.5 text-xs font-medium backdrop-blur-xl ${connection.isWebSocketConnected ? "border-emerald-400/25 bg-emerald-500/[0.08] text-emerald-200" : "border-amber-400/25 bg-amber-500/[0.08] text-amber-200"}`}>
-          <span className="relative flex size-2">
-            <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-75 motion-reduce:animate-none ${connection.isWebSocketConnected ? "bg-emerald-400" : "bg-amber-400"}`} />
-            <span className={`relative inline-flex size-2 rounded-full ${connection.isWebSocketConnected ? "bg-emerald-400 shadow-[0_0_10px_#34d399]" : "bg-amber-400 shadow-[0_0_10px_#fbbf24]"}`} />
-          </span>
-          {visible?.length ?? "…"} markets · {connection.isWebSocketConnected ? "Live updates" : "Reconnecting"}
+        <p className="ml-auto text-sm font-medium text-white">
+          {connection.isWebSocketConnected
+            ? `${visible?.length ?? "…"} ${visible?.length === 1 ? "influencer" : "influencers"} live right now`
+            : "Reconnecting…"}
         </p>
       </div>
       {rows === undefined ? (

@@ -173,7 +173,7 @@ export function ConnectedPlatformStack({
             // must open the social profile, not also fire the card's navigation.
             onClick={(e) => e.stopPropagation()}
             style={{ zIndex: shown.length - i }} // first platform sits on TOP of the stack
-            className={`${ringWrap} cursor-pointer transition-transform duration-200 hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:scale-110 focus-visible:outline-none focus-visible:ring-white/60`}
+            className={`${ringWrap} cursor-pointer transition-[transform,box-shadow] duration-300 ease-out hover:z-10 hover:-translate-y-0.5 hover:scale-125 hover:shadow-[0_6px_14px_rgba(0,0,0,0.55)] focus-visible:z-10 focus-visible:scale-125 focus-visible:outline-none focus-visible:ring-white/60 motion-reduce:transition-none`}
           >
             {badge}
           </a>

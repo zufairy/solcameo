@@ -389,13 +389,13 @@ export function AppHeader({ transparent = true }: { transparent?: boolean }) {
 }
 
 /** Full-screen shell with the header nav on top instead of a sidebar. */
-export function AppHeaderShell({ children, transparentHeader = true }: { children: React.ReactNode; transparentHeader?: boolean }) {
+export function AppHeaderShell({ children, transparentHeader = true, flat = false }: { children: React.ReactNode; transparentHeader?: boolean; flat?: boolean }) {
   if (useInSolstarShell()) return <>{children}</>;
   return (
     <div
       data-app-chrome
       className="flex h-screen w-full flex-col overflow-hidden text-white"
-      style={{ background: "radial-gradient(ellipse 75% 380px at 20% 0%, rgba(132,204,22,0.18), transparent 72%), radial-gradient(ellipse 48% 320px at 85% 0%, rgba(74,222,128,0.09), transparent 72%), #08080a" }}
+      style={{ background: flat ? "#000" : "radial-gradient(ellipse 75% 380px at 20% 0%, rgba(132,204,22,0.18), transparent 72%), radial-gradient(ellipse 48% 320px at 85% 0%, rgba(74,222,128,0.09), transparent 72%), #08080a" }}
     >
       <AppHeader transparent={transparentHeader} />
       <div data-app-content className="min-h-0 flex-1 overflow-y-auto">{children}</div>

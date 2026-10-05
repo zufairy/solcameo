@@ -20,6 +20,9 @@ export interface RosterAgent {
   connectedSocialAccounts?: Record<string, { id?: string; handle?: string; displayName?: string }>;
   followers: number;
   followerDelta: number;
+  agentWallet?: string | null;
+  /** All-time earnings counter on the agent row (used as a floor for the all-time window). */
+  lifetimeEarningsUsdc?: number;
 }
 
 export interface AgentStats {
@@ -36,13 +39,21 @@ export interface AgentStats {
   /** Metered spend (usageLedger.costUsdc) in the window; 0 when none recorded. */
   ledgerCostUsdc: number;
   lastPostedAt: number | null;
+  /** Payouts (distributions) in the window, USDC. Absent on older deployments. */
+  earningsUsdc?: number;
+  /** Part of earningsUsdc whose splits carry a tx signature (checkable on-chain). */
+  earningsOnchainUsdc?: number;
+  payoutCount?: number;
 }
 
-export type SortKey = "views" | "posted" | "followers" | "costUsdc" | "viewsPerUsd";
+export type SortKey = "earnings" | "views" | "posted" | "followers" | "costUsdc" | "viewsPerUsd";
 export type WindowKey = "7d" | "30d" | "all";
 
 export interface RankedAgent extends RosterAgent, AgentStats {
   rank: number;
+  earningsUsdc: number;
+  earningsOnchainUsdc: number;
+  payoutCount: number;
   costUsdc: number;
   /** True when no ledger rows existed and the cost is the per-clip list-price estimate. */
   costEstimated: boolean;
@@ -58,18 +69,21 @@ export function estimateCostUsdc(s: Pick<AgentStats, "generated" | "posted">): n
   return s.generated * SERVICE_PRICES.render + s.posted * SERVICE_PRICES.social_post;
 }
 
-export function rankAgents(roster: RosterAgent[], stats: Record<string, AgentStats | undefined>, sort: SortKey): RankedAgent[] {
+export function rankAgents(roster: RosterAgent[], stats: Record<string, AgentStats | undefined>, sort: SortKey, allTime = false): RankedAgent[] {
   const rows = roster.map((a) => {
     const s = stats[a.mintAddress] ?? ZERO;
     const costEstimated = s.ledgerCostUsdc <= 0;
     const costUsdc = costEstimated ? estimateCostUsdc(s) : s.ledgerCostUsdc;
     const viewsPerUsd = costUsdc > 0 ? s.views / costUsdc : null;
-    return { ...a, ...s, rank: 0, costUsdc, costEstimated, viewsPerUsd };
+    const windowEarnings = s.earningsUsdc ?? 0;
+    const earningsUsdc = allTime ? Math.max(windowEarnings, a.lifetimeEarningsUsdc ?? 0) : windowEarnings;
+    return { ...a, ...s, rank: 0, costUsdc, costEstimated, viewsPerUsd, earningsUsdc, earningsOnchainUsdc: s.earningsOnchainUsdc ?? 0, payoutCount: s.payoutCount ?? 0 };
   });
   const num = (v: number | null) => (v === null ? -Infinity : v);
   rows.sort((x, y) => {
-    const primary = sort === "viewsPerUsd" ? num(y.viewsPerUsd) - num(x.viewsPerUsd) : y[sort] - x[sort];
+    const primary = sort === "viewsPerUsd" ? num(y.viewsPerUsd) - num(x.viewsPerUsd) : sort === "earnings" ? y.earningsUsdc - x.earningsUsdc : y[sort] - x[sort];
     if (primary !== 0) return primary;
+    if (sort !== "earnings" && y.earningsUsdc !== x.earningsUsdc) return y.earningsUsdc - x.earningsUsdc;
     if (y.views !== x.views) return y.views - x.views;
     if (y.posted !== x.posted) return y.posted - x.posted;
     return x.name.localeCompare(y.name);
@@ -77,9 +91,10 @@ export function rankAgents(roster: RosterAgent[], stats: Record<string, AgentSta
   return rows.map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
-export function summarize(rows: RankedAgent[]): { agents: number; active: number; views: number; posted: number; generated: number; costUsdc: number } {
+export function summarize(rows: RankedAgent[]): { earningsUsdc: number; agents: number; active: number; views: number; posted: number; generated: number; costUsdc: number } {
   return rows.reduce(
     (acc, r) => ({
+      earningsUsdc: acc.earningsUsdc + r.earningsUsdc,
       agents: acc.agents + 1,
       active: acc.active + (r.generated > 0 || r.posted > 0 ? 1 : 0),
       views: acc.views + r.views,
@@ -87,7 +102,7 @@ export function summarize(rows: RankedAgent[]): { agents: number; active: number
       generated: acc.generated + r.generated,
       costUsdc: acc.costUsdc + r.costUsdc,
     }),
-    { agents: 0, active: 0, views: 0, posted: 0, generated: 0, costUsdc: 0 },
+    { earningsUsdc: 0, agents: 0, active: 0, views: 0, posted: 0, generated: 0, costUsdc: 0 },
   );
 }
 

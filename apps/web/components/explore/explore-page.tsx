@@ -127,9 +127,11 @@ function ReferenceCard({
           <span className="block text-sm font-semibold leading-snug text-white">
             {item.title}
           </span>
-          <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-white/65">
-            {item.description || "Create with your influencer"}
-          </span>
+          {!preview && (
+            <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-white/65">
+              {item.description || "Create with your influencer"}
+            </span>
+          )}
           <span className="mt-3 flex items-center justify-between gap-2 text-xs font-medium text-[#d7ff00]">
             <span className="flex items-center gap-1.5">
               <VideoStackIcon className="size-4" /> Use reference{" "}

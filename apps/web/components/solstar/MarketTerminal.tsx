@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- remote episode media */
+import { SocialLinksForm } from "./SocialLinksForm";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -926,6 +927,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
         >
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <TradeTicket token={token} />
+          {publicKey?.toBase58() === character.ownerWallet && <SocialLinksForm characterId={characterId} xUrl={character.xUrl} websiteUrl={character.websiteUrl} />}
           {(token.network === "paper" || token.state === "pending") &&
             !token.dbcPool &&
             publicKey?.toBase58() === character.ownerWallet && (

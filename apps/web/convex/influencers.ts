@@ -61,11 +61,13 @@ export const listSearchable = query({
   args: {},
   handler: async (ctx) => {
     const docs = await ctx.db.query("influencers").order("desc").collect();
-    return docs.map((d) => ({
+    const tickers = await Promise.all(docs.map(async (d) => (d.solstarTokenId ? (await ctx.db.get(d.solstarTokenId))?.ticker : undefined)));
+    return docs.map((d, i) => ({
       _id: d._id,
       mintAddress: d.mintAddress,
       name: d.name,
       handle: d.handle,
+      ticker: tickers[i],
       niche: d.niche,
       agentType: d.agentType,
       avatarUrl: d.avatarUrl,

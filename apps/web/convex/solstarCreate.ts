@@ -172,3 +172,28 @@ export const backfillCharacterAgents = internalMutation({
     return { linked, cursor: page.continueCursor, done: page.isDone };
   },
 });
+
+const SOCIAL_MAX = 200;
+/** Accepts only plain https links; X links must point at x.com or twitter.com. Empty string clears. */
+function cleanSocial(raw: string | undefined, kind: "x" | "website"): string | undefined {
+  const value = (raw ?? "").trim();
+  if (!value) return undefined;
+  if (value.length > SOCIAL_MAX) throw new Error("invalid_link");
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error("invalid_link"); }
+  if (url.protocol !== "https:" || url.username || url.password) throw new Error("invalid_link");
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (kind === "x" && host !== "x.com" && host !== "twitter.com") throw new Error("invalid_link");
+  return url.toString();
+}
+
+export const setSocialLinks = mutation({
+  args: { wallet: v.string(), characterId: v.id("ssCharacters"), xUrl: v.optional(v.string()), websiteUrl: v.optional(v.string()), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    const character = await ctx.db.get(a.characterId);
+    if (!character || character.ownerWallet !== a.wallet) throw new Error("not_owner");
+    await ctx.db.patch(a.characterId, { xUrl: cleanSocial(a.xUrl, "x"), websiteUrl: cleanSocial(a.websiteUrl, "website") });
+    return { ok: true as const };
+  },
+});

@@ -51,6 +51,20 @@ describe("rankAgents", () => {
 describe("summarize", () => {
   it("totals the board", () => {
     const rows = rankAgents(roster, stats, "views");
-    expect(summarize(rows)).toEqual({ agents: 3, active: 2, views: 16000, posted: 18, generated: 50, costUsdc: 12 + 20 * 0.4 + 8 * 0.05 });
+    expect(summarize(rows)).toEqual({ earningsUsdc: 0, agents: 3, active: 2, views: 16000, posted: 18, generated: 50, costUsdc: 12 + 20 * 0.4 + 8 * 0.05 });
+  });
+});
+
+describe("earnings ranking", () => {
+  it("ranks by payout earnings and floors all-time on the lifetime counter", () => {
+    const base = { views: 0, posted: 0, generated: 0, jobs: 0, ledgerCostUsdc: 0, lastPostedAt: null };
+    const r = [
+      { ...roster[0], lifetimeEarningsUsdc: 5 },
+      { ...roster[1], lifetimeEarningsUsdc: 90 },
+      { ...roster[2], lifetimeEarningsUsdc: 0 },
+    ];
+    const st = { A: { ...base, earningsUsdc: 40 }, B: { ...base, earningsUsdc: 10 }, C: { ...base, earningsUsdc: 25 } };
+    expect(rankAgents(r, st, "earnings").map((x) => x.mintAddress)).toEqual(["A", "C", "B"]);
+    expect(rankAgents(r, st, "earnings", true).map((x) => x.mintAddress)).toEqual(["B", "A", "C"]);
   });
 });

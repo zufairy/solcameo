@@ -50,6 +50,8 @@ interface Row {
   changes: number[] | null;
   sparkline: number[];
   athLamports: string | null;
+  xUrl?: string;
+  websiteUrl?: string;
 }
 
 /** Derived market stats for approved characters. Reactive, so the UI updates live after trades. */
@@ -138,6 +140,8 @@ export const listMarket = query({
         followersCountCapped: following.length > 1000,
         historyComplete: stats !== null,
         createdAt: token.createdAt,
+        ...(character.xUrl ? { xUrl: character.xUrl } : {}),
+        ...(character.websiteUrl ? { websiteUrl: character.websiteUrl } : {}),
         videosPosted: Math.min(episodes.length, 1000),
         videosCountCapped: episodes.length > 1000,
         holders: stats?.holders.length ?? null,

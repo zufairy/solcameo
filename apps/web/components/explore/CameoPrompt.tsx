@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ImagePlus, Loader2, Sparkles, X } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { ReferenceVideo } from "@/lib/explore/feed";
 
-export interface CameoMember { token: string; name: string; avatarUrl: string }
+export interface CameoMember { token: string; name: string; avatarUrl: string; ticker?: string }
 
 const tokenOf = (name: string) => name.replace(/\s+/g, "").replace(/[^\w-]/g, "") || "agent";
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
@@ -48,7 +48,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
       const token = tokenOf(a.name);
       if (seen.has(token.toLowerCase())) continue;
       seen.add(token.toLowerCase());
-      out.push({ token, name: a.name, avatarUrl: a.avatarUrl });
+      out.push({ token, name: a.name, avatarUrl: a.avatarUrl, ticker: a.ticker ?? undefined });
     }
     for (const u of uploads) if (!seen.has(u.token.toLowerCase())) out.push(u);
     return out;
@@ -65,7 +65,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
   const castKey = cast.map((c) => c.token).join("|");
   useEffect(() => { onCast(cast); }, [castKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const matches = query ? roster.filter((r) => r.token.toLowerCase().includes(query.q.toLowerCase()) || r.name.toLowerCase().includes(query.q.toLowerCase())).slice(0, 6) : [];
+  const matches = query ? roster.filter((r) => { const q = query.q.toLowerCase().replace(/^\$/, ""); return r.token.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || (r.ticker ?? "").toLowerCase().includes(q); }).slice(0, 8) : [];
 
   function detect(text: string, caret: number) {
     const m = /(^|\s)@([\w-]*)$/.exec(text.slice(0, caret));
@@ -158,8 +158,8 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
         </button>
         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
         <button type="button" disabled={busy} onClick={() => void magic({ keepDraft: userWrote(value) })}
-          className="inline-flex items-center gap-1 rounded-full border border-[#d7ff00]/30 bg-[#d7ff00]/10 px-2.5 py-1 text-[11px] font-semibold text-[#d7ff00] transition-colors hover:bg-[#d7ff00]/20 disabled:opacity-60">
-          {busy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}Magic prompt
+          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/10 disabled:opacity-60">
+          {busy && <Loader2 className="size-3 animate-spin" />}Magic prompt
         </button>
         </div>
       </div>
@@ -186,6 +186,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
           maxLength={4000}
           onChange={(e) => { runId.current++; setReveal(null); setBusy(false); onChange(e.target.value); detect(e.target.value, e.target.selectionStart); }}
           onClick={(e) => detect(value, e.currentTarget.selectionStart)}
+          onKeyUp={(e) => { if (e.key.startsWith("Arrow") && e.key !== "ArrowDown" && e.key !== "ArrowUp") detect(value, e.currentTarget.selectionStart); }}
           onKeyDown={(e) => {
             if (!query || !matches.length) return;
             if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => (i + 1) % matches.length); }
@@ -194,7 +195,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
             else if (e.key === "Escape") setQuery(null);
           }}
           placeholder="Describe the scene, or @ another agent to bring them in…"
-          className={`w-full resize-none rounded-lg border bg-black/20 p-3 text-sm text-white outline-none transition-colors focus:border-[#d7ff00] ${busy ? "border-[#d7ff00]/50" : "border-white/10"} ${reveal ? "text-transparent" : ""}`}
+          className={`w-full resize-none rounded-lg border bg-black/20 p-3 text-sm text-white outline-none transition-colors focus:border-white/25 border-white/10 ${reveal ? "text-transparent" : ""}`}
         />
         {reveal && (
           <div aria-live="polite" className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg p-3 text-sm leading-[1.4] text-white">
@@ -210,14 +211,15 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
         )}
         <AnimatePresence>
           {query && matches.length > 0 && (
-            <motion.ul role="listbox" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/90 p-1 shadow-2xl backdrop-blur-xl">
+            <motion.ul role="listbox" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="absolute bottom-full left-0 right-0 z-30 mb-1 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-zinc-900/90 p-1 shadow-2xl backdrop-blur-xl">
               {matches.map((m, i) => (
                 <li key={m.token} role="option" aria-selected={i === active}>
                   <button type="button" onMouseDown={(e) => { e.preventDefault(); pick(m); }} onMouseEnter={() => setActive(i)}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${i === active ? "bg-white/10 text-white" : "text-zinc-300"}`}>
-                    <img src={m.avatarUrl} alt="" className="size-6 rounded-md object-cover" />
-                    <span className="truncate">{m.name}</span><span className="ml-auto text-[11px] text-zinc-500">@{m.token}</span>
+                    <img src={m.avatarUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{m.name}</span><span className="block truncate text-[11px] text-zinc-500">@{m.token}</span></span>
+                    {m.ticker && <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-200">${m.ticker.replace(/^\$/, "")}</span>}
                   </button>
                 </li>
               ))}

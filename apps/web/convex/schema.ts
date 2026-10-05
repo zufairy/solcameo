@@ -11,6 +11,8 @@ export default defineSchema({
     rightsAttested: v.boolean(), rightsReviewed: v.boolean(), createdAt: v.number(),
     launchOptions: v.optional(launchOptionsValidator),
     idempotencyKey: v.optional(v.string()), imageStorageId: v.optional(v.id("_storage")),
+    // Optional public links the owner chose to attach to the token; shown only when set.
+    xUrl: v.optional(v.string()), websiteUrl: v.optional(v.string()),
   }).index("by_owner", ["ownerWallet"]).index("by_status", ["status"]).index("by_idempotency", ["idempotencyKey"]),
   ssTokens: defineTable({
     characterId: v.id("ssCharacters"),

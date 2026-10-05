@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HomeCallouts } from "./HomeCallouts";
 import { LaunchpadFeed } from "./LaunchpadFeed";
+import { WelcomePopup } from "./WelcomePopup";
 
 function subscribe(cb: () => void) {
   const mq = window.matchMedia("(min-width: 1024px)");
@@ -16,6 +17,7 @@ function useIsDesktop() {
 export function SolstarHome() {
   const desktop = useIsDesktop();
   return <main className="w-full">
+    <WelcomePopup />
     {desktop ? <div className="grid min-h-[calc(100dvh-136px)] grid-cols-[minmax(0,calc((100dvh-164px)*0.5625))_minmax(0,1fr)]">
       <section aria-label="Character launchpad feed" className="flex min-w-0 flex-col border-r border-white/[0.09]">
         <LaunchpadFeed />

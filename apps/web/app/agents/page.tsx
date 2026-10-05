@@ -28,6 +28,10 @@ import { AllAgentsVideoWall } from "@/components/generations/video-wall";
 import { AppHeaderShell } from "@/components/home/app-shell";
 import { formatAgentDescription } from "@/lib/agentDescription";
 import { socialProfileUrl } from "@/lib/socialProfileUrl";
+import { useAgentCap } from "@/lib/client/useAgentCap";
+import { useSolUsd } from "@/lib/client/useSolUsd";
+import { formatUsdEstimate } from "@/lib/solstar/usdc";
+import { ChangePill } from "@/components/solstar/MarketTable";
 import { olderAgentVideos } from "@/lib/olderAgentVideos";
 
 // ── Reference palette (matches the marketplace screenshot exactly) ────────────
@@ -763,20 +767,32 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
   const agentType = resolveAgentType(agent);
   const tvl = agent.tvl ?? 0;
   const tvlLabel = tvl >= 1000 ? `$${(tvl / 1000).toFixed(1)}K` : `$${tvl.toFixed(0)}`;
-  const price = agent.sharePrice ?? 0;
-  const apr = agent.tvl > 0 ? ((agent.monthlyEarnings * 12) / agent.tvl) * 100 : 0;
+  const ticker: string | undefined = agent.coinTicker ?? agent.ticker;
+  const cap = useAgentCap(agent.solstarCharacterId);
+  const solUsd = useSolUsd();
+  const capLabel = cap?.capSol != null && solUsd ? formatUsdEstimate(String(Math.round(cap.capSol * 1e9)), solUsd) : null;
+  const open = (e: React.KeyboardEvent) => {
+    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   return (
-    <button
-      type="button"
+    // A div, not a <button>: the connected-account badges inside are real links
+    // that open the social profile in a new tab, and links can't nest in buttons.
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={open}
       title={agent.name}
-      className="group relative flex h-36 items-stretch overflow-hidden rounded-lg border border-white/10 bg-[#131316] text-left transition-colors hover:bg-[#1a1a1e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/60"
+      className="group relative flex h-40 cursor-pointer items-stretch overflow-hidden rounded-[10px] border border-white/10 bg-[#131316] text-left transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a1a1e] hover:shadow-[0_14px_30px_-14px_rgba(0,0,0,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 motion-reduce:transition-none"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="relative h-full w-32 shrink-0 overflow-hidden bg-white/5 sm:w-36">
-        <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover object-top" initialClassName="text-5xl" />
+        <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" initialClassName="text-5xl" />
       </div>
 
       <PixelCorner />
@@ -784,19 +800,21 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       {/* Agent-type indicator — pinned to the card's actual top-right corner. */}
       <span
         title={agentType}
-        className="absolute right-2 top-2 z-10 grid size-7 shrink-0 place-items-center rounded-xl border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+        className="absolute right-2 top-2 z-10 grid size-7 shrink-0 place-items-center rounded-[8px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
       >
         {agentType === "AI Clippers" ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
       </span>
 
-      {/* Name + description stacked at top; price/APR/TVL + connected accounts
-          pinned bottom-right so the card reads name → description → detail. */}
-      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-between px-4 py-3 pr-9">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-between px-4 py-3 pr-10">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="truncate text-[15px] font-light text-white">{agent.name || "Agent"}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-[15px] font-bold uppercase tracking-wide text-white">{agent.name || "Agent"}</p>
+            {ticker && (
+              <span className="shrink-0 rounded-[5px] bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-black">
+                {ticker.toUpperCase()}
+              </span>
+            )}
             <HeartbeatHeart agent={agent} />
-            <ConnectedPlatformStack platforms={agent.connectedPlatforms} badgeClassName="size-5" ringClassName="ring-[#131316]" />
           </div>
           <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-white/50">{agentDescription(agent)}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -805,17 +823,24 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
           </div>
         </div>
         <div className="flex items-end justify-between gap-3">
-          <div className="flex items-center gap-2.5 text-[11.5px] text-white/45">
-            <span className="tabular-nums">{tvlLabel} TVL</span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{capLabel ? "Market cap" : "TVL"}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="text-[17px] font-semibold leading-none tracking-tight text-white tabular-nums">
+                {capLabel ?? tvlLabel}
+              </span>
+              {capLabel && <ChangePill value={cap?.changePct} />}
+            </div>
           </div>
-          <div className="flex shrink-0 items-baseline gap-1.5 text-[14px] font-medium text-white">
-            <span className="tabular-nums">${price.toFixed(2)}</span>
-            <MeMark />
-            {apr > 0 && <span className="text-[12px] font-semibold tabular-nums" style={{ color: ME.green }}>{apr.toFixed(0)}%</span>}
-          </div>
+          <ConnectedPlatformStack
+            platforms={agent.connectedPlatforms}
+            accounts={agent.connectedSocialAccounts}
+            badgeClassName="size-6"
+            ringClassName="ring-[#131316]"
+          />
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1095,33 +1120,26 @@ function PurchaseCard({ agent, index, onClick, metrics }: { agent: any; index: n
 }
 
 // ─── Agents hero actions — the same mascot in two purposeful poses ───────────
-function AgentHeroActionCard({ href, title, art, variant }: {
+function AgentHeroActionCard({ href, title, art }: {
   href: string;
   title: string;
+  /** Slow looping GIF that plays across the whole button. */
   art: string;
-  variant: "guide" | "launch";
 }) {
-  const guide = variant === "guide";
   return (
     <Link
       href={href}
-      className={`group relative isolate flex h-[50px] min-w-0 items-center rounded-[14px] border px-3.5 text-left text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-[transform,border-color,background-color] duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a3d77b] sm:h-[54px] sm:w-[214px] sm:px-4 ${guide ? "border-[#48664b]/70 bg-[#17251d] hover:border-[#7ea46c] hover:bg-[#1b2d21]" : "border-white/[0.14] bg-[#202622] hover:border-[#779471]/70 hover:bg-[#263029]"}`}
+      className="group relative isolate flex h-[50px] min-w-0 items-center overflow-hidden rounded-[10px] bg-[#16201c] px-4 text-left text-white transition-[transform,filter] duration-500 ease-out hover:-translate-y-0.5 hover:brightness-125 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:h-[54px] sm:w-[214px]"
       style={{ fontFamily: "var(--font-geist-sans)" }}
     >
-      <span aria-hidden className={`pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] ${guide ? "bg-[radial-gradient(circle_at_85%_78%,rgba(117,166,93,0.2),transparent_70%)]" : "bg-[radial-gradient(circle_at_85%_78%,rgba(138,167,111,0.14),transparent_70%)]"}`} />
-      <span aria-hidden className="pointer-events-none absolute bottom-1 right-1 h-4 w-[38%] rounded-full bg-black/30 blur-md" />
-      <Image
+      {/* eslint-disable-next-line @next/next/no-img-element -- animated GIF background */}
+      <img
         src={art}
         alt=""
         aria-hidden
-        width={720}
-        height={720}
-        sizes="(max-width: 639px) 76px, 86px"
-        // Taller than the button on purpose: the mascot's upper half pops out over the top edge.
-        className="pointer-events-none absolute -bottom-1 -right-2 h-[76px] w-[76px] object-contain object-bottom drop-shadow-[0_8px_8px_rgba(0,0,0,0.4)] transition-transform duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-[1.05] sm:-bottom-1 sm:-right-2 sm:h-[86px] sm:w-[86px] motion-reduce:transition-none"
+        className="pointer-events-none absolute inset-0 -z-10 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transition-none"
       />
-      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{ background: guide ? "linear-gradient(90deg, #17251d 0%, rgba(23,37,29,0.96) 35%, transparent 77%)" : "linear-gradient(90deg, #202622 0%, rgba(32,38,34,0.96) 35%, transparent 77%)" }} />
-      <span className="relative z-10 block max-w-[70%] text-[13px] font-semibold leading-[1.16] tracking-[-0.02em] sm:text-[14px]">{title}</span>
+      <span className="relative block text-[13px] font-semibold leading-[1.16] tracking-[-0.02em] sm:text-[14px]">{title}</span>
     </Link>
   );
 }
@@ -1631,7 +1649,7 @@ function FlipCounter({ value }: { value: string }) {
 // touch of motion blur. Same face, size and line box as "We build", so the
 // role sits on the exact same baseline. Slot widths glide between letters;
 // the invisible longest role holds the headline width so nothing reflows.
-const HERO_ROLES = ["Content Creators", "Clippers", "Video Editors", "Content Distributors"];
+const HERO_ROLES = ["AI Influencers", "Storytellers", "Cartoons", "Drama", "Commentators", "AI Slop", "Genjutsu"];
 const HERO_ROLE_MS = 2800;
 const ROLE_SLOTS = Math.max(...HERO_ROLES.map((r) => r.length));
 
@@ -1648,9 +1666,9 @@ function RotatingRole() {
   const word = HERO_ROLES[idx];
 
   return (
-    <span className="relative mt-1 inline-grid align-top leading-[inherit] text-[#dcefd3] sm:mt-0">
+    <span className="relative mt-1 inline-grid align-top leading-[inherit] text-[#d7ff00] sm:mt-0">
       <span className="sr-only" aria-live="polite">{word}</span>
-      <span aria-hidden className="invisible col-start-1 row-start-1 whitespace-pre">Content Distributors</span>
+      <span aria-hidden className="invisible col-start-1 row-start-1 whitespace-pre">{HERO_ROLES.reduce((a, b) => (b.length > a.length ? b : a))}</span>
       <span aria-hidden className="col-start-1 row-start-1 inline-flex items-start whitespace-pre">
         {Array.from({ length: ROLE_SLOTS }, (_, i) => {
           const ch = word[i] ?? "";
@@ -1860,7 +1878,7 @@ export default function AgentsPage() {
               className="text-[27px] font-semibold leading-[1.08] tracking-[-0.035em] text-white sm:text-[34px]"
               style={{ fontFamily: "var(--font-geist-sans)" }}
             >
-              We build <RotatingRole />
+              Invest in <RotatingRole />
             </h1>
             <p
               className="mt-2.5 text-[14px] font-normal tracking-[-0.005em] text-white/45 sm:text-[15px]"
@@ -1904,8 +1922,8 @@ export default function AgentsPage() {
             with copy protected on the left and the illustration on the right. */}
         <div className="relative mt-8 flex items-center justify-between gap-2.5">
             <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:gap-3 md:flex">
-              <AgentHeroActionCard href="/docs/start" title="New? Start Here!" art="/agents-cta-start-v2.webp" variant="guide" />
-              <AgentHeroActionCard href="/home" title="Launch your agent" art="/agents-cta-launch-v2.webp" variant="launch" />
+              <AgentHeroActionCard href="/docs/start" title="New? Start Here!" art="/brand/agents-cta-start.gif" />
+              <AgentHeroActionCard href="/home" title="Launch your agent" art="/brand/agents-cta-launch.gif" />
             </div>
             {/* Activity & Videos — labelled buttons from sm up (mobile uses the icon pill above). */}
             <div className="hidden sm:block"><PanelSwitch panel={panel} setPanel={setPanel} /></div>
