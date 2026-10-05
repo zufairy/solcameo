@@ -1441,6 +1441,10 @@ html.light body *, html.dark body * {
 .market-cta:hover { background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.25); }
 .market-cta:hover .market-cta-arrow { transform: translate(2px, -2px); }
 .market-cta-arrow { transition: transform 0.2s; }
+/* Transparent CTA on a white card: dark text, no white glass. */
+.market-cta.market-cta-light { color: #0a0a0a; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+.market-cta.market-cta-light::before { display: none; }
+.market-cta.market-cta-light:hover { background: rgba(0,0,0,0.04); box-shadow: none; }
 
 /* Ticker bar: dark top-to-bottom gradient, faint grid, and a soft lime glow in the middle. */
 .ticker-bar {
@@ -1484,43 +1488,58 @@ html.light body *, html.dark body * {
 
 /* Agent cards: 3D glossy glass. Tilts toward the cursor (vars set in AgentCard), gloss follows the pointer. */
 .agent-glass {
-  --rx: 0deg; --ry: 0deg; --gx: 30%; --gy: 0%;
-  background:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 38%, rgba(255, 255, 255, 0.055) 100%),
-    #141519;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-    inset 0 0 28px rgba(255, 255, 255, 0.025),
-    0 14px 32px -14px rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(14px) saturate(1.3);
-  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
-  transition: transform 0.18s ease-out, box-shadow 0.3s, border-color 0.3s;
-  will-change: transform;
+  background: #0b0b0c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s, transform 0.2s;
 }
-.agent-glass::before {
+.agent-glass:hover { border-color: rgba(255, 255, 255, 0.22); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .agent-glass { transition: none; }
+  .agent-glass:hover { transform: none; }
+}
+
+/* ── Glass 3D card: gradient hairline outline, glossy top sheen, depth shadow ── */
+.glass3d {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.018) 38%, rgba(255, 255, 255, 0.03) 100%),
+    rgba(18, 20, 23, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+    inset 0 0 26px rgba(255, 255, 255, 0.018),
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 22px 44px -24px rgba(0, 0, 0, 0.95);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+/* Bright-to-dark outline that catches light from the top-left (masked 1px ring). */
+.glass3d::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 5;
-  pointer-events: none;
+  z-index: 3;
   border-radius: inherit;
-  background:
-    radial-gradient(420px circle at var(--gx) var(--gy), rgba(255, 255, 255, 0.14), transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, transparent 42%);
-  opacity: 0.75;
-  transition: opacity 0.3s;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.12) 24%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.24) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-.agent-glass:hover {
-  border-color: rgba(255, 255, 255, 0.26);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-    0 22px 44px -16px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+/* Soft glossy sheen across the upper half. */
+.glass3d::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 52%;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0));
 }
-.agent-glass:hover::before { opacity: 1; }
-@media (prefers-reduced-motion: reduce) {
-  .agent-glass { transform: none; transition: none; }
-}
+.glass3d:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.5), 0 28px 50px -22px rgba(0,0,0,1); }
+@media (prefers-reduced-motion: reduce) { .glass3d { transition: none; } .glass3d:hover { transform: none; } }

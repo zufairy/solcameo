@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
-import { Download, Flame, Globe, Megaphone, Loader2 } from "lucide-react";
-import { calloutCardBlob, type CalloutCardData } from "@/lib/client/calloutCard";
+import { Download, Flame, Globe, Megaphone, Loader2, Shuffle } from "lucide-react";
+import { calloutCardBlob, CALLOUT_THEMES, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -20,7 +20,7 @@ import type { MarketRow } from "./MarketTable";
 
 const CalloutCard3D = dynamic(() => import("./CalloutCard3D"), { ssr: false, loading: () => <div className="h-[250px] w-full animate-pulse rounded-[6px] bg-white/[0.04]" /> });
 
-type Observation = { available: boolean; capSol?: number; supplyTokens?: number; changeSinceLaunchPct?: number; appVolume24hLamports?: string };
+type Observation = { available: boolean; capSol?: number; supplyTokens?: number; changeSinceLaunchPct?: number; appVolume24hLamports?: string; points?: { price: number }[] };
 function pct(n: number) { return `${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`; }
 function usd(value: number | undefined, compact = false) { return value == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: compact ? "compact" : "standard", maximumFractionDigits: compact ? 2 : value < 1 ? 7 : 2 }).format(value); }
 function usePools(rows: MarketRow[] | undefined) {
@@ -44,10 +44,19 @@ function usePools(rows: MarketRow[] | undefined) {
   }, [ids]);
   return pools;
 }
+function AgentOption({ r }: { r: MarketRow }) {
+  return <span className="flex min-w-0 items-center gap-3">
+    <img src={r.imageUrl} alt="" className="size-9 shrink-0 rounded-[6px] object-cover ring-1 ring-white/10" />
+    <span className="truncate text-sm font-bold uppercase tracking-wide text-white">{r.name}</span>
+    <span className="shrink-0 rounded-[5px] bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-black">${r.ticker.toUpperCase()}</span>
+  </span>;
+}
 export function HomeCallouts() {
   const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
   const callouts = useQuery(api.solstarFeed.listCallouts, {});
   const pools = usePools(rows); const rate = useSolUsd(); const now = useNow(30000); const reduced = useReducedMotion();
+  const [theme, setTheme] = useState<CalloutThemeId>("colosseum");
+  const shuffleTheme = () => setTheme(cur => { const rest = CALLOUT_THEMES.filter(t => t.id !== cur); return rest[Math.floor(Math.random() * rest.length)].id; });
   const [open, setOpen] = useState(false), [characterId, setCharacterId] = useState(""), [body, setBody] = useState(""), [sending, setSending] = useState(false), [error, setError] = useState(""), [posted, setPosted] = useState(false), [note, setNote] = useState("");
   const selected = rows?.find(r => r.characterId === characterId);
   const cap = (id: string) => pools[id]?.available && pools[id]?.capSol != null && rate != null ? pools[id].capSol! * rate : undefined;
@@ -62,12 +71,17 @@ export function HomeCallouts() {
       setPosted(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not post callout."); } finally { setSending(false); }
   }
-  const cardData: CalloutCardData = { name: selected?.name ?? "Your agent", ticker: selected?.ticker ?? "TICKER", imageUrl: selected?.imageUrl, body: body.trim(), cap: usd(cap(characterId), true) };
+  const obs = characterId ? pools[characterId] : undefined;
+  const cardData: CalloutCardData = {
+    name: selected?.name ?? "Your agent", ticker: selected?.ticker ?? "TICKER", imageUrl: selected?.imageUrl, body: body.trim(), cap: usd(cap(characterId), true),
+    changePct: obs?.available ? obs.changeSinceLaunchPct ?? null : null,
+    points: (obs?.points ?? []).slice(-40).map(p => p.price),
+  };
   const shareUrl = typeof window !== "undefined" && selected ? `${window.location.origin}/market/${selected.characterId}` : "https://solcameo.com";
   const shareText = `I just called out $${selected?.ticker ?? ""} on Solcameo: "${body.trim().slice(0, 180)}"`;
   async function shareToX() {
     setNote("");
-    const blob = await calloutCardBlob(cardData);
+    const blob = await calloutCardBlob(cardData, theme);
     const file = blob ? new File([blob], `solcameo-${selected?.ticker ?? "callout"}.png`, { type: "image/png" }) : null;
     try { if (file && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text: shareText, url: shareUrl }); return; } } catch { /* fall through to the X composer */ }
     let copied = false;
@@ -76,7 +90,7 @@ export function HomeCallouts() {
     window.open(`https://x.com/intent/post?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer");
   }
   async function saveCard() {
-    const blob = await calloutCardBlob(cardData);
+    const blob = await calloutCardBlob(cardData, theme);
     if (!blob) { setNote("Could not render the card image."); return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `solcameo-${selected?.ticker ?? "callout"}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
@@ -85,7 +99,7 @@ export function HomeCallouts() {
   return <div className="@container min-w-0 text-zinc-200">
     <div className="grid @3xl:h-[calc(100dvh-136px)] @3xl:grid-cols-2 @3xl:divide-x @3xl:divide-white/10">
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
-    <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
+    <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); shuffleTheme(); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
       {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 border-b border-white/5 px-5 py-4"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-xs">{c.wallet?.slice(0, 2)}</span><div className="min-w-0 flex-1"><div className="flex gap-2 text-xs"><span className="font-medium text-zinc-200">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div><p className="my-2 whitespace-pre-wrap break-words text-sm leading-6">{c.body}</p><Link href={`/market/${c.characterId}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.025] p-3"><img src={c.imageUrl} alt="" className="size-10 rounded-md object-cover" /><div className="min-w-0"><p className="truncate text-sm font-medium">{c.name}</p><p className="text-xs text-zinc-500">${c.ticker}</p></div><div className="ml-auto text-right"><p className="text-[10px] text-zinc-500">Current market cap</p><p className="text-sm tabular-nums text-[#d7ff00]">{usd(cap(String(c.characterId)), true)}</p></div></Link></div></motion.article>)}
     </div>
@@ -105,9 +119,20 @@ export function HomeCallouts() {
     </section>
     </div>
     <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="border-white/15 bg-[#181a1c]/95 text-white backdrop-blur-2xl sm:max-w-xl"><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="text-zinc-500">{posted ? "Share your call and the card with your followers." : "Choose an agent and share your take with the community."}</DialogDescription>
-      <CalloutCard3D data={cardData} burst={posted} />
+      <CalloutCard3D data={cardData} burst={posted} theme={theme} />
+      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Card theme">
+        {CALLOUT_THEMES.map(t => <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => setTheme(t.id)} className={`flex h-8 items-center gap-2 rounded-[6px] px-3 text-xs font-medium transition-colors ${theme === t.id ? "bg-white/[0.12] text-white" : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"}`}><span aria-hidden className="size-2.5 rounded-full" style={{ background: t.accent }} />{t.label}</button>)}
+        <button type="button" onClick={shuffleTheme} aria-label="Random theme" title="Random theme" className="ml-auto grid size-8 place-items-center rounded-[6px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white"><Shuffle className="size-4" /></button>
+      </div>
       {!posted ? <>
-        <Select value={characterId} onValueChange={v => setCharacterId(v ?? "")}><SelectTrigger className="w-full border-white/10 bg-white/5"><SelectValue placeholder="Choose an agent" /></SelectTrigger><SelectContent>{rows?.map(r => <SelectItem key={r.characterId} value={r.characterId}>{r.name} · ${r.ticker}</SelectItem>)}</SelectContent></Select>
+        <Select value={characterId} onValueChange={v => setCharacterId(v ?? "")}>
+          <SelectTrigger className="h-12 w-full gap-3 rounded-[8px] border-white/10 bg-white/5 px-3">
+            <SelectValue placeholder="Choose an agent">{(v: string | null) => { const r = rows?.find(x => x.characterId === v); return r ? <AgentOption r={r} /> : <span className="text-zinc-500">Choose an agent</span>; }}</SelectValue>
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} sideOffset={6} className="max-h-[22rem] rounded-[8px] border border-white/10 bg-[#17191b] p-1">
+            {rows?.map(r => <SelectItem key={r.characterId} value={r.characterId} className="rounded-[6px] py-2 pl-2"><AgentOption r={r} /></SelectItem>)}
+          </SelectContent>
+        </Select>
         <Textarea value={body} onChange={e => setBody(e.target.value)} maxLength={280} rows={3} placeholder="What’s your call?" className="resize-none border-white/20 bg-white/[0.025] text-base" /><p className="text-right text-xs tabular-nums text-zinc-500">{280 - body.length}</p>
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         <Button disabled={!selected || !body.trim() || sending} onClick={() => void send()} className="ml-auto bg-[#d7ff00] text-black hover:bg-[#e4ff59]">{sending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}{sending ? "Posting…" : selected ? `Call $${selected.ticker}` : "Post callout"}</Button>

@@ -1,15 +1,21 @@
 "use client";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { CARD_H, CARD_W, drawCalloutCard, loadCardImage, type CalloutCardData } from "@/lib/client/calloutCard";
+import { CARD_H, CARD_W, drawCalloutCard, loadCardImage, themeById, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
 
 /** Live 3D preview of the callout card: tilts with the cursor, bursts with confetti once posted. */
-export default function CalloutCard3D({ data, burst }: { data: CalloutCardData; burst: boolean }) {
+export default function CalloutCard3D({ data, burst, theme }: { data: CalloutCardData; burst: boolean; theme: CalloutThemeId }) {
   const host = useRef<HTMLDivElement>(null);
   const dataRef = useRef(data);
-  const redraw = useRef<() => void>(() => {});
+  const themeRef = useRef(theme);
+  const redraw = useRef<(animate?: boolean) => void>(() => {});
+  const restyle = useRef<() => void>(() => {});
   const fire = useRef<() => void>(() => {});
-  useEffect(() => { dataRef.current = data; redraw.current(); }, [data]);
+  // Re-draw (and replay the count-up) when the numbers change; a theme switch also recolours the 3D scene.
+  const stats = `${data.changePct ?? ""}|${data.points?.length ?? 0}|${data.cap}`;
+  useEffect(() => { dataRef.current = data; redraw.current(false); }, [data]);
+  useEffect(() => { redraw.current(true); }, [stats]);
+  useEffect(() => { themeRef.current = theme; redraw.current(true); restyle.current(); }, [theme]);
   useEffect(() => { if (burst) fire.current(); }, [burst]);
   useEffect(() => {
     const el = host.current;
@@ -29,30 +35,47 @@ export default function CalloutCard3D({ data, burst }: { data: CalloutCardData; 
     const ctx = canvas.getContext("2d")!;
     const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; dispose.push(tex);
     let img: HTMLImageElement | null = null, loadedFor = "";
-    const draw = () => { drawCalloutCard(ctx, dataRef.current, img); tex.needsUpdate = true; };
-    redraw.current = () => {
+    let animStart = -1, shownProgress = 1;
+    const draw = (progress = 1) => { shownProgress = progress; drawCalloutCard(ctx, dataRef.current, img, themeRef.current, progress); tex.needsUpdate = true; };
+    redraw.current = (animate) => {
+      if (animate) animStart = clock.getElapsedTime();
       const url = dataRef.current.imageUrl ?? "";
-      if (url !== loadedFor) { loadedFor = url; void loadCardImage(url).then(i => { if (loadedFor === url) { img = i; draw(); } }); }
-      draw();
+      if (url !== loadedFor) { loadedFor = url; void loadCardImage(url).then(i => { if (loadedFor === url) { img = i; draw(shownProgress); } }); }
+      draw(animate && !reduced ? 0 : 1);
     };
     redraw.current();
 
     const cw = 4.4, ch = cw * CARD_H / CARD_W;
     const card = new THREE.Group();
     const face = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }));
-    const halo = new THREE.Mesh(new THREE.PlaneGeometry(cw + 0.5, ch + 0.5), new THREE.MeshBasicMaterial({ color: 0xd7ff00, transparent: true, opacity: 0.1, side: THREE.DoubleSide }));
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(cw + 0.5, ch + 0.5), new THREE.MeshBasicMaterial({ color: themeById(themeRef.current).accent3d, transparent: true, opacity: 0.12, side: THREE.DoubleSide }));
     halo.position.z = -0.04;
     card.add(halo, face); scene.add(card);
     dispose.push(face.geometry, face.material as THREE.Material, halo.geometry, halo.material as THREE.Material);
 
     const rings = [3.3, 2.7].map((r, i) => {
-      const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.008, 8, 120), new THREE.MeshBasicMaterial({ color: 0xd7ff00, transparent: true, opacity: 0.35 - i * 0.12 }));
+      const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.008, 8, 120), new THREE.MeshBasicMaterial({ color: themeById(themeRef.current).accent3d, transparent: true, opacity: 0.35 - i * 0.12 }));
       m.position.z = -0.8; m.rotation.x = 1.2; scene.add(m); dispose.push(m.geometry, m.material as THREE.Material); return m;
     });
     const N = 160, base = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) { base[i * 3] = (Math.random() - 0.5) * 9; base[i * 3 + 1] = (Math.random() - 0.5) * 5; base[i * 3 + 2] = -Math.random() * 3 - 0.5; }
-    const dust = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(base, 3)), new THREE.PointsMaterial({ color: 0xd7ff00, size: 0.03, transparent: true, opacity: 0.6, depthWrite: false }));
+    const dust = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(base, 3)), new THREE.PointsMaterial({ color: themeById(themeRef.current).accent3d, size: 0.03, transparent: true, opacity: 0.6, depthWrite: false }));
     scene.add(dust); dispose.push(dust.geometry, dust.material as THREE.Material);
+    restyle.current = () => {
+      const c = themeById(themeRef.current).accent3d;
+      (halo.material as THREE.MeshBasicMaterial).color.setHex(c);
+      rings.forEach(r => (r.material as THREE.MeshBasicMaterial).color.setHex(c));
+      (dust.material as THREE.PointsMaterial).color.setHex(c);
+    };
+    // A soft diagonal gloss that glides across the card every few seconds.
+    const sheenCanvas = document.createElement("canvas"); sheenCanvas.width = 128; sheenCanvas.height = 8;
+    const sctx = sheenCanvas.getContext("2d")!; const sg = sctx.createLinearGradient(0, 0, 128, 0);
+    sg.addColorStop(0, "rgba(255,255,255,0)"); sg.addColorStop(0.5, "rgba(255,255,255,0.55)"); sg.addColorStop(1, "rgba(255,255,255,0)");
+    sctx.fillStyle = sg; sctx.fillRect(0, 0, 128, 8);
+    const sheenTex = new THREE.CanvasTexture(sheenCanvas);
+    const sheen = new THREE.Mesh(new THREE.PlaneGeometry(1.1, ch * 1.4), new THREE.MeshBasicMaterial({ map: sheenTex, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sheen.position.z = 0.01; sheen.rotation.z = 0.35; card.add(sheen);
+    dispose.push(sheenTex, sheen.geometry, sheen.material as THREE.Material);
 
     // confetti burst
     const M = 220, cp = new Float32Array(M * 3), vel = new Float32Array(M * 3);
@@ -82,6 +105,8 @@ export default function CalloutCard3D({ data, burst }: { data: CalloutCardData; 
     const frame = () => {
       raf = requestAnimationFrame(frame);
       const t = clock.getElapsedTime(), dt = Math.min(0.05, t - last); last = t;
+      if (animStart >= 0) { const k = Math.min(1, (t - animStart) / 1.1); draw(k); if (k >= 1) animStart = -1; }
+      sheen.position.x = ((t % 5) / 5) * (cw * 1.6) - cw * 0.8;
       mouse.x += (mouse.tx - mouse.x) * 0.08; mouse.y += (mouse.ty - mouse.y) * 0.08;
       const intro = introDone ? 1 : Math.min(1, t / 0.9);
       if (intro >= 1) introDone = true;
@@ -103,12 +128,13 @@ export default function CalloutCard3D({ data, burst }: { data: CalloutCardData; 
       }
       renderer.render(scene, camera);
     };
+    redraw.current(true);
     frame();
     return () => {
       cancelAnimationFrame(raf); ro.disconnect(); el.removeEventListener("pointermove", onMove); el.removeEventListener("pointerleave", onLeave);
       dispose.forEach(d => d.dispose()); renderer.dispose(); renderer.domElement.remove();
-      redraw.current = () => {}; fire.current = () => {};
+      redraw.current = () => {}; fire.current = () => {}; restyle.current = () => {};
     };
   }, []);
-  return <div ref={host} className="relative h-[250px] w-full overflow-hidden rounded-[6px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(215,255,0,0.08),transparent_70%)]" aria-label="Callout card preview" />;
+  return <div ref={host} className="relative h-[250px] w-full overflow-hidden rounded-[6px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.07),transparent_70%)]" aria-label="Callout card preview" />;
 }

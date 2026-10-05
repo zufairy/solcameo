@@ -49,10 +49,19 @@ type Feed = {
   total: number;
   refreshedAt?: string;
 };
+/** Influencer row: portrait, bold all-caps name, ticker chip. */
+function AgentOption({ name, ticker, avatarUrl }: { name: string; ticker?: string; avatarUrl?: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {avatarUrl ? <img src={avatarUrl} alt="" className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-white/15" /> : <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/10 text-sm font-bold">{name.slice(0, 1).toUpperCase()}</span>}
+      <span className="truncate text-[15px] font-extrabold uppercase tracking-wide text-white">{name}</span>
+      {ticker && <span className="shrink-0 rounded-md bg-[#d7ff00]/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#d7ff00]">${ticker}</span>}
+    </span>
+  );
+}
 const GREEN =
   "rounded-lg bg-[#d7ff00] text-black shadow-none hover:bg-[#e4ff59]";
-const CREATE_BUTTON =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#d7ff00] px-5 text-sm font-semibold text-black transition-colors hover:bg-[#e4ff59] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d7ff00]";
 
 function ReferenceCard({
   item,
@@ -115,7 +124,7 @@ function ReferenceCard({
             className="absolute inset-0 size-full object-cover"
           />
         )}
-        <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+        <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         <span className="absolute left-3 top-3 rounded-md border border-white/30 bg-white/20 px-2 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur-xl">
           {item.category}
         </span>
@@ -127,11 +136,6 @@ function ReferenceCard({
           <span className="block text-sm font-semibold leading-snug text-white">
             {item.title}
           </span>
-          {!preview && (
-            <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-white/65">
-              {item.description || "Create with your influencer"}
-            </span>
-          )}
           <span className="mt-3 flex items-center justify-between gap-2 text-xs font-medium text-[#d7ff00]">
             <span className="flex items-center gap-1.5">
               <VideoStackIcon className="size-4" /> Use reference{" "}
@@ -747,7 +751,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                             onClick={() => setResolution(r)}
                             className={
                               r === resolution
-                                ? GREEN
+                                ? `${GREEN} !border-[#d7ff00] !bg-[#d7ff00] !text-black font-semibold hover:!bg-[#e4ff59] aria-pressed:!bg-[#d7ff00] aria-pressed:!text-black`
                                 : "border-white/10 bg-transparent text-zinc-400"
                             }
                           >
@@ -784,14 +788,19 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                     >
                       <SelectTrigger
                         aria-label="Your influencer"
-                        className="mt-2 h-11 w-full border-white/10 bg-white/5 text-white"
+                        className="mt-2 h-14 w-full border-white/10 bg-white/5 px-2.5 text-white"
                       >
-                        <SelectValue placeholder="Choose an influencer" />
+                        <SelectValue placeholder="Choose an influencer">
+                          {(value: string | null) => {
+                            const a = agents?.find((x) => x.mintAddress === value);
+                            return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent className="border-white/10 bg-[#17191d] text-white">
+                      <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
                         {agents?.map((a) => (
-                          <SelectItem key={a.mintAddress} value={a.mintAddress}>
-                            {a.name}
+                          <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
+                            <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -807,34 +816,13 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                       onBusy={setGenerating}
                     />
                   ) : (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.025] px-5 py-7 text-center">
-                      <VideoStackIcon className="mx-auto mb-4 size-14 text-[#d7ff00]" />
-                      <p className="text-sm text-zinc-400">
-                        {!profile
-                          ? "Sign in to use your AI influencers."
-                          : agents === undefined
-                            ? "Loading your influencers…"
-                            : agents.length
-                              ? "Choose your influencer to continue."
-                              : "Create your first influencer to start recreating."}
-                      </p>
+                    <p className="text-sm text-zinc-400">
                       {!profile ? (
-                        <Button
-                          onClick={() => void login()}
-                          className={`mt-4 ${GREEN}`}
-                        >
-                          Sign in
-                        </Button>
-                      ) : (
-                        <Link
-                          href="/create"
-                          className={`mt-5 ${CREATE_BUTTON}`}
-                        >
-                          <VideoStackIcon className="size-5" />
-                          Create an influencer
-                        </Link>
+                        <button type="button" onClick={() => void login()} className="underline underline-offset-4 hover:text-white">Sign in to use your influencers.</button>
+                      ) : agents === undefined ? "Loading your influencers…" : agents.length ? null : (
+                        <>No influencer yet? <Link href="/create" className="underline underline-offset-4 hover:text-white">Create one.</Link></>
                       )}
-                    </div>
+                    </p>
                   )}
                 </div>
               </div>

@@ -28,6 +28,7 @@ import { DeleteAgentButton } from "@/components/agents/delete-agent-button";
 import { MyAgentsDashboard } from "@/components/studio/MyAgentsDashboard";
 import { PlanCard, ProposalCard } from "@/components/control/MissionCard";
 import { ShareOnX } from "@/components/control/ShareOnX";
+import { ConnectedPlatformStack } from "@/components/social/platform-icons";
 
 /* ════════ /control — the master control panel ════════
    Talk to every agent you own — alone or as a team — in its own persona, from
@@ -534,7 +535,6 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
           {!isTeam && <div className="lg:hidden"><ShareOnX mint={lead.mintAddress} name={lead.name} compact /></div>}
           <IconButton label="New chat" onClick={newChat}><SquarePen className="size-4" /></IconButton>
           {!isTeam && (<>
-            {lead.solstarCharacterId && <Link href={`/market/${lead.solstarCharacterId}`} title="View linked coin" aria-label="View linked coin" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-[#d7ff00] hover:bg-white/5">View coin</Link>}
             <Link href={`/builder?mint=${encodeURIComponent(lead.mintAddress)}`} title="Open in Builder" aria-label="Open in Builder" className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white"><Wand2 className="size-4" /></Link>
           </>)}
           <span className="hidden lg:block">
@@ -887,7 +887,7 @@ function MiniSchedule({ rows, members, month, onMonth }: {
           <span className="w-12 shrink-0 text-emerald-300">{new Date(row.scheduledFor).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
           <span className="min-w-0 flex-1 truncate text-zinc-300" title={row.topic}>{row.topic || "Scheduled post"}</span>
           <span className="shrink-0 text-zinc-500">{names.get(row.mintAddress) ?? "Agent"}</span>
-        </div>)}</div> : <p className="mt-1.5 text-[11px] text-zinc-500">No posts scheduled this month.</p>}
+        </div>)}</div> : <p className="mt-1.5 text-[11px] text-zinc-500">No Posts</p>}
       </div>
     </section>
   );
@@ -1127,11 +1127,16 @@ function AgentSheet({ agent, videos, feedLoaded, onClose, onOpenVideo }: {
   ];
   return (
     <Sheet label={`${agent.name} profile`} onClose={onClose}>
-      <div className="h-28 bg-gradient-to-br from-lime-500/25 via-emerald-500/10 to-transparent" />
+      <div className="relative h-28 bg-gradient-to-br from-lime-500/25 via-emerald-500/10 to-transparent">
+        {connected.length > 0 && (
+          <div className="absolute right-4 top-4">
+            <ConnectedPlatformStack platforms={connected} accounts={agent.connectedSocialAccounts} badgeClassName="size-7" ringClassName="ring-[#16241a]" />
+          </div>
+        )}
+      </div>
       <div className="-mt-10 px-5 pb-6">
         <motion.div variants={ITEM} className="w-fit rounded-full ring-4 ring-[#0f0f12]"><Avatar agent={agent} size={80} /></motion.div>
         <motion.p variants={ITEM} className="mt-3 text-[20px] font-bold text-white">{agent.name}</motion.p>
-        <motion.p variants={ITEM} className="text-[13px] text-zinc-500">@{(agent.handle ?? "").replace(/^@/, "")}</motion.p>
         {agent.description && <motion.p variants={ITEM} className="mt-3 text-[13.5px] leading-relaxed text-zinc-300">{agent.description}</motion.p>}
         <motion.div variants={ITEM}><VideoStats videos={videos} loaded={feedLoaded} /></motion.div>
         <motion.div variants={ITEM} className="mt-2 grid grid-cols-3 gap-2 text-center">
@@ -1146,10 +1151,6 @@ function AgentSheet({ agent, videos, feedLoaded, onClose, onOpenVideo }: {
               <span className="truncate text-right capitalize text-zinc-200">{v}</span>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3 text-[13px]">
-            <span className="text-zinc-500">Connected</span>
-            <span className="text-right text-zinc-200">{connected.length ? connected.map((p) => PLATFORM_LABEL[p] ?? p).join(", ") : "none"}</span>
-          </div>
         </motion.div>
         {videos.length > 0 && (
           <motion.div variants={ITEM} className="mt-5">
@@ -1159,12 +1160,9 @@ function AgentSheet({ agent, videos, feedLoaded, onClose, onOpenVideo }: {
             </motion.div>
           </motion.div>
         )}
-        <motion.div variants={ITEM} className="mt-6 grid grid-cols-2 gap-2">
+        <motion.div variants={ITEM} className="mt-6 grid grid-cols-1 gap-2">
           <Link href={`/builder?mint=${encodeURIComponent(agent.mintAddress)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-zinc-200">
             <Wand2 className="size-3.5" /> Open Builder
-          </Link>
-          <Link href={`/market/${encodeURIComponent(agent.solstarCharacterId ?? agent.mintAddress)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-3 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/5">
-            <ExternalLink className="size-3.5" /> {agent.solstarCharacterId ? "View coin" : "Public profile"}
           </Link>
         </motion.div>
         <DeleteAgentButton mintAddress={agent.mintAddress} name={agent.name} />

@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AnalyticsPdfExport } from "@/components/analytics/AnalyticsPdfExport";
+import { AnalyticsShareX } from "@/components/analytics/AnalyticsShareX";
 import {
   BarChart, Bar, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { Eye, Film, Share2, TrendingUp, Wallet, Loader2,  RefreshCw, BarChart3, Users, Gem, Clapperboard, ExternalLink, Flame, MessageCircle, Send, Check } from "lucide-react";
+import { Eye, Film, Share2, TrendingUp, Wallet, Loader2,  RefreshCw, BarChart3, Users, Gem, Clapperboard, ExternalLink, Flame, MessageCircle, MessagesSquare, Send, Check } from "lucide-react";
 
 type Agent = FunctionReturnType<typeof api.influencers.listByCreators>[number];
 type FeedItem = FunctionReturnType<typeof api.clipJobs.videoFeedByMints>["items"][number];
@@ -64,7 +64,7 @@ function fmtDay(ts: number) {
 
 type SurfaceTone = "lime" | "violet" | "sky" | "rose";
 function GlassCard({ children, className = "", glow = "lime", as: Tag = "div" }: { children: React.ReactNode; className?: string; glow?: SurfaceTone; as?: "div" | "aside" }) {
-  return <Card role={Tag === "aside" ? "complementary" : undefined} data-tone={glow} className={`relative gap-0 overflow-hidden rounded-lg border border-white/10 bg-[#202326]/80 py-0 text-white ring-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl ${className}`}>{children}</Card>;
+  return <Card role={Tag === "aside" ? "complementary" : undefined} data-tone={glow} className={`glass3d gap-0 overflow-hidden rounded-xl py-0 text-white ring-0 ${className}`}>{children}</Card>;
 }
 
 function Kpi({ icon, label, value, sub, glow = "lime" }: { icon: React.ReactNode; label: string; value: string; sub: string; glow?: SurfaceTone }) {
@@ -452,13 +452,13 @@ function CommentsPanel({ getFreshToken, signedIn = true }: { getFreshToken: () =
 
   return (
     <GlassCard glow="violet" className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
-        <span className="grid size-6 place-items-center rounded-lg border border-white/15 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
-          <MessageCircle className="size-3.5 text-white/70" />
+      <div className="flex items-center gap-2 border-b border-white/[0.07] px-3.5 py-2.5">
+        <span className="relative grid size-6 place-items-center rounded-[8px] bg-gradient-to-b from-white/[0.22] to-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_-2px_rgba(0,0,0,0.6)] ring-1 ring-white/15">
+          <MessagesSquare className="size-3 text-white" strokeWidth={2} />
         </span>
-        <h2 className="text-[13.5px] font-semibold text-white">Comments</h2>
-        <span className="ml-auto flex items-center gap-1 text-[10px] font-medium uppercase tracking-widest text-emerald-400/80">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Live
+        <h2 className="text-[12px] font-semibold tracking-tight text-white">Comments</h2>
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/60">
+          <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400/60" /><span className="relative size-1.5 rounded-full bg-emerald-400" /></span> Live
         </span>
       </div>
 
@@ -862,7 +862,7 @@ export default function AnalyticsPage() {
                   <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} />
                   {syncing ? "Syncing…" : "Refresh"}
                 </Button>
-                <AnalyticsPdfExport data={reportData} disabled={noAgents || syncing} />
+                <AnalyticsShareX data={reportData} disabled={noAgents || syncing} />
               </div>
             )}
           </div>
@@ -1083,7 +1083,7 @@ export default function AnalyticsPage() {
                   <motion.div key={a.mintAddress} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 + i * 0.06 }}>
                     <Link
                       href={`/market/${a.mintAddress}`}
-                      className="group relative flex aspect-square flex-col overflow-hidden rounded-2xl border border-white/[0.11] bg-[#202326]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_18px_40px_-24px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_24px_50px_-20px_rgba(0,0,0,0.25)]"
+                      className="glass3d group relative flex aspect-square flex-col overflow-hidden rounded-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_24px_50px_-20px_rgba(0,0,0,0.25)]"
                     >
                       <div className="relative flex-1 overflow-hidden bg-white/5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}

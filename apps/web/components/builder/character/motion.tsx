@@ -328,7 +328,7 @@ export function ReplicatePanel({ mintAddress, character, selected, onClearSelect
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-[15px] font-semibold text-white">Higgsfield Genjutsu <span className="rounded-md border border-lime-400/30 bg-lime-400/10 px-1.5 py-0.5 text-[10px] font-bold" style={{ color: LIME }}>New</span></span>
             <div className="flex rounded-lg bg-black/40 p-0.5">
-              {RES.map((r) => <button key={r} type="button" onClick={() => setRes(r)} className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${res === r ? "bg-[#202124] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{r}</button>)}
+              {RES.map((r) => <button key={r} type="button" onClick={() => setRes(r)} className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${res === r ? "bg-[#d7ff00] text-black shadow-[0_0_14px_-4px_rgba(215,255,0,0.7)]" : "text-zinc-500 hover:text-zinc-300"}`}>{r}</button>)}
             </div>
           </div>
         </div>

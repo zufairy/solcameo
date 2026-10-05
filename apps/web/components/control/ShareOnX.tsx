@@ -329,11 +329,10 @@ export function ShareOnX({ mint, name, compact = false }: { mint: string; name: 
         type="button"
         whileTap={{ scale: 0.98 }}
         onClick={openShare}
-        className={compact
-          ? "rounded-full border border-lime-300/30 bg-lime-300/10 px-3 py-1.5 text-[11px] font-bold text-lime-200 transition-colors hover:bg-lime-300/20"
-          : "group mt-4 flex w-full items-center justify-between rounded-2xl border border-lime-300/25 bg-[linear-gradient(110deg,#1e2c15,#111810)] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] transition-colors hover:border-lime-300/50 hover:bg-[#253719]"}
+        className={`group inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/25 bg-white/[0.12] font-semibold text-white backdrop-blur-xl transition-[background-color,border-color,transform] duration-300 hover:border-white/45 hover:bg-white/[0.2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_18px_-8px_rgba(0,0,0,0.6)] ${compact ? "h-8 px-3 text-[11px]" : "mt-4 h-10 w-full text-[13px]"}`}
       >
-        {compact ? "Share on X" : <><span><span className="block text-[13px] font-bold text-lime-100">Share on X</span><span className="mt-0.5 block text-[11px] text-lime-100/55">Make a milestone card for {name}</span></span><span className="grid size-8 place-items-center rounded-full bg-lime-300 text-[17px] font-bold text-[#111a08] transition-transform group-hover:rotate-[-12deg]">X</span></>}
+        <svg viewBox="0 0 24 24" className={`fill-current transition-transform duration-300 group-hover:scale-110 ${compact ? "size-3" : "size-3.5"}`} aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+        Share on X
       </motion.button>
 
       <AnimatePresence>

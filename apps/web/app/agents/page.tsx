@@ -33,6 +33,7 @@ import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { ChangePill } from "@/components/solstar/MarketTable";
 import { olderAgentVideos } from "@/lib/olderAgentVideos";
+import { getNetwork, getTxExplorerUrl, getAccountExplorerUrl } from "@/lib/solana/network";
 
 // ── Reference palette (matches the marketplace screenshot exactly) ────────────
 // Hardcoded hex on purpose — the operator gave an explicit visual source of truth
@@ -179,6 +180,42 @@ function AgentModal({ agent, index, onClose, agents = [], onNavigate, onHire, me
       .catch(() => {});
   }, [agent.agentWallet]);
 
+  // Live on-chain activity straight from Solana RPC (refreshes while the tab is open).
+  type ChainTx = { signature: string; ts: number | null; ok: boolean; usdc: number; sol: number; fee: number; counterparty: string | null };
+  const [chainTx, setChainTx] = useState<ChainTx[] | null>(null);
+  const [chainErr, setChainErr] = useState(false);
+  useEffect(() => {
+    if (mtab !== "transactions" || !agent.agentWallet) return;
+    let alive = true;
+    const pull = () => fetch(`/api/agents/transactions?wallet=${encodeURIComponent(agent.agentWallet)}&limit=25`)
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; rows?: ChainTx[] }) => { if (!alive) return; if (d.ok && d.rows) { setChainTx(d.rows); setChainErr(false); } else setChainErr(true); })
+      .catch(() => { if (alive) setChainErr(true); });
+    void pull();
+    const t = window.setInterval(pull, 30_000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [mtab, agent.agentWallet]);
+  const txRows = useMemo(() => {
+    const ledger = transactions ?? [];
+    const bySig = new Map(ledger.filter((l) => l.txSignature).map((l) => [l.txSignature as string, l]));
+    const rows: Array<{ id: string; ts: number; label: string; usdc: number; sol: number; sig?: string; counterparty?: string | null; ok: boolean; onchain: boolean; status?: string }> = [];
+    for (const c of chainTx ?? []) {
+      if (c.usdc === 0 && c.sol === 0) continue;
+      const l = bySig.get(c.signature);
+      rows.push({
+        id: c.signature, ts: (c.ts ?? 0) * 1000, sig: c.signature, ok: c.ok, onchain: true,
+        label: l?.label ?? (c.usdc !== 0 ? (c.usdc > 0 ? "USDC received" : "USDC sent") : (c.sol > 0 ? "SOL received" : "SOL sent")),
+        usdc: c.usdc, sol: c.usdc !== 0 ? 0 : c.sol, counterparty: c.counterparty,
+      });
+    }
+    const seen = new Set(rows.map((r) => r.sig));
+    for (const l of ledger) {
+      if (l.txSignature && seen.has(l.txSignature)) continue;
+      rows.push({ id: l.id, ts: l.ts, label: l.label, usdc: l.amountUsdc, sol: 0, sig: l.txSignature, ok: l.status !== "failed", onchain: !!l.txSignature, status: l.status });
+    }
+    return rows.sort((a, b) => b.ts - a.ts).slice(0, 60);
+  }, [chainTx, transactions]);
+
   const corpusBytes = knowledgeStat?.totalChars ?? 0;
   const corpusKb    = corpusBytes / 1024;
   const corpusLabel = corpusKb >= 1024 ? `${(corpusKb / 1024).toFixed(2)} MB`
@@ -202,7 +239,7 @@ function AgentModal({ agent, index, onClose, agents = [], onNavigate, onHire, me
 
   const netPnl = taskStats ? taskStats.totalRevenue - taskStats.totalCost : 0;
   const apr = agent.tvl > 0 ? (agent.monthlyEarnings * 12) / agent.tvl * 100 : 0;
-  const cardCls = "rounded-xl border border-zinc-800/80 bg-white/[0.025]";
+  const cardCls = "rounded-xl border border-[var(--me-border)] bg-[var(--me-card)]";
   const labelCls = "text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-500";
 
   // ── Equity cap table ────────────────────────────────────────────────────
@@ -365,7 +402,7 @@ function AgentModal({ agent, index, onClose, agents = [], onNavigate, onHire, me
               <div className="sticky top-0 z-20 -mx-5 px-5 flex flex-wrap items-center gap-x-5 gap-y-1 border-b" style={{ borderColor: ME.border, background: ME.bg }}>
                 {([
                   { id: "traits", label: "Traits" },
-                  { id: "owners", label: "Equity Owners" },
+                  { id: "owners", label: "Holders" },
                   { id: "transactions", label: "Transactions" },
                   { id: "tasks", label: "Tasks" },
                   { id: "activity", label: "Activity" },
@@ -417,70 +454,89 @@ function AgentModal({ agent, index, onClose, agents = [], onNavigate, onHire, me
                 )}
                 {mtab === "transactions" && (
                   <section className={`${cardCls} overflow-hidden`}>
-                    <div className="border-b border-white/10 px-4 py-3">
-                      <h3 className="text-[13px] font-semibold text-white">Transaction history</h3>
-                      <p className="mt-0.5 text-[11px] text-zinc-500">Agent ledger activity. On-chain entries link to Solscan.</p>
+                    <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: ME.border }}>
+                      <div>
+                        <h3 className="text-[13px] font-semibold" style={{ color: ME.text }}>Transactions</h3>
+                        <p className="mt-0.5 text-[11px]" style={{ color: ME.sub }}>Read live from Solana RPC, plus ledger entries.</p>
+                      </div>
+                      {agent.agentWallet && (
+                        <a href={getAccountExplorerUrl(agent.agentWallet)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 text-[11px] hover:text-white" style={{ color: ME.sub }}>
+                          {agent.agentWallet.slice(0, 4)}…{agent.agentWallet.slice(-4)} <ExternalLink className="size-3" />
+                        </a>
+                      )}
                     </div>
-                    {transactions === undefined ? (
+                    {transactions === undefined || (agent.agentWallet && chainTx === null && !chainErr) ? (
                       <div className="flex justify-center p-8"><Loader2 className="size-4 animate-spin text-zinc-500" /></div>
-                    ) : transactions.length === 0 ? (
-                      <p className="px-4 py-8 text-center text-[12px] text-zinc-500">No transactions yet.</p>
+                    ) : txRows.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-[12px]" style={{ color: ME.sub }}>{chainErr ? "RPC unavailable right now. Retrying…" : "No transactions yet."}</p>
                     ) : (
-                      <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.06]">
-                        {transactions.map((tx) => (
-                          <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
-                            <span className={`grid size-8 shrink-0 place-items-center rounded-md ${tx.amountUsdc >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-zinc-400"}`}>
-                              {tx.amountUsdc >= 0 ? <ArrowDownRight className="size-4" /> : <ArrowUpRight className="size-4" />}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[12px] font-medium text-white/80">{tx.label}</p>
-                              <p className="mt-0.5 text-[10px] text-zinc-500">{new Date(tx.ts).toLocaleString()}{tx.status && tx.status !== "paid" ? ` · ${tx.status}` : ""}</p>
+                      <div className="max-h-80 overflow-y-auto divide-y" style={{ borderColor: ME.border }}>
+                        {chainErr && <p className="px-4 py-2 text-[11px] text-amber-400">RPC unavailable. Showing ledger entries only.</p>}
+                        {txRows.map((tx) => {
+                          const amt = tx.usdc !== 0 ? tx.usdc : tx.sol;
+                          const unit = tx.usdc !== 0 ? "USDC" : "SOL";
+                          const inbound = amt >= 0;
+                          return (
+                            <div key={tx.id} className="flex items-center gap-3 px-4 py-3" style={{ borderColor: ME.border }}>
+                              <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${inbound ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-zinc-400"}`}>
+                                {inbound ? <ArrowDownRight className="size-4" /> : <ArrowUpRight className="size-4" />}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[12px] font-medium" style={{ color: ME.text }}>
+                                  {tx.label}{!tx.ok && <span className="ml-1.5 text-[10px] text-red-400">failed</span>}
+                                </p>
+                                <p className="mt-0.5 truncate text-[10.5px]" style={{ color: ME.sub }}>
+                                  {tx.ts ? timeAgo(tx.ts) : "pending"}
+                                  {tx.counterparty ? ` · ${inbound ? "from" : "to"} ${tx.counterparty.slice(0, 4)}…${tx.counterparty.slice(-4)}` : ""}
+                                  {tx.onchain ? " · on-chain" : tx.status && tx.status !== "paid" ? ` · ${tx.status}` : " · ledger"}
+                                </p>
+                              </div>
+                              <span className={`shrink-0 text-[12px] font-semibold tabular-nums ${inbound ? "text-emerald-400" : ""}`} style={inbound ? undefined : { color: ME.text }}>
+                                {inbound ? "+" : "−"}{unit === "SOL" ? Math.abs(amt).toFixed(4) : `$${Math.abs(amt).toFixed(Math.abs(amt) < 1 ? 4 : 2)}`}{unit === "SOL" ? " SOL" : ""}
+                              </span>
+                              {tx.sig ? (
+                                <a href={getTxExplorerUrl(tx.sig, getNetwork())} target="_blank" rel="noopener noreferrer" className="shrink-0 text-zinc-400 hover:text-white" aria-label="View transaction on explorer">
+                                  <ExternalLink className="size-3.5" />
+                                </a>
+                              ) : <span className="size-3.5 shrink-0" />}
                             </div>
-                            <span className={`shrink-0 text-[12px] font-semibold tabular-nums ${tx.amountUsdc >= 0 ? "text-emerald-400" : "text-white/75"}`}>
-                              {tx.amountUsdc >= 0 ? "+" : "−"}${Math.abs(tx.amountUsdc).toFixed(4)}
-                            </span>
-                            {tx.txSignature && (
-                              <a href={`https://solscan.io/tx/${encodeURIComponent(tx.txSignature)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 text-zinc-400 hover:text-white" aria-label="View transaction on Solscan">
-                                <ExternalLink className="size-3.5" />
-                              </a>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </section>
                 )}
                 {mtab === "owners" && (
                   owners === undefined ? (
-                    <p className="text-[13px]" style={{ color: ME.sub }}>Loading cap table…</p>
+                    <p className="text-[13px]" style={{ color: ME.sub }}>Loading holders…</p>
                   ) : equityHolders.length === 0 ? (
                     <div className="rounded-xl px-4 py-8 text-center" style={{ border: `1px dashed ${ME.border}` }}>
                       <Users className="size-6 mx-auto mb-2" style={{ color: ME.subDim }} />
-                      <p className="text-[13px]" style={{ color: ME.sub }}>No equity issued yet.</p>
+                      <p className="text-[13px]" style={{ color: ME.sub }}>No holders yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-2.5">
                       {/* Summary line — total supply + how much is investor-held vs creator-held */}
                       <div className="flex items-center justify-between text-[12px]" style={{ color: ME.sub }}>
                         <span>{equityHolders.length} holder{equityHolders.length === 1 ? "" : "s"} · {totalShares.toLocaleString()} shares</span>
-                        <span><span style={{ color: ME.green }}>{pctOf(investorShares).toFixed(1)}%</span> investor-held</span>
+                        <span><span style={{ color: ME.text }}>{pctOf(investorShares).toFixed(1)}%</span> investor-held</span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {equityHolders.map((h, i) => {
                           const isTop = i === 0;
                           return (
-                            <div key={h.wallet} className={`${cardCls} p-3 flex items-center gap-3`} style={isTop ? { borderColor: ME.greenDim, background: "rgba(52,211,153,0.05)" } : undefined}>
+                            <div key={h.wallet} className={`${cardCls} p-3 flex items-center gap-3`} style={isTop ? { borderColor: ME.borderLit } : undefined}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={`https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(h.wallet)}&backgroundColor=15171d`} alt="" className="size-9 rounded-lg shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                   <p className="text-[12.5px] font-mono truncate" style={{ color: ME.text }}>{h.wallet.slice(0, 6)}…{h.wallet.slice(-6)}</p>
                                   <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded shrink-0" style={h.role === "Creator" ? { background: "#3b1d4d", color: "#e9b8ff" } : { background: "#14532d", color: "#86efac" }}>{h.role}</span>
-                                  {isTop && <span className="text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: ME.green }} title="Largest equity owner">★ Main</span>}
+                                  {isTop && <span className="text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: ME.green }} title="Largest holder">★ Top</span>}
                                 </div>
                                 <p className="text-[10.5px] tabular-nums mt-0.5" style={{ color: ME.sub }}>{h.shares.toLocaleString()} shares · ${h.usdc >= 1000 ? `${(h.usdc / 1000).toFixed(1)}K` : h.usdc.toFixed(0)}</p>
                               </div>
-                              <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: isTop ? ME.green : ME.text }}>{h.pct.toFixed(1)}%</span>
+                              <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: ME.text }}>{h.pct.toFixed(1)}%</span>
                             </div>
                           );
                         })}
@@ -777,25 +833,6 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       onClick();
     }
   };
-  // Pointer-driven tilt: the card leans toward the cursor and the gloss follows it.
-  const tilt = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width;
-    const py = (e.clientY - r.top) / r.height;
-    el.style.setProperty("--ry", `${((px - 0.5) * 8).toFixed(2)}deg`);
-    el.style.setProperty("--rx", `${((0.5 - py) * 6).toFixed(2)}deg`);
-    el.style.setProperty("--gx", `${(px * 100).toFixed(0)}%`);
-    el.style.setProperty("--gy", `${(py * 100).toFixed(0)}%`);
-  };
-  const untilt = (e: React.MouseEvent<HTMLDivElement>) => {
-    setHovered(false);
-    const el = e.currentTarget;
-    el.style.setProperty("--ry", "0deg");
-    el.style.setProperty("--rx", "0deg");
-  };
-
   return (
     // A div, not a <button>: the connected-account badges inside are real links
     // that open the social profile in a new tab, and links can't nest in buttons.
@@ -807,18 +844,16 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       title={agent.name}
       className="agent-glass group relative flex h-48 cursor-pointer items-stretch overflow-hidden rounded-[12px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
       onMouseEnter={() => setHovered(true)}
-      onMouseMove={tilt}
-      onMouseLeave={untilt}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className="relative h-full w-32 shrink-0 overflow-hidden bg-white/5 sm:w-36">
         <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]" initialClassName="text-5xl" />
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-[#131316]/60" />
-      </div>
+              </div>
 
       {/* Agent-type indicator — pinned to the card's actual top-right corner. */}
       <span
         title={agentType}
-        className="absolute right-2.5 top-2.5 z-10 grid size-7 shrink-0 place-items-center rounded-[8px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+        className="absolute right-2.5 top-2.5 z-10 grid size-7 shrink-0 place-items-center rounded-[8px] border border-white/10 bg-white/[0.06] text-white/80"
       >
         {agentType === "AI Clippers" ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
       </span>
@@ -826,9 +861,9 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-between px-4 py-3.5 pr-11">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate text-[20px] font-extrabold uppercase leading-none tracking-wide text-white">{agent.name || "Agent"}</p>
+            <p className="truncate text-[18px] font-semibold leading-none tracking-tight text-white">{agent.name || "Agent"}</p>
             {ticker && (
-              <span className="shrink-0 rounded-[6px] bg-white px-2 py-1 text-[11px] font-bold leading-none tracking-wide text-black shadow-[0_2px_8px_rgba(255,255,255,0.18)]">
+              <span className="shrink-0 rounded-[6px] bg-white px-2 py-1 text-[11px] font-bold leading-none tracking-wide text-black">
                 ${ticker.toUpperCase()}
               </span>
             )}
@@ -858,7 +893,7 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
             platforms={agent.connectedPlatforms}
             accounts={agent.connectedSocialAccounts}
             badgeClassName="size-6"
-            ringClassName="ring-[#1b1c20]"
+            ringClassName="ring-[#0b0b0c]"
           />
         </div>
       </div>
@@ -984,7 +1019,7 @@ function HireCard({ agent, onClick, videos, metrics }: { agent: any; index: numb
           the card's actual top-right corner (not the text column). */}
       <span
         title={agentType}
-        className="absolute right-2 top-2 z-20 grid size-7 shrink-0 place-items-center rounded-xl border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+        className="absolute right-2 top-2 z-20 grid size-7 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.06] text-white/80"
       >
         {agentType === "AI Clippers" ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
       </span>
@@ -1097,7 +1132,7 @@ function PurchaseCard({ agent, index, onClick, metrics }: { agent: any; index: n
       {/* Agent-type indicator — pinned to the card's actual top-right corner. */}
       <span
         title={agentType}
-        className="absolute right-2 top-2 z-10 grid size-7 shrink-0 place-items-center rounded-xl border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+        className="absolute right-2 top-2 z-10 grid size-7 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.06] text-white/80"
       >
         {agentType === "AI Clippers" ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
       </span>
