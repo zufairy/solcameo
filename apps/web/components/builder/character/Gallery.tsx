@@ -128,7 +128,7 @@ const HERO = [
 
 function Hero({ prompt }: { prompt: string | null }) {
   return (
-    <div className="flex min-h-[520px] flex-col items-center justify-center py-6 text-center">
+    <div className="flex min-h-[calc(100dvh-160px)] flex-col items-center justify-center py-10 text-center">
       <div className="mb-8 flex max-w-full items-end justify-center overflow-hidden px-2 pb-2">
         {HERO.map((c, i) => (
           <motion.div
@@ -143,7 +143,7 @@ function Hero({ prompt }: { prompt: string | null }) {
           </motion.div>
         ))}
       </div>
-      <h3 className="text-[46px] font-black uppercase leading-[1.02] tracking-[-0.02em] text-white" style={{ fontFamily: DISPLAY_FONT }}>
+      <h3 className="text-[46px] font-black uppercase leading-[1.08] tracking-[0.03em] text-white" style={{ fontFamily: DISPLAY_FONT }}>
         Your influencer,<br />your viral hit
       </h3>
       <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-zinc-400">

@@ -298,17 +298,13 @@ function InfluencerOnboardingContent({
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {step === 0 ? (
           <>
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 pt-5 text-xs text-zinc-500">
-              <p>
-                Build the look first. Generate a portrait, select your
-                favourite, then create its coin.
-              </p>
-              {!authenticated && (
+            {!authenticated && (
+              <div className="mx-auto flex max-w-6xl justify-end px-4 pt-2">
                 <Button variant="outline" size="sm" onClick={login}>
                   Sign in to generate
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
             {!generationConfigured && (
               <p
                 role="status"

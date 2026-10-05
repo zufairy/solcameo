@@ -282,11 +282,11 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   return (
     <div className="min-h-full" style={GLASS_BG}>
-      <div className="mx-auto grid max-w-6xl gap-5 px-4 pb-8 pt-4 lg:grid-cols-[400px_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-5 px-4 pb-8 pt-2 lg:grid-cols-[400px_1fr]">
         {/* LEFT: studio panel (same container for builder, saved influencer and Replicate) */}
         <div className="flex h-[calc(100dvh-160px)] min-h-[480px] flex-col lg:sticky lg:top-4 lg:self-start overflow-hidden rounded-[32px] border border-white/[0.06]" style={{ background: SURFACE.panel }}>
-          <div className="px-5 pb-6 pt-5 text-center">
-            <div className="flex h-5 items-center justify-between text-[12px]">
+          <div className="px-5 pb-6 pt-2 text-center">
+            <div className="flex h-4 items-center justify-between text-[12px]">
               <span className="w-16" />
               <AnimatePresence>
                 {builderBody && picks > 0 && (
@@ -296,7 +296,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
               {builderBody && saved ? <button onClick={() => setEditing(false)} className="flex w-16 items-center justify-end gap-1 text-zinc-500 transition-colors hover:text-white"><X className="size-3.5" /> Cancel</button> : <span className="w-16" />}
             </div>
             <p className="text-[12px] text-zinc-400">Create your own character with</p>
-            <h2 className="text-[30px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white" style={{ fontFamily: DISPLAY_FONT }}>AI Influencer</h2>
+            <h2 className="text-[40px] font-black uppercase leading-[1.05] tracking-[0.04em] text-white" style={{ fontFamily: DISPLAY_FONT }}>AI Influencer</h2>
           </div>
 
           <div className={`px-4 pb-2.5 ${onboarding ? "hidden" : ""}`}>

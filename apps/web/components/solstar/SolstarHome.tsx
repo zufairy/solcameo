@@ -16,7 +16,7 @@ function useIsDesktop() {
 export function SolstarHome() {
   const desktop = useIsDesktop();
   return <main className="w-full">
-    {desktop ? <div className="grid min-h-[calc(100dvh-136px)] grid-cols-[minmax(0,450px)_minmax(0,1fr)]">
+    {desktop ? <div className="grid min-h-[calc(100dvh-136px)] grid-cols-[minmax(0,calc((100dvh-164px)*0.5625))_minmax(0,1fr)]">
       <section aria-label="Character launchpad feed" className="flex min-w-0 flex-col border-r border-white/[0.09]">
         <LaunchpadFeed />
       </section>
