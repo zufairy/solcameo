@@ -16,6 +16,7 @@ if [ -f "$BGUTIL_SERVER_DIR/build/main.js" ]; then
   BGUTIL_PID=$!
   # Give it a moment; log whether /ping answers so a dead provider is visible in
   # deploy logs instead of only as slower downloads.
+  (
   i=0
   while [ $i -lt 20 ]; do
     if node -e "fetch('http://127.0.0.1:$BGUTIL_PORT/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
@@ -25,6 +26,7 @@ if [ -f "$BGUTIL_SERVER_DIR/build/main.js" ]; then
     i=$((i+1)); sleep 0.5
   done
   [ $i -ge 20 ] && echo "[start] bgutil POT provider did not answer /ping in 10s (pid $BGUTIL_PID) — continuing; downloads fall back to proxy"
+  ) &
 else
   echo "[start] bgutil POT provider not present in image — downloads use cookies/proxy only"
 fi
@@ -38,6 +40,9 @@ WARP_DIR="${WARP_DIR:-/tmp/warp}"
 WARP_HTTP_PORT="${WARP_HTTP_PORT:-25345}"
 if [ "${YTDLP_WARP:-1}" != "0" ] && [ -x "$WGCF_BIN" ] && [ -x "$WIREPROXY_BIN" ]; then
   export WARP_DIR WGCF_BIN WARP_HTTP_PORT
+  export YTDLP_WARP_PROXY="http://127.0.0.1:$WARP_HTTP_PORT"
+  export WARP_SCRIPT="$(cd "$(dirname "$0")" && pwd)/warp.sh"
+  (
   if sh "$(dirname "$0")/warp.sh" setup; then
     # Supervisor: restart wireproxy if it dies — or when warp.sh rotate kills it
     # to switch to a fresh identity. Its pid is kept for that rotate.
@@ -55,6 +60,7 @@ if [ "${YTDLP_WARP:-1}" != "0" ] && [ -x "$WGCF_BIN" ] && [ -x "$WIREPROXY_BIN" 
   else
     echo "[start] WARP registration failed — downloads skip the WARP route"
   fi
+  ) &
 else
   echo "[start] WARP egress not available (binaries missing or YTDLP_WARP=0)"
 fi

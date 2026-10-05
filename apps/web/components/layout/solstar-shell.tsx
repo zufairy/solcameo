@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MotionConfig, motion, useReducedMotion } from "framer-motion";
-import { FileText, Plus, Hexagon, Radio, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Workflow, Plus, Hexagon, Radio, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -139,6 +139,11 @@ function RailFooter() {
   return (
     <SidebarMenu className="group-data-[collapsible=icon]:items-center">
       <SidebarMenuItem>
+        <SidebarMenuButton render={<Link href="/how-it-works" onClick={() => setOpenMobile(false)} />} tooltip="How it works" className="h-9 gap-3 rounded-lg px-3 text-[13px] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">
+          <span className="solcameo-nav-icon"><Workflow strokeWidth={1.6} /></span><span>How it works</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
         <SidebarMenuButton
           render={<Link href="/docs" onClick={() => setOpenMobile(false)} />}
           tooltip="Docs"
@@ -173,13 +178,6 @@ function TopBar() {
       <div className="flex min-w-0 flex-1 items-center">
         <ShellSearch />
       </div>
-      <Link
-        href="/create"
-        aria-label="Create"
-        className="grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-zinc-300 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-      >
-        <Plus className="size-4" strokeWidth={2.5} />
-      </Link>
       <div className="flex shrink-0 items-center">
         <ShellAccount />
       </div>
@@ -251,7 +249,7 @@ function ShellAnnouncement() {
   return (
     <motion.div
       initial={false}
-      animate={{ height: visible && !dismissed ? 26 : 0, opacity: visible && !dismissed ? 1 : 0 }}
+      animate={{ height: visible && !dismissed ? 36 : 0, opacity: visible && !dismissed ? 1 : 0 }}
       transition={{ duration: reduced ? 0 : 0.38, ease: [0.22, 1, 0.36, 1] }}
       aria-hidden={!visible || dismissed}
       className="shrink-0 overflow-hidden"
@@ -260,7 +258,7 @@ function ShellAnnouncement() {
         initial={false}
         animate={{ y: visible || reduced ? 0 : -12 }}
         transition={{ duration: reduced ? 0 : 0.38, ease: [0.22, 1, 0.36, 1] }}
-        className="relative flex h-[26px] items-center justify-center gap-2 border-b border-white/[0.08] bg-[#202326] px-8 text-xs font-medium text-zinc-200"
+        className="relative flex h-[36px] items-center justify-center gap-2 border-b border-white/[0.08] bg-[#090a0b] px-8 text-sm font-medium text-zinc-200"
       >
         <Radio aria-hidden="true" className="size-3.5 text-[#d7ff00]" />
         <span>AI-native characters. Built to create on Solana.</span>

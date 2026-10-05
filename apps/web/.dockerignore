@@ -10,3 +10,10 @@ tmp
 .DS_Store
 marketing-video/node_modules
 .venv-jev
+
+.env*
+.convex
+marketing-video
+AUDIT
+*.tsbuildinfo
+assets/demoYTDown.mp4

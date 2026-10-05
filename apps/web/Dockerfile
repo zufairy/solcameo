@@ -7,14 +7,14 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-COPY scripts ./scripts
+COPY scripts/install-ytdlp.mjs ./scripts/install-ytdlp.mjs
 # --legacy-peer-deps: Privy (@privy-io/react-auth) pulls peerOptional
 # permissionless/ox that otherwise ERESOLVE-fail `npm ci`. The lockfile is
 # generated the same way, so this resolves cleanly. NOTE: npm ci must NOT be
 # masked by `|| true` (that hid the failure and left node_modules missing, which
 # is what broke `COPY --from=deps /app/node_modules`); only the optional native
 # rebuild is allowed to fail.
-RUN npm ci --legacy-peer-deps && (npm rebuild bigint-buffer --build-from-source || true)
+RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps && (npm rebuild bigint-buffer --build-from-source || true)
 
 # ── YouTube PO-token provider (free replacement for the residential proxy) ──
 # yt-dlp on a datacenter IP is bot-walled unless each request carries a BotGuard
@@ -88,7 +88,7 @@ ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL \
     NEXT_PUBLIC_PRIVY_APP_ID=$NEXT_PUBLIC_PRIVY_APP_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
@@ -111,9 +111,6 @@ ENV YTDLP_PATH=/app/bin/yt-dlp
 # boots the server on :4416 before the app; the downloader reads these two
 # envs. YTDLP_DIRECT_FIRST=0 restores proxy-on-every-attempt if ever needed.
 COPY --from=deps /opt/bgutil /opt/bgutil
-COPY scripts/start.sh ./scripts/start.sh
-COPY scripts/warp.sh ./scripts/warp.sh
-RUN chmod +x ./scripts/start.sh ./scripts/warp.sh
 ENV YTDLP_POT_PROVIDER_URL=http://127.0.0.1:4416 \
     YTDLP_PLUGIN_DIRS=/app/bin/yt-dlp-plugins \
     YTDLP_JS_RUNTIME=node \
@@ -165,9 +162,6 @@ RUN apt-get update \
       || echo "[build] chromium launch smoke-test skipped — SIGTRAPs in the build sandbox but runs at runtime with --no-sandbox")
 ENV PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
 
 # playwright-core: Next's standalone tracing only copies the statically-reachable
 # entry files (~8 of them) and drops lib/server/chromium — the driver launch()
@@ -192,6 +186,14 @@ RUN apt-get update \
   && /opt/jev-venv/bin/python -c "from typesafe_sdk import Noul, TypeSafeClient"
 ENV JEV_PYTHON=/opt/jev-venv/bin/python
 COPY scripts/jev ./scripts/jev
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+COPY scripts/start.sh ./scripts/start.sh
+COPY scripts/warp.sh ./scripts/warp.sh
+RUN chmod +x ./scripts/start.sh ./scripts/warp.sh
 
 EXPOSE 3000
 

@@ -4,17 +4,19 @@ import { getNetwork, getRpcUrl } from "@/lib/solana/network";
 import type { DbcOptions } from "@/lib/meteora/options";
 export function dbcReadiness() {
   const network = getNetwork();
-  const ready =
-    network !== "testnet" &&
-    !!process.env.INTERNAL_CRON_SECRET &&
-    (network !== "mainnet-beta" ||
-      process.env.SOLCAMEO_DBC_LIVE_ENABLED === "true");
+  const missing = [];
+  if (network === "testnet") missing.push("Meteora launches support devnet or mainnet, not testnet.");
+  if (!process.env.INTERNAL_CRON_SECRET)
+    missing.push("Set INTERNAL_CRON_SECRET on the app service to match the Convex deployment for launch receipt signing.");
+  if (network === "mainnet-beta" && process.env.SOLCAMEO_DBC_LIVE_ENABLED !== "true")
+    missing.push("Mainnet launches require SOLCAMEO_DBC_LIVE_ENABLED=true. For test SOL, set NEXT_PUBLIC_SOLANA_NETWORK=devnet and rebuild the app.");
+  const ready = missing.length === 0;
   return {
     ready,
     network: network === "mainnet-beta" ? "mainnet" as const : "devnet" as const,
     reason: ready
       ? `${network === "devnet" ? "Devnet rehearsal" : "Mainnet launch"} · approve configuration and pool creation in your wallet.`
-      : "Mainnet Meteora launches need SOLCAMEO_DBC_LIVE_ENABLED=true; receipt signing and a supported network must be configured.",
+      : missing.join(" "),
   };
 }
 export function dbcConnection() {

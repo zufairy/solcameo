@@ -1,37 +1,27 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_DBC } from "@/lib/meteora/options";
-import {
-  readDbcReceipt,
-  signDbcReceipt,
-  type DbcReceipt,
-} from "./meteoraLaunch";
+import { dbcReadiness } from "./meteoraLaunch";
 afterEach(() => vi.unstubAllEnvs());
-describe("DBC launch receipts", () => {
-  it("binds a launch to its wallet, network, exact message, and expiry", () => {
-    vi.stubEnv("INTERNAL_CRON_SECRET", "test-receipt-key");
+describe("Meteora launch configuration", () => {
+  it("allows devnet without enabling mainnet", () => {
     vi.stubEnv("NEXT_PUBLIC_SOLANA_NETWORK", "devnet");
-    const r: DbcReceipt = {
-      protocol: "meteora-dbc",
-      wallet: "owner",
-      characterId: "character",
-      mint: "mint",
-      config: "config",
-      uri: "https://example.com/meta",
-      options: DEFAULT_DBC,
-      network: "devnet",
-      stage: "config",
-      messageHash: "reviewed-message",
-      expires: Date.now() + 60000,
-    };
-    const signed = signDbcReceipt(r);
-    expect(readDbcReceipt(signed, "owner")).toEqual(r);
-    expect(() => readDbcReceipt(signed, "other")).toThrow();
-    expect(() => readDbcReceipt(signed + "x", "owner")).toThrow();
-    expect(() =>
-      readDbcReceipt(signDbcReceipt({ ...r, expires: 0 }), "owner"),
-    ).toThrow();
+    vi.stubEnv("INTERNAL_CRON_SECRET", "test-secret");
+    vi.stubEnv("SOLCAMEO_DBC_LIVE_ENABLED", "false");
+    expect(dbcReadiness()).toMatchObject({ ready: true, network: "devnet" });
+  });
+  it("identifies the missing secret on devnet without requesting a mainnet flag", () => {
+    vi.stubEnv("NEXT_PUBLIC_SOLANA_NETWORK", "devnet");
+    vi.stubEnv("INTERNAL_CRON_SECRET", "");
+    const result = dbcReadiness();
+    expect(result.ready).toBe(false);
+    expect(result.reason).toContain("INTERNAL_CRON_SECRET");
+    expect(result.reason).not.toContain("DBC_LIVE_ENABLED");
+  });
+  it("keeps mainnet gated", () => {
     vi.stubEnv("NEXT_PUBLIC_SOLANA_NETWORK", "mainnet-beta");
-    expect(() => readDbcReceipt(signed, "owner")).toThrow();
+    vi.stubEnv("INTERNAL_CRON_SECRET", "test-secret");
+    vi.stubEnv("SOLCAMEO_DBC_LIVE_ENABLED", "false");
+    expect(dbcReadiness().ready).toBe(false);
+    expect(dbcReadiness().reason).toContain("SOLCAMEO_DBC_LIVE_ENABLED=true");
   });
 });
