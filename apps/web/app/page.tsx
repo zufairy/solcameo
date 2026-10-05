@@ -14,12 +14,12 @@ const legacyMetadata: Metadata = {
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
     url: canonicalUrl("/"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Agents: long videos into viral shorts, posted daily" }],
+    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Solcameo AI influencers" }],
   },
 };
 
-const SOLSTAR_TITLE = `${BRAND.name} — ${BRAND.tagline}`;
-const SOLSTAR_DESCRIPTION = "Solana characters with recurring videos. Watching is free. Trading is optional and risky.";
+const SOLSTAR_TITLE = HOME_TITLE;
+const SOLSTAR_DESCRIPTION = HOME_DESCRIPTION;
 
 const solstarMetadata: Metadata = {
   title: { absolute: SOLSTAR_TITLE },

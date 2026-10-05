@@ -155,7 +155,7 @@ export default function LiveChatWidget() {
                   className={`flex items-end gap-1.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {m.role === "assistant" && (
-                    <Image src={flashAvatar} alt="Vello" className="size-6 shrink-0 rounded-md object-cover ring-1 ring-black/5" />
+                    <Image src={flashAvatar} alt="Solcameo" className="size-6 shrink-0 rounded-md object-cover ring-1 ring-black/5" />
                   )}
                   <div className={`max-w-[82%] whitespace-pre-wrap rounded-lg px-3 py-2 text-[12.5px] leading-relaxed ${
                     m.role === "user"
@@ -168,7 +168,7 @@ export default function LiveChatWidget() {
               ))}
               {sending && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-end gap-1.5 justify-start">
-                  <Image src={flashAvatar} alt="Vello" className="size-6 shrink-0 rounded-md object-cover ring-1 ring-black/5" />
+                  <Image src={flashAvatar} alt="Solcameo" className="size-6 shrink-0 rounded-md object-cover ring-1 ring-black/5" />
                   <div className="flex items-center gap-1 rounded-lg rounded-bl-[3px] border border-zinc-200/80 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     {[0, 1, 2].map((d) => (
                       <span key={d} className="size-1.5 animate-bounce rounded-full bg-zinc-400" style={{ animationDelay: `${d * 0.15}s` }} />

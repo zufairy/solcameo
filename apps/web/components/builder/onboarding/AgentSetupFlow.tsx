@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, ChevronLeft, ChevronRight, Dices, ImagePlus, Loader2, RefreshCw, Shuffle, Wallet, X } from "lucide-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-light.png";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useSiwsSession } from "@/hooks/use-siws-session";
 import { classifyMintError } from "@/lib/builder/mintErrors";
@@ -572,7 +572,7 @@ export default function AgentSetupFlow({ initialType, carry = "", queuedLabel }:
       {/* top bar */}
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#F6F4F0]/85 px-5 py-4 backdrop-blur-md sm:px-8">
         <div className="flex items-center gap-3">
-          <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" priority />
+          <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " priority />
           <span className="hidden text-[12px] font-semibold uppercase tracking-[0.2em] text-[#141413]/45 sm:inline">Builder</span>
         </div>
         <div className="flex items-center gap-2">

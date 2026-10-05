@@ -48,8 +48,8 @@ export function HeroIllustration() {
       <div className="absolute left-1/2 top-1/2 h-[40%] w-[40%] -translate-x-1/2 -translate-y-1/2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/vellosquare-hd.png"
-          alt="Vello"
+          src="/brand/solcameo-mark.png"
+          alt="Solcameo"
           decoding="async"
           className="h-full w-full rounded-[1.3rem] object-cover"
         />

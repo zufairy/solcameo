@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import TabPageHeader from "./TabPageHeader";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";

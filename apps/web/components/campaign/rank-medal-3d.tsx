@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 
 /* Real-3D rank medal for the campaign "Top clippers" podium: an extruded,
    bevelled hexagon in physically-based gold / silver / bronze, lit by a studio

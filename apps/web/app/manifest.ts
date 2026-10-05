@@ -6,7 +6,7 @@ import { HOME_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: SITE_NAME,
-    short_name: "Vello",
+    short_name: "Solcameo",
     description: HOME_DESCRIPTION,
     start_url: "/",
     display: "standalone",

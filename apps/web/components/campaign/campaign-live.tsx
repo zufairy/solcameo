@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import { playCelebrationChime } from "@/components/builder/MintCelebration";
 import { PixelIcon } from "@/components/builder/onboarding/pixel-icons";
 import { EASE } from "./wizard-ui";
@@ -28,7 +28,7 @@ export function CampaignLive({
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#F6F4F0] text-[#141413]">
       <MintedScene />
       <header className="relative z-10 px-5 py-4 sm:px-8">
-        <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" />
+        <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " />
       </header>
       <main className="relative z-10 mx-auto flex w-full max-w-[520px] flex-col items-center px-5 pb-16 pt-10 text-center">
         <motion.span {...rise(0.1)} className="rounded-md bg-[#2BB67E] px-3 py-1.5 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-[#06281b]">

@@ -19,7 +19,6 @@ import {
   SOCIAL_LINKS,
   GOOGLE_SITE_VERIFICATION,
   PRODUCT_INFLUENCER,
-  PRODUCT_CLIPPING,
   SITE_NAV,
   canonicalUrl,
 } from "@/lib/seo";
@@ -27,7 +26,7 @@ import {
 export const metadata: Metadata = {
   metadataBase: new URL(CANONICAL_SITE_URL),
   title: {
-    default: "Solcameo — AI-native video launchpad",
+    default: HOME_TITLE,
     template: "%s | Solcameo",
   },
   description: HOME_DESCRIPTION,
@@ -45,7 +44,7 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1920,
         height: 1080,
-        alt: "Vello Agents: long videos into viral shorts, posted daily",
+        alt: "Solcameo — AI influencers and token launchpad on Solana",
       },
     ],
   },
@@ -89,7 +88,7 @@ const JSON_LD = {
       name: SITE_NAME,
       alternateName: SITE_ALTERNATE_NAMES,
       url: CANONICAL_SITE_URL,
-      logo: `${CANONICAL_SITE_URL}/vellosquare-hd.png`,
+      logo: `${CANONICAL_SITE_URL}/brand/solcameo-mark.png`,
       description: HOME_DESCRIPTION,
       // sameAs ties the official social profiles to this domain — the single
       // strongest signal Google uses to disambiguate "Vello" the brand entity.
@@ -113,17 +112,6 @@ const JSON_LD = {
       operatingSystem: "Web",
       description: PRODUCT_INFLUENCER.description,
       publisher: { "@id": `${CANONICAL_SITE_URL}/#organization` },
-      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: PRODUCT_CLIPPING.name,
-      url: canonicalUrl(PRODUCT_CLIPPING.path),
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description: PRODUCT_CLIPPING.description,
-      publisher: { "@id": `${CANONICAL_SITE_URL}/#organization` },
-      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     },
     // Site menu — one SiteNavigationElement ItemList; a signal Google can use
     // when picking sitelinks for the brand result.

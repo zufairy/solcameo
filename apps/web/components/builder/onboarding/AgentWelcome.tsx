@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { ArrowRight, Check, Copy } from "lucide-react";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-light.png";
 import SocialConnectionsPanel from "@/components/builder/SocialConnectionsPanel";
 import { playCelebrationChime } from "@/components/builder/MintCelebration";
 import { TYPE_COPY, clearJustMinted, readJustMinted, type JustMinted } from "./setup-data";
@@ -224,7 +224,7 @@ export default function AgentWelcome() {
         >
           {stage === "minted" && <MintedScene />}
           <header className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-8">
-            <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" />
+            <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " />
             <div className="flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.14em]" aria-label="Progress">
               <span className="flex items-center gap-1.5 text-[#141413]"><span className="size-2 rounded-full bg-[#A3E635] ring-1 ring-[#141413]" />Minted</span>
               <span className="h-px w-6 bg-black/20" />

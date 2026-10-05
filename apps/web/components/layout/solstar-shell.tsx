@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MotionConfig, motion, useReducedMotion } from "framer-motion";
-import { FileText, Workflow, Plus, Hexagon, Radio, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Workflow, Plus, Radio, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -38,15 +38,8 @@ function Logo() {
       aria-label={`${BRAND.name} home`}
       className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
     >
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-300 text-zinc-950 ">
-        <Hexagon
-          className="size-5 group-data-[collapsible=icon]:size-4"
-          strokeWidth={1.8}
-        />
-      </span>
-      <span className="truncate text-[15px] font-semibold tracking-tight text-white transition-opacity duration-200 group-data-[collapsible=icon]:hidden">
-        {BRAND.name}
-      </span>
+      <img src="/brand/solcameo-mark.png" alt="" className="hidden size-8 object-contain group-data-[collapsible=icon]:block" />
+      <img src="/brand/solcameo-dark.png" alt="Solcameo" width={190} height={38} className="h-8 w-auto max-w-[190px] object-contain group-data-[collapsible=icon]:hidden" />
     </Link>
   );
 }

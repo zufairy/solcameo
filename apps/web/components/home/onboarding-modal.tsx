@@ -8,7 +8,7 @@ import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import MintCelebration from "@/components/builder/MintCelebration";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import {
   Building2, User, TrendingUp, ShoppingBag, Users, Compass,
   Scissors, Sparkles, ArrowRight, ArrowLeft, Check, X,
@@ -179,7 +179,7 @@ export function OnboardingModal({
                 {step === "welcome" && (
                   <StepShell key="welcome" dir={dir}>
                     <div className="flex flex-col items-center pt-6 text-center">
-                      <Image src={velloLogo} alt="Vello" className="h-14 w-auto object-contain" />
+                      <Image src={velloLogo} alt="Solcameo" className="h-14 w-auto object-contain" />
                       <h2 className="mt-5 text-[22px] font-semibold leading-tight text-white">Welcome to Vello</h2>
                       <p className="mt-2.5 max-w-[290px] text-[13.5px] leading-relaxed text-white/50">
                         A few quick questions, then we&apos;ll get your first AI agent making and posting video for you.

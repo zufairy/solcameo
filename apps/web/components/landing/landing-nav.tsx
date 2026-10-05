@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import { IconArrowUpRight } from "./icons";
-import machLogo from "@/assets/lo.png";
+import machLogo from "@/assets/solcameo-dark.png";
 
 const EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -18,7 +18,7 @@ const LINKS = [
 function Wordmark() {
   return (
     <Link href="#top" className="flex items-center shrink-0">
-      <Image src={machLogo} alt="Vello" width={110} height={33} priority className="h-8 w-auto object-contain" />
+      <Image src={machLogo} alt="Solcameo" width={110} height={33} priority className="h-8 w-auto object-contain" />
     </Link>
   );
 }

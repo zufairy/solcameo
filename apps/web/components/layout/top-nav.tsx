@@ -11,7 +11,7 @@ import { ArrowDownToLine } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 import { AccountButton } from "./account-button";
 import { AgentSearch } from "./agent-search";
-import machLogo from "@/assets/lo.png";
+import machLogo from "@/assets/solcameo-dark.png";
 import { shouldUseShell } from "@/lib/solstar/navVisibility";
 import { useInSolstarShell } from "./shell-context";
 import { legacyUiEnabled } from "@/lib/flags";
@@ -76,7 +76,7 @@ export function TopNav() {
           <Link href="/" className="flex shrink-0 items-center sm:mr-2">
             <Image
               src={machLogo}
-              alt="Vello"
+              alt="Solcameo"
               width={120}
               height={36}
               priority

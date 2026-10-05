@@ -34,8 +34,8 @@ export function AppSidebar() {
       <SidebarHeader className="px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/vello-logo.svg"
-            alt="Vello"
+            src="/brand/solcameo-mark.png"
+            alt="Solcameo"
             width={32}
             height={32}
             className="shrink-0"

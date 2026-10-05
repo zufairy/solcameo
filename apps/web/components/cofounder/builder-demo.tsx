@@ -163,7 +163,7 @@ function NodeCard({ n, thumbs, rendering }: { n: FlowNode; thumbs: string[]; ren
       {n.key === "prompt" ? (
         <span className="size-7 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={velloMark.src} alt="Vello" className="size-full object-contain" />
+          <img src={velloMark.src} alt="Solcameo" className="size-full object-contain" />
         </span>
       ) : (
         <span className="grid size-7 shrink-0 place-items-center rounded-lg" style={{ background: `${n.tone}1a`, color: n.tone }}>

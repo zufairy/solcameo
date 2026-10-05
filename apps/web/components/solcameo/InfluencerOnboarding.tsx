@@ -500,7 +500,7 @@ function InfluencerOnboardingContent({
                   />
                   <div className="space-y-3 rounded-xl border border-white/10 p-4">
                     <Label>Launch destination</Label>
-                    <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-white"><span className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-emerald-300 text-zinc-950"><Hexagon className="size-5" strokeWidth={1.8} /></span>Solcameo</span><ArrowRight className="size-4 text-zinc-500" /><span className="flex items-center gap-2"><img src="/logos/meteora.svg" alt="Meteora" className="size-8" />Meteora DBC</span></div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-white"><span className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-emerald-300 text-zinc-950"><img src="/brand/solcameo-mark.png" alt="Solcameo" className="size-8" /></span>Solcameo</span><ArrowRight className="size-4 text-zinc-500" /><span className="flex items-center gap-2"><img src="/logos/meteora.svg" alt="Meteora" className="size-8" />Meteora DBC</span></div>
                     <p className="text-xs leading-5 text-zinc-500">
                       {liveReadiness.reason}
                     </p>

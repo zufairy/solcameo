@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { AuthForm, EASE_OUT } from "@/components/auth/auth-form";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 
 /** Landing-page auth modal — the /login form (same AuthForm, same look)
  *  animating up out of a blurred backdrop instead of a route change.
@@ -71,7 +71,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             </button>
 
             <div className="mb-6 flex justify-center">
-              <Image src={velloLogo} alt="Vello" className="h-7 w-auto object-contain" />
+              <Image src={velloLogo} alt="Solcameo" className="h-7 w-auto object-contain" />
             </div>
 
             <AuthForm onSuccess={(mode) => { onClose(); router.push(mode === "signup" ? "/builder" : "/home"); }} />

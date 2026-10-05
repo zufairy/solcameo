@@ -4,7 +4,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import { GuideDot } from "@/components/builder/onboarding/guide-dot";
 
 /** Shared look for the campaign wizard: the builder onboarding's warm paper + ink. */
@@ -97,7 +97,7 @@ export function WizardShell({ labels, stepIdx, maxReached, dir, stepKey, happy, 
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#F6F4F0] text-[#141413] [scrollbar-gutter:stable]">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#F6F4F0]/85 px-5 py-4 backdrop-blur-md sm:px-8">
         <div className="flex items-center gap-3">
-          <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" priority />
+          <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " priority />
           <span className="hidden text-[12px] font-semibold uppercase tracking-[0.2em] text-[#141413]/45 sm:inline">Campaign</span>
         </div>
         <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export function PaperScreen({ children, onClose }: { children: ReactNode; onClos
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#F6F4F0] text-[#141413]">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
-        <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" priority />
+        <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " priority />
         {onClose && (
           <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 rounded-full bg-black/6 px-3.5 py-2 text-[12px] font-bold uppercase tracking-[0.1em] hover:bg-black/10">
             <X className="size-3.5" /> Close

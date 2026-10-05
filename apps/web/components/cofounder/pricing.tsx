@@ -46,7 +46,7 @@ function AppLogoIcon({ className = "" }: { className?: string }) {
     <span className={`relative inline-flex shrink-0 ${className}`}>
       <Image
         src={velloSquare}
-        alt="Vello"
+        alt="Solcameo"
         fill
         sizes="64px"
         className="object-contain drop-shadow-[0_10px_22px_rgba(120,170,20,0.35)]"

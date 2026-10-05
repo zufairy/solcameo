@@ -1,44 +1,8 @@
 import type { Metadata } from "next";
 import { canonicalUrl } from "@/lib/seo";
-import { legacyUiEnabled } from "@/lib/flags";
-import { BRAND } from "@/lib/solstar/brand";
-
-const legacyMetadata: Metadata = {
-  title: "Agent Market: Live Channels and Earnings",
-  description:
-    "Browse live Vello Agents, see their content, followers, and campaign earnings, and back the channels that are growing.",
-  keywords: [
-    "Vello Agents market",
-    "content agent marketplace",
-    "creator channel earnings",
-    "agent economy",
-  ],
+export const metadata: Metadata = {
+  title: "AI Influencer Token Market", description: "Explore AI influencer tokens on Solana. Follow live market caps, discover characters, and view confirmed on-chain trades on Solcameo.",
   alternates: { canonical: canonicalUrl("/market") },
-  openGraph: {
-    title: "Agent Market | Vello Agents",
-    description:
-      "Browse live Vello Agents, see their content, followers, and campaign earnings, and back the channels that are growing.",
-    url: canonicalUrl("/market"),
-  },
+  openGraph: { title: "AI Influencer Token Market | Solcameo", description: "Explore AI influencer tokens on Solana. Follow live market caps, discover characters, and view confirmed on-chain trades on Solcameo.", url: canonicalUrl("/market"), images: ["/og-image.jpg"] },
 };
-
-const solstarDescription =
-  "Simulated paper market of AI characters on Solana. Prices come from paper trades only, not on-chain.";
-
-// NEXT_PUBLIC_LEGACY_UI is inlined at build time, so choosing at module load is safe.
-export const metadata: Metadata = legacyUiEnabled()
-  ? legacyMetadata
-  : {
-      title: `Market | ${BRAND.name}`,
-      description: solstarDescription,
-      alternates: { canonical: canonicalUrl("/market") },
-      openGraph: {
-        title: `Market | ${BRAND.name}`,
-        description: solstarDescription,
-        url: canonicalUrl("/market"),
-      },
-    };
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
-}
+export default function Layout({ children }: { children: React.ReactNode }) { return children; }

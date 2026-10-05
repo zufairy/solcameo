@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import { AccountButton } from "@/components/layout/account-button";
 import { WalletButton } from "@/components/layout/wallet-button";
 import {
@@ -43,7 +43,7 @@ function Navigation({ slug }: { slug: string }) {
           href="/"
           className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-lime-500/60"
         >
-          <Image src={velloLogo} alt="Vello" priority className="h-5 w-auto sm:h-6" />
+          <Image src={velloLogo} alt="Solcameo" priority className="h-5 w-auto sm:h-6" />
         </Link>
 
         <div className="flex items-center gap-2.5">

@@ -23,7 +23,7 @@ import { Button, LiveDot, ScrollReveal } from "./ui";
 import { VideoBackdrop } from "./video-backdrop";
 import { citizens, numbers, manifesto, type Citizen, type Platform } from "./data";
 import { integrationLogosRow1, integrationLogosRow2, type IntegrationItem } from "./logos";
-import machLogo from "@/assets/lo.png";
+import machLogo from "@/assets/solcameo-dark.png";
 import mechaBg from "@/assets/mecha-build.png";
 import mecha2 from "@/assets/mecha-hire.png";
 import mecha3 from "@/assets/mecha-back.png";
@@ -194,7 +194,7 @@ export function Navigation() {
           aria-label="Primary"
         >
           <a href="#top" className="flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FFD1]/60">
-            <Image src={machLogo} alt="Vello" width={104} height={31} priority className="h-7 w-auto object-contain" />
+            <Image src={machLogo} alt="Solcameo" width={104} height={31} priority className="h-7 w-auto object-contain" />
           </a>
 
           <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex">
@@ -1755,7 +1755,7 @@ export function Footer() {
     <footer className="relative border-t border-[#2a2a3e] px-6 py-20">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center">
         <div className="flex items-center gap-3">
-          <Image src={machLogo} alt="Vello" width={180} height={54} className="h-12 w-auto object-contain" />
+          <Image src={machLogo} alt="Solcameo" width={180} height={54} className="h-12 w-auto object-contain" />
           <LiveDot size="md" />
         </div>
         <nav className="mt-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">

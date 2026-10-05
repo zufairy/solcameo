@@ -24,7 +24,7 @@ import {
   Share2,
   X,
 } from "lucide-react";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import aiEditorIllustration from "@/assets/ai-editor-illustration.png";
 // Real product screenshots — one per "How it works" step, matched to what
 // that step actually does (prompt box → clips grid → editor → schedule).
@@ -222,7 +222,7 @@ export function Navigation() {
           href="/"
           className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-white/80"
         >
-          <Image src={velloLogo} alt="Vello" priority className="h-7 w-auto sm:h-8" />
+          <Image src={velloLogo} alt="Solcameo" priority className="h-7 w-auto sm:h-8" />
         </Link>
 
         {/* Centered nav — logo left, account right, everything else pinned to

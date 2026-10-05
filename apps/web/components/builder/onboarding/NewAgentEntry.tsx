@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Plus } from "lucide-react";
-import velloLogo from "@/assets/logoblack.png";
+import velloLogo from "@/assets/solcameo-light.png";
 import { useMyAgents } from "@/lib/client/useMyAgents";
 import AgentSetupFlow from "./AgentSetupFlow";
 import { OptionCard, Stagger, itemVariants } from "./setup-ui";
@@ -84,7 +84,7 @@ export default function NewAgentEntry({
     return (
       <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#F6F4F0] text-[#141413]">
         <header className="flex items-center px-5 py-4 sm:px-8">
-          <Image src={velloLogo} alt="Vello" className="h-8 w-auto mix-blend-multiply" priority />
+          <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto " priority />
         </header>
         <main className="mx-auto w-full max-w-[640px] px-5 pb-20 pt-8 sm:pt-14">
           <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }} className="inline-flex max-w-full items-center gap-2 rounded-full bg-black/6 px-3.5 py-1.5 text-[12.5px] font-medium text-[#141413]/70">

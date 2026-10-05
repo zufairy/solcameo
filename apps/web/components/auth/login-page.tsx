@@ -8,7 +8,7 @@ import Link from "next/link";
 import { AudioLines, Captions, Scissors, Share2 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { AuthForm } from "@/components/auth/auth-form";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 
 // Slide-up + blur-in stagger for the form column's contents on first paint —
 // each child rises 14px and sharpens from a soft blur, staggered 60ms apart.
@@ -82,7 +82,7 @@ function BriefPanel() {
     >
       <motion.div variants={item}>
         <Link href="/" aria-label="Vello">
-          <Image src={velloLogo} alt="Vello" className="h-8 w-auto object-contain" />
+          <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto object-contain" />
         </Link>
       </motion.div>
 
@@ -150,7 +150,7 @@ export function LoginPage() {
         <motion.div variants={container} initial="hidden" animate="show" className="w-full max-w-[360px]">
           <motion.div variants={item} className="flex justify-center lg:hidden">
             <Link href="/" aria-label="Vello">
-              <Image src={velloLogo} alt="Vello" className="h-8 w-auto object-contain" />
+              <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto object-contain" />
             </Link>
           </motion.div>
 

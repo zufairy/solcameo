@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { AccountButton } from "@/components/layout/account-button";
-import velloLogo from "@/assets/lo.png";
+import velloLogo from "@/assets/solcameo-dark.png";
 import { useInSolstarShell } from "@/components/layout/shell-context";
 
 /* ════════ Shared app sidebar + shell ════════
@@ -105,7 +105,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
       {/* Brand + collapse toggle */}
       <div className={`flex shrink-0 items-center ${collapsed ? "flex-col gap-2" : "justify-between"}`}>
         <Link href="/" className="flex items-center overflow-hidden rounded-lg" aria-label="Vello">
-          <Image src={velloLogo} alt="Vello" className="h-9 w-auto shrink-0 object-contain" />
+          <Image src={velloLogo} alt="Solcameo" className="h-9 w-auto shrink-0 object-contain" />
         </Link>
         <button
           type="button"
@@ -272,7 +272,7 @@ export function MobileNavSheet({
 
           <div className="relative flex h-14 shrink-0 items-center justify-between px-4">
             <Link href="/home" onClick={onClose} className="flex items-center overflow-hidden rounded-lg" aria-label="Vello">
-              <Image src={velloLogo} alt="Vello" className="h-8 w-auto shrink-0 object-contain" />
+              <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto shrink-0 object-contain" />
             </Link>
             <motion.button
               type="button"
@@ -362,7 +362,7 @@ export function AppHeader({ transparent = true }: { transparent?: boolean }) {
     <header className={`sticky top-0 z-50 ${transparent ? "bg-transparent" : "bg-[#08080a]"}`}>
       <div className="flex h-14 items-center gap-3 px-4 sm:gap-5 sm:px-5" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif' }}>
         <Link href="/home" className="flex shrink-0 items-center overflow-hidden rounded-lg" aria-label="Vello">
-          <Image src={velloLogo} alt="Vello" className="h-8 w-auto shrink-0 object-contain md:h-7" />
+          <Image src={velloLogo} alt="Solcameo" className="h-8 w-auto shrink-0 object-contain md:h-7" />
         </Link>
         <nav className="hidden h-full items-center md:flex">
           {MAIN_ITEMS.map((item) => (
