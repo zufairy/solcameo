@@ -40,7 +40,7 @@ export function buildDbcCurve(input: DbcOptions) {
       },
       dynamicFeeEnabled: false,
       collectFeeMode: CollectFeeMode.QuoteToken,
-      creatorTradingFeePercentage: 100,
+      creatorTradingFeePercentage: o.economy === "sustainable-v1" ? 50 : 100,
       poolCreationFee: 0,
       enableFirstSwapWithMinFee: false,
     },
@@ -56,9 +56,9 @@ export function buildDbcCurve(input: DbcOptions) {
     },
     liquidityDistribution: {
       partnerLiquidityPercentage: 0,
-      partnerPermanentLockedLiquidityPercentage: 0,
+      partnerPermanentLockedLiquidityPercentage: o.economy === "sustainable-v1" ? 50 : 0,
       creatorLiquidityPercentage: 0,
-      creatorPermanentLockedLiquidityPercentage: 100,
+      creatorPermanentLockedLiquidityPercentage: o.economy === "sustainable-v1" ? 50 : 100,
     },
     lockedVesting: {
       totalLockedVestingAmount: 0,

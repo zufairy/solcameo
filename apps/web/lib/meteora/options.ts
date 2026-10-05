@@ -1,6 +1,7 @@
 import { z } from "zod";
 export const dbcOptionsSchema = z
   .object({
+    economy: z.enum(["creator-only", "sustainable-v1"]).default("creator-only"),
     shape: z.enum(["classic", "steady", "rocket", "whale"]).default("classic"),
     initialCapSol: z.number().min(0.1).max(1000).default(30),
     graduationCapSol: z.number().min(1).max(10000).default(250),
@@ -13,4 +14,4 @@ export const dbcOptionsSchema = z
     "Graduation cap must be at least twice the opening cap.",
   );
 export type DbcOptions = z.infer<typeof dbcOptionsSchema>;
-export const DEFAULT_DBC = dbcOptionsSchema.parse({});
+export const DEFAULT_DBC = dbcOptionsSchema.parse({ economy: "sustainable-v1" });

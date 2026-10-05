@@ -16,6 +16,7 @@ export default defineSchema({
     characterId: v.id("ssCharacters"),
     network: v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet")),
     name: v.string(), ticker: v.string(), description: v.string(),
+    economy: v.optional(v.union(v.literal("creator-only"), v.literal("sustainable-v1"))), treasuryWallet: v.optional(v.string()), dammPool: v.optional(v.string()),
     dbcConfig: v.optional(v.string()), dbcPool: v.optional(v.string()),
     mint: v.optional(v.string()), launchSignature: v.optional(v.string()), sharingSignature: v.optional(v.string()),
     state: v.union(v.literal("paper"), v.literal("pending"), v.literal("live"), v.literal("graduated"), v.literal("migrated"), v.literal("failed")),
@@ -42,6 +43,16 @@ export default defineSchema({
     network: v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet")),
     fundedLamports: v.int64(), reservedLamports: v.int64(), spentLamports: v.int64(),
   }).index("by_token", ["tokenId"]),
+  ssFlywheels: defineTable({
+    tokenId: v.id("ssTokens"), enabled: v.boolean(), nextRunAt: v.number(), leaseUntil: v.number(),
+    status: v.string(), error: v.optional(v.string()), claimSignature: v.optional(v.string()), claimTransaction: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_token", ["tokenId"]).index("by_next_run", ["nextRunAt"]),
+  ssContentJobs: defineTable({
+    tokenId: v.id("ssTokens"), roundId: v.id("ssCommunityRounds"), key: v.string(), status: v.string(),
+    costLamports: v.int64(), prompt: v.string(), taskId: v.optional(v.string()), videoUrl: v.optional(v.string()), error: v.optional(v.string()),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_key", ["key"]).index("by_token", ["tokenId"]).index("by_status", ["status"]),
   ssFollows: defineTable({ wallet: v.string(), characterId: v.id("ssCharacters"), createdAt: v.number() })
     .index("by_wallet_character", ["wallet", "characterId"]).index("by_character", ["characterId"]),
   ssTrades: defineTable({

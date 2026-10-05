@@ -1,3 +1,4 @@
+import { dbcTreasury } from "@/lib/server/dbcTreasury";
 import bs58 from "bs58";
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       publicWallet(body.mint);
       publicWallet(body.config);
       const options = dbcOptionsSchema.parse(body.options);
+      if (options.economy === "sustainable-v1") dbcTreasury();
       buildDbcCurve(options); // Validate construction before metadata upload or wallet costs.
       const metadata = await putImage(
         Buffer.from(
@@ -200,6 +202,8 @@ export async function POST(req: NextRequest) {
             pool: pool.toBase58(),
             network: receipt.network,
             launchSignature: body.signature,
+            economy: receipt.options.economy,
+            treasuryWallet: receipt.options.economy === "sustainable-v1" ? dbcTreasury().publicKey.toBase58() : undefined,
             authSecret: secret,
           });
           return NextResponse.json({ complete: true, mint: receipt.mint, pool: pool.toBase58(), supply: supply.value.amount, network: receipt.network, signature: body.signature, networkFeeLamports: confirmed.meta.fee });
@@ -220,7 +224,7 @@ export async function POST(req: NextRequest) {
         ? await client.partner.createConfig({
             ...buildDbcCurve(receipt.options),
             config,
-            feeClaimer: payer,
+            feeClaimer: receipt.options.economy === "sustainable-v1" ? dbcTreasury().publicKey : payer,
             leftoverReceiver: payer,
             payer,
             quoteMint: NATIVE_MINT,

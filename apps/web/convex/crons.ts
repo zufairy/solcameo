@@ -685,6 +685,7 @@ crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.re
 
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});
 
-crons.hourly("community character replies", { minuteUTC: 1 }, internal.communityChat.hourly, {});
+crons.cron("community character replies", "1 * * * *", internal.communityChat.hourly, {});
+crons.interval("DBC fee collection and content flywheel", { minutes: 2 }, internal.solstarFlywheel.sweep, {});
 
 export default crons;

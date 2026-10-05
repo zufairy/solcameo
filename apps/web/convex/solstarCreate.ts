@@ -140,7 +140,7 @@ export const reservePumpMint = mutation({
 
 /** Server verifies the exact signed DBC creation and pool ownership before finalizing. */
 export const finalizeDbcLaunch = mutation({
-  args: { characterId: v.id("ssCharacters"), wallet: v.string(), mint: v.string(), config: v.string(), pool: v.string(), network: v.union(v.literal("devnet"), v.literal("mainnet")), launchSignature: v.string(), authSecret: v.string() },
+  args: { characterId: v.id("ssCharacters"), wallet: v.string(), mint: v.string(), config: v.string(), pool: v.string(), network: v.union(v.literal("devnet"), v.literal("mainnet")), launchSignature: v.string(), economy: v.optional(v.union(v.literal("creator-only"), v.literal("sustainable-v1"))), treasuryWallet: v.optional(v.string()), authSecret: v.string() },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
     const character = await ctx.db.get(a.characterId);
@@ -148,9 +148,13 @@ export const finalizeDbcLaunch = mutation({
     const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", a.characterId)).first();
     if (token?.state === "live" && token.mint === a.mint && token.dbcConfig === a.config && token.dbcPool === a.pool) return { mint: a.mint };
     if (!token || token.mint !== a.mint || token.state !== "pending") throw new Error("launch_conflict");
-    await ctx.db.patch(token._id, { network: a.network, state: "live", mint: a.mint, dbcConfig: a.config, dbcPool: a.pool, launchSignature: a.launchSignature });
+    await ctx.db.patch(token._id, { network: a.network, state: "live", mint: a.mint, dbcConfig: a.config, dbcPool: a.pool, launchSignature: a.launchSignature, ...(a.economy ? {economy:a.economy} : {}), ...(a.treasuryWallet ? {treasuryWallet:a.treasuryWallet} : {}) });
     const budget = await ctx.db.query("ssBudgets").withIndex("by_token", q => q.eq("tokenId", token._id)).first();
     if (budget) await ctx.db.patch(budget._id, { network: a.network, fundedLamports: 0n, reservedLamports: 0n, spentLamports: 0n });
+    if (a.economy === "sustainable-v1") {
+      if (!a.treasuryWallet) throw new Error("treasury_required");
+      await ctx.db.insert("ssFlywheels", {tokenId:token._id, enabled:true, nextRunAt:Date.now(), leaseUntil:0, status:"awaiting_fees", updatedAt:Date.now()});
+    }
     return { mint: a.mint };
   },
 });
