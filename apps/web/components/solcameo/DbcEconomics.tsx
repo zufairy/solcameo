@@ -258,10 +258,10 @@ export function DbcEconomics({
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            ["Creator", fees.creator, Coins],
-            ["Content budget", fees.content, Video],
-            ["Solcameo", fees.platform, ArrowRight],
-            ["Meteora", fees.protocol, ShieldCheck],
+            [sustainable ? "Creator · 40%" : "Creator · 80%", fees.creator, Coins],
+            [sustainable ? "Content budget · 20%" : "Content budget · 0%", fees.content, Video],
+            [sustainable ? "Solcameo · 20%" : "Solcameo · 0%", fees.platform, ArrowRight],
+            ["Meteora · 20%", fees.protocol, ShieldCheck],
           ].map(([label, amount, Icon]) => {
             const I = Icon as typeof Coins;
             return (
@@ -279,13 +279,6 @@ export function DbcEconomics({
           })}
         </dl>
       </div>
-      <p className="rounded-xl bg-white/[0.03] p-4 text-xs leading-6 text-zinc-400">
-        {sustainable
-          ? "Creator fees accrue onchain. Solcameo collects the partner allocation into its backend-managed treasury, allocating half to this character’s content budget and half to platform operations. Budget-backed generation runs at most once daily when a new community plot and enough funds are available. You can pause it in the market."
-          : "This saved launch retains its original creator-only allocation. It does not automatically fund content."}{" "}
-        Devnet SOL is for testing and cannot purchase AI credits. No automatic
-        buybacks, burns, or holder payouts.
-      </p>
       <details className="rounded-xl border border-white/10 p-4">
         <summary className="flex cursor-pointer items-center gap-2 text-sm text-zinc-400">
           <Settings2 className="size-4" />

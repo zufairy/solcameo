@@ -14,9 +14,9 @@ import { InfluencerOnboarding } from "./InfluencerOnboarding";
 let root: Root | undefined;
 let host: HTMLDivElement;
 afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; host?.remove(); sessionStorage.clear(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
-async function mount() {
+async function mount(extra: Record<string, unknown> = {}) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  sessionStorage.setItem("solcameo-influencer-draft-v2", JSON.stringify({ concept: { name: "Orbit Muse", ticker: "ORBIT", bio: "A space creator", category: "Comedy" } }));
+  sessionStorage.setItem("solcameo-influencer-draft-v2", JSON.stringify({ concept: { name: "Orbit Muse", ticker: "ORBIT", bio: "A space creator", category: "Comedy" }, ...extra }));
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
   await act(async () => { root!.render(<InfluencerOnboarding liveReadiness={{ready:true,reason:"Devnet launch"}} />); });
 }
@@ -26,6 +26,12 @@ async function click(text: string) {
   await act(async () => { button.click(); });
 }
 describe("character-first coin creation", () => {
+  it("upgrades an unlaunched saved creator-only draft to the sustainable allocation", async () => {
+    await mount({ pendingCharacterId: "character123", dbcOptions: { economy: "creator-only", shape: "classic", initialCapSol: 30, graduationCapSol: 250, feeBps: 100 } });
+    const draft = JSON.parse(sessionStorage.getItem("solcameo-influencer-draft-v2")!);
+    expect(draft.dbcOptions.economy).toBe("sustainable-v1");
+    expect(draft.pendingCharacterId).toBe("character123");
+  });
   it("requires a selected portrait, review and image rights before sending creation requests", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ imageStorageId: "storage123" }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ characterId: "character123" }) });
     vi.stubGlobal("fetch", fetchMock); mocks.signed.mockResolvedValue("signed-session");

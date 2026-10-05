@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Check,
   Coins,
+  Hexagon,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,7 @@ function InfluencerOnboardingContent({
     draft.concept ?? { name: "", ticker: "", bio: "", category: "Comedy" },
   );
   const [dbcOptions, setDbcOptions] = useState<DbcOptions>(
-    draft.pendingCharacterId ? (draft.dbcOptions ?? DEFAULT_DBC) : {...(draft.dbcOptions ?? DEFAULT_DBC), economy: "sustainable-v1"},
+    { ...(draft.dbcOptions ?? DEFAULT_DBC), economy: "sustainable-v1" },
   );
   const [launchMode] = useState<"preview" | "live">(
     "live",
@@ -499,7 +500,7 @@ function InfluencerOnboardingContent({
                   />
                   <div className="space-y-3 rounded-xl border border-white/10 p-4">
                     <Label>Launch destination</Label>
-                    <p className="text-sm text-white">{launchMode === "live" ? "On-chain mint · wallet approval required" : "Preview only · on-chain launch unavailable"}</p>
+                    <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-white"><span className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-emerald-300 text-zinc-950"><Hexagon className="size-5" strokeWidth={1.8} /></span>Solcameo</span><ArrowRight className="size-4 text-zinc-500" /><span className="flex items-center gap-2"><img src="/logos/meteora.svg" alt="Meteora" className="size-8" />Meteora DBC</span></div>
                     <p className="text-xs leading-5 text-zinc-500">
                       {liveReadiness.reason}
                     </p>
@@ -630,7 +631,7 @@ function InfluencerOnboardingContent({
                 <img
                   src={character.image.url}
                   alt="Your selected AI influencer"
-                  className="aspect-[3/4] w-full object-cover"
+                  className="aspect-square w-full object-cover object-top"
                 />
               )}
               <div className="p-5">

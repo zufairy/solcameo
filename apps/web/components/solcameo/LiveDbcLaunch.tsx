@@ -26,7 +26,7 @@ async function call(body: unknown) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Launch failed.");
+  if (!res.ok) throw Object.assign(new Error(data.error ?? "Launch failed."), {code: data.code});
   return data;
 }
 export function LiveDbcLaunch({
@@ -78,6 +78,12 @@ export function LiveDbcLaunch({
       let pending: Pending | null = JSON.parse(
         sessionStorage.getItem(key) ?? "null",
       );
+      if (pending) {
+        const encoded = pending.receipt.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+        const receipt = JSON.parse(atob(encoded));
+        if ((receipt.options?.economy ?? "creator-only") !== options.economy)
+          throw new Error("This saved wallet transaction uses a different fee split. Start a new character launch for the 40/20/20 allocation; existing signed launch terms cannot be changed.");
+      }
       if (!pending) {
         setStatus("Building your Meteora configuration…");
         const mint = Keypair.generate(),
@@ -117,34 +123,37 @@ export function LiveDbcLaunch({
           }
         }
         if (!pending.signature) {
-          const tx = VersionedTransaction.deserialize(
-            decode(pending.transaction),
-          );
-          tx.sign([
-            Keypair.fromSecretKey(
-              Uint8Array.from(
-                pending.stage === "config"
-                  ? pending.configSecret
-                  : pending.mintSecret,
-              ),
-            ),
-          ]);
-          setStatus(
-            pending.stage === "config"
-              ? "Approve the curve configuration in your wallet."
-              : "Approve your token and pool creation in your wallet.",
-          );
-          setLaunchStep(1);
-          const signed = await signTransaction(tx);
-          pending.transaction = encode(signed.serialize());
-          save(pending);
-          const result = await call({
-            action: "submit",
-            receipt: pending.receipt,
-            transaction: pending.transaction,
-          });
-          pending.signature = result.signature;
-          save(pending);
+          for (let approval = 0; approval < 3 && !pending.signature; approval++) {
+            const tx = VersionedTransaction.deserialize(decode(pending.transaction));
+            tx.sign([Keypair.fromSecretKey(Uint8Array.from(pending.stage === "config" ? pending.configSecret : pending.mintSecret))]);
+            setStatus(pending.stage === "config" ? "Approve the curve configuration in your wallet." : "Approve your token and pool creation in your wallet.");
+            setLaunchStep(pending.stage === "config" ? 0 : 1);
+            const signed = await signTransaction(tx);
+            pending.transaction = encode(signed.serialize());
+            save(pending);
+            try {
+              let result;
+              for (let retry = 0; retry < 3; retry++) {
+                try {
+                  result = await call({action: "submit", receipt: pending.receipt, transaction: pending.transaction});
+                  break;
+                } catch (e) {
+                  if ((e as {code?: string}).code !== "RPC_RETRY" || retry === 2) throw e;
+                  setStatus("Syncing with Solana. Your approval is saved…");
+                  await new Promise(resolve => setTimeout(resolve, 1200));
+                }
+              }
+              pending.signature = result.signature;
+              save(pending);
+            } catch (e) {
+              if ((e as {code?: string}).code !== "BLOCKHASH_EXPIRED" || approval === 2) throw e;
+              setStatus("Refreshing your expired approval. Confirm the updated transaction in your wallet.");
+              const recovered = await call({action: "refresh", receipt: pending.receipt, transaction: pending.transaction});
+              if (recovered.signature) pending.signature = recovered.signature;
+              else {pending.transaction = recovered.transaction; pending.receipt = recovered.receipt;}
+              save(pending);
+            }
+          }
         }
         setLaunchStep(2);
         setStatus("Waiting for Solana confirmation…");
@@ -169,6 +178,7 @@ export function LiveDbcLaunch({
         }
         if (result?.complete) {
           sessionStorage.removeItem(key);
+          setLaunchStep(2);
           setStatus("Your Meteora pool is confirmed.");
           onComplete();
           return;
@@ -201,9 +211,10 @@ export function LiveDbcLaunch({
     void launch();
   }, [autoStart, publicKey, signTransaction, preflight, launch]);
   return (
-    <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative space-y-4 overflow-hidden rounded-2xl border border-[#d7ff00]/25 bg-[#d7ff00]/5 p-5">
-      <div className="flex items-center gap-3"><motion.div animate={reduced ? {} : { y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }} className="grid size-10 place-items-center rounded-xl bg-[#d7ff00]/10"><Rocket className="size-5 text-[#d7ff00]" /></motion.div><div><h3 className="text-base font-semibold text-white">Your character is ready for launch</h3><p className="text-xs text-zinc-400">Two approvals. One new beginning on devnet.</p></div></div>
-      <div className="grid grid-cols-3 gap-2" aria-label="Launch progress">{["Prepare curve", "Approve launch", "Go live"].map((label, index) => <div key={label} className={`rounded-lg border px-2 py-2 text-center text-[10px] ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}><span className="mr-1">{index + 1}.</span>{label}</div>)}</div>
+    <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate space-y-5 overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/[0.09] via-[#202326]/90 to-[#17191c]/95 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl">
+      <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-[#d7ff00]/10 blur-3xl" />
+      <div className="flex items-center gap-3"><motion.div animate={reduced ? {} : { y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }} className="grid size-10 place-items-center rounded-xl bg-[#d7ff00]/10"><Rocket className="size-5 text-[#d7ff00]" /></motion.div><div><h3 className="text-base font-semibold text-white">Your next chapter starts here</h3><p className="text-xs text-zinc-400">Two wallet approvals. Your character, live on Solana.</p></div></div>
+      <div className="relative grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5" aria-label="Launch progress">{["Prepare curve", "Approve launch", "Go live"].map((label, index) => <div key={label} className={`relative rounded-xl border px-2 py-3 text-center text-[11px] transition-colors duration-500 ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}>{index === launchStep && <motion.span layoutId="launch-step" className="absolute inset-0 rounded-xl bg-[#d7ff00]/5 shadow-[inset_0_1px_0_rgba(215,255,0,0.15)]" transition={{duration: reduced ? 0 : 0.4}} />}<span className="relative"><span className="mr-1">{index < launchStep ? "✓" : `${index + 1}.`}</span>{label}</span></div>)}</div>
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="text-zinc-300">{getNetworkLabel()} launch</span>
         <span className="text-[#d7ff00]">{preflight?.ready ? "RPC verified" : preflight ? "Needs attention" : "Checking network…"}</span>
