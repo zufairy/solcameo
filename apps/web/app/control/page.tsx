@@ -93,10 +93,10 @@ function useAccountSync(enabled: boolean) {
 }
 
 function ControlPanel() {
-  const { profile, loading, login } = useSupabaseAuth();
+  const { profile, authenticated, loading, login } = useSupabaseAuth();
   const { publicKey } = useUnifiedSolanaWallet();
   const activeWallet = publicKey?.toBase58();
-  useAccountSync(!!profile);
+  useAccountSync(authenticated);
   const syncState = useSyncState();
   const reduceMotion = useReducedMotion();
   const wallets = useMemo(
@@ -191,13 +191,13 @@ function ControlPanel() {
   }, [selected, teams, byMint]);
 
   let body: React.ReactNode;
-  if (loading || (profile && wallets.length > 0 && agents === undefined)) {
+  if (loading || (authenticated && wallets.length > 0 && agents === undefined)) {
     body = <Centered><Loader2 className="size-5 animate-spin text-zinc-600" /></Centered>;
-  } else if (!profile) {
+  } else if (!authenticated) {
     body = (
       <Centered>
-        <p className="text-[15px] font-semibold text-white">Sign in to talk to your agents</p>
-        <button onClick={login} className="mt-3 rounded-full bg-white px-5 py-2 text-[13px] font-semibold text-black hover:bg-zinc-200">Sign in</button>
+        <p className="text-[15px] font-semibold text-white">Connect your wallet to talk to your agents</p>
+        <button onClick={login} className="mt-3 rounded-full bg-white px-5 py-2 text-[13px] font-semibold text-black hover:bg-zinc-200">Connect wallet</button>
       </Centered>
     );
   } else {
@@ -224,7 +224,7 @@ function ControlPanel() {
           animate={{ width: listHidden ? 76 : 300 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           aria-label="Chats"
-          className={`flex flex-col overflow-hidden border-r border-white/[0.06] bg-[#101112] md:shrink-0
+          className={`flex flex-col overflow-hidden border-r border-white/[0.06] bg-[#181a1c] md:shrink-0
             max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-[70] max-md:!w-[86vw] max-md:max-w-[340px] max-md:shadow-2xl max-md:shadow-black/70
             max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.22,1,0.36,1)]
             ${drawerOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}`}
@@ -303,7 +303,7 @@ function ControlPanel() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               >
                 {/* Phone: open the chat drawer from the dashboard. */}
-                <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/[0.06] bg-[#090a0b]/90 px-3 py-2.5 backdrop-blur-xl md:hidden">
+                <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/[0.06] bg-[#181a1c]/90 px-3 py-2.5 backdrop-blur-xl md:hidden">
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setDrawerOpen(true)}
@@ -312,7 +312,7 @@ function ControlPanel() {
                     <MessagesSquare className="size-4" /> Chats
                     <span className="rounded-full bg-white/10 px-1.5 text-[11px] text-zinc-300">{recentChats.length}</span>
                     {recentChats.some((c) => getThread(c.key).sending) && (
-                      <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-[#08080a] bg-emerald-400" />
+                      <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-[#181a1c] bg-emerald-400" />
                     )}
                   </motion.button>
                   <span className="ml-auto text-[12px] text-zinc-500">Dashboard</span>
@@ -349,7 +349,7 @@ function ControlPanel() {
 
   return (
     <AppHeaderShell>
-      <div className="h-full min-h-0 flex-1 overflow-hidden bg-[#090a0b]">{body}</div>
+      <div className="h-full min-h-0 flex-1 overflow-hidden bg-[#181a1c]">{body}</div>
     </AppHeaderShell>
   );
 }
@@ -414,7 +414,7 @@ function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, 
       {active && <motion.span layoutId="control-active-row" transition={SPRING} className="absolute inset-0 rounded-xl bg-white/[0.08]" />}
       <span className="relative">
         {avatar}
-        {compact && t.sending && <span className="absolute -right-0.5 -top-0.5 hidden size-3 rounded-full border-2 border-[#0c0c0e] bg-emerald-400 md:block" />}
+        {compact && t.sending && <span className="absolute -right-0.5 -top-0.5 hidden size-3 rounded-full border-2 border-[#181a1c] bg-emerald-400 md:block" />}
       </span>
       <div className={`relative min-w-0 flex-1 ${compact ? "md:hidden" : ""}`}>
         <div className="flex items-center gap-2">
@@ -637,7 +637,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
 
         {/* Composer */}
         <div className="shrink-0 px-3 pb-4 md:px-6">
-          <div className="mx-auto max-w-3xl rounded-3xl border border-white/[0.08] bg-[#19191c] p-2.5 transition-[border-color,box-shadow] duration-200 focus-within:border-white/20 focus-within:shadow-[0_0_0_4px_rgba(255,255,255,0.03)]">
+          <div className="mx-auto max-w-3xl rounded-3xl border border-white/[0.08] bg-[#202326] p-2.5 transition-[border-color,box-shadow] duration-200 focus-within:border-white/20 focus-within:shadow-[0_0_0_4px_rgba(255,255,255,0.03)]">
             <textarea
               ref={inputRef}
               value={input}
@@ -712,10 +712,10 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
             key="screen"
             initial={{ width: 0, opacity: 0 }} animate={{ width: 340, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="hidden shrink-0 overflow-hidden border-l border-white/[0.06] bg-[#101112] lg:block"
+            className="hidden shrink-0 overflow-hidden border-l border-white/[0.06] bg-[#181a1c] lg:block"
           >
             <div className="h-full w-[340px] overflow-y-auto p-4">
-              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#141417]">
+              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#181a1c]">
                 <AnimatePresence mode="wait" initial={false}>
                   {screenVideo ? (
                     <motion.button
@@ -930,7 +930,7 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
     <motion.div
       whileHover={{ y: -3 }}
       transition={SPRING}
-      className="group w-[196px] shrink-0 overflow-hidden rounded-xl border border-white/[0.07] bg-[#141417] transition-colors hover:border-white/15"
+      className="group w-[196px] shrink-0 overflow-hidden rounded-xl border border-white/[0.07] bg-[#181a1c] transition-colors hover:border-white/15"
     >
       <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full bg-black" aria-label="Open video player">
         <video src={v.videoUrl} poster={v.posterUrl ?? undefined} ref={v.posterUrl ? undefined : paintFirstFrameIfNoPoster} preload="metadata" muted playsInline className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
@@ -1098,7 +1098,7 @@ function Sheet({ label, onClose, children }: { label: string; onClose: () => voi
       <motion.div
         initial={{ x: "100%", filter: "blur(6px)" }} animate={{ x: 0, filter: "blur(0px)" }} exit={{ x: "100%", filter: "blur(6px)" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        className="relative h-full w-full max-w-md overflow-y-auto border-l border-white/[0.08] bg-[#0f0f12] shadow-2xl"
+        className="relative h-full w-full max-w-md overflow-y-auto border-l border-white/[0.08] bg-[#181a1c] shadow-2xl"
       >
         <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-black/40 text-zinc-200 backdrop-blur hover:bg-black/60">
           <X className="size-4" />

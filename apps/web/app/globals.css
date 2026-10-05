@@ -1399,3 +1399,11 @@ html.light body *, html.dark body * {
 
 /* Let the Control route fill only the space allocated beneath app chrome. */
 .solcameo-control-content > .page-reveal { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; animation: none; }
+
+/* Shared Solcameo app surfaces follow the Market palette. */
+.solcameo-app { --background: #181a1c; --card: #202326; --popover: #202326; --muted: #24282b; --primary: #d7ff00; --primary-foreground: #090a0b; background: #181a1c; }
+.solcameo-app [data-slot="sidebar-inset"] > main,
+.solcameo-app [data-slot="sidebar-inset"] > div { background-color: #181a1c; }
+.solcameo-app .bg-black, .solcameo-app .bg-zinc-950, .solcameo-app .bg-neutral-950 { background-color: #181a1c; }
+.solcameo-app.vello-market-theme [data-slot="sidebar-header"] a > span:first-child,
+.solcameo-app.vello-market-theme [data-slot="sidebar-footer"] a[href="/create"] { background: #d7ff00 !important; color: #090a0b !important; }

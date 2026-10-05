@@ -198,7 +198,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
         <SidebarProvider
           defaultOpen={false}
           style={{ "--sidebar-width-icon": "3.5rem", "--sidebar-width": "13.5rem" } as React.CSSProperties}
-          className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${pathname.startsWith("/market") ? "vello-market-theme" : ""}`}
+          className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${["/market", "/explore", "/analytics"].some(route => pathname.startsWith(route)) ? "vello-market-theme" : ""}`}
         >
           <Sidebar
             id="vello-sidebar"
@@ -225,7 +225,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
             <ShellAnnouncement />
             <TopBar />
-            {!isControl && !pathname.startsWith("/market/") && <TickerStrip />}
+            {!isControl && !pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/market/") && <TickerStrip />}
             <div className={`min-h-0 min-w-0 flex-1 ${isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-[#090a0b]" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>

@@ -10,11 +10,15 @@ import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { unionWalletAddresses } from "@/lib/solana/activeWallet";
 import { AppHeaderShell } from "@/components/home/app-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AnalyticsPdfExport } from "@/components/analytics/AnalyticsPdfExport";
 import {
   BarChart, Bar, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { Eye, Film, Share2, TrendingUp, Wallet, Loader2, ChevronDown, RefreshCw, BarChart3, Users, Gem, Clapperboard, ExternalLink, Flame, MessageCircle, Send, Check } from "lucide-react";
+import { Eye, Film, Share2, TrendingUp, Wallet, Loader2,  RefreshCw, BarChart3, Users, Gem, Clapperboard, ExternalLink, Flame, MessageCircle, Send, Check } from "lucide-react";
 
 type Agent = FunctionReturnType<typeof api.influencers.listByCreators>[number];
 type FeedItem = FunctionReturnType<typeof api.clipJobs.videoFeedByMints>["items"][number];
@@ -31,10 +35,10 @@ const RANGES = [
 // paths (UGC persona originals / repurposed clips), each its own hue so the
 // legend reads as one system, not per-line arbitrary color.
 const COLORS = {
-  ugcViews: "#34d399",   // emerald
-  clipViews: "#38bdf8",  // sky
-  ugcVideos: "#fbbf24",  // amber
-  clipVideos: "#a3e635", // lime
+  ugcViews: "#d7ff00",   // emerald
+  clipViews: "#a1a1aa",  // sky
+  ugcVideos: "#e4e4e7",  // amber
+  clipVideos: "#9ebd39", // lime
 } as const;
 
 /** Platform identity — one fixed color + logo (simpleicons CDN, same source
@@ -58,31 +62,12 @@ function fmtDay(ts: number) {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Premium frosted-glass surface: layered gradient fill, top-edge sheen,
- *  inner hairline and a soft tinted glow in one corner. Reads as glass because
- *  the page behind it carries ambient color (see the page's backdrop layer). */
-const GLOW = {
-  lime: "rgba(163,230,53,0.16)",
-  violet: "rgba(139,92,246,0.18)",
-  sky: "rgba(56,189,248,0.15)",
-  rose: "rgba(244,114,182,0.14)",
-} as const;
-function GlassCard({ children, className = "", glow = "lime", as: Tag = "div" }: { children: React.ReactNode; className?: string; glow?: keyof typeof GLOW; as?: "div" | "aside" }) {
-  return (
-    <Tag
-      className={`relative isolate overflow-hidden rounded-2xl border border-white/[0.11] bg-gradient-to-br from-white/[0.085] via-white/[0.035] to-white/[0.012] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_0_0_1px_rgba(255,255,255,0.02),0_24px_60px_-28px_rgba(0,0,0,0.9)] backdrop-blur-2xl backdrop-saturate-150 ${className}`}
-    >
-      {/* corner glow */}
-      <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 -z-10 size-56 rounded-full blur-3xl" style={{ background: GLOW[glow] }} />
-      {/* top sheen */}
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-white/[0.05] to-transparent" />
-      {children}
-    </Tag>
-  );
+type SurfaceTone = "lime" | "violet" | "sky" | "rose";
+function GlassCard({ children, className = "", glow = "lime", as: Tag = "div" }: { children: React.ReactNode; className?: string; glow?: SurfaceTone; as?: "div" | "aside" }) {
+  return <Card role={Tag === "aside" ? "complementary" : undefined} data-tone={glow} className={`relative gap-0 overflow-hidden rounded-lg border border-white/10 bg-[#202326]/80 py-0 text-white ring-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl ${className}`}>{children}</Card>;
 }
 
-function Kpi({ icon, label, value, sub, glow = "lime" }: { icon: React.ReactNode; label: string; value: string; sub: string; glow?: keyof typeof GLOW }) {
+function Kpi({ icon, label, value, sub, glow = "lime" }: { icon: React.ReactNode; label: string; value: string; sub: string; glow?: SurfaceTone }) {
   return (
     <GlassCard glow={glow} className="p-4">
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest text-white/45">
@@ -120,22 +105,7 @@ function EmptyChart({ height, label, cta }: { height: number; label: string; cta
 }
 
 function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 appearance-none rounded-full border border-white/10 bg-white/[0.04] py-0 pl-4 pr-9 text-[13px] font-medium text-white backdrop-blur-xl outline-none transition-colors hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-[#111114] text-white">
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-white/40" />
-    </div>
-  );
+  return <ShadcnSelect value={value} onValueChange={v => { if (v !== null) onChange(v); }}><SelectTrigger className="h-8 rounded-md border-white/10 bg-white/5 text-xs text-white"><SelectValue>{options.find(o => o.value === value)?.label}</SelectValue></SelectTrigger><SelectContent className="border-white/10 bg-[#202326] text-white">{options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></ShadcnSelect>;
 }
 
 /** Tooltip for the per-agent stacked-by-platform bar — lists every platform
@@ -314,7 +284,7 @@ type Comment = {
   postUrl: string | null;
 };
 
-const AVATAR_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899"];
+const AVATAR_COLORS = ["#3f3f46", "#52525b", "#454b42", "#343a33"];
 function colorFor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -379,7 +349,7 @@ function CommentRow({
             </p>
           ) : replying ? (
             <div className="mt-2 flex items-center gap-1.5">
-              <input
+              <Input
                 autoFocus
                 value={replyText}
                 onChange={(e) => onReplyTextChange(e.target.value)}
@@ -387,23 +357,23 @@ function CommentRow({
                 placeholder="Write a reply…"
                 className="h-8 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[0.06] px-3 text-[12px] text-white outline-none placeholder:text-white/30 focus:border-emerald-400/40"
               />
-              <button
+              <Button
                 type="button"
                 onClick={onSend}
                 disabled={sending || !replyText.trim()}
                 className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-500 text-black transition-opacity hover:bg-emerald-400 disabled:opacity-40"
               >
                 {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={onToggleReply}
               className="mt-1.5 text-[11px] font-medium text-white/40 transition-colors hover:text-white"
             >
               Reply
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -861,25 +831,18 @@ export default function AnalyticsPage() {
 
   return (
     <AppHeaderShell>
-      <div className="relative isolate min-h-full overflow-hidden bg-[#08080a] text-white">
-        {/* Ambient color behind the glass — without it frosted panels read flat. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute -left-40 -top-40 size-[520px] rounded-full bg-lime-400/[0.07] blur-[120px]" />
-          <div className="absolute right-[-10%] top-[20%] size-[560px] rounded-full bg-violet-500/[0.08] blur-[140px]" />
-          <div className="absolute bottom-[-20%] left-[30%] size-[520px] rounded-full bg-sky-400/[0.05] blur-[140px]" />
-        </div>
+      <div className="relative isolate min-h-full overflow-hidden bg-[#181a1c] text-white">
         <div className="mx-auto flex max-w-[1440px] items-start gap-6 px-4 pt-4 pb-12 sm:px-6">
         <div className="min-w-0 flex-1">
           {/* ── Header ── */}
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="flex items-center gap-2.5 text-[26px] font-thin tracking-tight text-white">
+              <h1 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-white">
                 <span className="grid size-9 place-items-center rounded-xl border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
                   <BarChart3 className="size-4.5 text-white/80" strokeWidth={1.75} />
                 </span>
                 Analytics
               </h1>
-              <p className="mt-1 text-[13px] text-white/40">Views and output across your agents.</p>
             </div>
             {!loading && (
               <div className={`flex items-center gap-2 ${noAgents ? "pointer-events-none opacity-40" : ""}`} aria-disabled={noAgents}>
@@ -889,7 +852,7 @@ export default function AnalyticsPage() {
                   onChange={(v) => setRangeDays(Number(v))}
                   options={RANGES.map((r) => ({ value: String(r.days), label: r.label }))}
                 />
-                <button
+                <Button
                   type="button"
                   onClick={() => syncViews()}
                   disabled={syncing}
@@ -898,7 +861,7 @@ export default function AnalyticsPage() {
                 >
                   <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} />
                   {syncing ? "Syncing…" : "Refresh"}
-                </button>
+                </Button>
                 <AnalyticsPdfExport data={reportData} disabled={noAgents || syncing} />
               </div>
             )}
@@ -945,12 +908,12 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {!connected ? (
-                        <button type="button" onClick={() => login()} className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-semibold text-zinc-950 shadow-[0_10px_30px_-12px_rgba(255,255,255,0.5)] transition-transform hover:-translate-y-0.5">
+                        <Button type="button" onClick={() => login()} className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-semibold text-zinc-950 shadow-[0_10px_30px_-12px_rgba(255,255,255,0.5)] transition-transform hover:-translate-y-0.5">
                           <Wallet className="size-4" /> Sign in
-                        </button>
+                        </Button>
                       ) : (
                         <>
-                          <Link href="/builder?type=clipping" className="inline-flex h-10 items-center gap-2 rounded-full bg-gradient-to-b from-lime-300 to-lime-400 px-4 text-[13px] font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-10px_rgba(163,230,53,0.6)] transition-transform hover:-translate-y-0.5">
+                          <Link href="/builder?type=clipping" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#d7ff00] px-4 text-[13px] font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-10px_rgba(0,0,0,0.3)] transition-transform hover:-translate-y-0.5">
                             <Clapperboard className="size-4" /> New AI Clipper
                           </Link>
                           <Link href="/studio/build" className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-4 text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl transition-colors hover:bg-white/[0.12]">
@@ -1120,7 +1083,7 @@ export default function AnalyticsPage() {
                   <motion.div key={a.mintAddress} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 + i * 0.06 }}>
                     <Link
                       href={`/market/${a.mintAddress}`}
-                      className="group relative flex aspect-square flex-col overflow-hidden rounded-2xl border border-white/[0.11] bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_18px_40px_-24px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_24px_50px_-20px_rgba(163,230,53,0.25)]"
+                      className="group relative flex aspect-square flex-col overflow-hidden rounded-2xl border border-white/[0.11] bg-[#202326]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_18px_40px_-24px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_24px_50px_-20px_rgba(0,0,0,0.25)]"
                     >
                       <div className="relative flex-1 overflow-hidden bg-white/5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
