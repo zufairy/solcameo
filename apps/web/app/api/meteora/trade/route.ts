@@ -1,3 +1,5 @@
+import { migratedPool } from "@/lib/server/dammLifecycle";
+import { NATIVE_MINT, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -29,16 +31,26 @@ export async function POST(req: NextRequest) {
       const slippage = Number(body.slippageBps);
       if (amount.lte(new BN(0)) || !Number.isInteger(slippage) || slippage < 10 || slippage > 1000) throw new Error("Invalid amount or slippage");
       const data = await convexClient().query(api.solstarMarket.terminal,{characterId:body.characterId as Id<"ssCharacters">});
-      if (!data?.token.dbcPool || !data.token.dbcConfig || data.token.network !== "devnet" || data.token.state !== "live") throw new Error("This coin is not minted on devnet. Mint it first.");
+      if (!data?.token.dbcPool || !data.token.dbcConfig || data.token.network !== "devnet" || !["live","graduated","migrated"].includes(data.token.state)) throw new Error("This coin is not minted on devnet. Mint it first.");
       const poolAddress = new PublicKey(data.token.dbcPool);
       const [pool,config] = await Promise.all([client.state.getPool(poolAddress),client.state.getPoolConfig(new PublicKey(data.token.dbcConfig))]);
-      if (!pool || !config || pool.poolState.isMigrated || pool.poolState.baseMint.toBase58() !== data.token.mint || pool.poolState.config.toBase58() !== data.token.dbcConfig) throw new Error("Bonding curve is unavailable or has graduated");
+      if (!pool || !config || pool.poolState.baseMint.toBase58() !== data.token.mint || pool.poolState.config.toBase58() !== data.token.dbcConfig) throw new Error("Bonding curve is unavailable or has graduated");
+      let tx, minimumOut:BN;
+      if(pool.poolState.isMigrated){
+        const migrated=await migratedPool(connection,poolAddress);if(!migrated)throw new Error("Graduated pool unavailable");
+        const state=migrated.state,inputMint=body.side==="buy"?NATIVE_MINT:pool.poolState.baseMint,outputMint=body.side==="buy"?pool.poolState.baseMint:NATIVE_MINT;
+        const quote=migrated.cp.getQuote({inAmount:amount,inputTokenMint:inputMint,slippage:slippage/100,poolState:state,currentTime:Math.floor(Date.now()/1000),currentSlot:await connection.getSlot("confirmed"),tokenADecimal:state.tokenAMint.equals(NATIVE_MINT)?9:6,tokenBDecimal:state.tokenBMint.equals(NATIVE_MINT)?9:6,hasReferral:false});
+        minimumOut=quote.minSwapOutAmount;
+        tx=await migrated.cp.swap({payer,pool:migrated.address,inputTokenMint:inputMint,outputTokenMint:outputMint,amountIn:amount,minimumAmountOut:minimumOut,tokenAMint:state.tokenAMint,tokenBMint:state.tokenBMint,tokenAVault:state.tokenAVault,tokenBVault:state.tokenBVault,tokenAProgram:TOKEN_PROGRAM_ID,tokenBProgram:TOKEN_PROGRAM_ID,referralTokenAccount:null,poolState:state});
+      }else{
       const currentPoint = new BN(config.activationType === 0 ? await connection.getSlot("confirmed") : Math.floor(Date.now()/1000));
       const swapBaseForQuote = body.side === "sell";
       const quote = client.pool.swapQuote({virtualPool:pool,config,swapBaseForQuote,amountIn:amount,slippageBps:slippage,hasReferral:false,currentPoint,eligibleForFirstSwapWithMinFee:false});
-      const tx = await client.pool.swap({owner:payer,pool:poolAddress,amountIn:amount,minimumAmountOut:quote.minimumAmountOut,swapBaseForQuote,referralTokenAccount:null});
+      tx = await client.pool.swap({owner:payer,pool:poolAddress,amountIn:amount,minimumAmountOut:quote.minimumAmountOut,swapBaseForQuote,referralTokenAccount:null});
+      minimumOut=quote.minimumAmountOut;
+      }
       const prepared = await unsignedPumpTransaction(connection,payer,tx.instructions);
-      return NextResponse.json({transaction:prepared.transaction,receipt:signTradeReceipt({wallet,characterId:body.characterId,hash:pumpMessageHash(prepared.tx),side:body.side as "buy"|"sell",amount:body.amount,expires:Date.now()+120000}),minimumOut:quote.minimumAmountOut.toString()});
+      return NextResponse.json({transaction:prepared.transaction,receipt:signTradeReceipt({wallet,characterId:body.characterId,hash:pumpMessageHash(prepared.tx),side:body.side as "buy"|"sell",amount:body.amount,expires:Date.now()+120000}),minimumOut:minimumOut.toString()});
     }
     if (typeof body.receipt !== "string") throw new Error("Missing reviewed trade");
     const receipt = readTradeReceipt(body.receipt,wallet, body.action === "confirm");

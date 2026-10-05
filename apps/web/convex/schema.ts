@@ -45,7 +45,7 @@ export default defineSchema({
   }).index("by_token", ["tokenId"]),
   ssFlywheels: defineTable({
     tokenId: v.id("ssTokens"), enabled: v.boolean(), nextRunAt: v.number(), leaseUntil: v.number(),
-    status: v.string(), error: v.optional(v.string()), claimSignature: v.optional(v.string()), claimTransaction: v.optional(v.string()),
+    status: v.string(), error: v.optional(v.string()), claimSignature: v.optional(v.string()), claimTransaction: v.optional(v.string()), claimVault: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_token", ["tokenId"]).index("by_next_run", ["nextRunAt"]),
   ssContentJobs: defineTable({

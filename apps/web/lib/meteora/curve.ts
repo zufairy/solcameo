@@ -56,9 +56,11 @@ export function buildDbcCurve(input: DbcOptions) {
     },
     liquidityDistribution: {
       partnerLiquidityPercentage: 0,
-      partnerPermanentLockedLiquidityPercentage: o.economy === "sustainable-v1" ? 50 : 0,
+      partnerPermanentLockedLiquidityPercentage:
+        o.economy === "sustainable-v1" ? 50 : 0,
       creatorLiquidityPercentage: 0,
-      creatorPermanentLockedLiquidityPercentage: o.economy === "sustainable-v1" ? 50 : 100,
+      creatorPermanentLockedLiquidityPercentage:
+        o.economy === "sustainable-v1" ? 50 : 100,
     },
     lockedVesting: {
       totalLockedVestingAmount: 0,

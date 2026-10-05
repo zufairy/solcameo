@@ -14,4 +14,6 @@ export const dbcOptionsSchema = z
     "Graduation cap must be at least twice the opening cap.",
   );
 export type DbcOptions = z.infer<typeof dbcOptionsSchema>;
-export const DEFAULT_DBC = dbcOptionsSchema.parse({ economy: "sustainable-v1" });
+export const DEFAULT_DBC = dbcOptionsSchema.parse({
+  economy: "sustainable-v1",
+});

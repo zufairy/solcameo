@@ -1,3 +1,5 @@
+import { migratedPool } from "@/lib/server/dammLifecycle";
+import { NATIVE_MINT } from "@solana/spl-token";
 import { NextRequest, NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
@@ -53,7 +55,13 @@ export async function GET(req: NextRequest) {
       points = samples.filter(s => s && Number.isFinite(s.capSol) && Number.isFinite(s.time)).map(s => ({ time: s.observedAt ?? s.time, price: s.capSol, volume: Number(s.volumeLamports)/1e9, side: s.side })).sort((a,b)=>a.time-b.time);
       for (const sample of samples) if (sample && sample.time >= Date.now()-86400000) { volume24hLamports += BigInt(sample.volumeLamports); appTrades24h++; }
     } catch { /* Actual current pool state remains available if the observation store is down. */ }
-    const capSol = pool.poolState.isMigrated ? null : sqrt * sqrt * units * supplyTokens;
+    let capSol = sqrt * sqrt * units * supplyTokens;
+    if(pool.poolState.isMigrated){
+      const migrated=await migratedPool(connection,new PublicKey(data.token.dbcPool));
+      if(!migrated)throw new Error("Graduated pool unavailable");
+      const s=Number(migrated.state.sqrtPrice.toString())/2**64;
+      capSol=migrated.state.tokenBMint.equals(NATIVE_MINT)?s*s*units*supplyTokens:1/(s*s)*units*supplyTokens;
+    }
     if (capSol != null) points.push({ time: Date.now(), price: capSol, volume: 0 });
     return NextResponse.json(
       {
