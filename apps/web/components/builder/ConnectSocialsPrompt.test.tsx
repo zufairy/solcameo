@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("convex/react", () => ({ useQuery: () => undefined }));
 vi.mock("@/providers/supabase-auth-provider", () => ({ useSupabaseAuth: () => ({ accessToken: "t" }) }));
 import ConnectSocialsPrompt from "./ConnectSocialsPrompt";
 

@@ -16,6 +16,7 @@ import type * as adminEconomy from "../adminEconomy.js";
 import type * as adminPricing from "../adminPricing.js";
 import type * as adsLibraryCache from "../adsLibraryCache.js";
 import type * as agentAccount from "../agentAccount.js";
+import type * as agentAddons from "../agentAddons.js";
 import type * as agentAutonomy from "../agentAutonomy.js";
 import type * as agentKnowledge from "../agentKnowledge.js";
 import type * as agentSkillFiles from "../agentSkillFiles.js";
@@ -124,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   adminPricing: typeof adminPricing;
   adsLibraryCache: typeof adsLibraryCache;
   agentAccount: typeof agentAccount;
+  agentAddons: typeof agentAddons;
   agentAutonomy: typeof agentAutonomy;
   agentKnowledge: typeof agentKnowledge;
   agentSkillFiles: typeof agentSkillFiles;

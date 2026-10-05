@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { X, ArrowUp } from "lucide-react";
 import flashAvatar from "@/assets/flash.jpeg";
@@ -12,7 +12,7 @@ type Msg = { role: "user" | "assistant"; content: string; at: number };
 const EASE = [0.16, 1, 0.3, 1] as const;
 const WELCOME: Msg = {
   role: "assistant",
-  content: "Hey! 👋 I'm Vello's assistant. Ask me anything: launching an AI influencer, posting a brand campaign, how payouts work, whatever you need.",
+  content: "Hey! 👋 I'm the Solcameo assistant. Ask me anything: launching an AI influencer, posting a brand campaign, how payouts work, whatever you need.",
   at: 0,
 };
 
@@ -43,17 +43,25 @@ export default function LiveChatWidget() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [unread, setUnread] = useState(false);
-  // One-time "Ask anything" nudge beside the launcher — pops in on load, then
-  // auto-removes after a few seconds (or the moment the chat is opened).
-  const [hint, setHint] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
+  // Speech bubble that pops out of the launcher every so often. Timing and copy vary
+  // so it never feels like a metronome.
+  const reduced = useReducedMotion();
+  const [bubble, setBubble] = useState<string | null>(null);
   useEffect(() => {
-    const t = setTimeout(() => setHint(false), 6000);
-    return () => clearTimeout(t);
-  }, []);
-  useEffect(() => { if (open) setHint(false); }, [open]);
+    if (open) return;
+    const lines = ["Ask anything ✨", "Need a hand?", "Questions about launching?", "We reply in seconds"];
+    let show: ReturnType<typeof setTimeout>, hide: ReturnType<typeof setTimeout>, i = 0;
+    const cycle = (delay: number) => {
+      show = setTimeout(() => {
+        setBubble(lines[i++ % lines.length]);
+        hide = setTimeout(() => { setBubble(null); cycle(9000 + Math.random() * 9000); }, 4200 + Math.random() * 1600);
+      }, delay);
+    };
+    cycle(1800);
+    return () => { clearTimeout(show); clearTimeout(hide); };
+  }, [open]);
 
   // Auto-scroll to the newest message / typing indicator.
   useEffect(() => {
@@ -205,45 +213,67 @@ export default function LiveChatWidget() {
         )}
       </AnimatePresence>
 
-      {/* Launcher + one-time "Ask anything" nudge */}
+      {/* Launcher: a soft, slowly morphing bubble with a drifting glow and a speech bubble that pops out. */}
       <div className="relative">
         <AnimatePresence>
-          {hint && !open && (
+          {bubble && !open && (
             <motion.div
-              key="hint"
-              initial={{ opacity: 0, x: 10, scale: 0.85 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 10, scale: 0.85 }}
-              transition={{ type: "spring", stiffness: 420, damping: 20 }}
-              className="absolute right-[3.5rem] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-800 shadow-[0_10px_28px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5"
+              key={bubble}
+              style={{ originX: 1, originY: 0.5 }}
+              initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.2, x: 14, filter: "blur(6px)" }}
+              animate={{ opacity: 1, scale: 1, x: 0, filter: "blur(0px)" }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.6, x: 8, filter: "blur(4px)" }}
+              transition={{ type: "spring", stiffness: 170, damping: 17, mass: 0.9, filter: { duration: 0.35 }, opacity: { duration: 0.4 } }}
+              className="pointer-events-none absolute right-[3.6rem] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[18px] border border-white/60 bg-white/85 px-3.5 py-2 text-[12.5px] font-semibold text-zinc-800 shadow-[0_14px_36px_-12px_rgba(0,0,0,0.45)] backdrop-blur-xl"
             >
-              Ask anything ✨
-              <span className="absolute -right-1 top-1/2 size-2.5 -translate-y-1/2 rotate-45 bg-white" />
+              {bubble}
+              {/* Little bubbles trailing from the launcher */}
+              <span aria-hidden="true" className="absolute -right-2 top-1/2 size-2 -translate-y-1/2 rounded-full bg-white/85" />
+              <span aria-hidden="true" className="absolute -right-3.5 top-[62%] size-1 rounded-full bg-white/70" />
             </motion.div>
           )}
         </AnimatePresence>
-      <motion.button
-        onClick={() => setOpen((v) => !v)}
-        whileTap={{ scale: 0.92 }}
-        aria-label={open ? "Close chat" : "Open live chat"}
-        className="relative grid size-12 place-items-center overflow-hidden rounded-2xl text-white shadow-[0_14px_34px_-10px_rgba(132,204,22,0.6)] ring-1 ring-black/5"
-        style={{ background: "linear-gradient(135deg,#a3e635,#84cc16)" }}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {open ? (
-            <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-              <X className="size-5" />
-            </motion.span>
-          ) : (
-            <motion.span key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="absolute inset-0">
-              <Image src={flashAvatar} alt="Chat with Vello" className="size-full object-cover" />
-            </motion.span>
-          )}
-        </AnimatePresence>
-        {unread && !open && (
-          <span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-white bg-rose-500" />
+        {!reduced && !open && (
+          <>
+            <motion.span aria-hidden="true" className="absolute -inset-3 rounded-full bg-[conic-gradient(from_0deg,rgba(190,242,100,0.0),rgba(163,230,53,0.45),rgba(190,242,100,0.0),rgba(132,204,22,0.35),rgba(190,242,100,0.0))] blur-xl" animate={{ rotate: 360 }} transition={{ duration: 17, repeat: Infinity, ease: "linear" }} />
+            <motion.span aria-hidden="true" className="absolute -inset-1 rounded-full bg-[conic-gradient(from_90deg,rgba(255,255,255,0),rgba(255,255,255,0.35),rgba(255,255,255,0),rgba(163,230,53,0.4),rgba(255,255,255,0))] blur-md" animate={{ rotate: -360 }} transition={{ duration: 23, repeat: Infinity, ease: "linear" }} />
+          </>
         )}
-      </motion.button>
+        <motion.button
+          onClick={() => setOpen((v) => !v)}
+          whileHover={reduced ? undefined : { scale: 1.06 }}
+          whileTap={{ scale: 0.92 }}
+          animate={reduced || open ? { y: 0, rotate: 0, borderRadius: "16px" } : {
+            y: [0, -3, 1, -2, 0],
+            rotate: [0, 1.2, -0.8, 0.6, 0],
+            borderRadius: ["22px 18px 24px 16px", "17px 24px 18px 23px", "24px 17px 21px 19px", "19px 22px 16px 24px", "22px 18px 24px 16px"],
+          }}
+          transition={{
+            y: { duration: 8.3, repeat: Infinity, ease: "easeInOut" },
+            rotate: { duration: 11.7, repeat: Infinity, ease: "easeInOut" },
+            borderRadius: { duration: 13.1, repeat: Infinity, ease: "easeInOut" },
+            scale: { type: "spring", stiffness: 260, damping: 18 },
+          }}
+          aria-label={open ? "Close chat" : "Open live chat"}
+          className="relative grid size-12 place-items-center overflow-hidden text-white shadow-[0_14px_34px_-10px_rgba(132,204,22,0.6)] ring-1 ring-white/40"
+          style={{ background: "linear-gradient(135deg,#a3e635,#84cc16)" }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {open ? (
+              <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.25, ease: EASE }}>
+                <X className="size-5" />
+              </motion.span>
+            ) : (
+              <motion.span key="chat" initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: EASE }} className="absolute inset-0">
+                <Image src={flashAvatar} alt="Chat with Solcameo" className="size-full object-cover" />
+                <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-white/25 to-transparent" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {unread && !open && (
+            <span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-white bg-rose-500" />
+          )}
+        </motion.button>
       </div>
     </div>
   );

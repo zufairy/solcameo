@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
       // that grants subscription credits. Legacy shape kept as a fallback.
       const legacy = (invoice as unknown as { subscription_details?: { metadata?: Record<string, string> | null } }).subscription_details;
       const subMeta = invoice.parent?.subscription_details?.metadata ?? legacy?.metadata ?? null;
+      if (subMeta?.addon === "tiktok" && subMeta.mintAddress && subMeta.ownerWallet) {
+        // One paid month per invoice. Idempotent on the event id, so Stripe retries are safe.
+        await convex.mutation(api.agentAddons.activateFromWebhook, { mintAddress: subMeta.mintAddress, addon: "tiktok", ownerWallet: subMeta.ownerWallet, days: 31, stripeEventId: event.id, authSecret });
+        return NextResponse.json({ received: true });
+      }
       const ownerWallet = subMeta?.ownerWallet ?? invoice.metadata?.ownerWallet;
       const credits = Number(subMeta?.credits ?? invoice.metadata?.credits ?? 0);
       if (ownerWallet && credits > 0) {

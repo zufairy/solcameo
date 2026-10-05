@@ -777,6 +777,24 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       onClick();
     }
   };
+  // Pointer-driven tilt: the card leans toward the cursor and the gloss follows it.
+  const tilt = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    el.style.setProperty("--ry", `${((px - 0.5) * 8).toFixed(2)}deg`);
+    el.style.setProperty("--rx", `${((0.5 - py) * 6).toFixed(2)}deg`);
+    el.style.setProperty("--gx", `${(px * 100).toFixed(0)}%`);
+    el.style.setProperty("--gy", `${(py * 100).toFixed(0)}%`);
+  };
+  const untilt = (e: React.MouseEvent<HTMLDivElement>) => {
+    setHovered(false);
+    const el = e.currentTarget;
+    el.style.setProperty("--ry", "0deg");
+    el.style.setProperty("--rx", "0deg");
+  };
 
   return (
     // A div, not a <button>: the connected-account badges inside are real links
@@ -787,56 +805,60 @@ function AgentCard({ agent, index, onClick, metrics }: { agent: any; index: numb
       onClick={onClick}
       onKeyDown={open}
       title={agent.name}
-      className="group relative flex h-40 cursor-pointer items-stretch overflow-hidden rounded-[10px] border border-white/10 bg-[#131316] text-left transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a1a1e] hover:shadow-[0_14px_30px_-14px_rgba(0,0,0,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 motion-reduce:transition-none"
+      className="agent-glass group relative flex h-48 cursor-pointer items-stretch overflow-hidden rounded-[12px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseMove={tilt}
+      onMouseLeave={untilt}
     >
       <div className="relative h-full w-32 shrink-0 overflow-hidden bg-white/5 sm:w-36">
-        <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" initialClassName="text-5xl" />
+        <AgentAvatar url={agent.avatarUrl} name={agent.name} seed={agent.mintAddress} className="size-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]" initialClassName="text-5xl" />
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-[#131316]/60" />
       </div>
-
-      <PixelCorner />
 
       {/* Agent-type indicator — pinned to the card's actual top-right corner. */}
       <span
         title={agentType}
-        className="absolute right-2 top-2 z-10 grid size-7 shrink-0 place-items-center rounded-[8px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+        className="absolute right-2.5 top-2.5 z-10 grid size-7 shrink-0 place-items-center rounded-[8px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.45)] backdrop-blur-xl"
       >
         {agentType === "AI Clippers" ? <Clapperboard className="size-3.5" /> : <Gem className="size-3.5" />}
       </span>
 
-      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-between px-4 py-3 pr-10">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-between px-4 py-3.5 pr-11">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate text-[15px] font-bold uppercase tracking-wide text-white">{agent.name || "Agent"}</p>
+            <p className="truncate text-[20px] font-extrabold uppercase leading-none tracking-wide text-white">{agent.name || "Agent"}</p>
             {ticker && (
-              <span className="shrink-0 rounded-[5px] bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-black">
-                {ticker.toUpperCase()}
+              <span className="shrink-0 rounded-[6px] bg-white px-2 py-1 text-[11px] font-bold leading-none tracking-wide text-black shadow-[0_2px_8px_rgba(255,255,255,0.18)]">
+                ${ticker.toUpperCase()}
               </span>
             )}
             <HeartbeatHeart agent={agent} />
           </div>
-          <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-white/50">{agentDescription(agent)}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <AgentMetricPill icon={Eye} label="Views" value={metrics?.views ?? 0} tone={trendTone(metrics?.todayViews ?? 0, metrics?.yesterdayViews ?? 0)} />
-            <AgentMetricPill icon={UserPlus} label="Followers" value={metrics?.followers ?? 0} tone={trendTone(metrics?.followerDelta ?? 0, 0)} />
+          {/* Market cap — the headline number, in the same style as the market page cards. */}
+          <div className="mt-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{capLabel ? "Market cap" : "TVL"}</p>
+            <p className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-white tabular-nums">
+              {capLabel ?? tvlLabel}
+              {capLabel && <span className="ml-1 text-xs font-normal text-white/45">USD</span>}
+            </p>
+            {capLabel && (
+              <div className="mt-1.5 flex items-center">
+                <ChangePill value={cap?.changePct} />
+                <span className="ml-2 text-[10px] text-white/45">since launch</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{capLabel ? "Market cap" : "TVL"}</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <span className="text-[17px] font-semibold leading-none tracking-tight text-white tabular-nums">
-                {capLabel ?? tvlLabel}
-              </span>
-              {capLabel && <ChangePill value={cap?.changePct} />}
-            </div>
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            <AgentMetricPill icon={Eye} label="Views" value={metrics?.views ?? 0} tone={trendTone(metrics?.todayViews ?? 0, metrics?.yesterdayViews ?? 0)} />
+            <AgentMetricPill icon={UserPlus} label="Followers" value={metrics?.followers ?? 0} tone={trendTone(metrics?.followerDelta ?? 0, 0)} />
           </div>
           <ConnectedPlatformStack
             platforms={agent.connectedPlatforms}
             accounts={agent.connectedSocialAccounts}
             badgeClassName="size-6"
-            ringClassName="ring-[#131316]"
+            ringClassName="ring-[#1b1c20]"
           />
         </div>
       </div>
@@ -1923,7 +1945,7 @@ export default function AgentsPage() {
         <div className="relative mt-8 flex items-center justify-between gap-2.5">
             <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:gap-3 md:flex">
               <AgentHeroActionCard href="/docs/start" title="New? Start Here!" art="/brand/agents-cta-start.gif" />
-              <AgentHeroActionCard href="/home" title="Launch your agent" art="/brand/agents-cta-launch.gif" />
+              <AgentHeroActionCard href="/home" title="Launch your agent" art="/brand/agents-cta-rocket.gif" />
             </div>
             {/* Activity & Videos — labelled buttons from sm up (mobile uses the icon pill above). */}
             <div className="hidden sm:block"><PanelSwitch panel={panel} setPanel={setPanel} /></div>

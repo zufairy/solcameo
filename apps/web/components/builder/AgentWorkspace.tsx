@@ -3354,18 +3354,6 @@ function ClipperHomeCockpit(props: {
       style={{ ...WARM_GLASS_BG, fontFamily: "var(--font-geist-sans, system-ui)" }}
     >
       <div className="max-w-[1280px] mx-auto px-6 py-8">
-        {/* "Make next video", the one obvious action, on the SAME warm-glass
-            surface as the rest of Home (it used to float above the cockpit on
-            the outer dark background and read as a separate page). */}
-        {!isClipping && isMinted && mintAddress && (
-          <div className="mb-6">
-            <NextVideoCard
-              mintAddress={mintAddress}
-              onOpenIdeas={() => setActiveTab("ideas")}
-              onOpenSchedule={() => setActiveTab("schedule")}
-            />
-          </div>
-        )}
       <div className="grid grid-cols-12 gap-6">
 
         {/* ══ LEFT RAIL, agent identity / hero CTA / funding & config ══════════ */}
@@ -3447,11 +3435,11 @@ function ClipperHomeCockpit(props: {
                 <button
                   type="button"
                   onClick={isClipping ? onStartClipping : onTestAgent}
-                  className="group relative w-full overflow-hidden rounded-2xl border border-white/25 bg-gradient-to-b from-white/[0.16] to-white/[0.06] px-5 py-3.5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.14] hover:shadow-[0_22px_50px_-24px_rgba(255,255,255,0.65),inset_0_1px_0_rgba(255,255,255,0.24)] active:translate-y-0"
+                  className="group relative w-full overflow-hidden rounded-2xl border border-white/25 bg-gradient-to-b from-white/[0.16] to-white/[0.06] px-4 py-2 text-[15px] font-semibold tracking-[-0.01em] text-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.14] hover:shadow-[0_22px_50px_-24px_rgba(255,255,255,0.65),inset_0_1px_0_rgba(255,255,255,0.24)] active:translate-y-0"
                 >
                   <span aria-hidden className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                   <span className="relative inline-flex items-center justify-center gap-2.5">
-                    <span className="grid size-7 place-items-center rounded-full border border-white/15 bg-black/20">{isClipping ? <Scissors className="size-3.5" /> : <Clapperboard className="size-3.5" />}</span>
+                    <span className="grid size-6 place-items-center rounded-full border border-white/15 bg-black/20">{isClipping ? <Scissors className="size-3" /> : <Clapperboard className="size-3" />}</span>
                     {isClipping ? "Start clipping" : "Generate next video"}
                     <ArrowUpRight className="size-4 text-white/60 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </span>
@@ -3859,6 +3847,15 @@ function ClipperHomeCockpit(props: {
               flat list with a 36px square thumbnail). */}
           {isMinted && (
             <div>
+              {!isClipping && mintAddress && (
+                <div className="mb-4">
+                  <NextVideoCard
+                    mintAddress={mintAddress}
+                    onOpenIdeas={() => setActiveTab("ideas")}
+                    onOpenSchedule={() => setActiveTab("schedule")}
+                  />
+                </div>
+              )}
               <div className="mb-3 flex items-end justify-between">
                 <SectionHeading dark>{isClipping ? "Recent clips" : "Recent videos"}</SectionHeading>
                 <button

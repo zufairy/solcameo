@@ -78,7 +78,6 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
-import machLogo from "@/assets/lo.png";
 
 /** Slim, JSON-safe snapshot for API (avoids stringify failures). */
 function sanitizeCanvasNodesForChat(nodes: IntelligentNode[]) {
@@ -5321,34 +5320,11 @@ function BuilderPageInner() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <Link href="/" className="shrink-0 opacity-90 hover:opacity-100 transition-opacity">
-            <Image
-              src={machLogo}
-              alt="Vello"
-              width={90}
-              height={27}
-              className="h-[20px] w-auto object-contain"
-              priority
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/solcameo-dark.png" alt="Solcameo" width={150} height={30} className="h-[22px] w-auto object-contain" />
           </Link>
           <div className="hidden sm:flex items-center gap-2 text-sm text-white/70 min-w-0">
             <span className="text-white/30">/</span>
-            {/* Minted indicator — an emerald gem (like the verified mark beside the
-                name on the agents card), links to the explorer. */}
-            {agentBlueprint?.mintCompleted && agentBlueprint?.mintAddress && !agentBlueprint.mintAddress.startsWith("vello_") && (
-              <a
-                href={`https://explorer.solana.com/address/${agentBlueprint.mintAddress}?cluster=devnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Live on Solana — ${agentBlueprint.mintAddress.slice(0, 12)}…`}
-                aria-label="Live on Solana — view on explorer"
-                className="inline-flex items-center shrink-0 transition-transform hover:scale-110"
-              >
-                <span className="vello-gem" aria-hidden />
-              </a>
-            )}
             <input
               type="text"
               value={projectName}
@@ -5360,25 +5336,6 @@ function BuilderPageInner() {
               placeholder="Project name"
             />
           </div>
-          {/* Copilot show/hide — pinned above the copilot panel's TOP-RIGHT
-              corner (panel below is md:w-[22%] min-260 max-340), not floating
-              mid-header after the project name where it drifted with the
-              name's width. Same spot whether the panel is open or collapsed,
-              so the control is always where the panel edge lives. Hidden
-              pre-mint — the panel can't be closed then, so a toggle here
-              would be a dead control. */}
-          {agentBlueprint?.mintCompleted && (
-            <button
-              type="button"
-              onClick={() => setCopilotCollapsed((v) => !v)}
-              aria-label={copilotCollapsed ? "Show copilot" : "Hide copilot"}
-              title={copilotCollapsed ? "Show copilot" : "Hide copilot"}
-              style={{ left: "calc(clamp(260px, 22vw, 340px) - 42px)" }}
-              className="absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 items-center justify-center rounded-md border border-white/10 bg-black text-white/50 transition-all duration-200 hover:bg-white/10 hover:text-white active:scale-90 sm:flex"
-            >
-              <PanelLeftClose className={`w-4 h-4 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${copilotCollapsed ? "rotate-180" : ""}`} />
-            </button>
-          )}
         </div>
 
         <SpotlightSearch actions={spotlightActions} />
@@ -5428,8 +5385,7 @@ function BuilderPageInner() {
             <WalletButton />
             <button
               type="button"
-              className="rounded-md px-3 py-1.5 text-[11.5px] font-semibold text-white backdrop-blur-2xl transition-colors hover:bg-white/[0.16] disabled:opacity-40"
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)" }}
+              className="h-9 rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] px-3.5 text-[11.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all hover:from-white/[0.2] hover:to-white/[0.07] disabled:opacity-40"
               disabled={!canSaveAgent || isSavingAgent}
               onClick={handleSaveAgent}
               title={savedAgentAt ? `Last saved ${new Date(savedAgentAt).toLocaleTimeString()}` : "Save agent working state"}

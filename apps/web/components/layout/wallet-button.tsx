@@ -108,16 +108,16 @@ function ConnectedPill({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <button className="flex items-center gap-2.5 h-9 pl-1.5 pr-2.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer">
-              <div className="h-6 w-6 rounded-full bg-zinc-700 overflow-hidden shrink-0">
+            <button className="group relative flex h-9 cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] pl-1.5 pr-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_22px_-10px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all hover:from-white/[0.2] hover:to-white/[0.07]">
+              <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-zinc-700 ring-1 ring-white/25">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={flashAvatar.src} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col items-start leading-none">
                 <span className="text-[13px] font-bold text-white tabular-nums">{balanceStr}</span>
-                <span className="text-[10.5px] text-zinc-500 font-mono mt-0.5">{short}</span>
+                <span className="mt-0.5 font-mono text-[10.5px] text-white/50">{short}</span>
               </div>
-              <ChevronDown className="size-3.5 text-zinc-500 shrink-0" />
+              <ChevronDown className="size-3.5 shrink-0 text-white/50 transition-transform group-data-[popup-open]:rotate-180" />
             </button>
           }
         />

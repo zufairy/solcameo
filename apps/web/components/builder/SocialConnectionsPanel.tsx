@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, ExternalLink, Plus, AlertCircle, Link2, RotateCcw } from "lucide-react";
+import { Check, Loader2, ExternalLink, AlertCircle, Link2, RotateCcw, Sparkles } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { motion } from "framer-motion";
 import { PlatformBadge } from "@/components/social/platform-icons";
@@ -83,7 +85,8 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const tiktokAddon = useQuery(api.agentAddons.status, username ? { mintAddress: username, addon: "tiktok" } : "skip");
   const [error, setError] = useState<string | null>(null);
   const [retryAt, setRetryAt] = useState<number | null>(null);
   const [retrySeconds, setRetrySeconds] = useState(0);
@@ -225,6 +228,26 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
     }
   }, [username, startPolling, accessToken]);
 
+  // TikTok posting is a $10 USD per month add-on, paid through Stripe checkout.
+  const activateTiktok = useCallback(async () => {
+    if (!accessToken) { setError("Sign in to activate TikTok."); return; }
+    setActivating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: authHeaders(accessToken, true),
+        body: JSON.stringify({ addon: "tiktok", mintAddress: username, returnPath: `${window.location.pathname}${window.location.search}` }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(res.status === 401 ? "Sign in with your wallet to pay for TikTok." : data.error ?? "Could not start checkout.");
+      window.location.assign(data.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start checkout.");
+      setActivating(false);
+    }
+  }, [accessToken, username]);
+
   // Disconnect EVERY connected account in one shot. upload-post has no per-account
   // disconnect API, so this deletes the agent's profile (clearing all links); the
   // profile is re-provisioned automatically on the next status load.
@@ -258,25 +281,12 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
 
   // LinkedIn / Pinterest / Bluesky intentionally hidden from the connect list
   // (not clip targets — keeps the list to the platforms that matter).
-  const HIDDEN_PLATFORMS = new Set(["linkedin", "pinterest", "bluesky"]);
-  const platforms = (status?.platforms ?? []).filter((p) => !HIDDEN_PLATFORMS.has(p.id));
+  // Only X and TikTok are offered for now; upload-post is not used.
+  const platforms: PlatformMeta[] = [{ id: "x", label: "X" }, { id: "tiktok", label: "TikTok" }];
   const connected = status?.connected ?? {};
   const notConfigured = status?.configured === false;
   const limitReached = status?.limitReached === true;
   const anyConnected = Object.values(connected).some(Boolean);
-
-  // "+ Add" reveals the not-yet-connected platforms (the list itself shows only
-  // connected accounts by default). Status still auto-refreshes on mount/focus.
-  const addBtn = (
-    <button
-      type="button"
-      onClick={() => setShowAdd((v) => !v)}
-      className="duo-btn duo-btn-white duo-btn-xs"
-      title="Connect another account"
-    >
-      {loading ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />} Add
-    </button>
-  );
 
   if (isGlass) {
     const ids = only && only.length ? only : ["tiktok", "youtube"];
@@ -344,7 +354,6 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
             {title
               ? <h2 className="font-sans text-[20px] font-bold text-white leading-none tracking-tight">{title}</h2>
               : <span />}
-            {addBtn}
           </div>
 
         </div>
@@ -359,7 +368,6 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
               <p className={`text-[10.5px] ${theme.muted}`}>Link socials so your agent can post</p>
             </div>
           </div>
-          {addBtn}
         </div>
       )}
 
@@ -387,37 +395,39 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
         </div>
       )}
 
-      {/* Platform list, connected accounts only; "+ Add" reveals the rest so a
-          new one can be connected. */}
+      {/* X and TikTok only. TikTok needs the $10/month add-on before it can connect. */}
       <div className={`py-3 flex flex-col gap-1.5 ${bare ? "" : "px-5"}`}>
-        {!anyConnected && !showAdd && !loading && (
-          <p className={`text-[11.5px] ${theme.muted} py-2`}>Nothing connected yet.</p>
-        )}
-        {platforms.filter((p) => p.id === "x" || Boolean(connected[p.id]) || showAdd).map((p) => {
+        {platforms.map((p) => {
           const acct = connected[p.id];
           const isConnected = Boolean(acct);
+          const needsPayment = p.id === "tiktok" && !isConnected && tiktokAddon !== undefined && !tiktokAddon.active;
+          const btn = "inline-flex items-center gap-1.5 rounded-[3px] bg-gradient-to-b from-white to-zinc-300 px-3 py-1.5 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_-2px_rgba(0,0,0,0.5)] transition-[filter] hover:brightness-95 active:brightness-90 disabled:opacity-60";
           return (
             <div key={p.id} className={`flex items-center justify-between py-1.5 ${theme.title}`}>
               <div className="flex items-center gap-2.5 min-w-0">
                 <PlatformBadge id={p.id} label={p.label} />
                 <div className="min-w-0">
                   <p className="text-[12.5px] font-semibold leading-tight truncate">{p.label}</p>
-                  {isConnected && acct?.displayName && (
+                  {isConnected && acct?.displayName ? (
                     <p className={`text-[10px] ${theme.muted} truncate`}>{acct.displayName}</p>
-                  )}
+                  ) : p.id === "tiktok" && tiktokAddon?.active ? (
+                    <p className={`text-[10px] ${theme.muted} truncate`}>Active until {new Date(tiktokAddon.activeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</p>
+                  ) : needsPayment ? (
+                    <p className={`text-[10px] ${theme.muted} truncate`}>$10 USD per month</p>
+                  ) : null}
                 </div>
               </div>
               {isConnected ? (
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-semibold ${isPaper ? "text-emerald-600" : "text-emerald-300"}`}>
-                  <Check className="size-3" /> Connected
+                <span className="inline-flex items-center gap-1 rounded-[3px] bg-gradient-to-b from-white to-zinc-300 px-2.5 py-1 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                  <Check className="size-3" strokeWidth={3} /> Connected
                 </span>
+              ) : needsPayment ? (
+                <button type="button" disabled={activating} onClick={() => void activateTiktok()} className={btn}>
+                  {activating ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                  {activating ? "Opening…" : "Activate $10/mo"}
+                </button>
               ) : (
-                <button
-                  type="button"
-                  disabled={notConfigured || connecting === p.id}
-                  onClick={() => handleConnect(p.id)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/[0.12] px-2.5 py-1 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-colors hover:bg-white/[0.2] disabled:opacity-50"
-                >
+                <button type="button" disabled={notConfigured || connecting === p.id} onClick={() => handleConnect(p.id)} className={btn}>
                   {connecting === p.id ? <Loader2 className="size-3 animate-spin" /> : <ExternalLink className="size-3" />}
                   {connecting === p.id && retrySeconds > 0 ? `Retrying ${retrySeconds}s` : "Connect"}
                 </button>
@@ -425,24 +435,6 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
             </div>
           );
         })}
-        {platforms.length === 0 && !loading && showAdd && (
-          <p className={`text-[11.5px] ${theme.muted} py-2`}>No platforms available.</p>
-        )}
-
-        {/* Inline "Add account", ALWAYS present at the bottom of the list (the
-            header's Add button disappears under hideHeader, which left the
-            Schedule tab with no way to connect anything). Dashed affordance
-            toggles the reveal of the not-yet-connected platforms above. */}
-        {!loading && platforms.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowAdd((v) => !v)}
-            className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/25 bg-white/[0.12] py-2.5 text-[12px] font-semibold text-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-all hover:bg-white/[0.2] active:scale-[0.98]"
-          >
-            <Plus className={`size-3.5 transition-transform ${showAdd ? "rotate-45" : ""}`} />
-            {showAdd ? "Done" : "Add account"}
-          </button>
-        )}
 
         {/* Reset all, disconnects every connected account at once */}
         {anyConnected && !notConfigured && (

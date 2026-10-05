@@ -1380,6 +1380,17 @@ export default defineSchema({
   // Fiat top-ups, subscription grants, and crypto deposits ALL land here; this
   // is the single balance recordUsage() checks before falling back to the
   // per-agent agentAccount USDC path. Spec: docs/superpowers/specs/2026-08-20-user-credits-billing-design.md
+  // Paid per-agent add-ons (TikTok posting, $10 USD per month). activeUntil is
+  // extended by each paid Stripe invoice; the connect route refuses without it.
+  agentAddons: defineTable({
+    mintAddress: v.string(),
+    addon: v.literal("tiktok"),
+    ownerWallet: v.string(),
+    activeUntil: v.number(),
+    lastStripeEventId: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_mint_addon", ["mintAddress", "addon"]),
+
   userCredits: defineTable({
     ownerWallet: v.string(),
     balanceCredits: v.number(),

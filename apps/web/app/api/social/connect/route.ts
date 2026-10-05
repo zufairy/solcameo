@@ -44,6 +44,13 @@ export async function POST(req: NextRequest) {
     if (err) return err;
   }
 
+  // TikTok is a paid add-on. The hosted connect link is not platform specific, so the
+  // gate applies whenever the client asks to connect TikTok.
+  if (body.platforms?.includes("tiktok") && !auth.internal) {
+    const active = await convex.query(api.agentAddons.isActiveServer, { mintAddress, addon: "tiktok", authSecret: secret });
+    if (!active) return NextResponse.json({ ok: false, error: "TikTok posting needs the $10/month add-on. Activate it first.", needsActivation: true }, { status: 402 });
+  }
+
   try {
     const url = await generateConnectUrl(username, {
       // Generate one reusable hosted connect URL for the profile. Filtering by

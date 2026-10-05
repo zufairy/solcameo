@@ -3,7 +3,7 @@ import { getNetwork } from "@/lib/solana/network";
 /* eslint-disable @next/next/no-img-element -- remote character portraits */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
 import { useQuery, useConvexConnectionState } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@/convex/_generated/api";
@@ -33,12 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/error/error-boundary";
 import { useSolUsd } from "@/lib/client/useSolUsd";
@@ -125,6 +120,9 @@ function Market() {
   const [grid, setGrid] = useState(true);
   const [filters, setFilters] = useState(false);
   const [minVideos, setMinVideos] = useState(false);
+  const [launched, setLaunched] = useState<"any" | "24h" | "7d">("any");
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [gainersOnly, setGainersOnly] = useState(false);
   const [now, setNow] = useState(0);
   const watch = useMarketWatchlist();
   const connection = useConvexConnectionState();
@@ -196,8 +194,16 @@ function Market() {
         pools[r.characterId]?.migrated) &&
       (!category || r.category === category) &&
       (!watchOnly || watch.ids.includes(r.characterId)) &&
-      (!minVideos || r.videosPosted > 0),
+      (!minVideos || r.videosPosted > 0) &&
+      (launched === "any" || !now || now - r.createdAt <= (launched === "24h" ? 86_400_000 : 604_800_000)) &&
+      (!activeOnly || Number(pools[r.characterId]?.appVolume24hLamports ?? 0) > 0) &&
+      (!gainersOnly || (pools[r.characterId]?.changeSinceLaunchPct ?? 0) > 0),
   );
+  const activeFilters = [!!category, minVideos, graduatedOnly, watchOnly, launched !== "any", activeOnly, gainersOnly].filter(Boolean).length;
+  const resetFilters = () => {
+    setCategory(""); setMinVideos(false); setGraduatedOnly(false); setWatchOnly(false);
+    setLaunched("any"); setActiveOnly(false); setGainersOnly(false);
+  };
   visible?.sort((a,b) => sort === "new" ? b.createdAt-a.createdAt : sort === "volume" ? Number(pools[b.characterId]?.appVolume24hLamports ?? 0)-Number(pools[a.characterId]?.appVolume24hLamports ?? 0) : sort === "change" ? (pools[b.characterId]?.changeSinceLaunchPct ?? 0)-(pools[a.characterId]?.changeSinceLaunchPct ?? 0) : (pools[b.characterId]?.capSol ?? 0)-(pools[a.characterId]?.capSol ?? 0));
   const tabs = [
     { label: "All coins", sort: "mcap", Icon: ArrowDownUp },
@@ -265,14 +271,63 @@ function Market() {
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setFilters(true)}
-            className="h-9 border-white/10 bg-[#202326]"
-          >
-            <Filter className="size-4" />
-            Filter{category || minVideos ? " •" : ""}
-          </Button>
+          <Popover open={filters} onOpenChange={setFilters}>
+            <PopoverTrigger
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-[#202326] px-3 text-sm font-medium text-zinc-200 outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:bg-white/10"
+            >
+              <Filter className="size-4" />
+              Filter
+              {activeFilters > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-white px-1 text-[11px] font-semibold text-black">{activeFilters}</span>
+              )}
+              <ChevronDown className={`size-3.5 text-zinc-500 transition-transform ${filters ? "rotate-180" : ""}`} />
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-2xl border border-white/10 bg-[#1a1c1f]/95 p-0 text-zinc-200 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)] ring-0 backdrop-blur-2xl">
+              <div className="space-y-4 p-4">
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">Category</p>
+                  <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                    {["", ...categories].map((c) => (
+                      <button key={c || "all"} type="button" onClick={() => setCategory(c)} aria-pressed={category === c}
+                        className={`rounded-full border px-2.5 py-1 text-[12px] transition-colors ${category === c ? "border-white bg-white text-black" : "border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/10"}`}>
+                        {c || "All"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">Launched</p>
+                  <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-black/20 p-0.5">
+                    {([["any", "Any time"], ["24h", "24h"], ["7d", "7 days"]] as const).map(([id, label]) => (
+                      <button key={id} type="button" onClick={() => setLaunched(id)} aria-pressed={launched === id}
+                        className={`h-7 rounded-md text-[12px] transition-colors ${launched === id ? "bg-white/15 text-white" : "text-zinc-400 hover:text-white"}`}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="divide-y divide-white/[0.06] rounded-xl border border-white/10 bg-white/[0.02]">
+                  {([
+                    ["Has posted videos", minVideos, setMinVideos],
+                    ["Graduated only", graduatedOnly, (v: boolean) => { setGraduatedOnly(v); if (v) setWatchOnly(false); }],
+                    ["Watchlist only", watchOnly, (v: boolean) => { setWatchOnly(v); if (v) setGraduatedOnly(false); }],
+                    ["Has 24h volume", activeOnly, setActiveOnly],
+                    ["Gainers only", gainersOnly, setGainersOnly],
+                  ] as [string, boolean, (v: boolean) => void][]).map(([label, on, set]) => (
+                    <button key={label} type="button" role="switch" aria-checked={on} onClick={() => set(!on)}
+                      className="flex w-full items-center justify-between px-3 py-2.5 text-left text-[13px] transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-white/[0.04]">
+                      <span className={on ? "text-white" : "text-zinc-300"}>{label}</span>
+                      <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-white" : "bg-white/15"}`}>
+                        <span className={`absolute top-0.5 size-4 rounded-full transition-all ${on ? "left-[18px] bg-black" : "left-0.5 bg-zinc-400"}`} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-t border-white/[0.07] px-4 py-3">
+                <button type="button" onClick={resetFilters} disabled={activeFilters === 0} className="text-[12.5px] text-zinc-400 transition-colors hover:text-white disabled:opacity-40">Reset all</button>
+                <span className="text-[12.5px] tabular-nums text-zinc-500">{visible?.length ?? 0} results</span>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="flex h-9 items-center rounded-lg border border-white/10 bg-[#202326] p-0.5">
             <Button
               variant="ghost"
@@ -336,10 +391,37 @@ function Market() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-zinc-500" />
         </div>
-        <p className="ml-auto text-sm font-medium text-white">
-          {connection.isWebSocketConnected
-            ? `${visible?.length ?? "…"} ${visible?.length === 1 ? "influencer" : "influencers"} live right now`
-            : "Reconnecting…"}
+        <p className="ml-auto flex items-center gap-2.5 text-sm font-medium text-white">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={connection.isWebSocketConnected ? `n-${visible?.length ?? "…"}` : "off"}
+              initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="tabular-nums"
+            >
+              {connection.isWebSocketConnected
+                ? `${visible?.length ?? "…"} ${visible?.length === 1 ? "influencer" : "influencers"} live right now`
+                : "Reconnecting…"}
+            </motion.span>
+          </AnimatePresence>
+          <span aria-hidden className="relative grid size-3 place-items-center">
+            {connection.isWebSocketConnected && (
+              <>
+                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/60" />
+                <span className="live-ring absolute inline-flex size-full rounded-full bg-red-500/40" style={{ animationDelay: "0.9s" }} />
+              </>
+            )}
+            <span className={`live-core relative size-2 rounded-full ${connection.isWebSocketConnected ? "bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.7)]" : "bg-zinc-600"}`} />
+          </span>
+          <style>{`
+            @keyframes liveRing { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
+            @keyframes liveCore { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+            .live-ring { animation: liveRing 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+            .live-core { animation: liveCore 1.8s ease-in-out infinite; }
+            @media (prefers-reduced-motion: reduce) { .live-ring, .live-core { animation: none; } .live-ring { display: none; } }
+          `}</style>
         </p>
       </div>
       {rows === undefined ? (
@@ -358,8 +440,7 @@ function Market() {
               setSearch("");
               setCategory("");
               setWatchOnly(false);
-              setMinVideos(false);
-              setGraduatedOnly(false);
+              resetFilters();
             }}
           >
             Reset filters
@@ -614,41 +695,6 @@ function Market() {
           </Table>
         </div>
       )}
-      <Dialog open={filters} onOpenChange={setFilters}>
-        <DialogContent className="border border-white/10 bg-[#202326] text-white">
-          <DialogTitle>Market filters</DialogTitle>
-          <DialogDescription>
-            Filter by influencer category and published videos.
-          </DialogDescription>
-          <label className="text-sm text-zinc-400">
-            Category
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-[#09090b] px-3"
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={minVideos}
-              onChange={(e) => setMinVideos(e.target.checked)}
-            />
-            Has posted videos
-          </label>
-          <Button
-            className="bg-[#d7ff00] text-black hover:bg-[#e4ff59]"
-            onClick={() => setFilters(false)}
-          >
-            Apply filters
-          </Button>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

@@ -113,7 +113,7 @@ export default function NextVideoCard({
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
+    <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
       <div>
         {videoUrl ? (
           <div className="flex flex-wrap items-center gap-4">
@@ -139,15 +139,19 @@ export default function NextVideoCard({
             Rendering &ldquo;{nextIdea?.headline ?? "your next video"}&rdquo;&hellip; a few minutes. It lands here and in Generations.
           </div>
         ) : nextIdea ? (
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="relative grid size-8 shrink-0 place-items-center rounded-full bg-lime-300/15 text-lime-300">
+              <Sparkles className="size-4" />
+              <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2 animate-pulse rounded-full bg-lime-300 shadow-[0_0_8px_#d4f53c]" />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Up next</p>
-              <p className="mt-1 truncate text-[17px] font-semibold tracking-tight text-white">{nextIdea.headline}</p>
-              <p className="mt-1 text-[12px] text-zinc-500">
-                {nextIdea.format} <span aria-hidden className="mx-1.5 text-zinc-700">·</span> ~{nextIdea.suggestedDurationSec}s
-              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Up next · {nextIdea.format} · ~{nextIdea.suggestedDurationSec}s</p>
+              <p className="truncate text-[13.5px] font-semibold tracking-tight text-white">{nextIdea.headline}</p>
             </div>
-            <GenerateButton onClick={() => void makeNext()} busy={busy === "video"}>Make new video</GenerateButton>
+            <button type="button" onClick={() => void makeNext()} disabled={busy === "video"} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-lime-300 px-3.5 text-[12.5px] font-bold text-black shadow-[0_0_18px_-4px_rgba(212,245,60,0.7)] transition hover:bg-lime-200 active:scale-[0.97] disabled:opacity-60">
+              {busy === "video" ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 fill-black" />}
+              Make video
+            </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-4">
