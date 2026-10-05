@@ -248,3 +248,22 @@ describe("abuse resistance", () => {
     expect((await t.query(api.solstarFeed.tickerItems, {})).map((i) => i.body)).toEqual(["ev2", "ev1"]);
   });
 });
+
+describe("agent callouts", () => {
+  it("persists the agent link and hides non-public targets", async () => {
+    const t = convexTest(schema, modules);
+    const { characterId, tokenId } = await seedToken(t);
+    await t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Love this character"), characterId });
+    const rows = await t.query(api.solstarFeed.listCallouts, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ characterId, tokenId, name: "Disco Ant", ticker: "DISCO", body: "Love this character" });
+    await t.run(async ctx => { await ctx.db.patch(characterId, { status: "draft" }); });
+    expect(await t.query(api.solstarFeed.listCallouts, {})).toEqual([]);
+    await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W2, "Not public"), characterId })).rejects.toThrow("character_not_found");
+  });
+  it("excludes general chat", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.solstarFeed.postChat, chat(W1, "hello"));
+    expect(await t.query(api.solstarFeed.listCallouts, {})).toEqual([]);
+  });
+});

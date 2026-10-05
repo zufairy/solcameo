@@ -115,7 +115,7 @@ export function previewDbc(input: DbcOptions) {
   return {
     raisedSol,
     points,
-    examples: [0.1, 1].map(quote),
+    examples: [0.1, 1, 5].map(quote),
     supply: 1_000_000_000,
     lockedLiquidityPercent: 100,
     feeBps: input.feeBps,

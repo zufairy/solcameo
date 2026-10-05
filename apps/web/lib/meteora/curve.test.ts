@@ -22,9 +22,9 @@ describe("Meteora DBC economics", () => {
       expect(config.migrationFeeOption).toBe(6);
       expect(config.migratedPoolFee?.poolFeeBps).toBe(options.feeBps);
       expect(config.migratedPoolFee?.dynamicFee).toBe(0);
-      expect(config.creatorPermanentLockedLiquidityPercentage).toBe(100);
+      expect(config.creatorPermanentLockedLiquidityPercentage).toBe(50);
       expect(config.tokenUpdateAuthority).toBe(1);
-      expect(config.creatorTradingFeePercentage).toBe(100);
+      expect(config.creatorTradingFeePercentage).toBe(50);
     },
   );
   it("charges the selected fee in simulated buys", () => {

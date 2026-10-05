@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
-import { convexClient, errorResponse, prepareAuthedJson } from "@/lib/server/solstarRoute";
+import { convexClient, errorResponse, prepareAuthedJson, isConvexIdString } from "@/lib/server/solstarRoute";
 
 export const runtime = "nodejs";
 
@@ -12,8 +13,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const text = body.body;
   if (typeof text !== "string") return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
+  if (body.characterId !== undefined && !isConvexIdString(body.characterId)) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
+
   try {
-    const res = await convexClient().mutation(api.solstarFeed.postChat, { wallet, body: text, authSecret: secret });
+    const res = await convexClient().mutation(api.solstarFeed.postChat, { wallet, body: text, authSecret: secret, ...(body.characterId ? { characterId: body.characterId as Id<"ssCharacters"> } : {}) });
     return NextResponse.json(res);
   } catch (e) {
     return errorResponse(e);

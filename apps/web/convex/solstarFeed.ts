@@ -43,7 +43,7 @@ export async function recordFeedEvent(ctx: MutationCtx, args: FeedEventArgs): Pr
 }
 
 export const postChat = mutation({
-  args: { wallet: v.string(), body: v.string(), authSecret: v.string() },
+  args: { wallet: v.string(), body: v.string(), authSecret: v.string(), characterId: v.optional(v.id("ssCharacters")) },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
     if (a.wallet.length < 32 || a.wallet.length > 44) throw new Error("invalid_wallet");
@@ -59,7 +59,15 @@ export const postChat = mutation({
       .withIndex("by_wallet_kind_created", (q) => q.eq("wallet", wallet).eq("kind", "chat"))
       .order("desc").first();
     if (last && last.body.toLowerCase() === body.toLowerCase()) throw new Error("duplicate_message");
-    await ctx.db.insert("ssFeed", { kind: "chat", wallet, body, network: "paper", createdAt: now });
+    let linked: { characterId?: Id<"ssCharacters">; tokenId?: Id<"ssTokens">; network: "paper" | "devnet" | "mainnet" } = { network: "paper" };
+    if (a.characterId) {
+      const character = await ctx.db.get(a.characterId);
+      if (!character || character.status !== "approved") throw new Error("character_not_found");
+      const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", a.characterId!)).first();
+      if (!token) throw new Error("token_not_found");
+      linked = { characterId: character._id, tokenId: token._id, network: token.network };
+    }
+    await ctx.db.insert("ssFeed", { kind: "chat", wallet, body, ...linked, createdAt: now });
     return { ok: true as const };
   },
 });
@@ -94,5 +102,21 @@ export const tickerItems = query({
       id: r._id as string, eventType: r.eventType, body: r.body, characterId: r.characterId,
       tokenId: r.tokenId, side: r.side, amountLamports: r.amountLamports, createdAt: r.createdAt,
     }));
+  },
+});
+
+/** Reactive, agent-linked callouts only; general chat and trade events stay in the activity feed. */
+export const listCallouts = query({
+  args: {},
+  handler: async ctx => {
+    const rows = await ctx.db.query("ssFeed").withIndex("by_kind_created", q => q.eq("kind", "chat")).order("desc").take(100);
+    const joined = await Promise.all(rows.filter(r => r.characterId).map(async r => {
+      const character = await ctx.db.get(r.characterId!);
+      if (!character || character.status !== "approved") return null;
+      const token = r.tokenId ? await ctx.db.get(r.tokenId) : null;
+      if (!token) return null;
+      return { ...publicRow(r), name: character.name, imageUrl: character.referenceImageUrl, ticker: token.ticker };
+    }));
+    return joined.filter(r => r !== null).slice(0, 30);
   },
 });

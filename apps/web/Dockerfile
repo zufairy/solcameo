@@ -14,7 +14,7 @@ COPY scripts/install-ytdlp.mjs ./scripts/install-ytdlp.mjs
 # masked by `|| true` (that hid the failure and left node_modules missing, which
 # is what broke `COPY --from=deps /app/node_modules`); only the optional native
 # rebuild is allowed to fail.
-RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps && (npm rebuild bigint-buffer --build-from-source || true)
+RUN --mount=type=cache,id=solcameo-npm,target=/root/.npm npm ci --legacy-peer-deps && (npm rebuild bigint-buffer --build-from-source || true)
 
 # ── YouTube PO-token provider (free replacement for the residential proxy) ──
 # yt-dlp on a datacenter IP is bot-walled unless each request carries a BotGuard
@@ -88,7 +88,7 @@ ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL \
     NEXT_PUBLIC_PRIVY_APP_ID=$NEXT_PUBLIC_PRIVY_APP_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+RUN --mount=type=cache,id=solcameo-next,target=/app/.next/cache npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production

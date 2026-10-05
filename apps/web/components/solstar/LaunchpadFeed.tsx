@@ -46,7 +46,7 @@ function CharacterPost({ row }: { row: MarketRow }) {
     return () => { observer.disconnect(); el.pause(); };
   }, [episodeUrl]);
   const cap = row.network === "paper" ? formatUsdEstimate(row.marketCapLamports, rate) : pool?.available && pool.capSol != null ? formatUsdEstimate(String(Math.round(pool.capSol * 1e9)), rate) : "—";
-  return <article className="relative mx-auto h-[min(720px,calc(100dvh-210px))] min-h-[420px] w-full max-w-[420px] snap-start snap-always overflow-hidden rounded-xl border border-white/10 bg-black shadow-xl">
+  return <article className="relative mx-auto aspect-[9/16] w-full snap-start snap-always overflow-hidden bg-black">
     {episode ? <video ref={video} controls loop muted={muted} preload="metadata" playsInline src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full object-cover" aria-label={`${row.name} latest episode`} /> : <img src={row.imageUrl} alt={row.name} className="absolute inset-0 size-full object-cover" />}
     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/10 to-black/40" />
     <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2"><span className="rounded bg-black/50 px-2 py-1 text-[10px] text-white backdrop-blur">{row.network === "paper" ? "Unminted preview" : "Devnet · minted"}</span>{episode ? <Button size="icon-sm" variant="ghost" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute video" : "Mute video"} className="rounded-full bg-black/50 text-white">{muted ? <SpeakerOffIcon /> : <SpeakerLoudIcon />}</Button> : <span className="rounded bg-black/50 px-2 py-1 text-[10px] text-zinc-300">No episodes published yet</span>}</div>
@@ -71,10 +71,10 @@ function Discovery() {
     <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-[#17191b] px-4 py-2" role="tablist" aria-label="Character discovery">
       {[["launches", "New launches"], ["episodes", "Episodes"], ["previews", "Previews"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{label}</Button>)}
     </div>
-    <div role="tabpanel" aria-label={tab} className="h-[calc(100dvh-190px)] min-h-[450px] space-y-4 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#111315] px-3 py-4 sm:px-6">
+    <div role="tabpanel" aria-label={tab} className="max-h-[calc(100dvh-180px)] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">
       {rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><RocketIcon className="mb-4 size-6 text-[#d7ff00]" /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from confirmed devnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}
     </div>
-    <p className="px-6 py-4 text-[11px] text-zinc-500"><VideoIcon className="mr-1 inline" /> Watching is free. Devnet trades use test SOL; USD valuations are illustrative. Previews are unminted.</p>
+    <p className="hidden px-6 py-4 text-[11px] text-zinc-500"><VideoIcon className="mr-1 inline" /> Watching is free. Devnet trades use test SOL; USD valuations are illustrative. Previews are unminted.</p>
   </>;
 }
 export function LaunchpadFeed() { return <PanelErrorBoundary message="Character discovery is unavailable. Refresh to reconnect."><Discovery /></PanelErrorBoundary>; }
