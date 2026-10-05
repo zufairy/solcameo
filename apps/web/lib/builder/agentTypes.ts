@@ -852,9 +852,10 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:gj",
     provider: "higgsfield",
     formatOnly: true,
-    pricePerSecondUsdc: 0.4,
-    maxClipSeconds: 15,
-    pricePerMaxClipUsdc: 6,
+    // Higgsfield list price $0.681/s at 720p (open.higgsfield.ai, checked 2026-10-06) x4 retail.
+    pricePerSecondUsdc: 0.681 * 4,
+    maxClipSeconds: 30,
+    pricePerMaxClipUsdc: 0.681 * 4 * 30,
     quality: "premium",
     description: "Higgsfield Genjutsu — transfers a library clip's motion onto your character. Used automatically by the Motion Swap format.",
   },
@@ -863,11 +864,11 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Seedance 2.5 · Higgsfield",
     kieModel: "hf:sd25",
     provider: "higgsfield",
-    // Retail placeholders: priced like Kie's Seedance 2.0 per second until Higgsfield's
-    // per-clip cost is measured. Tune here in ONE place.
-    pricePerSecondUsdc: 0.8,
+    // Higgsfield list price $0.4622/s at 720p (open.higgsfield.ai, checked 2026-10-06) x4 retail.
+    // Higgsfield bills per generated second, so videoCostForLength bills seconds, not whole clips.
+    pricePerSecondUsdc: 0.4622 * 4,
     maxClipSeconds: 30,
-    pricePerMaxClipUsdc: 24,
+    pricePerMaxClipUsdc: 0.4622 * 4 * 30,
     quality: "premium",
     description: "Higgsfield · ByteDance Seedance 2.5 — up to a single 30s take with native audio, locked to your character image.",
   },
@@ -876,9 +877,11 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Seedance 2.0 · Higgsfield",
     kieModel: "hf:sd20",
     provider: "higgsfield",
-    pricePerSecondUsdc: 0.8,
+    // Token-metered: $0.014 per 1k tokens, tokens = ceil(s x w x h x 24 / 1024). 720x1280 portrait
+    // = 21,600 tokens/s = $0.3024/s (open.higgsfield.ai, checked 2026-10-06) x4 retail.
+    pricePerSecondUsdc: 0.3024 * 4,
     maxClipSeconds: 15,
-    pricePerMaxClipUsdc: 12,
+    pricePerMaxClipUsdc: 0.3024 * 4 * 15,
     quality: "premium",
     description: "Higgsfield · ByteDance Seedance 2.0 — smooth motion and strong identity lock, up to 1080p.",
   },
@@ -887,6 +890,7 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Grok Imagine · Higgsfield",
     kieModel: "hf:gxv",
     provider: "higgsfield",
+    // UNVERIFIED: Higgsfield's Grok Imagine page published no rate. Placeholder = Kie's Grok rate.
     pricePerSecondUsdc: 0.2,
     maxClipSeconds: 15,
     pricePerMaxClipUsdc: 3,
@@ -982,6 +986,8 @@ export function selectableVideoEngines(): VideoEngineOption[] {
 export function videoCostForLength(engine: VideoEngineOption, seconds: number): number {
   if (seconds <= 0) return 0;
   // Number of clips needed to cover the requested duration
+  // Higgsfield bills per generated second (no whole-clip minimum).
+  if (engine.provider === "higgsfield") return Math.ceil(seconds) * engine.pricePerSecondUsdc;
   const clips = Math.ceil(seconds / engine.maxClipSeconds);
   // Each clip generates at max length (Kie charges per generation, not per actual second)
   return clips * engine.pricePerMaxClipUsdc;

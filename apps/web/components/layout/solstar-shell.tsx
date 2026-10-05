@@ -23,6 +23,7 @@ import {
 import { legacyUiEnabled } from "@/lib/flags";
 import { BRAND } from "@/lib/solstar/brand";
 import { getMenuItems } from "@/lib/solstar/menu";
+import { CreateSpiral } from "./create-spiral";
 import { ShellAccount } from "./shell-account";
 import { ShellSearch } from "./shell-search";
 import { ShellProvider } from "./shell-context";
@@ -119,7 +120,8 @@ function RailCreate() {
           tooltip="Create"
           className={CREATE_CLASS}
         >
-          <Plus className="size-4 shrink-0" strokeWidth={2.5} />
+          <CreateSpiral />
+          <Plus className="relative size-4 shrink-0" strokeWidth={2.5} />
           <span className="group-data-[collapsible=icon]:hidden">Create</span>
         </SidebarMenuButton>
       </SidebarMenuItem>

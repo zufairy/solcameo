@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- public reference thumbnails */
+import { CameoPrompt, type CameoMember } from "./CameoPrompt";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
@@ -18,7 +19,6 @@ import {
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -166,11 +166,13 @@ function ReferenceCard({
 
 function Generator({
   mint,
+  primaryName,
   item,
   resolution,
   onBusy,
 }: {
   mint: string;
+  primaryName: string;
   item: ReferenceVideo;
   resolution: GenjutsuResolution;
   onBusy: (busy: boolean) => void;
@@ -179,6 +181,7 @@ function Generator({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [cast, setCast] = useState<CameoMember[]>([]);
   const estimate = estimateGenerationUsd(item.duration, resolution);
   const { runs, start } = useMotionRuns(mint);
   const run = runs[0];
@@ -232,17 +235,9 @@ function Generator({
           </Link>
         </p>
       )}
-      <label className="block text-xs text-zinc-400">
-        Scene direction <span className="text-zinc-600">(optional)</span>
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          maxLength={4000}
-          placeholder="Describe the setting, lighting, or style…"
-          rows={3}
-          className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-white outline-none focus:border-[#d7ff00]"
-        />
-      </label>
+      {portrait && (
+        <CameoPrompt mint={mint} primaryName={primaryName} item={item} value={prompt} onChange={setPrompt} onCast={setCast} />
+      )}
 
       <Button
         className={`h-11 w-full ${GREEN}`}
@@ -253,7 +248,7 @@ function Generator({
           void start({
             mode: "motion-transfer",
             videoUrl: item.videoUrl,
-            imageUrls: [portrait!],
+            imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8),
             prompt,
             resolution,
             title: item.title,
@@ -804,6 +799,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                     <Generator
                       key={mint}
                       mint={mint}
+                      primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? "Character"}
                       item={selected}
                       resolution={resolution}
                       onBusy={setGenerating}

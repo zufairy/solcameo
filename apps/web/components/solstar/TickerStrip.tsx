@@ -51,7 +51,7 @@ export function TickerStrip() {
       {change != null && <span className={`flex items-center gap-0.5 text-[11px] ${change >= 0 ? "text-[#d7ff00]" : "text-red-400"}`} title="Change since launch">{change >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}{Math.abs(change).toFixed(2)}%</span>}
     </Link>;
   };
-  return <section aria-label="Live market ticker" className="flex h-10 min-w-0 items-stretch border-y border-white/[0.07] bg-gradient-to-b from-[#101114] to-[#0a0b0d]">
+  return <section aria-label="Live market ticker" className="ticker-bar flex h-10 min-w-0 items-stretch border-y border-white/[0.07]">
     <div role="tablist" aria-label="Ticker source" className="flex shrink-0 items-center gap-1 border-r border-white/[0.07] px-2">
       {tabs.map(([value, Icon, label]) => <button key={value} type="button" role="tab" aria-selected={mode === value} aria-label={label} title={label} onClick={() => setMode(value)} className={`grid size-7 place-items-center rounded-[3px] transition-colors ${mode === value ? "bg-white/10 text-white" : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"}`}><Icon className={`size-4 ${mode === value && value === "watchlist" ? "fill-[#d7ff00] text-[#d7ff00]" : ""}`} strokeWidth={1.6} /></button>)}
     </div>

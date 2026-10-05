@@ -11,7 +11,10 @@ import {
   ArrowDownUp,
   ArrowUpRight,
   Bookmark,
+  Check,
+  ChevronDown,
   Clock3,
+  GraduationCap,
   Filter,
   Grid2X2,
   List,
@@ -213,9 +216,14 @@ function Market() {
           : `${Math.floor(minutes / 1440)}d`;
   };
   return (
-    <main className="min-h-screen bg-[#181a1c] px-4 py-4 text-zinc-200 lg:px-10">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2 pb-3">
+    <main className="relative min-h-screen overflow-hidden bg-[#141618] px-4 py-4 text-zinc-200 lg:px-10">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 top-40 size-[520px] rounded-full bg-[#d7ff00]/[0.06] blur-[130px]" />
+        <div className="absolute right-0 top-[420px] size-[560px] rounded-full bg-[#7C4DFF]/[0.10] blur-[140px]" />
+        <div className="absolute bottom-0 left-1/3 size-[480px] rounded-full bg-teal-400/[0.06] blur-[130px]" />
+      </div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {tabs.map((t) => (
             <Button
               key={t.sort}
@@ -225,7 +233,7 @@ function Market() {
                 setGraduatedOnly(false);
               }}
               variant="ghost"
-              className={`h-9 gap-2 ${sort === t.sort && !watchOnly ? "rounded-md border-transparent bg-white/10 text-white hover:bg-white/15" : "text-zinc-400"}`}
+              className={`h-9 gap-2 rounded-md px-3 text-sm ${sort === t.sort && !watchOnly && !graduatedOnly ? "bg-white/10 text-white hover:bg-white/15" : "text-zinc-400"}`}
             >
               <t.Icon className="size-4" />
               {t.label}
@@ -238,8 +246,9 @@ function Market() {
               setGraduatedOnly(!graduatedOnly);
               setWatchOnly(false);
             }}
-            className={graduatedOnly ? "text-[#d7ff00]" : "text-zinc-400"}
+            className={`h-9 gap-2 rounded-md px-3 text-sm ${graduatedOnly ? "bg-white/10 text-[#d7ff00] hover:bg-white/15" : "text-zinc-400"}`}
           >
+            <GraduationCap className="size-4" />
             Graduated
           </Button>
           <Button
@@ -249,9 +258,7 @@ function Market() {
             }}
             variant="ghost"
             aria-pressed={watchOnly}
-            className={
-              watchOnly ? "bg-[#d7ff00] text-zinc-950" : "text-zinc-400"
-            }
+            className={`h-9 gap-2 rounded-md px-3 text-sm ${watchOnly ? "bg-[#d7ff00] text-zinc-950 hover:bg-[#e3ff5c]" : "text-zinc-400"}`}
           >
             <Bookmark className="size-4" />
             Watchlist
@@ -261,17 +268,17 @@ function Market() {
           <Button
             variant="outline"
             onClick={() => setFilters(true)}
-            className="h-10 border-white/10 bg-[#202326]"
+            className="h-9 border-white/10 bg-[#202326]"
           >
             <Filter className="size-4" />
             Filter{category || minVideos ? " •" : ""}
           </Button>
-          <div className="flex rounded-lg border border-white/10 bg-[#202326] p-1">
+          <div className="flex h-9 items-center rounded-lg border border-white/10 bg-[#202326] p-0.5">
             <Button
               variant="ghost"
               aria-pressed={grid}
               onClick={() => setGrid(true)}
-              className={grid ? "bg-white/10" : "text-zinc-500"}
+              className={`h-8 ${grid ? "bg-white/10" : "text-zinc-500"}`}
             >
               <Grid2X2 className="size-4" />
               Grid
@@ -280,7 +287,7 @@ function Market() {
               variant="ghost"
               aria-pressed={!grid}
               onClick={() => setGrid(false)}
-              className={!grid ? "bg-white/10" : "text-zinc-500"}
+              className={`h-8 ${!grid ? "bg-white/10" : "text-zinc-500"}`}
             >
               <List className="size-4" />
               Table
@@ -288,8 +295,8 @@ function Market() {
           </div>
         </div>
       </div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[260px] flex-1 sm:max-w-2xl">
           <Search className="absolute left-3 top-3 size-4 text-zinc-500" />
           <Input
             value={search}
@@ -300,14 +307,43 @@ function Market() {
             className="h-10 border-white/10 pl-9"
           />
         </div>
+        <label className="group flex h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 text-sm text-zinc-300 backdrop-blur-xl transition-colors hover:bg-white/[0.08] has-[:checked]:border-[#d7ff00]/40 has-[:checked]:text-white">
+          <input
+            type="checkbox"
+            checked={graduatedOnly}
+            onChange={(e) => {
+              setGraduatedOnly(e.target.checked);
+              if (e.target.checked) setWatchOnly(false);
+            }}
+            className="peer sr-only"
+          />
+          <span aria-hidden="true" className="grid size-4 place-items-center rounded-[4px] border border-white/25 bg-black/30 text-transparent transition-colors peer-checked:border-[#d7ff00] peer-checked:bg-[#d7ff00] peer-checked:text-black peer-focus-visible:ring-2 peer-focus-visible:ring-[#d7ff00]/60">
+            <Check className="size-3" strokeWidth={3.5} />
+          </span>
+          Graduated only
+        </label>
+        <div className="relative">
+          <select
+            aria-label="Sort coins"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as Sort)}
+            className="h-10 cursor-pointer appearance-none rounded-lg border border-white/10 bg-white/[0.04] py-0 pl-3.5 pr-9 text-sm text-zinc-200 backdrop-blur-xl outline-none transition-colors hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-[#d7ff00]/50"
+          >
+            <option value="mcap" className="bg-[#202326]">Sort: Highest TVL</option>
+            <option value="volume" className="bg-[#202326]">Sort: 24h volume</option>
+            <option value="change" className="bg-[#202326]">Sort: Top gainers</option>
+            <option value="new" className="bg-[#202326]">Sort: Newest</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-zinc-500" />
+        </div>
+        <p className={`ml-auto flex h-10 items-center gap-2.5 rounded-lg border px-3.5 text-xs font-medium backdrop-blur-xl ${connection.isWebSocketConnected ? "border-emerald-400/25 bg-emerald-500/[0.08] text-emerald-200" : "border-amber-400/25 bg-amber-500/[0.08] text-amber-200"}`}>
+          <span className="relative flex size-2">
+            <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-75 motion-reduce:animate-none ${connection.isWebSocketConnected ? "bg-emerald-400" : "bg-amber-400"}`} />
+            <span className={`relative inline-flex size-2 rounded-full ${connection.isWebSocketConnected ? "bg-emerald-400 shadow-[0_0_10px_#34d399]" : "bg-amber-400 shadow-[0_0_10px_#fbbf24]"}`} />
+          </span>
+          {visible?.length ?? "…"} markets · {connection.isWebSocketConnected ? "Live updates" : "Reconnecting"}
+        </p>
       </div>
-      <p className="mb-4 flex items-center gap-2 text-xs text-zinc-500">
-        <span
-          className={`size-1.5 rounded-full ${connection.isWebSocketConnected ? "bg-teal-400" : "bg-amber-400"}`}
-        />
-        {visible?.length ?? "…"} markets ·{" "}
-        {connection.isWebSocketConnected ? "Live updates" : "Reconnecting"}
-      </p>
       {rows === undefined ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
@@ -340,12 +376,11 @@ function Market() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="group overflow-hidden rounded-lg border border-white/[.09] bg-[#202326] transition-colors hover:border-[#d7ff00]/35 motion-reduce:transition-none"
+              className="group relative overflow-hidden rounded-xl border border-white/[0.1] bg-gradient-to-b from-white/[0.075] to-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_60px_-28px_rgba(0,0,0,0.9)] backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:from-white/[0.1] motion-reduce:transition-none"
             >
-              <div className="p-5">
-                <span className="mb-4 inline-block rounded-[3px] bg-teal-400/10 px-2 py-1 text-[10px] font-medium text-teal-400">
-                  {r.category}
-                </span>
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_55%_at_50%_-8%,rgba(255,255,255,0.2),transparent_62%)]" />
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl border border-white/70 [mask-image:radial-gradient(65%_45%_at_50%_0%,black,transparent)]" />
+              <div className="relative p-5">
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     href={`/market/${r.characterId}`}
@@ -353,14 +388,20 @@ function Market() {
                   >
                     <Portrait row={r} large />
                     <div className="min-w-0">
-                      <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white">
-                        {r.name}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white">
+                          {r.name}
+                        </h2>
+
+                      </div>
                       <p className="mt-1 text-xs text-zinc-300">
                         ${r.ticker} · {age(r.createdAt)}
                       </p>
                     </div>
                   </Link>
+                  <span className="shrink-0 self-start rounded-full border border-white/20 bg-gradient-to-b from-white/[0.16] to-white/[0.04] px-2.5 py-0.5 text-[10px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl">
+                          {r.category}
+                        </span>
                 </div>
                 <div className="mt-6 flex items-center justify-between gap-2">
                   <div>

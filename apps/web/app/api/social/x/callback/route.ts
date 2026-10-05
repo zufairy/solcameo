@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { resolveUsername } from "@/lib/server/uploadPost";
+import { publicOrigin } from "@/lib/server/publicOrigin";
 import { unseal, xToken, saveX, xDb } from "@/lib/server/xApi";
 export async function GET(req: NextRequest) {
   let message =
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   // Full-page flow: send the user back to where they started with the outcome.
   const back =
     returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-      ? new URL(returnTo, req.nextUrl.origin)
+      ? new URL(returnTo, publicOrigin(req))
       : null;
   if (back) {
     back.searchParams.set("x_connect", status === 200 ? "ok" : "error");

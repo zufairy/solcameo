@@ -1,3 +1,4 @@
+import { publicOrigin } from "@/lib/server/publicOrigin";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import {
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
   // Return to the same-origin page that started the flow; never an arbitrary URL.
   let returnTo = "/";
   try {
-    const target = new URL(String(body?.redirectUrl ?? ""), req.nextUrl.origin);
-    if (target.origin === req.nextUrl.origin)
+    const origin = publicOrigin(req);
+    const target = new URL(String(body?.redirectUrl ?? ""), origin);
+    if (target.origin === origin)
       returnTo = `${target.pathname}${target.search}`;
   } catch {
     /* keep default */
