@@ -30,7 +30,7 @@ import {
   ShieldAlert,
   ShieldQuestion,
   Eye,
-  Trophy,
+  Medal,
   MessagesSquare,
 } from "lucide-react";
 
@@ -45,6 +45,9 @@ const blurIn = (delay = 0) => ({
 type CreatorDoc = FunctionReturnType<typeof api.influencers.listByCreators>[number];
 
 /** Relative time — "4hr ago", "5mins ago" — falls back to a date past 7d. */
+/** Boxy glass button with a gloss sheen: translucent gradient, bright top edge, soft blur. */
+const LEADERBOARD_BUTTON = "group relative h-9 gap-1.5 overflow-hidden rounded-md border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.03)_55%,rgba(255,255,255,0.08))] text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.25),0_8px_20px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-[background-color,border-color,transform] duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/[0.18] before:to-transparent hover:border-white/30 hover:bg-white/[0.1] active:scale-[0.98]";
+
 function timeAgo(ts: number): string {
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return "just now";
@@ -544,7 +547,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
             </div>
             <div className="flex items-center gap-2 xl:hidden">
               <Button
-                className="h-9 gap-1.5 rounded-lg bg-[#d7ff00] text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"
+                className="h-9 gap-1.5 rounded-md bg-[#d7ff00] text-xs font-semibold text-black shadow-none hover:bg-[#e4ff59]"
                 nativeButton={false}
                 render={<Link href="/create" />}
               >
@@ -552,11 +555,11 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 Create influencer
               </Button>
               <Button
-                className="h-9 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
+                className={LEADERBOARD_BUTTON}
                 nativeButton={false}
                 render={<Link href="/tournament" />}
               >
-                <Trophy className="size-3.5" />
+                <Medal className="size-4 text-[#d7ff00]" strokeWidth={1.75} />
                 Leaderboards
               </Button>
             </div>
@@ -673,7 +676,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
           <div className="sticky top-6">
             <div className="flex h-16 items-end gap-2">
               <Button
-                className="h-9 flex-1 gap-1.5 rounded-lg bg-[#d7ff00] text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"
+                className="h-9 flex-1 gap-1.5 rounded-md bg-[#d7ff00] text-xs font-semibold text-black shadow-none hover:bg-[#e4ff59]"
                 nativeButton={false}
                 render={<Link href="/create" />}
               >
@@ -681,11 +684,11 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 Create influencer
               </Button>
               <Button
-                className="h-9 flex-1 gap-1.5 rounded-full border border-white/15 bg-white/[0.04] text-[13px] font-medium text-white/80 backdrop-blur-xl hover:bg-white/10"
+                className={`flex-1 ${LEADERBOARD_BUTTON}`}
                 nativeButton={false}
                 render={<Link href="/tournament" />}
               >
-                <Trophy className="size-3.5" />
+                <Medal className="size-4 text-[#d7ff00]" strokeWidth={1.75} />
                 Leaderboards
               </Button>
             </div>
