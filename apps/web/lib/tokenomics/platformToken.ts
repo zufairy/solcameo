@@ -41,7 +41,7 @@ export function discountedCost(cost: number, discountPct: number): number {
 }
 
 /** Where each unit of weekly platform revenue goes, in basis points of 10,000. */
-export const REVENUE_SPLIT = { buybackBps: 4000, opsBps: 4000, treasuryBps: 2000 } as const;
+export const REVENUE_SPLIT = { buybackBps: 3000, opsBps: 4000, treasuryBps: 3000 } as const;
 /** Of the tokens the buyback acquires: burned versus paid to holders. */
 export const BUYBACK_SPLIT = { burnBps: 5000, rewardsBps: 5000 } as const;
 /** Share of settled generation spend that is Solcameo margin (the 10% fee on top of provider cost: 10/110). */

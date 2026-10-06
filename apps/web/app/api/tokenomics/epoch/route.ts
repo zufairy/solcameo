@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "burn") {
-    const mint = platformTokenMint(), signer = loadSigner();
+    const mint = await platformTokenMint(), signer = loadSigner();
     const tokens = Number(body.tokens);
     if (!mint || !signer) return NextResponse.json({ error: "SOLCAMEO_TOKEN_MINT or SOLCAMEO_TREASURY_SECRET is not configured" }, { status: 503 });
     if (typeof body.epochStart !== "number" || !Number.isFinite(tokens) || tokens <= 0) return NextResponse.json({ error: "epochStart and a positive token amount are required" }, { status: 400 });

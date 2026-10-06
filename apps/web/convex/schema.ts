@@ -2563,6 +2563,13 @@ export default defineSchema({
 
   /** One row per weekly SOLCAMEO reward epoch (Monday 00:00 UTC). Money amounts are integer micro-USDC. Rows are
    *  immutable once planned; execution only stamps the status and the on-chain burn signature. */
+  platformTokenLaunches: defineTable({
+    network: v.string(), wallet: v.string(), name: v.string(), ticker: v.string(),
+    description: v.string(), image: v.string(), optionsJson: v.string(),
+    mint: v.optional(v.string()), config: v.optional(v.string()), pool: v.optional(v.string()),
+    signature: v.optional(v.string()), state: v.union(v.literal("draft"), v.literal("reserved"), v.literal("live")),
+  }).index("by_network", ["network"]),
+
   platformTokenEpochs: defineTable({
     epochStart: v.number(),
     epochEnd: v.number(),

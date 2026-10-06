@@ -11,7 +11,7 @@ const cache = new Map<string, { at: number; pct: number }>();
  * Never blocks or raises a price: no token launched, no owner wallet, or any RPC problem means a 0% discount.
  */
 export async function holderDiscountForMint(mintAddress: string): Promise<number> {
-  const mint = platformTokenMint();
+  const mint = await platformTokenMint();
   if (!mint) return 0;
   const hit = cache.get(mintAddress);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.pct;

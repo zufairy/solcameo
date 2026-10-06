@@ -28,6 +28,7 @@ export function dbcConnection() {
 }
 export type DbcReceipt = {
   protocol: "meteora-dbc";
+  platform?: boolean;
   wallet: string;
   characterId: string;
   mint: string;

@@ -78,6 +78,7 @@ import type * as nftAgents from "../nftAgents.js";
 import type * as nodeApplications from "../nodeApplications.js";
 import type * as opsInterns from "../opsInterns.js";
 import type * as oracle from "../oracle.js";
+import type * as platformLaunch from "../platformLaunch.js";
 import type * as platformStats from "../platformStats.js";
 import type * as platformToken from "../platformToken.js";
 import type * as sampleRuns from "../sampleRuns.js";
@@ -193,6 +194,7 @@ declare const fullApi: ApiFromModules<{
   nodeApplications: typeof nodeApplications;
   opsInterns: typeof opsInterns;
   oracle: typeof oracle;
+  platformLaunch: typeof platformLaunch;
   platformStats: typeof platformStats;
   platformToken: typeof platformToken;
   sampleRuns: typeof sampleRuns;

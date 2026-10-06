@@ -30,8 +30,8 @@ type Pending = {
 const lowSol = (lamports: number | null | undefined) => typeof lamports === "number" && lamports < LAUNCH_MIN_LAMPORTS.pool;
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-async function call(body: unknown) {
-  const res = await fetch("/api/meteora/launch", {
+async function call(body: unknown, endpoint = "/api/meteora/launch") {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -42,12 +42,16 @@ async function call(body: unknown) {
 }
 export function LiveDbcLaunch({
   characterId,
+  endpoint = "/api/meteora/launch",
+  platform = false,
   options,
   onComplete,
   autoStart = false,
   onProgress,
 }: {
   characterId: string;
+  endpoint?: string;
+  platform?: boolean;
   options: DbcOptions;
   onComplete: () => void;
   autoStart?: boolean;
@@ -72,6 +76,7 @@ export function LiveDbcLaunch({
   const autoStarted = useRef(false);
   const reduced = useReducedMotion();
   const launch = useCallback(async () => {
+    const callLaunch = (body: unknown) => call(body, endpoint);
     if (launchLock.current) return;
     if (!publicKey || !signTransaction) {
       setError("Connect your Solana wallet to approve the launch.");
@@ -84,7 +89,7 @@ export function LiveDbcLaunch({
     launchLock.current = true;
     setBusy(true);
     setError("");
-    const key = `vello-dbc-${characterId}-${publicKey.toBase58()}`;
+    const key = `vello-dbc-${platform ? "platform" : "agent"}-${characterId}-${publicKey.toBase58()}`;
     const save = (v: Pending) => sessionStorage.setItem(key, JSON.stringify(v));
     try {
       if (!await ensureSiwsViaRegistered()) throw new Error("Verify your wallet before minting.");
@@ -101,7 +106,9 @@ export function LiveDbcLaunch({
         setStatus("Building your Meteora configuration…");
         const mint = Keypair.generate(),
           config = Keypair.generate();
-        const prepared = await call({
+        const recovered = platform ? await callLaunch({ action: "recover", characterId, options, mint: mint.publicKey.toBase58() }) : null;
+        if (recovered?.mode === "complete") { onComplete(); return; }
+        const prepared = recovered?.mode === "resume" ? recovered : await callLaunch({
           action: "prepare",
           characterId,
           options,
@@ -114,14 +121,14 @@ export function LiveDbcLaunch({
           configSecret: [...config.secretKey],
           transaction: prepared.transaction,
           receipt: prepared.receipt,
-          stage: "config",
+          stage: prepared.stage ?? "config",
         };
         save(pending);
       }
       for (let phase = 0; phase < 2; phase++) {
         if (!pending.signature) {
           setStatus("Checking saved launch progress…");
-          const recovered = await call({
+          const recovered = await callLaunch({
             action: "refresh",
             receipt: pending.receipt,
             transaction: pending.transaction,
@@ -148,7 +155,7 @@ export function LiveDbcLaunch({
               let result;
               for (let retry = 0; retry < 3; retry++) {
                 try {
-                  result = await call({action: "submit", receipt: pending.receipt, transaction: pending.transaction});
+                  result = await callLaunch({action: "submit", receipt: pending.receipt, transaction: pending.transaction});
                   break;
                 } catch (e) {
                   if ((e as {code?: string}).code !== "RPC_RETRY" || retry === 2) throw e;
@@ -161,7 +168,7 @@ export function LiveDbcLaunch({
             } catch (e) {
               if ((e as {code?: string}).code !== "BLOCKHASH_EXPIRED" || approval === 2) throw e;
               setStatus("Refreshing your expired approval. Confirm the updated transaction in your wallet.");
-              const recovered = await call({action: "refresh", receipt: pending.receipt, transaction: pending.transaction});
+              const recovered = await callLaunch({action: "refresh", receipt: pending.receipt, transaction: pending.transaction});
               if (recovered.signature) pending.signature = recovered.signature;
               else {pending.transaction = recovered.transaction; pending.receipt = recovered.receipt;}
               save(pending);
@@ -173,7 +180,7 @@ export function LiveDbcLaunch({
         let result;
         for (let attempt = 0; attempt < 24; attempt++) {
           try {
-            result = await call({
+            result = await callLaunch({
               action: "confirm",
               receipt: pending.receipt,
               signature: pending.signature,
@@ -217,7 +224,7 @@ export function LiveDbcLaunch({
       launchLock.current = false;
       setBusy(false);
     }
-  }, [publicKey, signTransaction, preflight, characterId, options, onComplete]);
+  }, [publicKey, signTransaction, preflight, characterId, options, onComplete, endpoint, platform]);
   useEffect(() => {
     if (!autoStart || autoStarted.current || !publicKey || !signTransaction || !preflight?.ready || lowSol(preflight.balanceLamports)) return;
     autoStarted.current = true;
@@ -232,7 +239,7 @@ export function LiveDbcLaunch({
   const error = launchError || startBlock;
   useEffect(() => { onProgress?.({ step: launchStep, status, busy, error }); }, [onProgress, launchStep, status, busy, error]);
   const complete = launchStep >= 2;
-  const instruction = error ? "" : status || (busy ? "Opening your wallet…" : !publicKey ? "Connect your wallet to begin. You will approve twice." : LAUNCH_STEPS[Math.min(launchStep, 2)].hint);
+  const instruction = error ? "" : status || (busy ? "Opening your wallet…" : !publicKey ? "Connect your wallet to begin. You will approve twice." : (platform && launchStep === 2 ? "Your platform token is trading." : LAUNCH_STEPS[Math.min(launchStep, 2)].hint));
   return (
     <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate overflow-hidden rounded-3xl border border-white/[0.12] bg-gradient-to-b from-white/[0.07] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_80px_-40px_rgba(0,0,0,0.9)] backdrop-blur-xl">
       <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-48 w-3/4 -translate-x-1/2 rounded-full bg-[#d7ff00]/[0.09] blur-3xl" />
@@ -261,7 +268,7 @@ export function LiveDbcLaunch({
                 {current && busy && !reduced && <span aria-hidden className="absolute inset-0 animate-ping rounded-full border border-[#d7ff00]/40" />}
                 {done ? <Check className="size-4" strokeWidth={3} /> : index + 1}
               </motion.span>
-              <motion.span initial={false} animate={{ opacity: done || current ? 1 : 0.35 }} transition={{ duration: reduced ? 0 : 0.5 }} className={`mt-2.5 px-1 text-[12px] font-medium leading-tight ${current ? "text-white" : done ? "text-zinc-300" : "text-zinc-500"}`}>{step.title}</motion.span>
+              <motion.span initial={false} animate={{ opacity: done || current ? 1 : 0.35 }} transition={{ duration: reduced ? 0 : 0.5 }} className={`mt-2.5 px-1 text-[12px] font-medium leading-tight ${current ? "text-white" : done ? "text-zinc-300" : "text-zinc-500"}`}>{platform && index === 2 ? "Platform live" : step.title}</motion.span>
             </li>
           );
         })}

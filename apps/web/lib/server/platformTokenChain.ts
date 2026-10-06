@@ -1,13 +1,21 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getNetwork } from "@/lib/solana/network";
 import { rpcCandidates, rpcTry } from "@/lib/solana/rpc";
+import { api } from "@/convex/_generated/api";
+import { convexClient } from "./solstarRoute";
 import { TOTAL_SUPPLY } from "@/lib/tokenomics/platformToken";
 
 /** The SOLCAMEO mint, once launched. Unset means the token is not live yet and every holder feature stays inert. */
-export function platformTokenMint(): PublicKey | null {
+export async function platformTokenMint(): Promise<PublicKey | null> {
   const raw = process.env.SOLCAMEO_TOKEN_MINT?.trim();
-  if (!raw) return null;
-  try { return new PublicKey(raw); } catch { return null; }
+  if (raw) { try { return new PublicKey(raw); } catch { return null; } }
+  try {
+    const row = await convexClient().query(api.platformLaunch.get, {
+      network: getNetwork() === "mainnet-beta" ? "mainnet" : "devnet",
+      authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
+    });
+    return row?.state === "live" && row.mint ? new PublicKey(row.mint) : null;
+  } catch { return null; }
 }
 
 export const platformWallets = () => ({

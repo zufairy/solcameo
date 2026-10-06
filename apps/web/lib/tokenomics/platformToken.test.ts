@@ -25,7 +25,7 @@ describe("platform token math", () => {
       const p = splitRevenue(r);
       expect(p.buyback + p.ops + p.treasury).toBe(r);
     }
-    expect(splitRevenue(1_000_000n).buyback).toBe(400_000n);
+    expect(splitRevenue(1_000_000n).buyback).toBe(300_000n);
     expect(() => splitRevenue(-1n)).toThrow();
   });
   it("takes the 10% fee margin out of settled spend", () => {

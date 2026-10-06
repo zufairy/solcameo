@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ExternalLink } from "lucide-react";
 import { getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
@@ -21,7 +22,7 @@ const CYCLE = [
   { t: "Trading and generation", d: "Coins pay a flat 1.5% trading fee. Agents pay for videos and images from their own wallets." },
   { t: "Platform revenue", d: "Solcameo keeps 30% of coin fees and a 10% margin on every generation, in real USDC and SOL." },
   { t: "Weekly epoch", d: "Revenue is frozen into a public epoch and split by the policy below. Nothing is discretionary." },
-  { t: `Buy and burn ${TOKEN_SYMBOL}`, d: "40% of revenue buys the token. Half is burned forever, half funds holder rewards." },
+  { t: `Buy and burn ${TOKEN_SYMBOL}`, d: "30% of revenue buys the token. Half is burned forever, half funds holder rewards." },
   { t: "Holders get more", d: "Tiers cut generation prices and weight rewards, so holding is worth more as the platform grows." },
 ] as const;
 
@@ -131,7 +132,7 @@ export function PlatformTokenSection() {
         {data?.stale && <span className="text-[11px] text-amber-300">showing last good read</span>}
       </div>
       <h2 id="platform-token" className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">${TOKEN_SYMBOL}: the token the whole platform feeds</h2>
-      <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-white/60">Every creator coin pays fees to Solcameo, and every video and image an agent makes pays a margin. That money is counted in public each week, and 40% of it buys {TOKEN_SYMBOL}. The more the platform is used, the more is bought and burned, and the more a holder&apos;s tier is worth. Real revenue drives it, not emissions.</p>
+      <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-white/60">Every creator coin pays fees to Solcameo, and every video and image an agent makes pays a margin. That money is counted in public each week, and 30% of it buys {TOKEN_SYMBOL}. The more the platform is used, the more is bought and burned, and the more a holder&apos;s tier is worth. Real revenue drives it, not emissions.</p>
 
       <h3 className="mt-10 text-lg font-semibold text-white">The cycle</h3>
       <div className="mt-5"><CycleDiagram reduced={reduced} /></div>
@@ -205,7 +206,7 @@ export function PlatformTokenSection() {
 
       <div className="mt-12 grid gap-6 lg:grid-cols-2">
         <div>
-          <h3 className="text-lg font-semibold text-white">Supply and allocation</h3>
+          <h3 className="text-lg font-semibold text-white">Supply and planned allocation</h3><p className="mt-2 text-xs text-white/45">These reserved allocations and vesting are planned. The platform fair-launch interface does not apply them.</p><Link href="/tokenomics/launch" className="mt-3 inline-flex rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-[#d7ff00]">Launch platform token ↗</Link>
           <div className={`${card} mt-4 flex flex-col items-center gap-5 sm:flex-row`}>
             <Donut />
             <ul className="w-full space-y-2.5 text-[12.5px]">{ALLOCATION.map((a) => <li key={a.key}><div className="flex items-center justify-between text-white"><span className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{ background: a.color }} />{a.label}</span><b className="tabular-nums">{a.pct}%</b></div><p className="mt-0.5 pl-[18px] text-white/45">{a.note}</p></li>)}</ul>

@@ -1,0 +1,57 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+function guard(secret: string) {
+  if (!process.env.INTERNAL_CRON_SECRET || secret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+}
+export const owner = query({
+  args: { authSecret: v.string() },
+  handler: async (_ctx, a) => { guard(a.authSecret); return process.env.SOLCAMEO_PLATFORM_LAUNCH_WALLET?.trim() || null; },
+});
+export const get = query({
+  args: { network: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    guard(a.authSecret);
+    return ctx.db.query("platformTokenLaunches").withIndex("by_network", q => q.eq("network", a.network)).unique();
+  },
+});
+export const draft = mutation({
+  args: { network: v.string(), wallet: v.string(), name: v.string(), description: v.string(), image: v.string(), optionsJson: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    guard(a.authSecret);
+    const prior = await ctx.db.query("platformTokenLaunches").withIndex("by_network", q => q.eq("network", a.network)).unique();
+    if (prior) {
+      if (prior.wallet !== a.wallet) throw new Error("not_owner");
+      // An in-progress launch's reviewed terms must never change.
+      if (prior.state !== "draft") return prior._id;
+      await ctx.db.patch(prior._id, { name: a.name, description: a.description, image: a.image, optionsJson: a.optionsJson });
+      return prior._id;
+    }
+    return ctx.db.insert("platformTokenLaunches", { network: a.network, wallet: a.wallet, name: a.name, description: a.description, image: a.image, optionsJson: a.optionsJson, ticker: "SOLCAMEO", state: "draft" });
+  },
+});
+export const update = mutation({
+  args: { network: v.string(), wallet: v.string(), authSecret: v.string(), action: v.union(v.literal("reserve"), v.literal("replace"), v.literal("release"), v.literal("finalize")), mint: v.string(), oldMint: v.optional(v.string()), config: v.optional(v.string()), pool: v.optional(v.string()), signature: v.optional(v.string()) },
+  handler: async (ctx, a) => {
+    guard(a.authSecret);
+    const row = await ctx.db.query("platformTokenLaunches").withIndex("by_network", q => q.eq("network", a.network)).unique();
+    if (!row || row.wallet !== a.wallet) throw new Error("not_owner");
+    if (row.state === "live") {
+      if (a.action === "finalize" && row.mint === a.mint && row.pool === a.pool) return;
+      throw new Error("platform_token_already_live");
+    }
+    if (a.action === "release") {
+      if (row.mint !== a.mint) throw new Error("mint_conflict");
+      await ctx.db.patch(row._id, { mint: undefined, config: undefined, state: "draft" });
+    } else if (a.action === "replace") {
+      if (row.mint !== a.oldMint || !a.config) throw new Error("mint_conflict");
+      await ctx.db.patch(row._id, { mint: a.mint, config: a.config, state: "reserved" });
+    } else {
+      if (row.mint && row.mint !== a.mint) throw new Error("mint_conflict");
+      if (!a.config) throw new Error("config_required");
+      if (row.config && row.config !== a.config) throw new Error("config_conflict");
+      if (a.action === "finalize" && (!a.pool || !a.signature)) throw new Error("confirmation_required");
+      await ctx.db.patch(row._id, { mint: a.mint, config: a.config, ...(a.action === "finalize" ? { pool: a.pool, signature: a.signature, state: "live" as const } : { state: "reserved" as const }) });
+    }
+  },
+});

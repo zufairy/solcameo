@@ -31,7 +31,7 @@ let inflight: Promise<PlatformTokenState> | null = null;
 
 async function compute(): Promise<PlatformTokenState> {
   const wallets = platformWallets();
-  const mint = platformTokenMint();
+  const mint = await platformTokenMint();
   const url = process.env.NEXT_PUBLIC_CONVEX_URL;
   const [usdc, sol, epochs] = await Promise.all([
     wallets.revenue ? getUsdcBalanceStrict(wallets.revenue).catch(() => null) : Promise.resolve(null),

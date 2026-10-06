@@ -11,6 +11,24 @@ vi.mock("@solana/web3.js", () => ({ Keypair: { generate: () => ({ publicKey: { t
 import { LiveDbcLaunch } from "./LiveDbcLaunch";
 import { DEFAULT_DBC } from "@/lib/meteora/options";
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); sessionStorage.clear(); });
+it("resumes the platform pool through its dedicated endpoint without paying for another configuration", async () => {
+  vi.stubGlobal("React", React); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const actions: string[] = [];
+  m.sign.mockImplementation(async tx => tx);
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.startsWith("/api/meteora/readiness")) return new Response(JSON.stringify({ ready: true, balanceLamports: 100000000 }));
+    expect(url).toBe("/api/tokenomics/launch");
+    const body = JSON.parse(init!.body as string); actions.push(body.action);
+    return new Response(JSON.stringify(body.action === "recover" ? { mode: "resume", stage: "pool", transaction: "AQ==", receipt: "receipt" } : body.action === "submit" ? { signature: "signature" } : body.action === "confirm" ? { complete: true } : { transaction: "AQ==", receipt: "receipt" }));
+  }));
+  const root = createRoot(document.createElement("div"));
+  await act(async () => { root.render(<LiveDbcLaunch characterId="platform" endpoint="/api/tokenomics/launch" platform options={{ ...DEFAULT_DBC, autopilot: false }} autoStart onComplete={m.complete} />); });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
+  expect(actions).toEqual(["recover", "refresh", "submit", "confirm"]);
+  expect(m.sign).toHaveBeenCalledTimes(1);
+  expect(m.complete).toHaveBeenCalledTimes(1);
+  await act(async () => root.unmount());
+});
 it("continues into both wallet approvals automatically after the network check", async () => {
   vi.stubGlobal("React", React); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const stages: string[] = []; let confirmations = 0;
