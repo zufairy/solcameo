@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CharacterTab } from "./CharacterTab";
 
+vi.mock("convex/react", () => ({ useQuery: () => ({ coinTicker: "ORBIT" }) }));
 vi.mock("@/providers/supabase-auth-provider", () => ({ useSupabaseAuth: () => ({ authenticated: true, accessToken: "test" }) }));
 
 vi.mock("@/hooks/use-solana-wallet", () => ({ useUnifiedSolanaWallet: () => ({ publicKey: null, signTransaction: undefined, connected: false, connecting: false }) }));
@@ -58,6 +59,7 @@ it("shows the saved character instead of the builder, with an Edit action", asyn
   await act(async () => root.render(<CharacterTab mintAddress="mint_abc" />));
   await flush();
   expect(host.textContent).toContain("Saved");
+  expect(host.textContent).toContain("ORBIT");
   expect(host.querySelector("img[src='https://cdn.test/characters/mint_abc/a.png']")).toBeTruthy();
   const edit = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Edit character"))!;
   await act(async () => edit.click());

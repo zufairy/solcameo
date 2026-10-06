@@ -152,7 +152,8 @@ export const getByMint = query({
       .query("agentAccount")
       .withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress))
       .unique();
-    return { ...rest, tvl: acct ? acct.escrowUsdc : rest.tvl };
+    const token = rest.solstarTokenId ? await ctx.db.get(rest.solstarTokenId) : null;
+    return { ...rest, tvl: acct ? acct.escrowUsdc : rest.tvl, coinTicker: token?.ticker };
   },
 });
 

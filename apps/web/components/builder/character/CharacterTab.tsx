@@ -3,6 +3,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQuery } from "convex/react";
+import { api as convexApi } from "@/convex/_generated/api";
 import {
   Brush, Check, CircleUserRound, Eye, Glasses, ImagePlus, Loader2, Lock, Palette, Pencil, Ruler, Scissors, Shirt, Shuffle, Sparkles,
   UserRound, Users, X,
@@ -336,7 +338,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
           {mode === "replicate" ? (
             <ReplicatePanel mintAddress={mintAddress ?? ""} character={saved?.image.url} selected={pickedMotion} onClearSelected={() => setPickedMotion(null)} onGenerate={startMotion} />
           ) : savedCard && saved ? (
-            <SavedCard character={saved} agentName={agentName} onEdit={startEdit} />
+            <SavedCard character={saved} agentName={agentName} mintAddress={mintAddress} onEdit={startEdit} />
           ) : (
             <>
               <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 [scrollbar-width:thin]">
@@ -436,7 +438,9 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
 const flip = (s: Set<string>, k: string) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; };
 
-function SavedCard({ character, agentName, onEdit }: { character: SavedCharacter; agentName?: string; onEdit: () => void }) {
+function SavedCard({ character, agentName, mintAddress, onEdit }: { character: SavedCharacter; agentName?: string; mintAddress?: string; onEdit: () => void }) {
+  const influencer = useQuery(convexApi.influencers.getByMint, mintAddress ? { mintAddress } : "skip");
+  const ticker = influencer?.coinTicker?.replace(/^\$/, "");
   const traits = useMemo(() => {
     const out: string[] = [];
     for (const c of categoriesFor(character.tier)) {
@@ -451,7 +455,7 @@ function SavedCard({ character, agentName, onEdit }: { character: SavedCharacter
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto px-4 pb-3 [scrollbar-width:thin]">
-        <div className="px-1 pb-3 pt-1"><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">Your character</p><h3 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{agentName || "Your AI influencer"}</h3></div>
+        <div className="px-1 pb-3 pt-1"><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">Your character</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><h3 className="text-xl font-semibold leading-none tracking-tight text-white">{agentName || "Your AI influencer"}</h3>{ticker && <span className="inline-flex h-[22px] items-center rounded-[3px] bg-white px-1.5 text-[13px] font-semibold leading-none tracking-[-0.01em] text-black" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" }} aria-label={`Ticker ${ticker}`}><span className="mr-px text-black/45">$</span>{ticker.toUpperCase()}</span>}</div></div>
         <motion.div initial={{ scale: 0.97 }} animate={{ scale: 1 }} transition={SPRING} className="relative mx-auto w-full overflow-hidden rounded-[26px] ring-2 ring-lime-400/70 shadow-[0_24px_60px_-28px_rgba(163,230,53,0.5)]" style={{ aspectRatio: "1 / 1" }}>
           <img src={character.image.url} alt={agentName ? `${agentName} portrait` : "Your agent's character"} className="size-full object-cover object-[50%_25%] scale-[1.15]" />
           <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-black" style={{ background: LIME }}><Check className="size-3" strokeWidth={3.5} /> Saved</span>
@@ -459,6 +463,7 @@ function SavedCard({ character, agentName, onEdit }: { character: SavedCharacter
         </motion.div>
         <div className="px-1 pb-3 pt-5"><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">Character traits</p></div>
         <div className="flex flex-wrap gap-1.5 px-1">
+          {traits.length === 0 && <span className="text-[12.5px] text-zinc-500">No traits</span>}
           {shown.map((t, i) => (
             <motion.span key={`${t}-${i}`} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.03 * i, ...SPRING }} className="rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[12px] text-zinc-200">{t}</motion.span>
           ))}

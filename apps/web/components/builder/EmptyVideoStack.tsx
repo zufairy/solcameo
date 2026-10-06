@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { VideoStack } from "./VideoStack3D";
 import { ArrowRight, Film } from "lucide-react";
 
 type Preview = { id: string; title: string; src: string; poster?: string };
@@ -13,32 +14,13 @@ const SLOTS = [
   { x: 0, rotate: 0, scale: 1, z: 10, spread: 0 },
 ] as const;
 
-/** Shown in Recent videos before the agent has made anything: a taste of what's possible, and one clear next step. */
-export default function EmptyVideoStack({ onGenerate }: { onGenerate: () => void }) {
-  const reduced = useReducedMotion();
-  const [videos, setVideos] = useState<Preview[]>([]);
+
+/** Plain-CSS version of the stack, used when WebGL isn't available. */
+function CssStack({ videos, reduced }: { videos: Preview[]; reduced: boolean }) {
   const [hover, setHover] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/explore?cursor=1", { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { items?: { id: string; title: string; previewUrl: string; demoUrl?: string; thumbUrl?: string }[] } | null) => {
-        const items = (d?.items ?? []).filter((i) => i.demoUrl || i.previewUrl).slice(0, 3);
-        setVideos(items.map((i) => ({ id: i.id, title: i.title, src: i.demoUrl ?? i.previewUrl, poster: i.thumbUrl })));
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
-
   return (
-    <section
-      aria-label="Generate your first video"
-      className="relative overflow-hidden rounded-[4px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.01))] px-6 pb-8 pt-9 text-center"
-    >
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
       <div
-        className="relative mx-auto h-[236px] w-full max-w-[420px]"
+        className="relative mx-auto h-[250px] w-full max-w-[420px]"
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
@@ -71,6 +53,34 @@ export default function EmptyVideoStack({ onGenerate }: { onGenerate: () => void
           );
         })}
       </div>
+
+  );
+}
+
+/** Shown in Recent videos before the agent has made anything: a taste of what's possible, and one clear next step. */
+export default function EmptyVideoStack({ onGenerate }: { onGenerate: () => void }) {
+  const reduced = useReducedMotion();
+  const [videos, setVideos] = useState<Preview[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/explore?cursor=1", { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { items?: { id: string; title: string; previewUrl: string; demoUrl?: string; thumbUrl?: string }[] } | null) => {
+        const items = (d?.items ?? []).filter((i) => i.demoUrl || i.previewUrl).slice(0, 3);
+        setVideos(items.map((i) => ({ id: i.id, title: i.title, src: i.demoUrl ?? i.previewUrl, poster: i.thumbUrl })));
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <section
+      aria-label="Generate your first video"
+      className="relative overflow-hidden rounded-[4px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.01))] px-6 pb-8 pt-9 text-center"
+    >
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+      <VideoStack videos={videos} reduced={!!reduced} fallback={<CssStack videos={videos} reduced={!!reduced} />} />
 
       <h3 className="mt-6 text-[19px] font-semibold tracking-tight text-white">Generate your first video</h3>
       <p className="mx-auto mt-1.5 max-w-[320px] text-[13px] leading-5 text-zinc-500">
