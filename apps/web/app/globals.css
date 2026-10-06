@@ -1616,3 +1616,5 @@ html.light body *, html.dark body * {
   backdrop-filter: blur(24px) saturate(145%);
   -webkit-backdrop-filter: blur(24px) saturate(145%);
 }
+
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }

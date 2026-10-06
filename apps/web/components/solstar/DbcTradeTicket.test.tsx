@@ -27,6 +27,7 @@ vi.mock("@/hooks/use-solana-wallet", () => ({
 vi.mock("@/providers/supabase-auth-provider", () => ({
   useSupabaseAuth: () => ({ login: m.login, getFreshToken: m.auth }),
 }));
+vi.mock("@/lib/client/useSolUsd", () => ({ useSolUsd: () => null }));
 vi.mock("@solana/wallet-adapter-react", () => {
   const connection = {
     getBalance: m.balance,

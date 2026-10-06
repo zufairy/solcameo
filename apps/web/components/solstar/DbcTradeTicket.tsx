@@ -13,6 +13,8 @@ import {
 } from "@/lib/client/siwsIdentity";
 import { parseUnits } from "@/lib/solstar/terminal";
 import { Settings2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { useSolUsd } from "@/lib/client/useSolUsd";
 import { Input } from "@/components/ui/input";
 import type { MarketRow } from "./MarketTable";
 
@@ -390,6 +392,9 @@ export function DbcTradeTicket({
       setBusy(false);
     }
   }
+  const solUsd = useSolUsd();
+  const solAmount = side === "buy" ? Number(amount) : quote?.key === quoteKey ? Number(quote.minimumOut) / 1e9 : NaN;
+  const usdValue = solUsd && Number.isFinite(solAmount) && solAmount > 0 ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(solAmount * solUsd) : null;
   const idle = busy || !!pending;
   const buyPresets = [0.1, 0.5, 1];
   const ctaLabel = busy
@@ -408,7 +413,7 @@ export function DbcTradeTicket({
   const ctaDisabled = busy || connecting || !compatible || (!!wallet && !pending && (!units || !validSlip));
   const ctaReady = !ctaDisabled && (!wallet || !!pending || !!units);
   const chip = (on: boolean) =>
-    `h-9 rounded-lg border font-sans text-[12px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${on ? (side === "buy" ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-rose-400/40 bg-rose-400/10 text-rose-300") : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white"}`;
+    `h-8 rounded-lg border font-sans text-[12px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${on ? (side === "buy" ? "border-[#d7ff00]/40 bg-[#d7ff00]/10 text-[#d7ff00]" : "border-rose-400/40 bg-rose-400/10 text-rose-300") : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white"}`;
   return (
     <div className="p-3">
       {toast && (
@@ -432,9 +437,10 @@ export function DbcTradeTicket({
           <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="text-emerald-300/60 hover:text-white">×</button>
         </div>
       )}
-      <div className="rounded-[14px] border border-white/[0.09] bg-[#0b0c0e] p-3">
-        <div className="flex items-center gap-2">
-          <div className="grid flex-1 grid-cols-2 gap-1.5" role="group" aria-label="Trade direction">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+        <div aria-hidden className={`pointer-events-none absolute -top-16 left-1/2 h-32 w-3/4 -translate-x-1/2 rounded-full blur-3xl transition-colors duration-500 ${side === "buy" ? "bg-[#d7ff00]/[0.08]" : "bg-rose-500/[0.10]"}`} />
+        <div className="relative flex items-center gap-2">
+          <div className="relative grid flex-1 grid-cols-2 rounded-xl border border-white/[0.07] bg-black/40 p-1" role="group" aria-label="Trade direction">
             {(["buy", "sell"] as const).map((sd) => (
               <button
                 key={sd}
@@ -442,9 +448,10 @@ export function DbcTradeTicket({
                 disabled={idle}
                 aria-pressed={side === sd}
                 onClick={() => { setSide(sd); setAmount(""); setMessage(""); setQuoteError(""); }}
-                className={`h-11 rounded-[10px] text-[15px] font-semibold capitalize transition-colors disabled:opacity-60 ${side === sd ? (sd === "buy" ? "bg-emerald-400/15 text-emerald-300" : "bg-rose-400/15 text-rose-300") : "bg-white/[0.04] text-zinc-400 hover:text-zinc-200"}`}
+                className={`relative h-9 rounded-lg text-[14px] font-semibold capitalize transition-colors disabled:opacity-60 ${side === sd ? (sd === "buy" ? "text-black" : "text-white") : "text-zinc-400 hover:text-zinc-200"}`}
               >
-                {sd}
+                {side === sd && <motion.span layoutId={`ticket-side-${characterId}`} transition={{ type: "spring", stiffness: 480, damping: 36 }} className={`absolute inset-0 rounded-lg ${sd === "buy" ? "bg-[#d7ff00] shadow-[0_6px_18px_-6px_rgba(215,255,0,0.5)]" : "bg-rose-500 shadow-[0_6px_18px_-6px_rgba(244,63,94,0.55)]"}`} />}
+                <span className="relative">{sd}</span>
               </button>
             ))}
           </div>
@@ -453,13 +460,13 @@ export function DbcTradeTicket({
             aria-label="Trade settings"
             aria-expanded={showSettings}
             onClick={() => setShowSettings((v) => !v)}
-            className={`grid size-9 shrink-0 place-items-center rounded-lg transition-colors ${showSettings ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"}`}
+            className={`grid size-9 shrink-0 place-items-center rounded-xl border transition-colors ${showSettings ? "border-white/20 bg-white/10 text-white" : "border-white/[0.07] bg-white/[0.03] text-zinc-500 hover:text-zinc-200"}`}
           >
-            <Settings2 className="size-[18px]" />
+            <Settings2 className="size-4" />
           </button>
         </div>
         {showSettings && (
-          <label className="mt-2.5 flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+          <label className="relative mt-2 flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400">
             Slippage limit %
             <Input
               aria-label="Slippage percent"
@@ -470,22 +477,22 @@ export function DbcTradeTicket({
               value={slippage}
               onChange={(e) => setSlippage(e.target.value)}
               disabled={idle}
-              className="h-8 w-20 border-white/10 bg-black/30 text-right font-sans tabular-nums"
+              className="h-7 w-20 border-white/10 bg-black/30 text-right font-sans tabular-nums"
             />
           </label>
         )}
-        <div className="mt-2.5 rounded-[12px] bg-white/[0.04] px-3.5 pb-3 pt-2.5">
+        <div className="relative mt-2 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3.5 pb-2.5 pt-2 transition-colors focus-within:border-white/20">
           <div className="flex items-center justify-between text-[11px] text-zinc-500">
             <span>{side === "buy" ? "You pay" : "You sell"}</span>
-            <span className="font-sans tabular-nums">
-              {balance
-                ? `${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`
-                : wallet
-                  ? "Loading balance…"
-                  : "Connect wallet"}
-            </span>
+            {balance ? (
+              <button type="button" disabled={idle} onClick={() => allocate(100)} className="font-sans tabular-nums transition-colors hover:text-zinc-200">
+                {`${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`}
+              </button>
+            ) : (
+              <span className="font-sans tabular-nums">{wallet ? "Loading balance…" : "No wallet"}</span>
+            )}
           </div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Input
               aria-label={`Amount in ${side === "buy" ? "SOL" : ticker}`}
               value={amount}
@@ -493,12 +500,13 @@ export function DbcTradeTicket({
               disabled={idle}
               placeholder="0"
               inputMode="decimal"
-              className="h-12 flex-1 border-0 bg-transparent px-0 font-sans text-[32px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
+              className="h-11 flex-1 border-0 bg-transparent px-0 font-sans text-[30px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
             />
-            <span className="shrink-0 text-sm font-semibold text-zinc-400">{side === "buy" ? "SOL" : ticker}</span>
+            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-zinc-300">{side === "buy" ? "SOL" : ticker}</span>
           </div>
+          <p className="h-4 font-sans text-[11px] tabular-nums text-zinc-500">{usdValue != null ? `≈ ${usdValue}` : ""}</p>
         </div>
-        <div className="mt-2 grid grid-cols-4 gap-1.5">
+        <div className="relative mt-2 grid grid-cols-4 gap-1.5">
           {side === "buy"
             ? buyPresets.map((n) => (
                 <button key={n} type="button" disabled={idle} onClick={() => { setAmount(String(n)); setQuoteError(""); }} className={chip(amount === String(n))}>{n} SOL</button>
@@ -508,23 +516,22 @@ export function DbcTradeTicket({
               ))}
           <button type="button" disabled={idle || !balance} onClick={() => allocate(100)} className={chip(percent === 100)}>Max</button>
         </div>
-        <div className="mt-3 flex items-center justify-between px-0.5 text-[11px] text-zinc-500">
-          <span>Minimum receive</span>
+        <div className="relative mt-2.5 flex items-center justify-between px-0.5 text-[11px] text-zinc-500">
+          <span>Min receive · {slippage || "1"}% slip</span>
           <span className="font-sans tabular-nums text-zinc-300">
             {quote?.key === quoteKey
               ? `${human(BigInt(quote.minimumOut), side === "buy" ? (balance?.decimals ?? 6) : 9)} ${side === "buy" ? ticker : "SOL"}`
-              : "Quoted before approval"}
+              : "—"}
           </span>
         </div>
         <button
           type="button"
           disabled={ctaDisabled}
           onClick={() => void trade()}
-          className={`mt-2.5 h-12 w-full rounded-[12px] text-[15px] font-semibold transition-all active:scale-[.985] disabled:cursor-not-allowed ${ctaReady ? (side === "buy" ? "bg-emerald-400 text-zinc-950 hover:bg-emerald-300" : "bg-rose-400 text-zinc-950 hover:bg-rose-300") : "border border-white/[0.08] bg-white/[0.04] text-zinc-500"}`}
+          className={`relative mt-2 h-12 w-full rounded-xl text-[15px] font-semibold transition-all active:scale-[.985] disabled:cursor-not-allowed ${ctaReady ? (side === "buy" ? "bg-[#d7ff00] text-black shadow-[0_10px_28px_-10px_rgba(215,255,0,0.6)] hover:bg-[#e4ff59]" : "bg-rose-500 text-white shadow-[0_10px_28px_-10px_rgba(244,63,94,0.6)] hover:bg-rose-400") : "border border-white/[0.08] bg-white/[0.04] text-zinc-500"}`}
         >
           {ctaLabel}
         </button>
-        {side === "buy" && <p className="mt-2 px-0.5 text-[10px] text-zinc-600">Max keeps 0.01 SOL for fees and account rent.</p>}
         {!compatible && (
           <p role="alert" className="mt-2 text-xs text-amber-300">
             This market is on {network}; the app is configured for {getNetwork()}. Trading requires matching networks.
@@ -550,8 +557,8 @@ export function DbcTradeTicket({
             View transaction · {signature.slice(0, 8)}…
           </a>
         )}
-        <p className="mt-2 px-0.5 text-[10px] leading-4 text-zinc-600">
-          Meteora · {network}. Pool fees, network fees and account rent apply. Final execution enforces your slippage limit.
+        <p className="mt-2 px-0.5 text-center text-[10px] leading-4 text-zinc-600">
+          Meteora · {network} · fees and rent apply · {side === "buy" ? "Max keeps 0.01 SOL for fees" : "slippage enforced on-chain"}
         </p>
       </div>
     </div>

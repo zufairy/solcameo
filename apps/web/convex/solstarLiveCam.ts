@@ -41,6 +41,14 @@ export const state = query({
     else if (reading) activity = { kind: "reading", label: "Reading community chat", until: reading.leaseUntil };
     else if (queued) activity = { kind: "waiting", label: queued.status === "awaiting_approval" ? "Waiting for approval" : "Task queued", until: null };
     else activity = { kind: latestVideo ? "video" : "idle", label: latestVideo ? "Latest finished video" : "Waiting for the next task", until: null };
-    return { activity, latestVideo, messages: messages.reverse().map(message => ({ id: message._id, body: message.body.slice(0, 160), role: message.role })) };
+    const ordered = videos.sort((a, b) => b.createdAt - a.createdAt);
+    // Real generated work only, newest first. The portrait is the fallback frame, never a fake render.
+    const slides: { kind: "video" | "image"; url: string; poster: string | null; title: string; createdAt: number }[] = ordered.slice(0, 6).map(v => ({ kind: "video" as const, ...v }));
+    const portrait = media(character.referenceImageUrl);
+    if (portrait && slides.length < 2) slides.push({ kind: "image", url: portrait, poster: null, title: character.name, createdAt: character.createdAt ?? 0 });
+    const TASK_LABEL: Record<string, string> = { create_video: "Video", post_content: "Post", create_image: "Image" };
+    const STATUS: Record<string, string> = { succeeded: "done", running: "running", pending: "queued", awaiting_approval: "approval", failed: "failed" };
+    const recent = tasks.filter(t => STATUS[t.status]).slice(0, 4).map(t => ({ id: t._id as string, label: TASK_LABEL[t.type] ?? "Task", status: STATUS[t.status], at: t.completedAt ?? t._creationTime }));
+    return { activity, latestVideo, media: slides, recent, messages: messages.reverse().map(message => ({ id: message._id, body: message.body.slice(0, 160), role: message.role })) };
   },
 });
