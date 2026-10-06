@@ -7,13 +7,17 @@ import {
   Coins,
   Video,
   Settings2,
+  ShieldCheck,
+  Activity,
+  HeartPulse,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { DbcOptions } from "@/lib/meteora/options";
+import { ANTI_SNIPER_LEVELS, type DbcOptions } from "@/lib/meteora/options";
 import type { previewDbc } from "@/lib/meteora/curve";
 import { feeExample } from "@/lib/meteora/flywheel";
 type Preview = ReturnType<typeof previewDbc>;
@@ -280,6 +284,31 @@ export function DbcEconomics({
           ))}
         </dl>
       </div>
+      <div>
+        <h3 className="text-base font-medium">Launch switches</h3>
+        <p className="mt-1 text-xs text-zinc-500">Turn Meteora protections and automation on or off. On-chain switches are written into the pool at launch and cannot be changed afterwards.</p>
+        <div className="mt-3 divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+          <SwitchRow
+            icon={<ShieldCheck className="size-4" />} title="Anti-sniper fee" chain
+            description={value.antiSniper ? `Trading fee starts at ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].startingFeeBps / 100}% and decays to ${value.feeBps / 100}% over ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].totalDuration / 60} min, so bots that buy in the first seconds pay for it. Your first swap is charged the minimum fee.` : "Flat trading fee from the first second. Bots pay the same as everyone else."}
+            checked={value.antiSniper} disabled={readOnly} onChange={(antiSniper) => patch({ antiSniper })}
+          >
+            <Segmented label="Strength" disabled={readOnly} value={value.antiSniperLevel} onChange={(antiSniperLevel) => patch({ antiSniperLevel })} options={[["light", "Light · 1 min"], ["standard", "Standard · 3 min"], ["strict", "Strict · 5 min"]]} />
+          </SwitchRow>
+          <SwitchRow
+            icon={<Activity className="size-4" />} title="Dynamic volatility fee" chain
+            description="Adds a small extra fee when the price is moving fast, on the bonding curve and again after graduation. Calm markets keep the normal fee."
+            checked={value.dynamicFee} disabled={readOnly} onChange={(dynamicFee) => patch({ dynamicFee })}
+          />
+          <SwitchRow
+            icon={<HeartPulse className="size-4" />} title="Autopilot content"
+            description="After launch, the agent’s heartbeat switches on: it plans viral ideas, makes videos and posts them by itself, spending only from its own wallet. You can pause it any time from the agent page."
+            checked={value.autopilot} disabled={readOnly} onChange={(autopilot) => patch({ autopilot })}
+          >
+            <Segmented label="Runs" disabled={readOnly} value={value.autopilotCadence} onChange={(autopilotCadence) => patch({ autopilotCadence })} options={[["every_4h", "Every 4h"], ["every_12h", "Every 12h"], ["daily", "Daily"]]} />
+          </SwitchRow>
+        </div>
+      </div>
       <details className="rounded-xl border border-white/10 p-4">
         <summary className="flex cursor-pointer items-center gap-2 text-sm text-zinc-400">
           <Settings2 className="size-4" />
@@ -385,4 +414,34 @@ function FeeLogo({ kind, creatorImage, coinImage }: { kind: "creator" | "content
     : <span className="grid size-7 place-items-center rounded-[6px] bg-white/10 text-white/70"><Video className="size-3.5" /></span>;
   if (kind === "solcameo") return <img src="/brand/solcameo-mark.png" alt="" className="size-7 rounded-[6px] bg-white/5 object-contain p-0.5 ring-1 ring-white/15" />;
   return <img src="/logos/meteora.svg" alt="" className="size-7 rounded-[6px] bg-white/5 object-contain p-1 ring-1 ring-white/15" />;
+}
+
+function SwitchRow({ icon, title, description, checked, onChange, disabled, chain, children }: { icon: React.ReactNode; title: string; description: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; chain?: boolean; children?: React.ReactNode }) {
+  const id = useId().replaceAll(":", "");
+  return (
+    <div className="p-4">
+      <div className="flex items-start gap-3">
+        <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-[10px] border transition-colors ${checked ? "border-[#d7ff00]/40 bg-[#d7ff00]/10 text-[#d7ff00]" : "border-white/10 bg-white/[0.04] text-zinc-500"}`}>{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <label htmlFor={id} className="text-sm font-medium">{title}</label>
+            <span className={`rounded-full border px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ${chain ? "border-sky-400/30 text-sky-300" : "border-white/15 text-zinc-400"}`}>{chain ? "On-chain" : "Off-chain"}</span>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">{description}</p>
+          {checked && children ? <div className="mt-3">{children}</div> : null}
+        </div>
+        <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} aria-label={title} />
+      </div>
+    </div>
+  );
+}
+
+function Segmented<T extends string>({ label, value, onChange, options, disabled }: { label: string; value: T; onChange: (v: T) => void; options: [T, string][]; disabled?: boolean }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex flex-wrap gap-1 rounded-lg border border-white/10 bg-black/30 p-0.5">
+      {options.map(([id, text]) => (
+        <button key={id} type="button" disabled={disabled} aria-pressed={value === id} onClick={() => onChange(id)} className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${value === id ? "bg-[#d7ff00] text-black" : "text-zinc-400 hover:text-white"}`}>{text}</button>
+      ))}
+    </div>
+  );
 }

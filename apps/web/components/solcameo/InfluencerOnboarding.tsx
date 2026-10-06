@@ -679,7 +679,7 @@ function InfluencerOnboardingContent({
                     {concept.bio}
                   </p>
                 )}
-                {step >= 2 && <dl className="mt-5 space-y-3 border-t border-white/10 pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${dbcOptions.feeBps / 100}%`], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="text-zinc-500">{label}</dt><dd className="text-zinc-200">{value}</dd></div>)}</dl>}
+                {step >= 2 && <dl className="mt-5 space-y-3 border-t border-white/10 pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${dbcOptions.feeBps / 100}%`], ["Anti-sniper", dbcOptions.antiSniper ? `On · ${dbcOptions.antiSniperLevel}` : "Off"], ["Dynamic fee", dbcOptions.dynamicFee ? "On" : "Off"], ["Autopilot content", dbcOptions.autopilot ? "On" : "Off"], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="text-zinc-500">{label}</dt><dd className="text-zinc-200">{value}</dd></div>)}</dl>}
                 <Badge
                   variant="outline"
                   className="mt-4 border-white/10 text-zinc-500"

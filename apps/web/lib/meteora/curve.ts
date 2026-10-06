@@ -16,9 +16,10 @@ import {
   SwapMode,
   type BuildCurveBaseParams,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
-import { dbcOptionsSchema, type DbcOptions } from "./options";
+import { ANTI_SNIPER_LEVELS, dbcOptionsSchema, type DbcOptions } from "./options";
 export function buildDbcCurve(input: DbcOptions) {
   const o = dbcOptionsSchema.parse(input);
+  const sniper = o.antiSniper ? ANTI_SNIPER_LEVELS[o.antiSniperLevel] : null;
   const base: BuildCurveBaseParams = {
     token: {
       tokenType: TokenType.SPLToken,
@@ -30,26 +31,26 @@ export function buildDbcCurve(input: DbcOptions) {
     },
     fee: {
       baseFeeParams: {
-        baseFeeMode: BaseFeeMode.FeeSchedulerLinear,
-        feeSchedulerParam: {
-          startingFeeBps: o.feeBps,
-          endingFeeBps: o.feeBps,
-          numberOfPeriod: 0,
-          totalDuration: 0,
-        },
+        // Anti-sniper: the fee decays exponentially from a high launch fee to the chosen fee, so the
+        // first seconds cost the most. Without it the fee is flat.
+        baseFeeMode: sniper ? BaseFeeMode.FeeSchedulerExponential : BaseFeeMode.FeeSchedulerLinear,
+        feeSchedulerParam: sniper
+          ? { startingFeeBps: sniper.startingFeeBps, endingFeeBps: o.feeBps, numberOfPeriod: sniper.numberOfPeriod, totalDuration: sniper.totalDuration }
+          : { startingFeeBps: o.feeBps, endingFeeBps: o.feeBps, numberOfPeriod: 0, totalDuration: 0 },
       },
-      dynamicFeeEnabled: false,
+      dynamicFeeEnabled: o.dynamicFee,
       collectFeeMode: CollectFeeMode.QuoteToken,
       creatorTradingFeePercentage: o.economy === "sustainable-v1" ? 50 : 100,
       poolCreationFee: 0,
-      enableFirstSwapWithMinFee: false,
+      // The creator's own first swap is not penalised by the anti-sniper fee.
+      enableFirstSwapWithMinFee: !!sniper,
     },
     migration: {
       migrationOption: MigrationOption.MET_DAMM_V2,
       migrationFeeOption: MigrationFeeOption.Customizable,
       migratedPoolFee: {
         collectFeeMode: MigratedCollectFeeMode.QuoteToken,
-        dynamicFee: DammV2DynamicFeeMode.Disabled,
+        dynamicFee: o.dynamicFee ? DammV2DynamicFeeMode.Enabled : DammV2DynamicFeeMode.Disabled,
         poolFeeBps: o.feeBps,
       },
       migrationFee: { feePercentage: 0, creatorFeePercentage: 0 },
@@ -88,7 +89,8 @@ export function buildDbcCurve(input: DbcOptions) {
 }
 /** All preview values use SDK swap math, including fees and graduation partial fills. */
 export function previewDbc(input: DbcOptions) {
-  const config = buildDbcCurve(input);
+  // Quotes show steady-state pricing; the launch-minute anti-sniper surcharge is described separately.
+  const config = buildDbcCurve({ ...input, antiSniper: false });
   const client = new DynamicBondingCurveClient(
     new Connection("https://api.devnet.solana.com"),
     "confirmed",
