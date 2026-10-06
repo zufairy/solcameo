@@ -111,5 +111,6 @@ export function errorResponse(e: unknown): NextResponse {
   if (INVALID_ID_MARKERS.some((m) => msg.includes(m))) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
+  console.error("[solstar] unhandled route error:", e);
   return NextResponse.json({ error: "internal_error" }, { status: 500 });
 }

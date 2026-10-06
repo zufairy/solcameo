@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
       wallet, name: body.name, ticker: body.ticker.toUpperCase(), bio: body.bio, category: body.category,
       imageStorageId: body.imageStorageId as Id<"_storage">, rightsAttested: body.rightsAttested, idempotencyKey: body.idempotencyKey, authSecret: secret,
     });
-    const walletSetup = await ensureInfluencerWallet(result.agentMintAddress);
-    return NextResponse.json(jsonSafe({ ...result, agentWallet: walletSetup.agentWallet }));
+    // The agent wallet is only needed once the agent starts spending; a hiccup here must not block the launch,
+    // because every later funding path calls ensureInfluencerWallet again.
+    let agentWallet: string | null = null;
+    try { agentWallet = (await ensureInfluencerWallet(result.agentMintAddress)).agentWallet; }
+    catch (walletError) { console.error("[solstar] agent wallet setup deferred:", walletError); }
+    return NextResponse.json(jsonSafe({ ...result, agentWallet }));
   } catch (error) { return errorResponse(error); }
 }

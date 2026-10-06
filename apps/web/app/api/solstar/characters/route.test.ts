@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("convex/browser", () => ({ ConvexHttpClient: class { query = mocks.query; mutation = mocks.mutation; } }));
 vi.mock("@/convex/_generated/api", () => ({ api: { solstarCreate: { createCharacter: "createCharacter" } } }));
+vi.mock("@/lib/server/agentWallet", () => ({ ensureInfluencerWallet: async () => ({ agentWallet: "AgentWallet1" }) }));
 vi.mock("@/lib/server/requireAuth", () => ({
   requireAuth: mocks.requireAuth,
   getProvenWalletFromRequest: mocks.proven,
@@ -77,7 +78,7 @@ describe("POST /api/solstar/characters", () => {
   it("success: proven wallet only, ticker uppercased, JSON-safe result", async () => {
     const res = await run({ ...good, wallet: "attacker", authSecret: "evil" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(OK);
+    expect(await res.json()).toEqual({ ...OK, agentWallet: "AgentWallet1" });
     expect(mocks.mutation).toHaveBeenCalledTimes(1);
     expect(mocks.mutation).toHaveBeenCalledWith("createCharacter", {
       wallet: PROVEN, name: "Dino", ticker: "DINO", bio: "A dino", category: "Comedy", imageStorageId: "kg2abc123def456",

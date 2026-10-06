@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- generated character portrait */
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -43,6 +43,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { LiveDbcLaunch } from "./LiveDbcLaunch";
+import { LaunchOverlay, type LaunchPhase } from "./LaunchOverlay";
 import { playLaunchSound, unlockLaunchAudio } from "@/lib/client/launchSound";
 import { Notice } from "./Notice";
 import dynamic from "next/dynamic";
@@ -156,6 +157,13 @@ function InfluencerOnboardingContent({
   const router = useRouter();
   const reduced = useReducedMotion();
   const [autoLaunch, setAutoLaunch] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [progress, setProgress] = useState({ step: 0, status: "", busy: false, error: "" });
+  const onLaunchProgress = useCallback((p: { step: number; status: string; busy: boolean; error: string }) => {
+    setProgress((prev) => (prev.step === p.step && prev.status === p.status && prev.busy === p.busy && prev.error === p.error ? prev : p));
+    if (p.busy) { setLaunching(true); setDismissed(false); }
+  }, []);
   const [createdId, setCreatedId] = useState<string | null>(null);
   // Audio can only start after a gesture, so unlock it on the first tap/click anywhere on this page.
   useEffect(() => {
@@ -256,6 +264,9 @@ function InfluencerOnboardingContent({
     }
     setBusy(true);
     setError(null);
+    setProgress({ step: 0, status: "", busy: false, error: "" });
+    setLaunching(true);
+    setDismissed(false);
     try {
       if (!(await ensureSiwsViaRegistered()))
         throw new Error(
@@ -632,6 +643,7 @@ function InfluencerOnboardingContent({
                   {pendingCharacterId && (
                     <LiveDbcLaunch
                       autoStart={autoLaunch}
+                      onProgress={onLaunchProgress}
                       options={dbcOptions}
                       characterId={pendingCharacterId}
                       onComplete={() => {
@@ -707,6 +719,13 @@ function InfluencerOnboardingContent({
           </motion.div>
         )}
       </main>
+      <LaunchOverlay
+        open={launching && !dismissed && !createdId}
+        phase={(busy ? 0 : 1 + Math.min(progress.step, 2)) as LaunchPhase}
+        status={progress.status}
+        error={error ?? (progress.error || null)}
+        onClose={() => { setDismissed(true); setLaunching(false); }}
+      />
       <LaunchConfetti fire={!!createdId} />
       <Dialog
         open={!!createdId}

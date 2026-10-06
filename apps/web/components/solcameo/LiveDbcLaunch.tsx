@@ -42,11 +42,13 @@ export function LiveDbcLaunch({
   options,
   onComplete,
   autoStart = false,
+  onProgress,
 }: {
   characterId: string;
   options: DbcOptions;
   onComplete: () => void;
   autoStart?: boolean;
+  onProgress?: (p: { step: number; status: string; busy: boolean; error: string }) => void;
 }) {
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const { setVisible } = useWalletModal();
@@ -214,10 +216,18 @@ export function LiveDbcLaunch({
     }
   }, [publicKey, signTransaction, preflight, characterId, options, onComplete]);
   useEffect(() => {
+    // Auto-start can't proceed: say why instead of leaving the launch guide waiting forever.
+    if (!autoStart || autoStarted.current || !preflight) return;
+    if (!publicKey || !signTransaction) setError("Connect your Solana wallet to approve the launch.");
+    else if (!preflight.ready) setError(preflight.error ?? "The network connection could not be verified. Check again, then launch.");
+    else if (preflight.balanceLamports === 0) setError("Your wallet has no SOL. Add SOL for fees and rent, then launch.");
+  }, [autoStart, publicKey, signTransaction, preflight]);
+  useEffect(() => {
     if (!autoStart || autoStarted.current || !publicKey || !signTransaction || !preflight?.ready || preflight.balanceLamports === 0) return;
     autoStarted.current = true;
     void launch();
   }, [autoStart, publicKey, signTransaction, preflight, launch]);
+  useEffect(() => { onProgress?.({ step: launchStep, status, busy, error }); }, [onProgress, launchStep, status, busy, error]);
   const complete = launchStep >= 2;
   const instruction = error ? "" : status || (busy ? "Opening your wallet…" : !publicKey ? "Connect your wallet to begin. You will approve twice." : LAUNCH_STEPS[Math.min(launchStep, 2)].hint);
   return (
@@ -271,7 +281,7 @@ export function LiveDbcLaunch({
         className="mt-4 h-12 w-full rounded-xl bg-[#d7ff00] text-[15px] font-semibold text-zinc-950 shadow-[0_10px_28px_-10px_rgba(215,255,0,0.55)] hover:bg-[#e4ff59]"
       >
         {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-        {busy ? "Launching…" : !publicKey ? "Connect Solana wallet" : `Launch on ${getNetworkLabel().toLowerCase()}`}
+        {busy ? "Launching…" : !publicKey ? "Connect Solana wallet" : "Launch"}
       </Button>
       {error && <div className="mt-3"><Notice tone="error" title="Launch needs attention">{error} Keep this tab open; your launch progress is saved.</Notice></div>}
     </motion.div>
