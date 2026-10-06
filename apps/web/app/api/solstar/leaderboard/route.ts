@@ -48,8 +48,11 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
   const coinMeta = new Map<string, { ticker: string; name: string; imageUrl: string; marketUrl: string }>();
   // Bound concurrent pools to keep Helius reads fast without unbounded bursts.
   await mapBounded(rows, 3, async row => {
-    let succeeded = false;
-    for (const endpoint of [...new Set([...getRpcCandidates(network === "mainnet" ? "mainnet-beta" : "devnet"), process.env.SOLCAMEO_DBC_RPC_URL].filter((u): u is string => !!u))]) {
+    let succeeded = false, lastError = "";
+    const endpoints = [...new Set([...getRpcCandidates(network === "mainnet" ? "mainnet-beta" : "devnet"), process.env.SOLCAMEO_DBC_RPC_URL].filter((u): u is string => !!u))];
+    // A rate-limited or slow endpoint gets one more try after a short pause before this coin is given up on.
+    for (let pass = 0; pass < 2 && !succeeded; pass++) for (const endpoint of endpoints) {
+      if (pass > 0) await new Promise(resolve => setTimeout(resolve, 700));
       try {
         const connection = new Connection(endpoint, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(8000) }) });
         const dbc = new DynamicBondingCurveClient(connection, "confirmed"), address = new PublicKey(row.dbcPool!);
@@ -151,9 +154,15 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
         trades.push(...poolTrades);
         earners.push({ wallet: pool.poolState.creator.toBase58(), name: row.name, ticker: row.ticker, imageUrl: row.imageUrl, characterId: row.characterId, marketUrl: row.marketUrl, feesSol: period === "all" ? feesSol : Number.isFinite(feesInPeriod) ? feesInPeriod : null, claimableSol });
         succeeded = true; break;
-      } catch { /* Try another endpoint on the same cluster. */ }
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
+        // A permanent problem (not a transport hiccup) will not improve on a second pass.
+        if (!/429|rate|timeout|timed out|fetch|network|ECONN|503|502|abort/i.test(lastError)) pass = 1;
+      }
     }
-    if (!succeeded) { complete = false; errors.push(`${row.name}: RPC temporarily unavailable`); }
+    // Coins are ranked independently (FIFO basis is per coin), so one unreadable pool is reported and left out
+    // instead of marking every trader's result incomplete and blanking the whole leaderboard.
+    if (!succeeded) errors.push(`${row.name}: ${/429|rate/i.test(lastError) ? "RPC rate limited" : /timeout|timed out|abort/i.test(lastError) ? "RPC timed out" : lastError ? `could not read pool (${lastError.slice(0, 80)})` : "RPC temporarily unavailable"}`);
   });
   const traders = rankTraders(trades, prices, since, complete, realizedOnly).map(t => unknownBalances.has(t.wallet) ? { ...t, pnlSol: null, complete: false } : t).sort((a, b) => (b.pnlSol ?? -Infinity) - (a.pnlSol ?? -Infinity));
   for (const t of traders) t.coins = t.coins?.map(coin => ({ ...coin, ...coinMeta.get(coin.mint) }));
@@ -186,7 +195,10 @@ export async function GET(req: NextRequest) {
       cache.set(key, entry);
     }
     const result = await entry.value;
-    if (!result.complete || result.errors.length) cache.delete(key);
+    // Partial results (one coin unreadable) are kept briefly so polling does not re-run every RPC read each time;
+    // a result that is wholly incomplete is dropped so the next request retries.
+    if (!result.complete) cache.delete(key);
+    else if (result.errors.length) { const current = cache.get(key); if (current) current.expires = Math.min(current.expires, Date.now() + 15000); }
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch { cache.delete(key); return NextResponse.json({ error: "Leaderboard RPC temporarily unavailable" }, { status: 503 }); }
 }
