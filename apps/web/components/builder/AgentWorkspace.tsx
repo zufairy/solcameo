@@ -3737,48 +3737,68 @@ function ClipperHomeCockpit(props: {
             return (
             <div className={GLASS_CARD}>
               <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/25" />
-              {/* Plain-language autopilot row: one toggle, one sentence, one
-                  expand for the full schedule editor. */}
-              <div className="flex items-center gap-3">
-                <span className={`${FROST_TILE} ${hbOn ? "" : "opacity-70"}`}>
-                  <Activity className="relative size-4" strokeWidth={2} />
-                  {hbOn && <span aria-hidden className="absolute right-1 top-1 size-1.5 rounded-full bg-lime-500 shadow-[0_0_6px_rgba(132,204,22,0.9)]" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13.5px] font-semibold text-white">Autopilot</p>
-                  <p className="truncate text-[11.5px] text-zinc-500">
-                    {hbOn ? `Makes and posts videos on its own, ${cadence}` : "Paused. Videos only when you ask"}
-                  </p>
+              {/* Autopilot: status header, three readouts, then the two actions. Apple system type, one lime accent. */}
+              <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" }}>
+                <div className="flex items-center gap-3">
+                  <span className={`${FROST_TILE} ${hbOn ? "" : "opacity-70"}`}>
+                    <Activity className="relative size-4" strokeWidth={2} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-semibold tracking-[-0.01em] text-white">Autopilot</p>
+                      <span className={`inline-flex items-center gap-1.5 rounded-[3px] px-1.5 py-0.5 text-[10px] font-semibold leading-none tracking-wide ${hbOn ? "bg-lime-400/[0.14] text-lime-300" : "bg-white/[0.07] text-zinc-400"}`}>
+                        <span className={`size-1.5 rounded-full ${hbOn ? "bg-lime-400 shadow-[0_0_6px_rgba(163,230,53,0.9)]" : "bg-zinc-500"}`} />
+                        {hbOn ? "On" : "Paused"}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-[11.5px] leading-4 text-zinc-500">
+                      {hbOn ? "Makes and posts videos on its own." : "Videos only when you ask."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={hbOn}
+                    aria-label={hbOn ? "Turn autopilot off" : "Turn autopilot on"}
+                    onClick={() => onHeartbeatChange({ markdown: "", cron: "daily" as const, ...(hb ?? {}), enabled: !hbOn })}
+                    className={`relative h-6 w-11 shrink-0 rounded-[5px] border transition-colors duration-200 ${hbOn ? "border-lime-300/40 bg-lime-400/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]" : "border-white/[0.14] bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"}`}
+                  >
+                    <span className={`absolute top-[3px] size-4 rounded-[3px] shadow-[0_2px_6px_rgba(0,0,0,0.5)] transition-all duration-200 ${hbOn ? "left-[23px] bg-lime-300" : "left-[3px] bg-white/80"}`} />
+                  </button>
                 </div>
-                {/* On/off switch */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={hbOn}
-                  aria-label={hbOn ? "Turn autopilot off" : "Turn autopilot on"}
-                  onClick={() => onHeartbeatChange({ markdown: "", cron: "daily" as const, ...(hb ?? {}), enabled: !hbOn })}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${hbOn ? "bg-lime-500" : "bg-white/15"}`}
-                >
-                  <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${hbOn ? "left-[22px]" : "left-0.5"}`} />
-                </button>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                <button
-                  type="button"
-                  onClick={() => void (onFireHeartbeat ?? onTestAgent)()}
-                  className="rounded-lg border border-white/15 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-200 transition-colors hover:bg-white/10"
-                >
-                  Run once now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHeartbeatOpen((v) => !v)}
-                  aria-expanded={heartbeatOpen}
-                  className="inline-flex items-center gap-1 text-[11.5px] font-medium text-zinc-500 transition-colors hover:text-white"
-                >
-                  Schedule &amp; rules
-                  <ChevronDown className={`size-3.5 transition-transform duration-200 ${heartbeatOpen ? "rotate-180" : ""}`} />
-                </button>
+
+                <dl className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08] overflow-hidden rounded-[4px] border border-white/[0.1] bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  {[
+                    ["Status", hbOn ? "Running" : "Paused"],
+                    ["Cadence", cadence.replace(/^only when you run it$/, "Manual").replace(/^./, (c) => c.toUpperCase())],
+                    ["Posting", hbOn ? "Automatic" : "On request"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="min-w-0 px-3 py-2.5">
+                      <dt className="text-[9.5px] font-medium uppercase tracking-[0.12em] text-zinc-500">{label}</dt>
+                      <dd className="mt-1 truncate text-[12.5px] font-semibold tracking-[-0.01em] text-white">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void (onFireHeartbeat ?? onTestAgent)()}
+                    className="relative inline-flex h-8 items-center gap-1.5 overflow-hidden rounded-[3px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.7)_55%,rgba(255,255,255,0.84))] px-3 text-[12px] font-semibold tracking-[-0.01em] text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_18px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/70 before:to-transparent hover:bg-white active:scale-[0.98]"
+                  >
+                    <Play className="relative size-3 fill-current" />
+                    <span className="relative">Run once now</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHeartbeatOpen((v) => !v)}
+                    aria-expanded={heartbeatOpen}
+                    className="inline-flex h-8 items-center gap-1 rounded-[3px] px-2 text-[12px] font-medium tracking-[-0.01em] text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                  >
+                    Schedule &amp; rules
+                    <ChevronDown className={`size-3.5 transition-transform duration-200 ${heartbeatOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
               </div>
               {heartbeatOpen && (
                 <div className="mt-3 border-t border-white/[0.06] pt-3">
