@@ -5,7 +5,8 @@ export const CANONICAL_SITE_URL = "https://solcameo.com";
 export const SITE_NAME = "Solcameo";
 // Alternate brand spellings people actually type into Google. Feeds the
 // Organization/WebSite structured data so Google ties them to this domain.
-export const SITE_ALTERNATE_NAMES = ["Solcameo", "Sol Cameo"];
+// Must differ from SITE_NAME: Google ignores an alternate name that repeats the main one.
+export const SITE_ALTERNATE_NAMES = ["Sol Cameo"];
 export const SOCIAL_LINKS: string[] = [];
 
 // Google Search Console ownership token — public by design (it's rendered into
