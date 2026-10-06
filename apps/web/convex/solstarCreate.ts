@@ -24,6 +24,15 @@ export const generateUploadUrl = mutation({
   },
 });
 
+/** Health probe: succeeds only when the caller holds the same INTERNAL_CRON_SECRET as this deployment. */
+export const authPing = query({
+  args: { authSecret: v.string() },
+  handler: async (_ctx, { authSecret }) => {
+    assertSecret(authSecret);
+    return { ok: true as const };
+  },
+});
+
 export const createCharacter = mutation({
   args: {
     wallet: v.string(), name: v.string(), ticker: v.string(), bio: v.string(), category: v.string(),
