@@ -10,6 +10,9 @@ export const LAUNCH_MIN_LAMPORTS = {
   pool: 22_500_000,
 } as const;
 
+/** Meteora launch intake recommendation for the platform token: keep a buffer beyond estimated rent. */
+export const PLATFORM_RECOMMENDED_LAMPORTS = 100_000_000;
+
 /** Account sizes in bytes, used to price rent from the live network. */
 export const ACCOUNT_SIZES = { config: 1048, pool: 424, mint: 82, vault: 165 } as const;
 /** Metadata account rent observed on mainnet for a DBC launch (Metaplex v3 account created by the pool program). */
