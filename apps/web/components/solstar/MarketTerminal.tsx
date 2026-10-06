@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
 import { MarketInfoCarousel } from "./MarketInfoCarousel";
+import { MarketAboutCard } from "./MarketAboutCard";
 import { XFeedPanel } from "./XFeedPanel";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
@@ -16,7 +17,6 @@ import {
   ExternalLink,
   Loader2,
   Star,
-  Video,
 } from "lucide-react";
 import { PumpFeePayout } from "@/components/solcameo/PumpFeePayout";
 import { Button } from "@/components/ui/button";
@@ -315,7 +315,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
         )}
       </div>
     );
-  const { character, token, stats, episodes, trades, budget } = data;
+  const { character, token, stats, episodes, trades } = data;
   const pool = {
     solReserve: BigInt(token.solReserve),
     tokenReserve: BigInt(token.tokenReserve),
@@ -325,13 +325,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const volume = stats
     ? (BigInt(stats.buyVolume) + BigInt(stats.sellVolume)).toString()
     : null;
-  const recentTrades = chain?.trades ?? [];
-  const buys = onChain
-      ? recentTrades.filter((t) => t.side === "buy").length
-      : (stats?.buys ?? 0),
-    sells = onChain
-      ? recentTrades.filter((t) => t.side === "sell").length
-      : (stats?.sells ?? 0);
   const rows =
     stats?.holders.filter((h) =>
       h.wallet.toLowerCase().includes(search.toLowerCase()),
@@ -495,7 +488,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                 <img
                   src={character.referenceImageUrl}
                   alt=""
-                  className="size-12 rounded-xl object-cover"
+                  className="size-12 rounded-[4px] object-cover"
                 />
               )}
               <div>
@@ -894,6 +887,16 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
         >
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <TradeTicket token={token} />
+          <MarketAboutCard
+            name={character.name}
+            ticker={token.ticker}
+            bio={character.bio}
+            xUrl={character.xUrl}
+            websiteUrl={character.websiteUrl}
+            trades={chain?.trades}
+            points={dbc?.points?.map((p) => ({ time: p.time, price: p.price }))}
+            formatLamports={formatCompactSol}
+          />
           {publicKey?.toBase58() === character.ownerWallet && <SocialLinksForm characterId={characterId} xUrl={character.xUrl} websiteUrl={character.websiteUrl} />}
           {(token.network === "paper" || token.state === "pending") &&
             !token.dbcPool &&
@@ -926,160 +929,58 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </p>
           )}
           </div>
-          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Meteora DBC", "Creator fees"] : []), "Pool activity", "Developer", "Token data", "X feed"]}>
+          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Graduation", "Creator fees"] : []), "Holders", "X feed"]}>
           {token.dbcPool && (
-            <div className="space-y-3 border-b border-white/10 bg-[#202326] p-4">
-              <h2 className="text-sm font-semibold text-[#d7ff00]">
-                Meteora DBC · {token.network}
+            <div className="space-y-3 p-4">
+              <h2 className="text-[13px] font-semibold text-white">
+                Meteora curve <span className="font-normal text-zinc-500">· {token.network}</span>
               </h2>
               {dbc?.available ? (
                 <>
-                  <p className="text-xs text-zinc-400">
-                    {dbc.migrated
-                      ? "Graduated to DAMM v2"
-                      : `${dbc.reserveSol.toFixed(3)} / ${dbc.targetSol.toFixed(3)} SOL reserve`}
+                  <p className="font-sans text-[22px] font-semibold tabular-nums text-white">
+                    {dbc.migrated ? "Graduated" : `${Math.round(dbc.progress * 100)}%`}
+                    <span className="ml-2 text-[12px] font-normal text-zinc-500">
+                      {dbc.migrated ? "DAMM v2 pool" : `${dbc.reserveSol.toFixed(2)} / ${dbc.targetSol.toFixed(2)} SOL`}
+                    </span>
                   </p>
-                  <div className="h-1.5 overflow-hidden bg-white/10 [mask-image:repeating-linear-gradient(to_right,black_0px,black_5px,transparent_5px,transparent_8px)]">
-                    <div
-                      className="h-full bg-[#d7ff00]/80 transition-[width] duration-500 motion-reduce:transition-none"
-                      style={{ width: `${dbc.progress * 100}%` }}
-                    />
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-[#d7ff00] transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${dbc.progress * 100}%` }} />
                   </div>
-                  <p className="text-[10px] text-zinc-500">
-                    {poolError
-                      ? "RPC reconnecting · showing last confirmed state"
-                      : `Confirmed pool state${poolCheckedAt ? ` · ${new Date(poolCheckedAt).toLocaleTimeString("en-MY", { hour12: false })}` : ""}`}
+                  <p className="text-[10px] text-zinc-600">
+                    {poolError ? "RPC reconnecting, showing last confirmed state" : `Confirmed pool state${poolCheckedAt ? ` · ${new Date(poolCheckedAt).toLocaleTimeString("en-MY", { hour12: false })}` : ""}`}
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-zinc-500">
-                  Waiting for confirmed pool data…
-                </p>
+                <p className="text-xs text-zinc-500">Waiting for confirmed pool data…</p>
               )}
-              <a
-                href={explorer(token.dbcPool)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 text-xs text-[#d7ff00]"
-              >
+              <a href={explorer(token.dbcPool)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#d7ff00]">
                 View pool on Solana <ExternalLink className="size-3" />
               </a>
             </div>
           )}
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
-          <div className="space-y-3 border-b border-white/10 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-medium text-white">
-                Recent pool activity
-              </h2>
-              <span className="font-sans tabular-nums text-[10px] text-zinc-500">
-                {chain?.trades
-                  ? `${recentTrades.length} transactions`
-                  : "Loading…"}
-              </span>
-            </div>
-            <BalanceBar
-              left={chain?.trades ? `${buys} buys` : "— buys"}
-              right={chain?.trades ? `${sells} sells` : "— sells"}
-              ratio={buys + sells ? buys / (buys + sells) : null}
-            />
-            <p className="flex justify-between text-[11px] text-zinc-500">
-              Recorded app volume · 24h
-              <span className="font-sans tabular-nums text-zinc-200">
-                {dbc?.appVolume24hLamports
-                  ? formatCompactSol(dbc.appVolume24hLamports)
-                  : "—"}
-              </span>
-            </p>
-            <p className="text-[10px] leading-4 text-zinc-600">
-              Recent confirmed pool transactions. App volume covers swaps
-              recorded through SolCameo.
-            </p>
-          </div>
-          <div className="space-y-4 border-b border-white/10 p-4 text-xs">
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Developer wallet</span>
-              <a href={explorer(character.ownerWallet)} target="_blank" rel="noreferrer" className="font-sans text-zinc-200 hover:text-[#d7ff00]" title={character.ownerWallet}>{short(character.ownerWallet)} <ExternalLink className="inline size-3" /></a>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Observed high cap · USD</span>
-              <span>
-                {dbc?.points?.length
-                  ? formatCompactSol(
-                      String(
-                        Math.round(
-                          Math.max(...dbc.points.map((p) => p.price)) * 1e9,
-                        ),
-                      ),
-                    )
-                  : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Content funded · USD</span>
-              <span className="text-emerald-300">
-                {formatSol(budget.funded)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Content spent · USD</span>
-              <span>{formatSol(budget.spent)}</span>
-            </div>
-            <Link
-              href={`/market/${characterId}?tab=videos`}
-              onClick={() => setTab("videos")}
-              className="flex items-center justify-center gap-2 rounded-lg bg-white/5 p-3"
-            >
-              <Video className="size-4" />
-              View posted videos
-            </Link>
-          </div>
           <div className="p-4">
-            <h2 className="mb-3 text-sm text-white">Solana token data</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[13px] font-semibold text-white">Top holders</h2>
+              <a href={explorer(character.ownerWallet)} target="_blank" rel="noreferrer" title={character.ownerWallet} className="font-sans text-[11px] text-zinc-500 hover:text-[#d7ff00]">
+                Dev {short(character.ownerWallet)}
+              </a>
+            </div>
             {!onChain ? (
-              <p className="text-xs leading-relaxed text-zinc-600">
-                This character has a paper token. No SPL mint, on-chain holders,
-                or RPC trades exist for it yet.
-              </p>
+              <p className="text-xs leading-relaxed text-zinc-600">This character has a paper token. No on-chain holders exist for it yet.</p>
+            ) : chainError ? (
+              <p role="alert" className="text-xs text-amber-300">{chainError}</p>
+            ) : chain?.available ? (
+              <div className="divide-y divide-white/[0.06]">
+                {chain.accounts?.slice(0, 5).map((a, i) => (
+                  <a key={a.address} href={explorer(a.address)} target="_blank" rel="noreferrer" className="flex items-center justify-between py-2 text-[12px] transition-colors hover:text-white">
+                    <span className="flex items-center gap-2 font-sans tabular-nums text-zinc-400"><span className="w-4 text-zinc-600">{i + 1}</span>{short(a.address)}</span>
+                    <span className="font-sans tabular-nums text-zinc-200">{a.uiAmountString}</span>
+                  </a>
+                ))}
+              </div>
             ) : (
-              <>
-                <p className="mb-3 text-[10px] text-zinc-500">
-                  Confirmed · {token.network} · refreshes every 5s
-                </p>
-                {chainError && (
-                  <p role="alert" className="text-xs text-amber-300">
-                    {chainError}
-                  </p>
-                )}
-                {chain?.available ? (
-                  <>
-                    <p className="mb-3 text-xs text-zinc-400">
-                      Supply: {chain.supply?.uiAmountString}
-                      <br />
-                      Slot: {chain.slot}
-                    </p>
-                    <h3 className="mb-2 text-xs text-zinc-500">
-                      Largest token accounts (up to 20)
-                    </h3>
-                    {chain.accounts?.map((a) => (
-                      <a
-                        key={a.address}
-                        href={explorer(a.address)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex justify-between border-t border-white/5 py-2 text-[10px]"
-                      >
-                        <span className="font-sans tabular-nums">{short(a.address)}</span>
-                        <span>{a.uiAmountString}</span>
-                      </a>
-                    ))}
-                  </>
-                ) : (
-                  !chainError && (
-                    <Loader2 className="size-4 animate-spin text-zinc-600" />
-                  )
-                )}
-              </>
+              <Loader2 className="size-4 animate-spin text-zinc-600" />
             )}
           </div>
           <XFeedPanel xUrl={character.xUrl} name={character.name} />
@@ -1106,31 +1007,6 @@ function Metric({
       >
         {value}
       </p>
-    </div>
-  );
-}
-function BalanceBar({
-  left,
-  right,
-  ratio,
-}: {
-  left: string;
-  right: string;
-  ratio: number | null;
-}) {
-  return (
-    <div>
-      <div className="mb-1.5 flex justify-between text-[11px]">
-        <span className="text-emerald-400">{left}</span>
-        <span className="text-red-400">{right}</span>
-      </div>
-      <div className="flex h-1 overflow-hidden rounded-full bg-white/5">
-        <span
-          style={{ width: `${Math.max(0, Math.min(1, ratio ?? 0)) * 100}%` }}
-          className={ratio == null ? "bg-transparent" : "bg-emerald-400"}
-        />
-        <span className={`flex-1 ${ratio == null ? "bg-transparent" : "bg-red-400"}`} />
-      </div>
     </div>
   );
 }

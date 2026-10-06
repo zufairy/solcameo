@@ -29,7 +29,7 @@ export function MarketInfoCarousel({
     <section
       aria-label="Coin information"
       aria-roledescription="carousel"
-      className="market-sidebar-text shrink-0 border-t border-white/10 bg-[#181a1c]"
+      className="market-sidebar-text shrink-0 border-t border-white/10 bg-[#0b0c0e]"
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => setInteracting(false)}
       onFocusCapture={() => setInteracting(true)}
@@ -38,7 +38,7 @@ export function MarketInfoCarousel({
       }}
     >
       <div className="flex items-center gap-1.5 px-4 pt-3">
-        <h2 className="mr-auto text-xs font-medium text-zinc-200">
+        <h2 className="mr-auto text-[13px] font-semibold text-white">
           {labels[index]}
         </h2>
         {([[-1, "Previous information", ChevronLeft], [1, "Next information", ChevronRight]] as const).map(([dir, label, Icon]) => (
@@ -47,9 +47,9 @@ export function MarketInfoCarousel({
             type="button"
             aria-label={label}
             onClick={() => move(dir)}
-            className="group grid size-7 place-items-center rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.03] text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(0,0,0,0.4),0_4px_10px_-4px_rgba(0,0,0,0.7)] ring-1 ring-white/12 transition-all hover:from-white/[0.22] hover:text-white hover:ring-white/25 active:scale-90"
+            className="grid size-7 place-items-center rounded-lg border border-white/[0.09] bg-white/[0.03] text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
           >
-            <Icon className="size-3.5 transition-transform group-hover:scale-110" strokeWidth={2.4} />
+            <Icon className="size-3.5" strokeWidth={2.4} />
           </button>
         ))}
       </div>
@@ -65,7 +65,7 @@ export function MarketInfoCarousel({
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${slides.length}: ${labels[i]}`}
-              className="max-h-[260px] w-full shrink-0 overflow-y-auto overscroll-contain"
+              className="h-[236px] w-full shrink-0 overflow-y-auto overscroll-contain"
             >
               {slide}
             </div>

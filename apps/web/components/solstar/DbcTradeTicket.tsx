@@ -12,7 +12,7 @@ import {
   getCurrentSiwsWallet,
 } from "@/lib/client/siwsIdentity";
 import { parseUnits } from "@/lib/solstar/terminal";
-import { Button } from "@/components/ui/button";
+import { Settings2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { MarketRow } from "./MarketTable";
 
@@ -43,6 +43,7 @@ export function DbcTradeTicket({
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState("1");
+  const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
@@ -389,12 +390,27 @@ export function DbcTradeTicket({
       setBusy(false);
     }
   }
-  const color =
-    side === "buy"
-      ? "bg-emerald-300 text-zinc-950 hover:bg-emerald-200"
-      : "bg-rose-400 text-zinc-950 hover:bg-rose-300";
+  const idle = busy || !!pending;
+  const buyPresets = [0.1, 0.5, 1];
+  const ctaLabel = busy
+    ? "Processing swap…"
+    : connecting
+      ? "Connecting…"
+      : !compatible
+        ? `Market on ${network}`
+        : !wallet
+          ? "Connect wallet"
+          : pending
+            ? "Resume pending swap"
+            : !units
+              ? "Enter an amount"
+              : `${side === "buy" ? "Buy" : "Sell"} ${ticker}`;
+  const ctaDisabled = busy || connecting || !compatible || (!!wallet && !pending && (!units || !validSlip));
+  const ctaReady = !ctaDisabled && (!wallet || !!pending || !!units);
+  const chip = (on: boolean) =>
+    `h-9 rounded-lg border font-sans text-[12px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${on ? (side === "buy" ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-rose-400/40 bg-rose-400/10 text-rose-300") : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white"}`;
   return (
-    <div className="space-y-3 border-b border-white/10 bg-[#151719] p-4">
+    <div className="p-3">
       {toast && (
         <div
           role="status"
@@ -416,173 +432,128 @@ export function DbcTradeTicket({
           <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="text-emerald-300/60 hover:text-white">×</button>
         </div>
       )}
-      <div
-        className="flex rounded-lg bg-white/[.04] p-1"
-        role="group"
-        aria-label="Trade direction"
-      >
-        {(["buy", "sell"] as const).map((s) => (
-          <Button
-            key={s}
-            disabled={busy || !!pending}
-            aria-pressed={side === s}
-            variant="ghost"
-            onClick={() => {
-              setSide(s);
-              setAmount("");
-              setMessage("");
-              setQuoteError("");
-            }}
-            className={`h-10 flex-1 rounded-md font-semibold capitalize transition-colors ${side === s ? (s === "buy" ? "bg-emerald-300 text-zinc-950 hover:bg-emerald-200" : "bg-rose-400 text-zinc-950 hover:bg-rose-300") : "text-zinc-400"}`}
-          >
-            {s}
-          </Button>
-        ))}
-      </div>
-      <div className="flex justify-between text-[11px] text-zinc-500">
-        <span>You pay</span>
-        <span className="font-sans tabular-nums">
-          {balance
-            ? `${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`
-            : wallet
-              ? "Loading balance…"
-              : "Connect wallet"}
-        </span>
-      </div>
-      <div className="relative">
-        <Input
-          aria-label={`Amount in ${side === "buy" ? "SOL" : ticker}`}
-          value={amount}
-          onChange={(e) => {
-            setAmount(e.target.value);
-            setQuoteError("");
-          }}
-          disabled={busy || !!pending}
-          placeholder="0.00"
-          inputMode="decimal"
-          className="h-14 rounded-lg border-white/10 bg-[#1d2023] pr-20 font-sans tabular-nums text-xl"
-        />
-        <span className="absolute right-3 top-5 text-xs font-medium text-zinc-400">
-          {side === "buy" ? "SOL" : ticker}
-        </span>
-      </div>
-      <div className="grid grid-cols-4 gap-1.5">
-        {[25, 50, 75, 100].map((n) => (
+      <div className="rounded-[14px] border border-white/[0.09] bg-[#0b0c0e] p-3">
+        <div className="flex items-center gap-2">
+          <div className="grid flex-1 grid-cols-2 gap-1.5" role="group" aria-label="Trade direction">
+            {(["buy", "sell"] as const).map((sd) => (
+              <button
+                key={sd}
+                type="button"
+                disabled={idle}
+                aria-pressed={side === sd}
+                onClick={() => { setSide(sd); setAmount(""); setMessage(""); setQuoteError(""); }}
+                className={`h-11 rounded-[10px] text-[15px] font-semibold capitalize transition-colors disabled:opacity-60 ${side === sd ? (sd === "buy" ? "bg-emerald-400/15 text-emerald-300" : "bg-rose-400/15 text-rose-300") : "bg-white/[0.04] text-zinc-400 hover:text-zinc-200"}`}
+              >
+                {sd}
+              </button>
+            ))}
+          </div>
           <button
-            key={n}
             type="button"
-            disabled={busy || !!pending || !balance}
-            onClick={() => allocate(n)}
-            className="rounded-md border border-white/10 py-2 font-sans tabular-nums text-[11px] text-zinc-400 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
+            aria-label="Trade settings"
+            aria-expanded={showSettings}
+            onClick={() => setShowSettings((v) => !v)}
+            className={`grid size-9 shrink-0 place-items-center rounded-lg transition-colors ${showSettings ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"}`}
           >
-            {n === 100 ? "Max" : `${n}%`}
+            <Settings2 className="size-[18px]" />
           </button>
-        ))}
-      </div>
-      <input
-        type="range"
-        aria-label="Percentage of available balance"
-        min="0"
-        max="100"
-        step="1"
-        value={percent}
-        onChange={(e) => allocate(Number(e.target.value))}
-        disabled={busy || !!pending || !balance}
-        className={`h-2 w-full cursor-pointer ${side === "buy" ? "accent-emerald-300" : "accent-rose-400"}`}
-      />
-      <div className="flex justify-between text-[10px] text-zinc-600">
-        <span>0%</span>
-        <span>{percent}% of available balance</span>
-        <span>100%</span>
-      </div>
-      {side === "buy" && (
-        <p className="text-[10px] text-zinc-500">
-          Max keeps 0.01 SOL for fees and account rent.
-        </p>
-      )}
-      <label className="flex items-center justify-between text-xs text-zinc-400">
-        Slippage limit %
-        <Input
-          aria-label="Slippage percent"
-          type="number"
-          min="0.1"
-          max="10"
-          step="0.1"
-          value={slippage}
-          onChange={(e) => setSlippage(e.target.value)}
-          disabled={busy || !!pending}
-          className="h-8 w-20 border-white/10 bg-white/[.03] text-right font-sans tabular-nums"
-        />
-      </label>
-      <div className="flex justify-between gap-2 border-t border-white/5 pt-3 text-[11px] text-zinc-500">
-        <span>Minimum receive</span>
-        <span className="font-sans tabular-nums text-zinc-200">
-          {quote?.key === quoteKey
-            ? `${human(BigInt(quote.minimumOut), side === "buy" ? (balance?.decimals ?? 6) : 9)} ${side === "buy" ? ticker : "SOL"}`
-            : "Quoted before approval"}
-        </span>
-      </div>
-      <Button
-        disabled={
-          busy ||
-          connecting ||
-          !compatible ||
-          (!!wallet && !pending && (!units || !validSlip))
-        }
-        onClick={() => void trade()}
-        className={`h-12 w-full rounded-lg font-semibold transition-colors active:scale-[.98] ${color}`}
-      >
-        {busy
-          ? "Processing swap…"
-          : connecting
-            ? "Connecting…"
-            : !compatible
-              ? `Market on ${network}`
-              : !wallet
-                ? "Connect wallet"
-                : pending
-                  ? "Resume pending swap"
-                  : !units
-                    ? "Enter an amount"
-                    : `${side === "buy" ? "Buy" : "Sell"} ${ticker}`}
-      </Button>
-      {!compatible && (
-        <p role="alert" className="text-xs text-amber-300">
-          This market is on {network}; the app is configured for {getNetwork()}.
-          Trading requires matching networks.
-        </p>
-      )}
-      {(balanceError || quoteError) && (
-        <p className="text-[11px] text-amber-200">
-          {balanceError || quoteError}
-        </p>
-      )}
-      {message && (
-        <p
-          role={error ? "alert" : "status"}
-          aria-live="polite"
-          className={`rounded-md p-2.5 text-xs leading-5 ${error ? "bg-rose-400/10 text-rose-300" : "bg-emerald-300/5 text-emerald-200"}`}
+        </div>
+        {showSettings && (
+          <label className="mt-2.5 flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+            Slippage limit %
+            <Input
+              aria-label="Slippage percent"
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={slippage}
+              onChange={(e) => setSlippage(e.target.value)}
+              disabled={idle}
+              className="h-8 w-20 border-white/10 bg-black/30 text-right font-sans tabular-nums"
+            />
+          </label>
+        )}
+        <div className="mt-2.5 rounded-[12px] bg-white/[0.04] px-3.5 pb-3 pt-2.5">
+          <div className="flex items-center justify-between text-[11px] text-zinc-500">
+            <span>{side === "buy" ? "You pay" : "You sell"}</span>
+            <span className="font-sans tabular-nums">
+              {balance
+                ? `${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`
+                : wallet
+                  ? "Loading balance…"
+                  : "Connect wallet"}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <Input
+              aria-label={`Amount in ${side === "buy" ? "SOL" : ticker}`}
+              value={amount}
+              onChange={(e) => { setAmount(e.target.value); setQuoteError(""); }}
+              disabled={idle}
+              placeholder="0"
+              inputMode="decimal"
+              className="h-12 flex-1 border-0 bg-transparent px-0 font-sans text-[32px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
+            />
+            <span className="shrink-0 text-sm font-semibold text-zinc-400">{side === "buy" ? "SOL" : ticker}</span>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {side === "buy"
+            ? buyPresets.map((n) => (
+                <button key={n} type="button" disabled={idle} onClick={() => { setAmount(String(n)); setQuoteError(""); }} className={chip(amount === String(n))}>{n} SOL</button>
+              ))
+            : [25, 50, 75].map((n) => (
+                <button key={n} type="button" disabled={idle || !balance} onClick={() => allocate(n)} className={chip(percent === n)}>{n}%</button>
+              ))}
+          <button type="button" disabled={idle || !balance} onClick={() => allocate(100)} className={chip(percent === 100)}>Max</button>
+        </div>
+        <div className="mt-3 flex items-center justify-between px-0.5 text-[11px] text-zinc-500">
+          <span>Minimum receive</span>
+          <span className="font-sans tabular-nums text-zinc-300">
+            {quote?.key === quoteKey
+              ? `${human(BigInt(quote.minimumOut), side === "buy" ? (balance?.decimals ?? 6) : 9)} ${side === "buy" ? ticker : "SOL"}`
+              : "Quoted before approval"}
+          </span>
+        </div>
+        <button
+          type="button"
+          disabled={ctaDisabled}
+          onClick={() => void trade()}
+          className={`mt-2.5 h-12 w-full rounded-[12px] text-[15px] font-semibold transition-all active:scale-[.985] disabled:cursor-not-allowed ${ctaReady ? (side === "buy" ? "bg-emerald-400 text-zinc-950 hover:bg-emerald-300" : "bg-rose-400 text-zinc-950 hover:bg-rose-300") : "border border-white/[0.08] bg-white/[0.04] text-zinc-500"}`}
         >
-          {message}
+          {ctaLabel}
+        </button>
+        {side === "buy" && <p className="mt-2 px-0.5 text-[10px] text-zinc-600">Max keeps 0.01 SOL for fees and account rent.</p>}
+        {!compatible && (
+          <p role="alert" className="mt-2 text-xs text-amber-300">
+            This market is on {network}; the app is configured for {getNetwork()}. Trading requires matching networks.
+          </p>
+        )}
+        {(balanceError || quoteError) && <p className="mt-2 text-[11px] text-amber-200">{balanceError || quoteError}</p>}
+        {message && (
+          <p
+            role={error ? "alert" : "status"}
+            aria-live="polite"
+            className={`mt-2 rounded-md p-2.5 text-xs leading-5 ${error ? "bg-rose-400/10 text-rose-300" : "bg-emerald-300/5 text-emerald-200"}`}
+          >
+            {message}
+          </p>
+        )}
+        {signature && (
+          <a
+            href={getTxExplorerUrl(signature, network === "mainnet" ? "mainnet-beta" : "devnet")}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 block truncate font-sans tabular-nums text-[11px] text-emerald-300 underline underline-offset-4"
+          >
+            View transaction · {signature.slice(0, 8)}…
+          </a>
+        )}
+        <p className="mt-2 px-0.5 text-[10px] leading-4 text-zinc-600">
+          Meteora · {network}. Pool fees, network fees and account rent apply. Final execution enforces your slippage limit.
         </p>
-      )}
-      {signature && (
-        <a
-          href={getTxExplorerUrl(
-            signature,
-            network === "mainnet" ? "mainnet-beta" : "devnet",
-          )}
-          target="_blank"
-          rel="noreferrer"
-          className="block truncate font-sans tabular-nums text-[11px] text-emerald-300 underline underline-offset-4"
-        >
-          View transaction · {signature.slice(0, 8)}…
-        </a>
-      )}
-      <p className="text-[10px] leading-4 text-zinc-600">
-        Meteora · {network}. Pool fees, network fees and account rent apply.
-        Final execution enforces your slippage limit.
-      </p>
+      </div>
     </div>
   );
 }

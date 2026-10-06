@@ -6,8 +6,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { normalizeShowBible, resolveIdentityRefs } from "@/lib/builder/showBible";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, ImagePlus, Check, ChevronDown } from "lucide-react";
-import { DEFAULT_VIDEO_ENGINE, selectableVideoEngines, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, ImagePlus } from "lucide-react";
+import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { formatRetailUsd } from "@/lib/pricing/retail";
+import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
+import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 
 // Same visible set as the Director tab's engine picker — keep in sync with it.
 // Computed LAZILY (not at module init): dereferencing VIDEO_ENGINES while this
@@ -20,20 +23,9 @@ function visibleEngines() {
   return selectableVideoEngines();
 }
 
-// Premium 3D "chip" — inset top highlight + outer drop shadow reads as a
-// slightly raised physical key; active state presses it down 1px. Smaller
-// scale (py-1, text-[11px]) than the old flat py-1.5/text-[12px] chips.
-const CHIP =
-  "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.10] to-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_1px_3px_rgba(0,0,0,0.4)] backdrop-blur-xl transition-all duration-150 hover:from-white/[0.15] hover:to-white/[0.05] active:translate-y-px active:shadow-[inset_0_1px_1px_rgba(0,0,0,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050506]";
 
 import { useAgentLibrary } from "@/components/builder/useAgentLibrary";
-import { SURFACE } from "@/components/builder/character/character-ui";
 
-const GLASS_BG: React.CSSProperties = {
-  background:
-    "radial-gradient(120% 90% at 12% -10%, rgba(163,230,53,0.07), transparent 55%), " +
-    "radial-gradient(100% 80% at 105% 110%, rgba(255,255,255,0.04), transparent 55%), #050506",
-};
 
 type VideoAsset = {
   id: string;
@@ -85,7 +77,7 @@ function stageForElapsed(sec: number): string {
  * agent is a series) and the persona. This tab is just "what happens next,"
  * on demand, in the operator's own words.
  */
-export function VideosTab({ mintAddress, characterImages }: { mintAddress?: string; characterImages?: { url: string; label: string }[] }) {
+export function VideosTab({ mintAddress, agentName, characterImages }: { mintAddress?: string; agentName?: string; characterImages?: { url: string; label: string }[] }) {
   const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
   const resolveStorageUrl = useMutation(api.clipStorage.resolveStorageUrl);
 
@@ -93,7 +85,7 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
   // can be overridden per-generation without touching the saved config. Also
   // carries the profile photos (avatar + mint stills) for the reference picker.
   const influencerDoc = useQuery(api.influencers.getByMint, mintAddress ? { mintAddress } : "skip") as
-    | { videoEngine?: string; avatarUrl?: string; avatarStills?: string[]; videoConfig?: { pinnedVideoReferenceUrl?: string } }
+    | { videoEngine?: string; videoMinSeconds?: number; videoMaxSeconds?: number; avatarUrl?: string; avatarStills?: string[]; videoConfig?: { pinnedVideoReferenceUrl?: string } }
     | null
     | undefined;
 
@@ -135,6 +127,15 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
   // skills, memories or standing orders blended into the script or clip prompts.
   const [noPersona, setNoPersona] = useState(false);
   const engineId = engineOverride ?? (influencerDoc?.videoEngine as VideoEngineId | undefined) ?? DEFAULT_VIDEO_ENGINE;
+  // What this click costs: the chosen engine's price for the length the Director is set to, plus
+  // the storyboard image unless it is skipped. Provider price plus 10%; the server bills the same numbers.
+  const priceRange = useMemo(() => {
+    const engine = getVideoEngine(engineId);
+    const range = resolveDurationRange(influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds);
+    const board = skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC;
+    return { lo: board + videoCostForLength(engine, range.min), hi: board + videoCostForLength(engine, range.max) };
+  }, [engineId, influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds, skipStoryboard]);
+  const priceText = Math.abs(priceRange.hi - priceRange.lo) < 0.005 ? formatRetailUsd(priceRange.hi) : `${formatRetailUsd(priceRange.lo)} to ${formatRetailUsd(priceRange.hi)}`;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadReferenceImage = useCallback(async (file: File) => {
@@ -229,6 +230,7 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
   // button previously had no in-flight state at all. Cleared once the request
   // settles, so "queue another" (a different prompt right after) still works.
   const [isGenerating, setIsGenerating] = useState(false);
+  const [cast, setCast] = useState<Mention[]>([]);
 
   const generate = useCallback(() => {
     if (isGenerating) return;
@@ -250,7 +252,8 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
             taskType: "create_video",
             title: `Video: ${p.slice(0, 60)}`,
             input: {
-              topic: p,
+              topic: cast.length ? `${p}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : p,
+              ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
               ...(skipStoryboard ? { skipStoryboard: true } : {}),
@@ -274,7 +277,7 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
       }
     })();
     setAttachedImage(null);
-  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs]);
+  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast]);
 
   const removeVideo = useCallback((id: string) => setVideos((prev) => prev.filter((v) => v.id !== id)), []);
   const retryVideo = useCallback((v: VideoAsset) => {
@@ -308,10 +311,10 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
   }, [characterImages, influencerDoc?.avatarUrl, influencerDoc?.avatarStills, bibleIdentityRefs, imageHistory]);
 
   return (
-    <div className="min-h-full px-8 py-8" style={{ ...GLASS_BG, fontFamily: "var(--font-geist-sans, system-ui)" }}>
+    <div className="min-h-full px-8 py-8">
       <div className="mx-auto max-w-[1100px]">
         {/* ── Prompt box ──────────────────────────────────────────────────── */}
-        <div className="mx-auto max-w-[640px] rounded-[32px] border border-white/[0.06] p-5" style={{ background: SURFACE.panel }}>
+        <div className={`mx-auto max-w-[640px] p-5 ${PANEL}`}>
           {attachedImage && (
             <div className="mb-3 flex items-center gap-2">
               <div className="group relative size-14 overflow-hidden rounded-lg border-2 border-white/15">
@@ -325,12 +328,15 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
               <span className="text-[10.5px] text-zinc-500">Sent to Kie as the face reference for this video.</span>
             </div>
           )}
-          <textarea
+          <MentionTextarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What should this video be about? e.g. reacting to a viral trend in my niche, a quick tutorial on…"
+            onChange={setPrompt}
+            onCast={setCast}
+            selfMint={mintAddress}
+            selfName={agentName}
+            selfImage={influencerDoc?.avatarUrl}
+            placeholder="What should this video be about? Type @ to bring in another agent, e.g. reacting to a viral trend in my niche…"
             rows={3}
-            className="w-full resize-none bg-transparent text-[14px] text-white placeholder:text-zinc-500 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={uploadingImage}
@@ -341,47 +347,12 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
               {uploadingImage ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}
               {uploadingImage ? "Uploading…" : "Image"}
             </button>
-            <div className="relative">
-              <select
-                value={engineId}
-                onChange={(e) => setEngineOverride(e.target.value as VideoEngineId)}
-                title="Video engine for this generation, defaults to the Director tab's pick"
-                className={`${CHIP} cursor-pointer appearance-none pr-6`}
-              >
-                {visibleEngines().map((e) => <option key={e.id} value={e.id} className="bg-[#141310] text-zinc-200">{e.label}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-zinc-500" />
-            </div>
-            <label
-              title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image"
-              className={`${CHIP} cursor-pointer`}
-            >
-              <span className={`relative flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border transition-colors ${skipStoryboard ? "border-lime-400/70 bg-lime-400/90 shadow-[0_0_0_2px_rgba(163,230,53,0.15)]" : "border-white/20 bg-black/30"}`}>
-                <input
-                  type="checkbox"
-                  checked={skipStoryboard}
-                  onChange={(e) => setSkipStoryboard(e.target.checked)}
-                  className="absolute inset-0 size-full cursor-pointer opacity-0"
-                />
-                {skipStoryboard && <Check className="size-2.5 text-black" strokeWidth={3} />}
-              </span>
-              Skip storyboard
-            </label>
-            <label
-              title="Send your prompt as-is: no persona voice, character bible, skills or memories are blended into the video. Unchecked, the video follows the agent's persona and settings."
-              className={`${CHIP} cursor-pointer`}
-            >
-              <span className={`relative flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border transition-colors ${noPersona ? "border-lime-400/70 bg-lime-400/90 shadow-[0_0_0_2px_rgba(163,230,53,0.15)]" : "border-white/20 bg-black/30"}`}>
-                <input
-                  type="checkbox"
-                  checked={noPersona}
-                  onChange={(e) => setNoPersona(e.target.checked)}
-                  className="absolute inset-0 size-full cursor-pointer opacity-0"
-                />
-                {noPersona && <Check className="size-2.5 text-black" strokeWidth={3} />}
-              </span>
-              No persona
-            </label>
+            <ChipSelect value={engineId} onChange={(v) => setEngineOverride(v as VideoEngineId)} title="Video engine for this generation, defaults to the Director tab's pick"
+              options={visibleEngines().map((e) => ({ value: e.id, label: e.label }))} />
+            <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard"
+              title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image" />
+            <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona"
+              title="Send your prompt as-is: no persona voice, character bible, skills or memories are blended into the video. Unchecked, the video follows the agent's persona and settings." />
             {effectiveRefs.length > 0 && (
               <div
                 className="flex items-center gap-1.5"
@@ -403,17 +374,8 @@ export function VideosTab({ mintAddress, characterImages }: { mintAddress?: stri
                 <span className="text-[9.5px] font-semibold uppercase tracking-wide text-zinc-500">→ Kie ref</span>
               </div>
             )}
-            <button type="button" disabled={!canWrite || !prompt.trim() || isGenerating} onClick={generate}
-              title={isGenerating ? "Sending…" : pendingCount > 0 ? "Renders run in the background, queue another anytime" : undefined}
-              className="ml-auto shrink-0 relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-[#D4F53C] px-5 py-2.5 text-[14px] font-bold text-black shadow-[0_4px_0_0_#9cb524,0_14px_30px_-12px_rgba(212,245,60,0.55)] transition-all hover:-translate-y-px active:translate-y-0.5 active:shadow-[0_2px_0_0_#9cb524] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-[0_4px_0_0_#7d8f1d]">
-              {isGenerating ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
-              Generate
-              {pendingCount > 0 && (
-                <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-black/20 px-1.5 py-0.5 text-[10px] font-bold text-black">
-                  <Loader2 className="size-2.5 animate-spin" /> {pendingCount}
-                </span>
-              )}
-            </button>
+            <PriceButton className="ml-auto" disabled={!canWrite || !prompt.trim() || isGenerating} busy={isGenerating} onClick={generate} priceUsd={null} priceText={priceText} pending={pendingCount}
+              title={isGenerating ? "Sending…" : pendingCount > 0 ? "Renders run in the background, queue another anytime" : "Includes the 10% Solcameo fee"} />
           </div>
           {error && <p className="mt-1.5 text-[11px] text-red-400">{error}</p>}
         </div>

@@ -6,19 +6,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { normalizeShowBible } from "@/lib/builder/showBible";
 import {
-  Upload, ImagePlus, Loader2, X, Wand2, Download, Trash2, Plus, Check, Maximize2, RotateCcw, AlertCircle, Clapperboard,
+  Upload, ImagePlus, Loader2, X, Download, Trash2, Plus, Check, Maximize2, RotateCcw, AlertCircle, Clapperboard,
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { IMAGE_ENGINES, IMAGE_TO_IMAGE_REROUTE_IDS } from "@/lib/builder/imageEngines";
+import { IMAGE_ENGINES, IMAGE_TO_IMAGE_REROUTE_IDS, imageRetailPriceUsd } from "@/lib/builder/imageEngines";
+import { CHIP, ChipSelect, PANEL, PriceButton } from "./ui";
+import { MentionTextarea, type Mention } from "./MentionTextarea";
 
 import { useAgentLibrary } from "@/components/builder/useAgentLibrary";
-import { SURFACE } from "@/components/builder/character/character-ui";
 
-const GLASS_BG: React.CSSProperties = {
-  background:
-    "radial-gradient(120% 90% at 12% -10%, rgba(163,230,53,0.07), transparent 55%), " +
-    "radial-gradient(100% 80% at 105% 110%, rgba(255,255,255,0.04), transparent 55%), #050506",
-};
 
 // The engines offered on this tab.
 const GENERATE_ENGINE_IDS = ["nano-banana-pro", "nano-banana-2", "gpt-image-2", "qwen-image-3"] as const;
@@ -66,7 +62,7 @@ function makeId(): string {
  * `image_input` reference — the point is "take THIS photo, render it in a
  * different style", not just a blind text-to-image box.
  */
-export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages }: { mintAddress?: string; sessionId?: string; avatarUrl?: string; characterImages?: { url: string; label: string }[] }) {
+export function GenerateTab({ mintAddress, sessionId, avatarUrl, agentName, characterImages }: { mintAddress?: string; sessionId?: string; avatarUrl?: string; agentName?: string; characterImages?: { url: string; label: string }[] }) {
   const { accessToken } = useSupabaseAuth();
   const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
   const resolveStorageUrl = useMutation(api.clipStorage.resolveStorageUrl);
@@ -144,6 +140,7 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
   const [prompt, setPrompt] = useState("");
   const [engineId, setEngineId] = useState<string>(DEFAULT_ENGINE_ID);
   const [refIds, setRefIds] = useState<string[]>([]);
+  const [cast, setCast] = useState<Mention[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -226,7 +223,10 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
     if (!p || !canWrite) return;
     const thisEngine = engineId;
     const thisEngineLabel = generateEngines.find((e) => e.id === thisEngine)?.label;
-    const thisRefs = refs.map((r) => r.url);
+    const castUrls = cast.map((c) => c.avatarUrl);
+    const thisRefs = [...refs.map((r) => r.url), ...castUrls].slice(0, MAX_REFS + 3);
+    // Tell the model which reference picture each @tag points at.
+    const tagNote = cast.length ? `\n\nReferences: ${cast.map((c, i) => `@${c.token} is reference image ${refs.length + i + 1}`).join("; ")}.` : "";
     const pendingId = makeId();
     setError(null);
     setAssets((prev) => [{ id: pendingId, url: "", source: "generated", prompt: p, engineLabel: thisEngineLabel, createdAt: Date.now(), status: "pending" }, ...prev]);
@@ -239,7 +239,7 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
           body: JSON.stringify({
             username: mintAddress,
             sessionId: sessionId || mintAddress,
-            prompt: p,
+            prompt: `${p}${tagNote}`,
             engineId: thisEngine,
             referenceImageUrls: thisRefs,
           }),
@@ -256,7 +256,7 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
         setAssets((prev) => prev.map((a) => (a.id === pendingId ? { ...a, status: "error", error: msg } : a)));
       }
     })();
-  }, [prompt, canWrite, headers, mintAddress, sessionId, engineId, refs]);
+  }, [prompt, canWrite, headers, mintAddress, sessionId, engineId, refs, cast]);
 
   const removeAsset = useCallback((id: string) => {
     setAssets((prev) => prev.filter((a) => a.id !== id));
@@ -285,15 +285,14 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="min-h-full px-8 py-8" style={{ ...GLASS_BG, fontFamily: "var(--font-geist-sans, system-ui)" }}>
+    <div className="min-h-full px-8 py-8">
       <div className="mx-auto max-w-[1100px]">
         {/* ── Prompt box (Google-Flow style: model picker + ref chips inline) ── */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDropZone}
-          style={dragOver ? undefined : { background: SURFACE.panel }}
-          className={`mt-6 mx-auto max-w-[640px] rounded-[32px] border p-5 transition-colors ${dragOver ? "border-lime-400 bg-lime-400/[0.06]" : "border-white/[0.06]"}`}
+          className={`mt-6 mx-auto max-w-[640px] p-5 transition-colors ${dragOver ? "rounded-[10px] border border-lime-400 bg-lime-400/[0.06]" : PANEL}`}
         >
           {refs.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -328,35 +327,37 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, characterImages
               </div>
             </div>
           )}
-          <textarea
+          <MentionTextarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={dragOver ? "Drop to attach as a reference…" : "Describe the image, or drag a card below in as a reference and describe the new style…"}
+            onChange={setPrompt}
+            onCast={setCast}
+            selfMint={mintAddress}
+            selfName={agentName}
+            selfImage={avatarUrl}
+            placeholder={dragOver ? "Drop to attach as a reference…" : "Describe the image. Type @ to bring in another agent, or drag a card below in as a reference…"}
             rows={3}
-            className="w-full resize-none bg-transparent text-[14px] text-white placeholder:text-zinc-500 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select value={engineId} onChange={(e) => setEngineId(e.target.value)}
-              className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[12.5px] font-semibold text-white focus:border-white/10 focus:outline-none">
-              {generateEngines.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
-            </select>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-[12.5px] font-semibold text-zinc-200 hover:bg-white/10">
-              <Upload className="size-3.5" />
+            <ChipSelect value={engineId} onChange={setEngineId} title="Image model"
+              options={generateEngines.map((e) => ({ value: e.id, label: `${e.label} · $${imageRetailPriceUsd(e).toFixed(3)}` }))} />
+            <label className={`${CHIP} cursor-pointer`}>
+              {uploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
               {uploading ? "Uploading…" : "Upload"}
               <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" disabled={uploading}
                 onChange={(e) => { const fs = e.target.files ? Array.from(e.target.files) : []; if (fs.length) void uploadFiles(fs); e.target.value = ""; }} />
             </label>
-            <button type="button" disabled={!canWrite || !prompt.trim()} onClick={generate}
-              title={pendingCount > 0 ? "Generations run in the background, queue another anytime" : undefined}
-              className="ml-auto relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-[#D4F53C] px-5 py-2.5 text-[14px] font-bold text-black shadow-[0_4px_0_0_#9cb524,0_14px_30px_-12px_rgba(212,245,60,0.55)] transition-all hover:-translate-y-px active:translate-y-0.5 active:shadow-[0_2px_0_0_#9cb524] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-[0_4px_0_0_#7d8f1d]">
-              <Wand2 className="size-3.5" />
-              Generate
-              {pendingCount > 0 && (
-                <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-lime-400/20 px-1.5 py-0.5 text-[10px] font-bold text-lime-300">
-                  <Loader2 className="size-2.5 animate-spin" /> {pendingCount}
-                </span>
-              )}
-            </button>
+            {cast.length > 0 && (
+              <div className="flex items-center gap-1.5" title="Tagged agents are sent as extra references">
+                <div className="flex -space-x-2.5">
+                  {cast.map((c) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={c.token} src={c.avatarUrl} alt={c.name} className="size-7 rounded-full border-2 border-lime-400/70 object-cover ring-2 ring-[#08090a]" />
+                  ))}
+                </div>
+              </div>
+            )}
+            <PriceButton className="ml-auto" disabled={!canWrite || !prompt.trim()} onClick={generate} priceUsd={engine ? imageRetailPriceUsd(engine) : null} pending={pendingCount}
+              title={pendingCount > 0 ? "Generations run in the background, queue another anytime" : undefined} />
           </div>
           {engine && refs.length > 0 && (
             <p className="mt-2 text-[10.5px] leading-tight text-zinc-500">

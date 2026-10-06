@@ -5,22 +5,18 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
-  Plus, Upload, ImagePlus, Loader2, Send, Trash2, Copy, ChevronUp, ChevronDown,
+  Plus, Upload, Loader2, Send, Trash2, Copy, ChevronUp, ChevronDown,
   GalleryHorizontal, Music, Image as ImageIcon, Sparkles,
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { IMAGE_ENGINES } from "@/lib/builder/imageEngines";
+import { IMAGE_ENGINES, imageRetailPriceUsd } from "@/lib/builder/imageEngines";
+import { CHIP, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
+import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CarouselIdeationPanel, type Idea } from "./CarouselIdeationPanel";
 
 // Same warm-dark "glass" background used across the builder (Home/Editor/
 // Posting) — a near-black base with two soft green glows, not flat cream.
-import { SURFACE } from "@/components/builder/character/character-ui";
 
-const GLASS_BG: React.CSSProperties = {
-  background:
-    "radial-gradient(120% 90% at 12% -10%, rgba(163,230,53,0.07), transparent 55%), " +
-    "radial-gradient(100% 80% at 105% 110%, rgba(255,255,255,0.04), transparent 55%), #050506",
-};
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 // The three engines the Photo Carousel Builder offers (drop order = user-facing
@@ -107,7 +103,7 @@ const newSlide = (): Slide => ({
  * in the TikTok inbox so the operator picks the trending sound in-app (the API
  * can't choose a trending track itself). Unchecked = DIRECT_POST (instant).
  */
-export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: string; sessionId?: string }) {
+export function PhotoCarouselTab({ mintAddress, sessionId, agentName, avatarUrl }: { mintAddress?: string; sessionId?: string; agentName?: string; avatarUrl?: string }) {
   const reduceMotion = useReducedMotion();
   const { accessToken } = useSupabaseAuth();
   const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
@@ -129,6 +125,14 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
   useEffect(() => {
     slidesRef.current = slides;
   }, [slides]);
+
+  // @tagged cameos per slide, attached as extra references when that slide renders.
+  const [castMap, setCastMap] = useState<Record<string, Mention[]>>({});
+  const castMapRef = useRef(castMap);
+  useEffect(() => { castMapRef.current = castMap; }, [castMap]);
+  const setSlideCast = useCallback((id: string, cast: Mention[]) => {
+    setCastMap((m) => ((m[id] ?? []).map((c) => c.token).join("|") === cast.map((c) => c.token).join("|") ? m : { ...m, [id]: cast }));
+  }, []);
 
   const patchSlide = useCallback((id: string, patch: Partial<Slide>) => {
     setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -210,6 +214,8 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
     if (!s) return;
     const p = s.prompt.trim();
     if (!p || !canWrite) return;
+    const cast = castMapRef.current[id] ?? [];
+    const tagNote = cast.length ? `\n\nReferences: ${cast.map((c, i) => `@${c.token} is extra reference image ${i + 1}`).join("; ")}.` : "";
     patchSlide(id, { generating: true, error: undefined });
     setGenError(null);
     try {
@@ -219,9 +225,10 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
         body: JSON.stringify({
           username: agentKey,
           sessionId: sessionId || mintAddress,
-          prompt: p,
+          prompt: `${p}${tagNote}`,
           engineId: s.engineId,
           aspectRatio: s.aspectRatio,
+          ...(cast.length ? { extraReferenceImageUrls: cast.map((c) => c.avatarUrl) } : {}),
         }),
       });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; imageUrl?: string; rowId?: string };
@@ -338,7 +345,7 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
   }
 
   return (
-    <div className="min-h-full px-8 py-8" style={{ ...GLASS_BG, fontFamily: "var(--font-geist-sans, system-ui)" }}>
+    <div className="min-h-full px-8 py-8">
       <motion.div
         className="mx-auto max-w-[1100px]"
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
@@ -356,10 +363,10 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
           <button type="button" onClick={() => setShowIdeation(true)} className="inline-flex items-center gap-1.5 rounded-2xl bg-[#D4F53C] px-4 py-2.5 text-sm font-bold text-black shadow-[0_4px_0_0_#9cb524] transition-all hover:-translate-y-px active:translate-y-0.5 active:shadow-[0_2px_0_0_#9cb524]">
             <Sparkles className="size-4 fill-black" /> New idea
           </button>
-          <button type="button" onClick={addSlide} className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-zinc-100 transition-colors hover:border-white/20 hover:bg-white/10 active:scale-[0.98]">
+          <button type="button" onClick={addSlide} className={`${CHIP} px-3.5 py-2 text-[13px]`}>
             <Plus className="size-4" /> Add slide
           </button>
-          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-[7px] text-sm font-bold text-zinc-100 transition-colors hover:border-white/20 hover:bg-white/10">
+          <label className={`${CHIP} cursor-pointer px-3.5 py-2 text-[13px]`}>
             <Upload className="size-4" />
             {uploading ? "Uploading…" : "Upload images"}
             <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
@@ -407,8 +414,7 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
                   transition={{ duration: 0.4, ease: EASE, delay: Math.min(i, 8) * 0.05 }}
                   whileHover={reduceMotion ? undefined : { y: -3 }}
-                  style={{ background: SURFACE.panel }}
-                  className={`flex flex-col rounded-[28px] border transition-colors ${s.imageUrl ? "border-white/15 hover:border-white/25" : "border-white/[0.06] hover:border-white/15"}`}>
+                  className={`flex flex-col ${PANEL} transition-colors ${s.imageUrl ? "hover:border-white/25" : "hover:border-white/20"}`}>
                   {/* Card header: slide number + actions */}
                   <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2">
                     <span className="text-[12px] font-bold text-zinc-300">Slide {i + 1}</span>
@@ -453,29 +459,26 @@ export function PhotoCarouselTab({ mintAddress, sessionId }: { mintAddress?: str
 
                   {/* Controls */}
                   <div className="space-y-2 p-3">
-                    <textarea
+                    <MentionTextarea
                       value={s.prompt}
-                      onChange={(e) => patchSlide(s.id, { prompt: e.target.value })}
-                      placeholder="Prompt, e.g. a flat-lay of skincare products, pastel bg…"
+                      onChange={(v) => patchSlide(s.id, { prompt: v })}
+                      onCast={(c) => setSlideCast(s.id, c)}
+                      selfMint={mintAddress}
+                      selfName={agentName}
+                      selfImage={avatarUrl}
+                      placeholder="Prompt. Type @ to bring in another agent, e.g. a flat-lay of skincare products, pastel bg…"
                       rows={3}
-                      className="w-full resize-none rounded-lg bg-white/[0.04] backdrop-blur-xl px-2.5 py-2 text-[13px] text-white placeholder:text-zinc-400 focus:border-white/10 focus:outline-none"
+                      textClass="text-[13px] leading-[1.5]"
                     />
-                    <div className="flex gap-2">
-                      <select value={s.engineId} onChange={(e) => patchSlide(s.id, { engineId: e.target.value })}
-                        className="min-w-0 flex-1 rounded-lg bg-white/[0.04] backdrop-blur-xl px-2 py-1.5 text-[12px] text-white focus:border-white/10 focus:outline-none">
-                        {carouselEngines.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
-                      </select>
-                      <select value={s.aspectRatio} onChange={(e) => patchSlide(s.id, { aspectRatio: e.target.value })}
-                        className="w-20 rounded-lg bg-white/[0.04] backdrop-blur-xl px-2 py-1.5 text-[12px] text-white focus:border-white/10 focus:outline-none">
-                        {ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ChipSelect className="min-w-0 flex-1" value={s.engineId} onChange={(v) => patchSlide(s.id, { engineId: v })} title="Image model"
+                        options={carouselEngines.map((e) => ({ value: e.id, label: e.label }))} />
+                      <ChipSelect className="w-[84px]" value={s.aspectRatio} onChange={(v) => patchSlide(s.id, { aspectRatio: v })} title="Aspect ratio"
+                        options={ASPECT_RATIOS.map((r) => ({ value: r, label: r }))} />
                     </div>
-                    <button type="button" disabled={!canWrite || s.generating || !s.prompt.trim()}
-                      onClick={() => void generateSlide(s.id)}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-[13px] font-bold text-white transition-opacity hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40">
-                      {s.generating ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
-                      {s.generating ? `Rendering on ${engine?.label ?? "model"}… (auto-retries)` : "Generate with KIE"}
-                    </button>
+                    <PriceButton className="w-full justify-center" disabled={!canWrite || s.generating || !s.prompt.trim()} busy={s.generating}
+                      onClick={() => void generateSlide(s.id)} priceUsd={engine ? imageRetailPriceUsd(engine) : null}
+                      label={s.generating ? `Rendering on ${engine?.label ?? "model"}…` : "Generate"} />
                     {engine && (
                       <p className="text-[10.5px] leading-tight text-zinc-500">
                         {engine.blurb}{" "}

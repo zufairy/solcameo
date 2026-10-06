@@ -409,15 +409,15 @@ export function MarketCharacterChat({
           setDragging(false);
           attach(e.dataTransfer.files[0]);
         }}
-        className="p-3 pt-1"
+        className="shrink-0 border-t border-white/10"
       >
         {error && (
-          <p role="alert" className="mb-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <p role="alert" className="bg-red-500/10 px-3 py-2 text-xs text-red-300">
             {error}
           </p>
         )}
         <InputGroup
-          className={`rounded-2xl border-white/10 bg-white/[0.035] transition-colors dark:bg-white/[0.035] ${dragging ? "border-[#d7ff00]/60 bg-[#d7ff00]/5" : ""}`}
+          className={`rounded-none border-0 bg-[#0e0f11] shadow-none transition-colors dark:bg-[#0e0f11] ${dragging ? "bg-[#d7ff00]/5 ring-1 ring-inset ring-[#d7ff00]/50" : ""}`}
         >
           <AnimatePresence initial={false}>
             {preview && (
@@ -503,7 +503,7 @@ export function MarketCharacterChat({
               size="icon-xs"
               disabled={busy || (authenticated && !input.trim() && !file)}
               onClick={authenticated ? undefined : login}
-              className="ml-auto size-7 rounded-full bg-[#d7ff00] text-black hover:bg-[#e4ff59] disabled:bg-white/10 disabled:text-zinc-500"
+              className="ml-auto size-7 rounded-[6px] bg-[#d7ff00] text-black hover:bg-[#e4ff59] disabled:bg-white/10 disabled:text-zinc-500"
             >
               {busy ? <Loader2 className="animate-spin" /> : <ArrowUp />}
             </InputGroupButton>

@@ -1227,7 +1227,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
             className="flex-1 overflow-y-auto"
             style={WARM_GLASS_BG}
           >
-            <GenerateHub mintAddress={isRealMint ? mintAddress : undefined} sessionId={sessionId} avatarUrl={gif} mode={genMode} onModeChange={setGenMode} />
+            <GenerateHub mintAddress={isRealMint ? mintAddress : undefined} sessionId={sessionId} avatarUrl={gif} agentName={displayName} mode={genMode} onModeChange={setGenMode} />
           </motion.div>
         ) : tab === "videos" ? (
           <motion.div key="videos"

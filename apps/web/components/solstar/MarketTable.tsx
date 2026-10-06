@@ -455,7 +455,7 @@ function Market() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="group relative overflow-hidden rounded-xl border border-white/80 bg-white text-zinc-900 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.9)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_28px_70px_-24px_rgba(0,0,0,0.95)] motion-reduce:transition-none"
+              className="group relative overflow-hidden rounded-xl border border-white/[.09] bg-[#202326] text-zinc-300 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.9)] hover:border-[#d7ff00]/35 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_28px_70px_-24px_rgba(0,0,0,0.95)] motion-reduce:transition-none"
             >
               <div className="relative p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -466,24 +466,24 @@ function Market() {
                     <Portrait row={r} large />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-zinc-950">
+                        <h2 className="font-apple truncate text-xl font-semibold tracking-tight text-white">
                           {r.name}
                         </h2>
 
                       </div>
-                      <p className="mt-1 text-xs text-zinc-600">
+                      <p className="mt-1 text-xs text-zinc-300">
                         ${r.ticker} · {age(r.createdAt)}
                       </p>
                     </div>
                   </Link>
-                  <span className="shrink-0 self-start rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-0.5 text-[10px] font-medium text-zinc-800">
+                  <span className="shrink-0 self-start rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-medium text-zinc-300">
                           {r.category}
                         </span>
                 </div>
                 <div className="mt-6 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[10px] text-zinc-500">Market cap</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
+                    <p className="mt-1 text-2xl font-semibold tracking-tight text-white">
                       {r.network === "paper"
                         ? formatMarketUsd(r.marketCapLamports)
                         : pools[r.characterId]?.available &&
@@ -500,10 +500,10 @@ function Market() {
                   </div>
                   <MarketSparkline values={pools[r.characterId]?.points?.map(p => p.price) ?? []} />
                 </div>
-                <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-zinc-200 pt-4 text-xs">
+                <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-xs">
                   <div>
                     <dt className="text-[10px] text-zinc-500">{r.network === "paper" ? "24h volume" : "App 24h volume"}</dt>
-                    <dd className="mt-2 font-medium text-zinc-900">
+                    <dd className="mt-2 font-medium text-zinc-200">
                       {r.network === "paper" && r.historyComplete
                         ? `${formatMarketUsd(r.volume24hLamports)} USD`
                         : pools[r.characterId]?.appVolume24hLamports ? `${formatUsdEstimate(pools[r.characterId].appVolume24hLamports!, solUsd)} USD` : "—"}
@@ -511,13 +511,13 @@ function Market() {
                   </div>
                   <div>
                     <dt className="text-[10px] text-zinc-500">Holders</dt>
-                    <dd className="mt-2 font-medium text-zinc-900">
+                    <dd className="mt-2 font-medium text-zinc-200">
                       {r.holders?.toLocaleString() ?? "—"}
                     </dd>
                   </div>
                   <div className="text-right">
                     <dt className="text-[10px] text-zinc-500">Videos posted</dt>
-                    <dd className="mt-2 font-medium text-zinc-900">
+                    <dd className="mt-2 font-medium text-zinc-200">
                       {r.videosPosted}
                       {r.videosCountCapped ? "+" : ""}
                     </dd>
@@ -537,9 +537,9 @@ function Market() {
                   </span>
                   <span className="size-1.5 rounded-full bg-teal-400" />
                 </p>
-                <div className="mt-2 h-1.5 overflow-hidden bg-zinc-200 [mask-image:repeating-linear-gradient(to_right,black_0px,black_5px,transparent_5px,transparent_8px)]">
+                <div className="mt-2 h-1.5 overflow-hidden bg-white/10 [mask-image:repeating-linear-gradient(to_right,black_0px,black_5px,transparent_5px,transparent_8px)]">
                   <div
-                    className="h-full bg-zinc-900 transition-[width] duration-500 motion-reduce:transition-none"
+                    className="h-full bg-[#d7ff00]/80 transition-[width] duration-500 motion-reduce:transition-none"
                     style={{
                       width: `${r.state === "graduated" || r.state === "migrated" ? 100 : (pools[r.characterId]?.progress ?? 0) * 100}%`,
                     }}
@@ -548,7 +548,7 @@ function Market() {
               </div>
               <Link
                 href={`/market/${r.characterId}`}
-                className="market-cta market-cta-light flex items-center justify-between border-t border-zinc-200 px-5 py-4 text-xs font-medium"
+                className="market-cta flex items-center justify-between border-t border-white/[.08] px-5 py-4 text-xs font-medium"
               >
                 View market
                 <ArrowUpRight className="market-cta-arrow size-4" />
