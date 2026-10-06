@@ -15,16 +15,16 @@ import {
 } from "@/lib/server/solstarRoute";
 import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { dbcConnection, dbcReadiness } from "@/lib/server/meteoraLaunch";
-import {
-  unsignedPumpTransaction,
-  pumpMessageHash,
-} from "@/lib/server/pumpLaunch";
+import { pumpMessageHash } from "@/lib/server/pumpLaunch";
 import {
   readTradeReceipt,
   signTradeReceipt,
 } from "@/lib/server/dbcTradeReceipt";
 import { txFingerprint } from "@/lib/server/dbcTradeFingerprint";
 import { putImage } from "@/lib/server/imageStorage";
+import { tunedSwapTransaction } from "@/lib/server/tunedSwap";
+import { jupiterComparison, type JupiterComparison } from "@/lib/server/jupiterQuote";
+import { tradeAllowed } from "@/lib/server/tradeLimit";
 export const maxDuration = 60;
 // New receipts carry a review fingerprint that tolerates wallet-injected guard and
 // priority instructions; receipts issued before that change used the exact message hash.
@@ -40,11 +40,30 @@ function matchesReview(
   }
   return pumpMessageHash(tx) === receipt.hash;
 }
+// Quotes are polled by every open ticket, so share the slow reads for a moment. A real swap (prepare) always reads fresh state.
+const stateCache = new Map<string, { at: number; value: unknown }>();
+const stateInflight = new Map<string, Promise<unknown>>();
+async function cachedState<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
+  const hit = stateCache.get(key);
+  if (ttl > 0 && hit && Date.now() - hit.at < ttl) return hit.value as T;
+  if (ttl > 0) { const running = stateInflight.get(key); if (running) return running as Promise<T>; }
+  const work = load().then((value) => {
+    stateCache.set(key, { at: Date.now(), value });
+    if (stateCache.size > 500) stateCache.delete(stateCache.keys().next().value!);
+    return value;
+  }).finally(() => stateInflight.delete(key));
+  if (ttl > 0) stateInflight.set(key, work);
+  return work;
+}
+const cachedTerminal = (characterId: Id<"ssCharacters">, fast: boolean) =>
+  cachedState(`terminal:${characterId}`, fast ? 30_000 : 0, () => convexClient().query(api.solstarMarket.terminal, { characterId }));
 export async function POST(req: NextRequest) {
   const prep = await prepareAuthedJson(req, 16384);
   if (!prep.ok) return prep.res;
   const { body, wallet } = prep;
   const network = dbcReadiness().network;
+  if (typeof body.action === "string" && !tradeAllowed(wallet, body.action))
+    return NextResponse.json({ error: "Too many requests. Slow down for a moment and retry." }, { status: 429 });
   if (!dbcReadiness().ready)
     return NextResponse.json({ error: dbcReadiness().reason }, { status: 503 });
   try {
@@ -69,9 +88,8 @@ export async function POST(req: NextRequest) {
         slippage > 1000
       )
         throw new Error("Invalid amount or slippage");
-      const data = await convexClient().query(api.solstarMarket.terminal, {
-        characterId: body.characterId as Id<"ssCharacters">,
-      });
+      const fast = body.action === "quote";
+      const data = await cachedTerminal(body.characterId as Id<"ssCharacters">, fast);
       if (
         !data?.token.dbcPool ||
         !data.token.dbcConfig ||
@@ -81,8 +99,8 @@ export async function POST(req: NextRequest) {
         throw new Error("This coin is not available on the configured network.");
       const poolAddress = new PublicKey(data.token.dbcPool);
       const [pool, config] = await Promise.all([
-        client.state.getPool(poolAddress),
-        client.state.getPoolConfig(new PublicKey(data.token.dbcConfig)),
+        cachedState(`pool:${data.token.dbcPool}`, fast ? 2000 : 0, () => client.state.getPool(poolAddress)),
+        cachedState(`cfg:${data.token.dbcConfig}`, fast ? 60_000 : 0, () => client.state.getPoolConfig(new PublicKey(data.token.dbcConfig!))),
       ]);
       if (
         !pool ||
@@ -92,6 +110,7 @@ export async function POST(req: NextRequest) {
       )
         throw new Error("Bonding curve is unavailable or has graduated");
       let tx, minimumOut: BN;
+      let jupiter: JupiterComparison | null = null;
       if (pool.poolState.isMigrated) {
         const migrated = await migratedPool(connection, poolAddress);
         if (!migrated) throw new Error("Graduated pool unavailable");
@@ -112,6 +131,8 @@ export async function POST(req: NextRequest) {
           hasReferral: false,
         });
         minimumOut = quote.minSwapOutAmount;
+        if (network === "mainnet" && data.token.mint)
+          jupiter = await jupiterComparison({ side: body.side as "buy" | "sell", mint: data.token.mint, amount: body.amount as string, slippageBps: slippage, ourOut: quote.swapOutAmount.toString() });
         tx = await migrated.cp.swap({
           payer,
           pool: migrated.address,
@@ -155,13 +176,11 @@ export async function POST(req: NextRequest) {
         });
         minimumOut = quote.minimumAmountOut;
       }
-      if (body.action === "quote") return NextResponse.json({ minimumOut: minimumOut.toString() }, { headers: { "Cache-Control": "no-store" } });
-      const prepared = await unsignedPumpTransaction(
-        connection,
-        payer,
-        tx.instructions,
-        { priorityMicroLamports: 100_000 },
-      );
+      if (body.action === "quote") return NextResponse.json({ minimumOut: minimumOut.toString(), ...(jupiter ? { jupiter } : {}) }, { headers: { "Cache-Control": "no-store" } });
+      const prepared = await tunedSwapTransaction(connection, payer, tx.instructions, {
+        network,
+        accountKeys: [data.token.dbcPool, data.token.mint ?? "", wallet].filter(Boolean),
+      });
       return NextResponse.json({
         transaction: prepared.transaction,
         receipt: signTradeReceipt({
@@ -175,6 +194,7 @@ export async function POST(req: NextRequest) {
           expires: Date.now() + 120000,
         }),
         minimumOut: minimumOut.toString(),
+        ...(jupiter ? { jupiter } : {}),
       });
     }
     if (typeof body.receipt !== "string")

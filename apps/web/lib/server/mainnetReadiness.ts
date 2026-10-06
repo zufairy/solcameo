@@ -54,6 +54,9 @@ export async function mainnetReadiness(): Promise<{ ready: boolean; network: str
     } catch { add(checks, "usdc.onchain", "warn", "Could not read the USDC mint account"); }
   }
 
+  add(checks, "swap.priorityFees", process.env.NEXT_PUBLIC_HELIUS_API_KEY ? "ok" : "warn", process.env.NEXT_PUBLIC_HELIUS_API_KEY ? "Swaps use Helius market-rate priority fees" : "No Helius key: swaps use a fixed priority fee and may not land during congestion");
+  add(checks, "swap.jupiter", process.env.JUPITER_API_KEY ? "ok" : "warn", process.env.JUPITER_API_KEY ? "Jupiter price comparison uses a keyed endpoint" : "JUPITER_API_KEY unset: price comparison uses the free lite endpoint, which is rate limited");
+
   // Custody: agent keys are encrypted at rest, and plaintext fallbacks are off.
   let keyOk = false;
   try { keyOk = loadMasterKey() !== null; } catch { keyOk = false; }

@@ -47,9 +47,9 @@ export function readPumpReceipt(token: string, wallet: string): PumpReceipt {
   return receipt;
 }
 export function pumpMessageHash(tx: VersionedTransaction) { return createHash("sha256").update(tx.message.serialize()).digest("hex"); }
-export async function unsignedPumpTransaction(connection: Connection, wallet: PublicKey, instructions: TransactionInstruction[], options: { priorityMicroLamports?: number } = {}) {
+export async function unsignedPumpTransaction(connection: Connection, wallet: PublicKey, instructions: TransactionInstruction[], options: { priorityMicroLamports?: number; computeUnitLimit?: number } = {}) {
   const block = await connection.getLatestBlockhash("confirmed");
-  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: wallet, recentBlockhash: block.blockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ...(options.priorityMicroLamports ? [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: options.priorityMicroLamports })] : []), ...instructions] }).compileToV0Message());
+  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: wallet, recentBlockhash: block.blockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: options.computeUnitLimit ?? 500_000 }), ...(options.priorityMicroLamports ? [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: options.priorityMicroLamports })] : []), ...instructions] }).compileToV0Message());
   const raw = tx.serialize();
   if (raw.length > 1232) throw new Error("This launch exceeds Solana's transaction size limit. Try SOL without starting funds.");
   return { tx, transaction: Buffer.from(raw).toString("base64"), lastValidBlockHeight: block.lastValidBlockHeight };
