@@ -48,14 +48,12 @@ describe("getReadRpcUrl", () => {
     expect(getRpcUrl("devnet")).toBe("https://api.devnet.solana.com");
   });
 
-  it("keeps same-cluster public RPC as fallback after Helius", () => {
+  it("keeps configured requests on Helius without public RPC fallback", () => {
     expect(getRpcCandidates("devnet")).toEqual([
       "https://devnet.helius-rpc.com/?api-key=testkey123",
-      "https://api.devnet.solana.com",
     ]);
     expect(getRpcCandidates("mainnet-beta")).toEqual([
       "https://mainnet.helius-rpc.com/?api-key=testkey123",
-      "https://api.mainnet-beta.solana.com",
     ]);
   });
 });

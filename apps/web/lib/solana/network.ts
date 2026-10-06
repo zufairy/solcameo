@@ -61,7 +61,7 @@ export function isMainnet(network?: SolanaNetwork): boolean {
 /** Helius RPC for the selected cluster, when configured. */
 export function getHeliusRpcUrl(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
-  const key = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
+  const key = process.env.HELIUS_API_KEY || process.env.NEXT_PUBLIC_HELIUS_API_KEY;
   if (!key) return "";
   if (n === "mainnet-beta") return `https://mainnet.helius-rpc.com/?api-key=${key}`;
   if (n === "devnet") return `https://devnet.helius-rpc.com/?api-key=${key}`;
@@ -71,10 +71,11 @@ export function getHeliusRpcUrl(network?: SolanaNetwork): string {
 /** Shared primary RPC: Helius first, public cluster endpoint otherwise. */
 export function getRpcUrl(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
-  const helius = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
-  if (n === "mainnet-beta") return helius ? `https://mainnet.helius-rpc.com/?api-key=${helius}` : "https://api.mainnet-beta.solana.com";
+  const helius = getHeliusRpcUrl(n);
+  if (helius) return helius;
+  if (n === "mainnet-beta") return "https://api.mainnet-beta.solana.com";
   if (n === "testnet") return "https://api.testnet.solana.com";
-  return helius ? `https://devnet.helius-rpc.com/?api-key=${helius}` : "https://api.devnet.solana.com";
+  return "https://api.devnet.solana.com";
 }
 
 /** Read-only calls use the same cluster and primary provider. */
@@ -83,7 +84,7 @@ export function getReadRpcUrl(network?: SolanaNetwork): string {
 }
 
 /** Ordered RPC candidates for failover: Helius first when configured,
- *  followed by a public endpoint on the same cluster. */
+ *  public endpoints are only used when Helius is not configured. */
 export function getRpcCandidates(network?: SolanaNetwork): string[] {
   const n = network ?? getNetwork();
   const helius = getHeliusRpcUrl(n);
@@ -91,8 +92,8 @@ export function getRpcCandidates(network?: SolanaNetwork): string[] {
     n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com"
     : n === "testnet" ? "https://api.testnet.solana.com"
     : "https://api.devnet.solana.com";
-  // Keep the public endpoint as fallback on the same cluster.
-  const ordered = [helius, pub];
+  // Avoid falling back to the shared public RPC when a dedicated Helius key is configured.
+  const ordered = helius ? [helius] : [pub];
   return [...new Set(ordered.filter(Boolean))];
 }
 

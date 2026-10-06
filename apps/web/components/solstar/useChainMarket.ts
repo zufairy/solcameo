@@ -9,7 +9,7 @@ import type { Id } from "@/convex/_generated/dataModel";
  * every change to the page, so nothing here polls RPC. A background sync keeps the tables fresh by asking our server
  * to copy new swaps in whenever the pool moves; it never feeds the UI directly.
  */
-const MIN_GAP_MS = 2500, STALE_MS = 20_000;
+const MIN_GAP_MS = 10_000, STALE_MS = 20_000;
 
 export function useChainMarket(characterId: Id<"ssCharacters">, enabled: boolean) {
   const market = useQuery(api.solstarChain.openTrades, enabled ? { characterId } : "skip");
@@ -20,11 +20,13 @@ export function useChainMarket(characterId: Id<"ssCharacters">, enabled: boolean
 
   useEffect(() => {
     if (!enabled) return;
+    let requesting = false;
     let last = 0, retry: ReturnType<typeof setTimeout> | undefined, stopped = false;
     const sync = () => {
-      if (stopped || document.hidden || Date.now() - last < MIN_GAP_MS) return;
+      if (stopped || requesting || document.hidden || Date.now() - last < MIN_GAP_MS) return;
       last = Date.now();
-      fetch("/api/solstar/market-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ characterId }), cache: "no-store" }).catch(() => undefined);
+      requesting = true;
+      fetch("/api/solstar/market-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ characterId }), cache: "no-store" }).catch(() => undefined).finally(() => { requesting = false; });
     };
     const afterTrade = () => { if (retry) clearTimeout(retry); retry = setTimeout(sync, 700); };
     const idle = () => { if (Date.now() - syncedAt.current > STALE_MS) sync(); };

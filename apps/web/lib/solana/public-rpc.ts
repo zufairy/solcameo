@@ -1,14 +1,8 @@
-const DEVNET_RPC_URL = "https://api.devnet.solana.com";
+import { getRpcUrl } from "./network";
 
-/**
- * Shared Solana JSON-RPC endpoint used across browser and server-side Vello flows.
- * Default to devnet so campaign funding, balances, and builder testing all land on
- * the same test cluster unless a dedicated public RPC URL is configured.
- */
+/** Shared provider and cluster for legacy wallet and campaign callers. */
 export function getPublicSolanaRpcUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
-  if (fromEnv) return fromEnv;
-  return DEVNET_RPC_URL;
+  return getRpcUrl();
 }
 
 export function getPublicSolanaClusterLabel(): string {

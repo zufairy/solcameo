@@ -13,12 +13,14 @@ afterEach(() => {
   if (origNetwork === undefined) delete process.env.NEXT_PUBLIC_SOLANA_NETWORK;
   else process.env.NEXT_PUBLIC_SOLANA_NETWORK = origNetwork;
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 /** Stubs global fetch and returns the mock so the test can inspect the URL
  *  it was called with. Response shape is the minimal valid Helius DAS
  *  getAsset payload so parseAssetToInfluencer doesn't throw. */
 function stubFetch() {
+  vi.stubEnv("NEXT_PUBLIC_HELIUS_API_KEY", "testkey");
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({

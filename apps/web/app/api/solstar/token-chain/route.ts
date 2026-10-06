@@ -1,3 +1,4 @@
+import { marketRpcFetch } from "@/lib/server/marketRpcFetch";
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { api } from "@/convex/_generated/api";
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
       token.network === "mainnet" ? "mainnet-beta" : "devnet",
     )) {
       try {
-        const res = await fetch(endpoint, {
+        const res = await marketRpcFetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify([
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
             const saved = transactionCache.get(cacheKey);
             if (saved && saved.expires > Date.now()) return saved.result;
           }
-          const response = await fetch(endpoint, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({jsonrpc:"2.0",id:3,method,params}), cache:"no-store", signal:AbortSignal.timeout(8000) });
+          const response = await marketRpcFetch(endpoint, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({jsonrpc:"2.0",id:3,method,params}), cache:"no-store", signal:AbortSignal.timeout(8000) });
           const payload = await response.json();
           if (payload.error) throw new Error(payload.error.message);
           if (method === "getTransaction" && payload.result) {

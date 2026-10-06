@@ -1,3 +1,4 @@
+import { marketRpcFetch } from "./marketRpcFetch";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
@@ -14,7 +15,7 @@ import type { RpcTrade } from "@/lib/solstar/leaderboard";
  * holders and the pool price. The terminal subscribes to those Convex tables, so the browser never polls RPC for them.
  * Safe to call as often as you like: calls are coalesced per coin and Convex ignores swaps it already has.
  */
-const MIN_GAP_MS = 2500, OVERLAP_MS = 5 * 60_000, FIRST_SYNC_TRADES = 500, CHUNK = 100;
+const MIN_GAP_MS = 10_000, OVERLAP_MS = 5 * 60_000, FIRST_SYNC_TRADES = 500, CHUNK = 100;
 const lastRun = new Map<string, number>();
 const inflight = new Map<string, Promise<SyncResult>>();
 export type SyncResult = { ok: boolean; ingested: number; skipped?: string };
@@ -45,7 +46,7 @@ async function run(characterId: string): Promise<SyncResult> {
   let lastError: unknown;
   for (const endpoint of getRpcCandidates(network === "mainnet" ? "mainnet-beta" : "devnet")) {
     try {
-      const connection = new Connection(endpoint, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(10_000) }) });
+      const connection = new Connection(endpoint, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: marketRpcFetch });
       const poolAddress = new PublicKey(dbcPool), dbc = new DynamicBondingCurveClient(connection, "confirmed");
       const pool = await dbc.state.getPool(poolAddress);
       if (!pool || pool.poolState.baseMint.toBase58() !== mint) throw new Error("pool_unavailable");
@@ -53,15 +54,12 @@ async function run(characterId: string): Promise<SyncResult> {
       if (!config || !config.quoteMint.equals(NATIVE_MINT)) throw new Error("unsupported_quote");
 
       let price = (Number(pool.poolState.sqrtPrice.toString()) / 2 ** 64) ** 2 / 1e9;
-      const history = await readPoolHistory(connection, poolAddress, network);
-      const trades: RpcTrade[] = history.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, dbcPool); return p?.trade ? [p.trade] : []; });
       if (pool.poolState.isMigrated) {
         const migrated = await migratedPool(connection, poolAddress);
         if (migrated) {
           const quoteIsB = migrated.state.tokenBMint.equals(NATIVE_MINT), sqrt = Number(migrated.state.sqrtPrice.toString()) / 2 ** 64;
           price = (quoteIsB ? sqrt * sqrt : 1 / (sqrt * sqrt)) / 1e9;
-          const h = await readPoolHistory(connection, migrated.address, network);
-          trades.push(...h.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, migrated.address.toBase58(), quoteIsB); return p?.trade ? [p.trade] : []; }));
+
         }
       }
 
@@ -83,17 +81,30 @@ async function run(characterId: string): Promise<SyncResult> {
         isPool: !PublicKey.isOnCurve(new PublicKey(wallet).toBytes()),
       }));
 
-      const fresh = trades.filter((t) => t.time > since).sort((a, b) => a.time - b.time).slice(state ? 0 : -FIRST_SYNC_TRADES);
-      const swaps = fresh.map((t) => { const units = t.units / 10 ** decimals; return { signature: t.signature, wallet: t.wallet, side: t.side, units, sol: t.sol, priceSol: units > 0 ? t.sol / units : price, time: t.time }; });
       const common = { authSecret: secret, characterId: id, mint, network };
       const market = { priceSol: price, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders };
+      // Push holder data immediately; historical transaction scanning must not delay the first view.
+      await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market });
+      const history = await readPoolHistory(connection, poolAddress, network);
+      const trades: RpcTrade[] = history.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, dbcPool); return p?.trade ? [p.trade] : []; });
+      if (pool.poolState.isMigrated) {
+        const migrated = await migratedPool(connection, poolAddress);
+        if (migrated) {
+          const quoteIsB = migrated.state.tokenBMint.equals(NATIVE_MINT);
+          const h = await readPoolHistory(connection, migrated.address, network);
+          trades.push(...h.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, migrated.address.toBase58(), quoteIsB); return p?.trade ? [p.trade] : []; }));
+        }
+      }
+      const fresh = trades.filter((t) => t.time > since).sort((a, b) => a.time - b.time).slice(state ? 0 : -FIRST_SYNC_TRADES);
+      const swaps = fresh.map((t) => { const units = t.units / 10 ** decimals; return { signature: t.signature, wallet: t.wallet, side: t.side, units, sol: t.sol, priceSol: units > 0 ? t.sol / units : price, time: t.time }; });
       let ingested = 0;
       for (let i = 0; i < swaps.length; i += CHUNK) ingested += (await convex.mutation(api.solstarChain.ingest, { ...common, swaps: swaps.slice(i, i + CHUNK) })).applied;
-      await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market });
       return { ok: true, ingested };
     } catch (e) { lastError = e; }
   }
-  const message = lastError instanceof Error ? lastError.message : "rpc_unavailable";
+  const limited = /429|too many requests/i.test(lastError instanceof Error ? lastError.message : "");
+  if (limited) lastRun.set(characterId, Date.now() + 20_000);
+  const message = limited ? "Market updates are temporarily delayed. Retrying shortly." : "Market updates temporarily unavailable. Retrying shortly.";
   try { await convex.mutation(api.solstarChain.ingest, { authSecret: secret, characterId: id, mint, network, swaps: [], error: message.slice(0, 120) }); } catch { /* Convex keeps the last good data */ }
   return { ok: false, ingested: 0, skipped: message };
 }

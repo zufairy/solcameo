@@ -22,7 +22,7 @@ export function dbcReadiness() {
 export function dbcConnection() {
   if (!dbcReadiness().ready) throw new Error(dbcReadiness().reason);
   return new Connection(
-    process.env.SOLCAMEO_DBC_RPC_URL || getRpcUrl(),
+    (process.env.HELIUS_API_KEY || process.env.NEXT_PUBLIC_HELIUS_API_KEY) ? getRpcUrl() : (process.env.SOLCAMEO_DBC_RPC_URL || getRpcUrl()),
     "confirmed",
   );
 }

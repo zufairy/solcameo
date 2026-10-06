@@ -1,16 +1,5 @@
 import type { AIInfluencer, Niche, Language } from "@/lib/types";
-import { getNetwork } from "@/lib/solana/network";
-
-const HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY ?? "";
-
-/** Helius DAS RPC host for the active network. Computed per-call (not a
- *  module-level const) so a mainnet flip doesn't leave this silently
- *  querying devnet — see lib/solana/network.ts's getNetwork(), the same
- *  network read the rest of the app uses. */
-function getHeliusRpcUrl(): string {
-  const host = getNetwork() === "mainnet-beta" ? "mainnet" : "devnet";
-  return `https://${host}.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-}
+import { getHeliusRpcUrl } from "@/lib/solana/network";
 
 interface HeliusAttribute {
   trait_type: string;
@@ -46,7 +35,9 @@ interface HeliusSingleAssetResponse {
 }
 
 async function dasRequest<T>(method: string, params: Record<string, unknown>): Promise<T> {
-  const res = await fetch(getHeliusRpcUrl(), {
+  const endpoint = getHeliusRpcUrl();
+  if (!endpoint) throw new Error("Helius RPC is not configured for this network");
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
