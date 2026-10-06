@@ -12,7 +12,7 @@ import {
   getCurrentSiwsWallet,
 } from "@/lib/client/siwsIdentity";
 import { parseUnits } from "@/lib/solstar/terminal";
-import { AlertTriangle, ArrowUpRight, Check, Loader2, Settings2 } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { SolLogo } from "./SolLogo";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSolUsd } from "@/lib/client/useSolUsd";
@@ -540,7 +540,12 @@ export function DbcTradeTicket({
             <span>{side === "buy" ? "You pay" : "You sell"}</span>
             {balance ? (
               <button type="button" disabled={idle} onClick={() => allocate(100)} className="font-sans tabular-nums transition-colors hover:text-zinc-200">
-                <span className="inline-flex items-center gap-1">{side === "buy" && <SolLogo className="size-3" />}{`${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`}</span>
+                <span className="inline-flex items-center gap-1">
+                  {side === "buy" && !usdActive && <SolLogo className="size-3" />}
+                  {usdActive
+                    ? `${usd2(Number(balance.sol) / 1e9 * solUsd!)} USD`
+                    : `${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`}
+                </span>
               </button>
             ) : (
               <span className="font-sans tabular-nums">{wallet ? "Loading balance…" : "No wallet"}</span>
@@ -557,10 +562,18 @@ export function DbcTradeTicket({
               className="h-11 min-w-0 flex-1 border-0 bg-transparent px-0 font-sans text-[30px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
             />
             {side === "buy" ? (
-              <div role="group" aria-label="Amount currency" className="flex shrink-0 rounded-full border border-white/10 bg-black/40 p-0.5 text-[11px] font-semibold">
-                <button type="button" disabled={idle} aria-pressed={!usdActive} onClick={() => pickCurrency(false)} className={`relative flex h-7 items-center gap-1.5 rounded-full px-2.5 transition-colors ${!usdActive ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" : "text-zinc-500 hover:text-zinc-200"}`}><SolLogo className="size-3.5" />SOL</button>
-                <button type="button" disabled={idle || !solUsd} title={solUsd ? undefined : "USD rate unavailable"} aria-pressed={usdActive} onClick={() => pickCurrency(true)} className={`flex h-7 items-center gap-1 rounded-full px-2.5 transition-colors disabled:opacity-40 ${usdActive ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" : "text-zinc-500 hover:text-zinc-200"}`}><span aria-hidden className="text-[12px] leading-none">$</span>USD</button>
-              </div>
+              <button
+                type="button"
+                disabled={idle || !solUsd}
+                onClick={() => pickCurrency(!usdActive)}
+                aria-label={`Switch amount currency to ${usdActive ? "SOL" : "USD"}`}
+                title={solUsd ? `Switch to ${usdActive ? "SOL" : "USD"}` : "USD rate unavailable"}
+                className="inline-flex h-8 shrink-0 items-center gap-2 rounded-[4px] border border-white/[0.12] bg-white/[0.06] px-2.5 text-[11px] font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:border-white/25 hover:bg-white/10 disabled:opacity-40"
+              >
+                {usdActive ? <span aria-hidden>$</span> : <SolLogo className="size-3.5" />}
+                <span>{usdActive ? "USD" : "SOL"}</span>
+                <RefreshCw aria-hidden className="ml-0.5 size-3.5 text-zinc-400" />
+              </button>
             ) : (
               <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-zinc-300">{ticker}</span>
             )}
@@ -658,9 +671,6 @@ export function DbcTradeTicket({
             View transaction · {signature.slice(0, 8)}…
           </a>
         )}
-        <p className="mt-2 px-0.5 text-center text-[10px] leading-4 text-zinc-600">
-          Meteora · {network} · fees and rent apply · {side === "buy" ? "Max keeps 0.01 SOL for fees" : "slippage enforced on-chain"}
-        </p>
       </div>
     </div>
   );
