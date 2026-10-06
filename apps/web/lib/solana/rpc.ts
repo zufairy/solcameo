@@ -38,5 +38,9 @@ export async function rpcTry<T>(
 
 /** Candidates for the active network. */
 export function rpcCandidates(network?: ReturnType<typeof getNetwork>): string[] {
-  return getRpcCandidates(network);
+  const n = network ?? getNetwork();
+  // The browser path keeps the shared public endpoint as a last resort behind the dedicated one, so a hiccup (or a
+  // rate limit on the public Helius key) can't stop a transfer from landing.
+  const publicUrl = n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : n === "testnet" ? "https://api.testnet.solana.com" : "https://api.devnet.solana.com";
+  return [...new Set([...getRpcCandidates(n), publicUrl])];
 }

@@ -22,7 +22,7 @@ import {
 import { getNetwork, getUsdcMint } from "./network";
 import { rpcTry, rpcCandidates } from "./rpc";
 import { splitFundingAmount } from "./fundingFee";
-import { computeBudgetInstructions, estimatePriorityPrice } from "./landTransaction";
+import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "./landTransaction";
 
 const USDC_DECIMALS = 6;
 // Failover over public devnet → Helius. The devnet Helius key is suspended
@@ -69,11 +69,21 @@ async function readSolBalanceOrNull(owner: PublicKey): Promise<number | null> {
  * Resolves "confirmed" once on-chain, throws on an on-chain error, and returns
  * "pending" (never hangs) if it's submitted but not yet visible within the window.
  */
+/** Transfers this tab just sent, so confirming one also keeps re-broadcasting it and knows when it can no longer land. */
+const sentTransfers = new Map<string, { raw: Uint8Array; lastValidBlockHeight: number }>();
+
 export async function confirmSignature(
   connection: Connection,
   signature: string,
   timeoutMs = 60_000,
 ): Promise<"confirmed" | "pending"> {
+  const sent = sentTransfers.get(signature);
+  if (sent) {
+    const result = await landTransaction({ ...sent, signature, urls: RPC_CANDIDATES, maxMs: timeoutMs });
+    if (result !== "pending") sentTransfers.delete(signature);
+    if (result === "expired") throw new Error("The network didn't include this transfer in time, so nothing was deducted. Please try again.");
+    return result;
+  }
   // `connection` kept for call-site compatibility; we poll via the failover
   // candidates since the primary (Helius) may be suspended/rate-limited.
   void connection;
@@ -282,6 +292,8 @@ export async function sendFundingTransfer(params: {
       : "";
     throw new Error(`Transfer failed: ${msg.slice(0, 160)}${detail}${hint}`);
   }
+  sentTransfers.set(sig, { raw, lastValidBlockHeight });
+  if (sentTransfers.size > 20) sentTransfers.delete(sentTransfers.keys().next().value!);
   return { sig, blockhash, lastValidBlockHeight, raw };
 }
 

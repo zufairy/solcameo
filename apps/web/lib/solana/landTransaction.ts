@@ -75,7 +75,8 @@ export async function landTransaction(args: {
     }
     if (Date.now() - lastSend > 1500) {
       lastSend = Date.now();
-      void rpcTry(urls, (c: Connection) => c.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }), 4000).catch(() => undefined);
+      // Every endpoint gets the bytes, so the transaction reaches more leaders; a duplicate send is harmless.
+      for (const url of urls) void rpcTry([url], (c: Connection) => c.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }), 4000).catch(() => undefined);
     }
     if (Date.now() - lastHeight > 2500) {
       lastHeight = Date.now();
