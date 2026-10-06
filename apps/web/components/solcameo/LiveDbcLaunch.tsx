@@ -185,7 +185,7 @@ export function LiveDbcLaunch({
         setLaunchStep(pending.stage === "config" ? 0 : 1);
         setStatus("Waiting for Solana confirmation…");
         let result;
-        for (let attempt = 0; attempt < 24; attempt++) {
+        for (let attempt = 0; attempt < 36; attempt++) {
           try {
             result = await callLaunch({
               action: "confirm",
@@ -194,12 +194,14 @@ export function LiveDbcLaunch({
             });
             break;
           } catch (e) {
-            if (
-              !(e instanceof Error) ||
-              !e.message.includes("not confirmed") ||
-              attempt === 23
-            )
-              throw e;
+            if (!(e instanceof Error) || !e.message.includes("not confirmed")) throw e;
+            if (attempt === 35) throw new Error("Solana is still confirming your transaction. Nothing is lost: press Launch to keep checking it.");
+            // A busy network can drop a transaction that was only sent once. Re-send the same signed transaction
+            // (same signature, so it can never land twice) while we wait.
+            if (attempt % 3 === 2 && pending.transaction) {
+              try { await callLaunch({ action: "submit", receipt: pending.receipt, transaction: pending.transaction }); } catch { /* already landed, expired, or still syncing */ }
+              setStatus("Still confirming on Solana. Re-sending to speed it up…");
+            }
             await new Promise((r) => setTimeout(r, 2500));
           }
         }

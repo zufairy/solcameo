@@ -34,6 +34,7 @@ import {
 import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { getNetwork } from "@/lib/solana/network";
 import { LAUNCH_MIN_LAMPORTS, formatSol } from "@/lib/meteora/launchCost";
+import { boundedPrice, priorityFeeMicroLamports } from "@/lib/server/priorityFee";
 export async function handleDbcLaunch(req: NextRequest, platform = false) {
   const prep = await prepareAuthedJson(req, 16384);
   if (!prep.ok) return prep.res;
@@ -341,10 +342,16 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
             symbol: token.ticker,
             uri: receipt.uri,
           });
+    // A launch with no priority fee can sit unconfirmed for minutes on a busy mainnet and then drop, which is the
+    // "stuck, then fails" a signer sees. Pay a market-rate (bounded) fee and ask for only the compute the step uses
+    // (the pool step measured about 105k units).
+    const computeUnitLimit = receipt.stage === "pool" ? 250_000 : 400_000;
+    const priorityMicroLamports = boundedPrice(await priorityFeeMicroLamports(network, [config.toBase58(), payer.toBase58()]), computeUnitLimit);
     const prepared = await unsignedPumpTransaction(
       connection,
       payer,
       tx.instructions,
+      { priorityMicroLamports, computeUnitLimit },
     );
     if (platform && body.action === "prepare") await convexClient().mutation(api.platformLaunch.update, { network, wallet, mint: receipt.mint, config: receipt.config, action: "reserve", authSecret: secret });
     return NextResponse.json({
