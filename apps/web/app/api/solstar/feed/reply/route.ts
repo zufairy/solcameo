@@ -13,7 +13,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (typeof body.body !== "string" || !body.body.trim()) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   if (!isConvexIdString(body.calloutId)) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   try {
-    const res = await convexClient().mutation(api.solstarFeed.postReply, { wallet, calloutId: body.calloutId as Id<"ssFeed">, body: body.body.trim(), authSecret: secret });
+    if (body.parentId !== undefined && !isConvexIdString(body.parentId)) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
+    const res = await convexClient().mutation(api.solstarFeed.postReply, {
+      wallet, calloutId: body.calloutId as Id<"ssFeed">, body: body.body.trim(), authSecret: secret,
+      ...(typeof body.parentId === "string" ? { parentId: body.parentId as Id<"ssCalloutReplies"> } : {}),
+    });
     return NextResponse.json(res);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";

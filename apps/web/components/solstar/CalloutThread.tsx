@@ -1,11 +1,11 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- hosted portraits and user media */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, ChevronDown, ChevronUp, Loader2, MessageCircle, Send, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp, CornerDownRight, Loader2, MessageCircle, Minus, Plus, Send, Volume2, VolumeX, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import type { CalloutAttachment } from "@/lib/solstar/calloutMedia";
 import { CalloutFeedCard } from "./CalloutFeedCard";
 import { DbcTradeTicket } from "./DbcTradeTicket";
 import { useNow } from "./feedShared";
+import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 
 export type CalloutRowData = FunctionReturnType<typeof api.solstarFeed.listCallouts>[number];
 
@@ -74,22 +75,41 @@ function ThreadBody({ c, card, onClose }: { c: CalloutRowData; card: CalloutCard
   const now = useNow(30000);
   const replies = useQuery(api.solstarFeed.listReplies, { calloutId: c.id as Id<"ssFeed"> });
   const feed = useQuery(api.solstarFeed.creatorFeed, c.trader ? { mint: c.mint ?? undefined } : { characterId: c.characterId as Id<"ssCharacters"> });
-  const [text, setText] = useState(""), [sending, setSending] = useState(false), [error, setError] = useState("");
-  const scroller = useRef<HTMLDivElement>(null), end = useRef<HTMLDivElement>(null);
+  const { authenticated, login } = useSupabaseAuth();
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [error, setError] = useState("");
+  const scroller = useRef<HTMLDivElement>(null);
   const count = replies?.length ?? 0;
-  useEffect(() => { if (count) end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [count]);
-  async function send() {
-    const body = text.trim();
-    if (!body || sending) return;
-    setSending(true); setError("");
+  const { roots, children } = useMemo(() => {
+    const kids = new Map<string, NonNullable<typeof replies>>();
+    const top: NonNullable<typeof replies> = [];
+    const ids = new Set((replies ?? []).map(r => r.id));
+    for (const r of replies ?? []) {
+      if (r.parentId && ids.has(r.parentId)) kids.set(r.parentId, [...(kids.get(r.parentId) ?? []), r]);
+      else top.push(r);
+    }
+    return { roots: top, children: kids };
+  }, [replies]);
+  /** Posts a reply (top-level when parentId is null). Returns true on success. */
+  async function send(body: string, parentId: string | null): Promise<boolean> {
+    setError("");
+    if (!authenticated) { login(); setError("Sign in to join the thread."); return false; }
     try {
-      if (!getCurrentSiwsToken()) await ensureSiwsViaRegistered();
-      const res = await fetch("/api/solstar/feed/reply", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ calloutId: c.id, body }) });
+      if (!getCurrentSiwsToken() && !(await ensureSiwsViaRegistered())) throw new Error("Connect your Solana wallet and approve the sign-in message to reply.");
+      const res = await fetch("/api/solstar/feed/reply", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ calloutId: c.id, body, ...(parentId ? { parentId } : {}) }) });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error === "rate_limited" ? "Slow down a little before replying again." : data.error === "duplicate_message" ? "You already sent that reply." : "Connect your wallet and sign in to reply.");
-      setText("");
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not send reply."); } finally { setSending(false); }
+      if (!res.ok) {
+        if (data.error === "rate_limited") throw new Error("Slow down a little before replying again.");
+        if (data.error === "duplicate_message") throw new Error("You already sent that reply.");
+        if (data.code === "siws_required" || res.status === 401) throw new Error("Connect your Solana wallet and approve the sign-in message to reply.");
+        throw new Error("Could not post your reply right now. Please try again.");
+      }
+      setReplyTo(null);
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not send reply."); return false; }
   }
+  const toggle = (id: string) => setCollapsed(prev => { const next = new Set(prev); if (!next.delete(id)) next.add(id); return next; });
   const token = feed?.token;
   return <div className="grid h-full min-h-0 md:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
     <section className="flex min-h-0 min-w-0 flex-col border-white/10 md:border-r" aria-label="Thread">
@@ -100,31 +120,74 @@ function ThreadBody({ c, card, onClose }: { c: CalloutRowData; card: CalloutCard
         <button type="button" onClick={onClose} aria-label="Close thread" className="grid size-9 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-white md:hidden"><X className="size-4" /></button>
       </header>
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
-        <ThreadItem image={c.authorImage} name={c.authorName} time={formatRelativeTime(now, c.createdAt)} line={count > 0}>
+        <ThreadItem image={c.authorImage} name={c.authorName} time={formatRelativeTime(now, c.createdAt)} line={false}>
           <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-zinc-100">{c.body}</p>
           <div className="mt-3"><CalloutBundle card={card} media={c.attachments} /></div>
+          <p className="mt-3 text-xs font-medium text-zinc-500">{count} {count === 1 ? "reply" : "replies"}</p>
         </ThreadItem>
-        {replies === undefined ? <p className="py-6 text-center text-xs text-zinc-500">Loading replies…</p> : replies.map((r, i) =>
-          <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <ThreadItem image={r.imageUrl} name={r.name} time={formatRelativeTime(now, r.createdAt)} line={i < replies.length - 1}>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-200">{r.body}</p>
-            </ThreadItem>
-          </motion.div>)}
+        {replies === undefined ? <p className="py-6 text-center text-xs text-zinc-500">Loading replies…</p> : roots.map(r =>
+          <Comment key={r.id} r={r} depth={0} now={now} kidsOf={children} collapsed={collapsed} onToggle={toggle} replyTo={replyTo} onReply={setReplyTo} onSend={send} />)}
         {replies && !replies.length && <p className="pl-[52px] pt-1 text-xs text-zinc-500">No replies yet. Start the thread.</p>}
-        <div ref={end} />
       </div>
-      <form onSubmit={e => { e.preventDefault(); void send(); }} className="shrink-0 border-t border-white/10 bg-black/20 p-3.5">
+      <div className="shrink-0 border-t border-white/10 bg-black/20 p-3.5">
         {error && <p role="status" className="mb-2 px-1 text-xs text-amber-300/90">{error}</p>}
-        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-white/25">
-          <input value={text} onChange={e => setText(e.target.value.slice(0, 280))} placeholder={`Reply to ${c.authorName}…`} aria-label="Reply" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-500" />
-          <button type="submit" disabled={!text.trim() || sending} aria-label="Send reply" className="grid size-9 place-items-center rounded-xl bg-[#d7ff00] text-black transition hover:bg-[#e4ff59] active:scale-95 disabled:opacity-40">{sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
-        </div>
-      </form>
+        <ReplyBox placeholder={`Reply to ${c.authorName}…`} onSend={text => send(text, null)} />
+      </div>
     </section>
     <aside className="relative hidden min-h-0 bg-black md:block" aria-label={`Latest from ${c.name}`}>
       <button type="button" onClick={onClose} aria-label="Close thread" className="absolute right-3 top-3 z-30 grid size-9 place-items-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur-md transition-colors hover:bg-black/70"><X className="size-4" /></button>
       <VideoFeed loading={feed === undefined} videos={feed?.videos ?? []} token={token ?? null} fallbackName={c.name} fallbackImage={c.imageUrl} />
     </aside>
+  </div>;
+}
+
+type ReplyRow = NonNullable<FunctionReturnType<typeof api.solstarFeed.listReplies>>[number];
+
+/** Input + send button used for the post's top-level reply and for inline replies under a comment. */
+function ReplyBox({ placeholder, onSend, onCancel, autoFocus }: { placeholder: string; onSend: (text: string) => Promise<boolean>; onCancel?: () => void; autoFocus?: boolean }) {
+  const [text, setText] = useState(""), [sending, setSending] = useState(false);
+  async function submit() {
+    const body = text.trim();
+    if (!body || sending) return;
+    setSending(true);
+    const ok = await onSend(body);
+    setSending(false);
+    if (ok) setText("");
+  }
+  return <form onSubmit={e => { e.preventDefault(); void submit(); }} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-white/25">
+    <input autoFocus={autoFocus} value={text} onChange={e => setText(e.target.value.slice(0, 280))} placeholder={placeholder} aria-label={placeholder} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-500" />
+    {onCancel && <button type="button" onClick={onCancel} className="px-2 text-xs font-medium text-zinc-400 hover:text-white">Cancel</button>}
+    <button type="submit" disabled={!text.trim() || sending} aria-label="Send reply" className="grid size-9 place-items-center rounded-xl bg-[#d7ff00] text-black transition hover:bg-[#e4ff59] active:scale-95 disabled:opacity-40">{sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
+  </form>;
+}
+
+/** One Reddit-style comment: collapsible thread line, inline reply box, nested children. */
+function Comment({ r, depth, now, kidsOf, collapsed, onToggle, replyTo, onReply, onSend }: {
+  r: ReplyRow; depth: number; now: number; kidsOf: Map<string, ReplyRow[]>; collapsed: Set<string>;
+  onToggle: (id: string) => void; replyTo: string | null; onReply: (id: string | null) => void; onSend: (text: string, parentId: string | null) => Promise<boolean>;
+}) {
+  const kids = kidsOf.get(r.id) ?? [];
+  const isCollapsed = collapsed.has(r.id);
+  const total = (function count(id: string): number { return (kidsOf.get(id) ?? []).reduce((n, k) => n + 1 + count(k.id), 0); })(r.id);
+  return <div className="flex gap-2.5 pt-3">
+    <div className="flex w-8 shrink-0 flex-col items-center">
+      <img src={r.imageUrl} alt="" className="size-7 rounded-full bg-white/10 object-cover ring-1 ring-white/10" />
+      {!isCollapsed && (kids.length > 0 || replyTo === r.id) && <button type="button" onClick={() => onToggle(r.id)} aria-label={`Collapse thread from ${r.name}`} className="group mt-1 flex w-4 flex-1 justify-center"><span className="w-0.5 rounded-full bg-white/10 transition-colors group-hover:bg-[#d7ff00]/70" /></button>}
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2 text-xs">
+        <span className="truncate text-[13px] font-semibold text-white">{r.name}</span>
+        <span className="text-zinc-500">{formatRelativeTime(now, r.createdAt)}</span>
+        {isCollapsed && <button type="button" onClick={() => onToggle(r.id)} className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] px-2 py-0.5 text-[11px] text-zinc-300 hover:bg-white/15"><Plus className="size-3" />{total + 1} {total ? "replies" : "reply"}</button>}
+        {!isCollapsed && kids.length > 0 && <button type="button" onClick={() => onToggle(r.id)} aria-label="Collapse thread" className="ml-auto grid size-5 place-items-center rounded text-zinc-600 hover:bg-white/10 hover:text-white"><Minus className="size-3" /></button>}
+      </div>
+      {!isCollapsed && <>
+        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-200">{r.body}</p>
+        <button type="button" onClick={() => onReply(replyTo === r.id ? null : r.id)} className="mt-1 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-white"><CornerDownRight className="size-3.5" />Reply</button>
+        {replyTo === r.id && <div className="mt-1.5"><ReplyBox autoFocus placeholder={`Reply to ${r.name}…`} onCancel={() => onReply(null)} onSend={text => onSend(text, r.id)} /></div>}
+        {kids.length > 0 && <div className="mt-0.5">{kids.map(k => <Comment key={k.id} r={k} depth={depth + 1} now={now} kidsOf={kidsOf} collapsed={collapsed} onToggle={onToggle} replyTo={replyTo} onReply={onReply} onSend={onSend} />)}</div>}
+      </>}
+    </div>
   </div>;
 }
 

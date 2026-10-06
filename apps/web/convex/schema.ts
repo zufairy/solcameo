@@ -87,6 +87,8 @@ export default defineSchema({
   /** Thread replies under a callout post in the home feed. */
   ssCalloutReplies: defineTable({
     calloutId: v.id("ssFeed"), wallet: v.string(), body: v.string(), createdAt: v.number(),
+    /** Set when this is a reply to another reply (Reddit-style nesting). */
+    parentId: v.optional(v.id("ssCalloutReplies")),
   }).index("by_callout_created", ["calloutId", "createdAt"]).index("by_wallet_created", ["wallet", "createdAt"]),
   contentControlSettings: defineTable({
     key: v.string(), targetMint: v.optional(v.string()), autoAnnounce: v.boolean(), autoMilestones: v.optional(v.boolean()), updatedAt: v.number(),

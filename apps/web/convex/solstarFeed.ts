@@ -149,7 +149,7 @@ const REPLY_LIMIT = 6;
 
 /** Add a reply to a callout thread. */
 export const postReply = mutation({
-  args: { wallet: v.string(), calloutId: v.id("ssFeed"), body: v.string(), authSecret: v.string() },
+  args: { wallet: v.string(), calloutId: v.id("ssFeed"), body: v.string(), parentId: v.optional(v.id("ssCalloutReplies")), authSecret: v.string() },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
     if (a.wallet.length < 32 || a.wallet.length > 44) throw new Error("invalid_wallet");
@@ -157,11 +157,15 @@ export const postReply = mutation({
     if (!body.length || body.length > REPLY_MAX) throw new Error("invalid_body");
     const post = await ctx.db.get(a.calloutId);
     if (!post || post.kind !== "chat") throw new Error("callout_not_found");
+    if (a.parentId) {
+      const parent = await ctx.db.get(a.parentId);
+      if (!parent || parent.calloutId !== a.calloutId) throw new Error("callout_not_found");
+    }
     const now = Date.now();
     const recent = await ctx.db.query("ssCalloutReplies").withIndex("by_wallet_created", q => q.eq("wallet", a.wallet).gte("createdAt", now - RATE_WINDOW_MS)).take(REPLY_LIMIT);
     if (recent.length >= REPLY_LIMIT) throw new Error("rate_limited");
     if (recent.some(r => r.calloutId === a.calloutId && r.body.toLowerCase() === body.toLowerCase())) throw new Error("duplicate_message");
-    await ctx.db.insert("ssCalloutReplies", { calloutId: a.calloutId, wallet: a.wallet, body, createdAt: now });
+    await ctx.db.insert("ssCalloutReplies", { calloutId: a.calloutId, wallet: a.wallet, body, createdAt: now, ...(a.parentId ? { parentId: a.parentId } : {}) });
     return { ok: true as const };
   },
 });
@@ -181,7 +185,7 @@ export const listReplies = query({
     return Promise.all(rows.map(async r => {
       let p = cache.get(r.wallet);
       if (!p) { p = await profileFor(ctx, r.wallet); cache.set(r.wallet, p); }
-      return { id: r._id as string, wallet: shortWallet(r.wallet), body: r.body, createdAt: r.createdAt, name: p.name, imageUrl: p.imageUrl };
+      return { id: r._id as string, parentId: (r.parentId as string | undefined) ?? null, wallet: shortWallet(r.wallet), body: r.body, createdAt: r.createdAt, name: p.name, imageUrl: p.imageUrl };
     }));
   },
 });
