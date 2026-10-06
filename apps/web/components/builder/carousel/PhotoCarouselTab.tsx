@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { IMAGE_ENGINES, imageRetailPriceUsd } from "@/lib/builder/imageEngines";
-import { CHIP, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
+import { CHIP, ChipSelect, PANEL, PriceButton, ResultHeading } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CarouselIdeationPanel, type Idea } from "./CarouselIdeationPanel";
 
@@ -553,8 +553,7 @@ export function PhotoCarouselTab({ mintAddress, sessionId, agentName, avatarUrl 
 
         {/* ── History gallery (KIE generations saved to the DB) ───────────────── */}
         <div className="mt-6">
-          <h3 className="font-sans text-[17px] font-semibold text-white">History</h3>
-          <p className="text-[12px] text-zinc-500">Click any past generation to add it back to the canvas.</p>
+          <ResultHeading title="My Carousels" description="Click any past generation to add it back to the canvas." />
           {rows.length === 0 ? (
             <div className="mt-3 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center text-sm text-zinc-500">
               No generations yet, generate a slide above and it&apos;s saved here.

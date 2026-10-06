@@ -1231,7 +1231,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
           <motion.div key="generate"
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-y-auto"
+            className="flex flex-1 flex-col overflow-y-auto"
             style={WARM_GLASS_BG}
           >
             <GenerateHub mintAddress={isRealMint ? mintAddress : undefined} sessionId={sessionId} avatarUrl={gif} agentName={displayName} mode={genMode} onModeChange={setGenMode} />

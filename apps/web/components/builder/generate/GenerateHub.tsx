@@ -45,7 +45,7 @@ export function GenerateHub({
   }, [character]);
 
   return (
-    <div className="flex min-h-full flex-col" style={GEN_PAGE_BG}>
+    <div className="flex min-h-full flex-1 flex-col" style={GEN_PAGE_BG}>
       <div className="sticky top-0 z-20 flex justify-center px-4 pb-2 pt-5 [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">
         <div role="tablist" aria-label="Generate" className="relative flex gap-0.5 rounded-xl border border-white/[0.1] bg-gradient-to-b from-white/[0.09] to-white/[0.03] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_18px_40px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           {MODES.map((m) => {
@@ -61,7 +61,7 @@ export function GenerateHub({
           })}
         </div>
       </div>
-      <div className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col [&>*]:flex-1">
         {mode === "photo" && <GenerateTab mintAddress={mintAddress} sessionId={sessionId} avatarUrl={avatarUrl} agentName={agentName} characterImages={characterImages} />}
         {mode === "video" && <VideosTab mintAddress={mintAddress} agentName={agentName} characterImages={characterImages} />}
         {mode === "carousel" && <PhotoCarouselTab mintAddress={mintAddress} sessionId={sessionId} agentName={agentName} avatarUrl={avatarUrl} />}

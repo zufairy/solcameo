@@ -61,3 +61,16 @@ export function PriceButton({ onClick, disabled, busy, priceUsd, priceText, pend
     </button>
   );
 }
+
+/** Headline for the results area of Photo, Video and Carousel: display type, a clear gap, then a one-line description. */
+export function ResultHeading({ title, description, action, className = "" }: { title: string; description: string; action?: ReactNode; className?: string }) {
+  return (
+    <div className={`flex items-start justify-between gap-4 ${className}`}>
+      <div className="min-w-0">
+        <h3 className="text-[26px] font-black uppercase leading-none tracking-[-0.01em] text-white" style={{ fontFamily: "Anton, 'Bebas Neue', Impact, sans-serif" }}>{title}</h3>
+        <p className="mt-2.5 max-w-[640px] text-[11.5px] leading-relaxed text-zinc-500">{description}</p>
+      </div>
+      {action}
+    </div>
+  );
+}

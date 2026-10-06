@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { IMAGE_ENGINES, IMAGE_TO_IMAGE_REROUTE_IDS, imageRetailPriceUsd } from "@/lib/builder/imageEngines";
-import { CHIP, ChipSelect, PANEL, PriceButton } from "./ui";
+import { CHIP, ChipSelect, PANEL, PriceButton, ResultHeading } from "./ui";
 import { MentionTextarea, type Mention } from "./MentionTextarea";
 
 import { useAgentLibrary } from "@/components/builder/useAgentLibrary";
@@ -364,16 +364,17 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, agentName, char
         </div>
 
         {/* ── Asset grid: every uploaded / generated card, draggable + click-to-attach ── */}
-        <div className="mt-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-[26px] font-black uppercase leading-none tracking-[-0.01em] text-white" style={{ fontFamily: "Anton, 'Bebas Neue', Impact, sans-serif" }}>My Images</h3>
-            <p className="text-[11.5px] text-zinc-500">Pin one as the video reference, every future video (manual and the agent&apos;s own scheduled runs) will match its look instead of the default avatar.</p>
-          </div>
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.04] backdrop-blur-xl px-3 py-1.5 text-[12px] font-semibold text-zinc-300 hover:bg-white/10">
-            <Plus className="size-3.5" /> Add image
-          </button>
-        </div>
+        <ResultHeading
+          className="mt-6"
+          title="My Images"
+          description="Pin one as the video reference, every future video (manual and the agent's own scheduled runs) will match its look instead of the default avatar."
+          action={
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.04] backdrop-blur-xl px-3 py-1.5 text-[12px] font-semibold text-zinc-300 hover:bg-white/10">
+              <Plus className="size-3.5" /> Add image
+            </button>
+          }
+        />
         {assets.length === 0 && personaImages.length === 0 ? (
           <div className="mt-3 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
             <ImagePlus className="mx-auto size-8 text-zinc-400" />

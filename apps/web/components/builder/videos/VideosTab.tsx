@@ -10,7 +10,7 @@ import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, Im
 import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
-import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
+import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton, ResultHeading } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 
 // Same visible set as the Director tab's engine picker — keep in sync with it.
@@ -325,7 +325,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
     <div className="min-h-full px-8 py-8">
       <div className="mx-auto max-w-[1100px]">
         {/* ── Prompt box ──────────────────────────────────────────────────── */}
-        <div className={`mx-auto max-w-[640px] p-5 ${PANEL}`}>
+        <div className={`mx-auto max-w-[900px] p-5 ${PANEL}`}>
           {attachedImage && (
             <div className="mb-3 flex items-center gap-2">
               <div className="group relative size-14 overflow-hidden rounded-lg border-2 border-white/15">
@@ -400,7 +400,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
 
         {/* ── My Images: pick a saved photo as this video's face reference ── */}
         {pickerImages.length > 0 && (
-          <div className="mt-4 mx-auto max-w-[640px]">
+          <div className="mt-4 mx-auto max-w-[900px]">
             <p className="text-[11px] font-semibold text-zinc-400">My Images</p>
             <p className="text-[10.5px] text-zinc-600">Tap a photo to use it as the face reference for the next video, same as attaching it.</p>
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -428,6 +428,11 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
         )}
 
         {/* ── Video grid ──────────────────────────────────────────────────── */}
+        <ResultHeading
+          className="mt-8"
+          title="My Videos"
+          description="Everything this agent has generated. Click a video to open it, download it, or use it in a post."
+        />
         {videos.length === 0 ? (
           <div className="mt-14 text-center">
             <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-white/[0.05]">
