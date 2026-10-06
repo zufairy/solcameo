@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (price === null) return NextResponse.json({ error: "Use a reference video between 4 and 30 seconds with a readable duration." }, { status: 400 });
   const runId = `motion:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
-  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });
   let accepted = false;
   try {
     const requestId = await submitVideo(

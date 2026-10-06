@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { requireAuth, getUserWallet, walletBelongsToUser, type AuthUser } from "./requireAuth";
 import { dbcTreasury } from "./dbcTreasury";
+import { generationCollectionWallet } from "./generationCollectionWallet";
 import { verifyUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
 import { getUsdcMint } from "@/lib/solana/network";
 import { STUDIO_IMAGE_USD, studioCostUsd } from "@/lib/studio/pricing";
@@ -11,6 +12,8 @@ const secret = () => process.env.INTERNAL_CRON_SECRET ?? "";
 const convex = () => new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 /** The Solcameo wallet that collects studio payments: the platform wallet, else the DBC treasury (address, or derived from its key). */
 export function studioTreasury(): string {
+  const collection = generationCollectionWallet();
+  if (collection) return collection;
   for (const name of ["SOLCAMEO_PLATFORM_WALLET", "SOLCAMEO_DBC_TREASURY_WALLET"]) {
     const value = process.env[name]?.trim();
     if (value && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;

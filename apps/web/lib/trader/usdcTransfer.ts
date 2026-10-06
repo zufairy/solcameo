@@ -14,6 +14,7 @@ import {
   createAssociatedTokenAccountInstruction, createTransferInstruction,
   getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import bs58 from "bs58";
 import { getUsdcMint, getNetwork, getRpcUrl } from "@/lib/solana/network";
 
 // Single source of truth via lib/solana/network — devnet returns the PUBLIC
@@ -28,9 +29,21 @@ export function getRpcConnection() {
   return new Connection(RPC_URL, "confirmed");
 }
 
-export function loadKeypair(secretBase64: string): Keypair {
-  const bytes = Buffer.from(secretBase64, "base64");
-  return Keypair.fromSecretKey(bytes);
+/**
+ * Load a signing key from any of the formats these secrets have been stored in: base64 (agent wallets), a JSON byte
+ * array (Solana CLI) or base58 (Phantom export). Throws unless it is a full 64-byte keypair, so a 32-byte public key
+ * pasted by mistake fails loudly instead of being half-parsed.
+ */
+export function loadKeypair(secret: string): Keypair {
+  const text = secret.trim();
+  if (text.startsWith("[")) return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(text)));
+  const base64 = Buffer.from(text, "base64");
+  if (base64.length === 64) return Keypair.fromSecretKey(base64);
+  try {
+    const base58 = bs58.decode(text);
+    if (base58.length === 64) return Keypair.fromSecretKey(base58);
+  } catch { /* not base58 */ }
+  throw new Error("Secret is not a 64-byte keypair (base64, base58 or JSON array)");
 }
 
 /**

@@ -111,6 +111,8 @@ describe("planFeeChunks (HIGH-1 cap-aware split)", () => {
 });
 
 describe("sweepAgentTabOnchain (chunked, cap-aware, on-chain idempotency)", () => {
+  // The on-chain vault route is opt-in now; these cases exercise it.
+  beforeEach(() => { process.env.VELLO_VAULT_SWEEP = "1"; });
   it("defers an empty vault without submitting a transaction or charging custody", async () => {
     h.getTokenAccountBalanceMock.mockResolvedValue({ value: { amount: "0" } });
     expect(await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "empty", amountUsdc: 3 }))
@@ -242,6 +244,7 @@ describe("sweepAgentTabOnchain (chunked, cap-aware, on-chain idempotency)", () =
 });
 
 describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spend", () => {
+  beforeEach(() => { delete process.env.VELLO_VAULT_SWEEP; });
   it("(a) a no-vault agent takes the custodial transferUsdc branch and does NOT throw", async () => {
     h.queryMock.mockImplementation(custodialQueryDispatch()); // vaultEnabled:false
     h.transferUsdcMock.mockResolvedValue({ ok: true, txSignature: "CUSTODIAL_SIG" });
@@ -252,14 +255,24 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
     expect(h.debitFeeTxMock).not.toHaveBeenCalled(); // never touched the vault path
   });
 
-  it("(b) the custodial sweep targets the env-treasury (toPubkey = NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET) from the agent wallet with sponsored gas", async () => {
+  it("a vault-enabled agent is also paid from its own wallet to the generation wallet, never through the vault", async () => {
+    const base = custodialQueryDispatch();
+    h.queryMock.mockImplementation(async (ref: unknown) => (getFunctionName(ref as Parameters<typeof getFunctionName>[0]) === "agentAccount:get" ? { vaultEnabled: true, vaultAgentId: "ab".repeat(16) } : base(ref)));
+    h.transferUsdcMock.mockResolvedValue({ ok: true, txSignature: "CUSTODIAL_SIG" });
+    const res = await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "v1", amountUsdc: 1.25 });
+    expect(res).toEqual({ ok: true, txSignature: "CUSTODIAL_SIG" });
+    expect(h.debitFeeTxMock).not.toHaveBeenCalled();
+    expect(h.transferUsdcMock.mock.calls[0][0].toPubkey).toBe("EhXTsbTMTgkGhBdUGAWx5JL78Jmu1dZgDCVUFWJp3pSa");
+  });
+
+  it("(b) the custodial sweep targets the generation collection wallet from the agent wallet with sponsored gas", async () => {
     h.queryMock.mockImplementation(custodialQueryDispatch());
     h.transferUsdcMock.mockResolvedValue({ ok: true, txSignature: "CUSTODIAL_SIG" });
     await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "c2", amountUsdc: 2.5 });
     const arg = h.transferUsdcMock.mock.calls[0][0];
     // toPubkey is the treasury WALLET from env; transferUsdc derives its USDC ATA —
     // the exact same account the vault (debit_fee) path targets.
-    expect(arg.toPubkey).toBe("11111111111111111111111111111111");
+    expect(arg.toPubkey).toBe("EhXTsbTMTgkGhBdUGAWx5JL78Jmu1dZgDCVUFWJp3pSa");
     expect(arg.fromPubkey).toBe("AGENT_WALLET");
     expect(arg.fromSecretBase64).toBe("decrypted:enc-secret"); // via readAgentSecret
     expect(arg.amountUsdc).toBe(2.5);
@@ -294,6 +307,7 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
   });
 
   it("(f) an InvalidTreasury debit_fee revert (vault path) is TERMINAL + alerted, not the retry-releasing loop", async () => {
+    process.env.VELLO_VAULT_SWEEP = "1";
     // vaultEnabled:true (default) → the vault path. The env-rotation strand: the
     // treasury ATA no longer matches the vault's configured treasury → 0x1775.
     h.getAccountInfoMock.mockResolvedValue(null); // FeeRecord absent → the fee never moved
@@ -311,6 +325,7 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
   });
 
   it("(f') Unauthorized / MintMismatch debit_fee reverts are likewise terminal + alerted", async () => {
+    process.env.VELLO_VAULT_SWEEP = "1";
     for (const [i, msg] of [
       "Error Code: Unauthorized. Error Number: 6003. custom program error: 0x1773",
       "Error Code: MintMismatch. Error Number: 6004. custom program error: 0x1774",

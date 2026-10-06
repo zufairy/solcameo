@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (owner.error) return owner.error;
   const runId = `text:${randomUUID()}`;
   const charge = await chargeAgentGeneration(owner.mint, runId, "llm_message");
-  if (!charge.ok) return NextResponse.json({ ok: false, error: "Deposit USDC to this agent wallet to generate.", code: charge.reason, mintAddress: owner.mint }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+  if (!charge.ok) return NextResponse.json({ ok: false, error: "Deposit USDC to this agent wallet to generate.", code: charge.reason, mintAddress: owner.mint }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });
 
   try {
     const text = await callClaudeText({ system, user, maxTokens: 60 });

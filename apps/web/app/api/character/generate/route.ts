@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       const charge = await chargeAgentGeneration(a.mint, billingRunId, "image_gen");
       if (!charge.ok) {
         await Promise.all(billingRuns.slice(0, index).map(id => refundImage(a.mint, id)));
-        return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: count * 0.05 }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+        return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: count * 0.05 }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });
       }
     }
   }

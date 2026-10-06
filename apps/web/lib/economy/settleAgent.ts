@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED } from "@/lib/economy/vaultSweep";
@@ -6,9 +7,9 @@ import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROC
 /** Sweep the tab on-chain once it reaches this much. Configurable via
  *  VELLO_SETTLE_THRESHOLD_USDC — set it to 0 for immediate per-task on-chain
  *  deduction, or higher to batch (fewer fees). Default 0.05 ≈ near-immediate. */
-const SETTLE_THRESHOLD_USDC = Number(process.env.VELLO_SETTLE_THRESHOLD_USDC ?? "0.05");
+const SETTLE_THRESHOLD_USDC = Number(process.env.VELLO_SETTLE_THRESHOLD_USDC ?? "0");
 
-const TREASURY = process.env.NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET?.trim() ?? "";
+const TREASURY = generationCollectionWallet();
 
 export type SettleResult =
   | { status: "skipped"; reason: string }
@@ -25,7 +26,7 @@ export type SettleResult =
  * (the UI already reflects it as spent via `available = on-chain − tab`). NEVER
  * throws — settlement is best-effort and must not break task execution.
  */
-export async function settleAgentEconomics(mintAddress: string): Promise<SettleResult> {
+export async function settleAgentEconomics(mintAddress: string, opts: { immediate?: boolean } = {}): Promise<SettleResult> {
   try {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
     const agent = await convex.query(api.influencers.getByMintServer, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
@@ -42,7 +43,8 @@ export async function settleAgentEconomics(mintAddress: string): Promise<SettleR
     const tabUsdc = recon.ok ? recon.unsettledTabUsdc : 0;
 
     // 2) Decide whether to sweep on-chain now.
-    if (tabUsdc < SETTLE_THRESHOLD_USDC) return { status: "accruing", tabUsdc, reason: "below threshold" };
+    // `immediate` is the pay-before-generate path: whatever is on the tab moves on-chain now, however small.
+    if (tabUsdc <= 0 || (!opts.immediate && tabUsdc < SETTLE_THRESHOLD_USDC)) return { status: "accruing", tabUsdc, reason: "below threshold" };
     if (!TREASURY) return { status: "accruing", tabUsdc, reason: "no treasury configured" };
 
     // 3) Book the settlement in Convex (collapses unsettled rows into a

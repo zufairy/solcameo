@@ -24,6 +24,7 @@
  * backing, even for a vault-enabled agent (H5).
  */
 import { Connection, PublicKey } from "@solana/web3.js";
+import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -43,7 +44,7 @@ import {
   USDC_DECIMALS,
 } from "@/lib/agentVault";
 
-const TREASURY = process.env.NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET?.trim() ?? "";
+const TREASURY = generationCollectionWallet();
 
 /**
  * Terminal marker stamped into `feeSettlements.txSignature` when a `debit_fee`
@@ -271,11 +272,13 @@ export async function sweepAgentTabOnchain(opts: {
   const { mintAddress, settlementId, amountUsdc } = opts;
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) throw new Error("NEXT_PUBLIC_CONVEX_URL not configured");
-  if (!TREASURY) throw new Error("NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET not configured");
+  if (!TREASURY) throw new Error("Generation collection wallet not configured");
 
   const convex = new ConvexHttpClient(convexUrl);
   const account = await convex.query(api.agentAccount.get, { mintAddress });
-  if (!account?.vaultEnabled || !account.vaultAgentId) {
+  // Generation fees are paid from the agent's own wallet straight to the generation collection wallet. The vault
+  // `debit_fee` route can only pay the treasury the vault was created with, so it stays off unless VELLO_VAULT_SWEEP=1.
+  if (process.env.VELLO_VAULT_SWEEP !== "1" || !account?.vaultEnabled || !account.vaultAgentId) {
     // CUSTODIAL FALLBACK: no enabled on-chain vault → sweep the booked fee straight
     // from the agent's custodial wallet to the treasury via transferUsdc, mirroring
     // app/api/agents/withdraw. Without this a vault-less agent's fee is forever

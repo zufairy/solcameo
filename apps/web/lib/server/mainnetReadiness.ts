@@ -2,6 +2,7 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import { getNetwork, getRpcUrl, getUsdcMint, USDC_MINT_BY_NETWORK } from "@/lib/solana/network";
 import { loadMasterKey } from "@/lib/server/walletCrypto";
+import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 
 export type CheckLevel = "ok" | "warn" | "fail";
 export interface ReadinessCheck { id: string; level: CheckLevel; detail: string }
@@ -79,6 +80,21 @@ export async function mainnetReadiness(): Promise<{ ready: boolean; network: str
   let treasuryOk = false;
   try { treasuryOk = !!treasury && !!new PublicKey(treasury); } catch { treasuryOk = false; }
   add(checks, "treasury.wallet", treasuryOk ? "ok" : "fail", treasuryOk ? `Treasury ${treasury}` : "NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET missing or invalid: settlements have no destination");
+
+  // Where generation payments land. Defaults to the Higgsfield top-up wallet, whatever the legacy treasury says.
+  try {
+    const collection = generationCollectionWallet();
+    add(checks, "generation.wallet", "ok", `Generation payments go to ${collection}${treasury && treasury !== collection ? ` (the legacy treasury ${treasury} no longer receives them)` : ""}`);
+  } catch { add(checks, "generation.wallet", "fail", "SOLCAMEO_GENERATION_COLLECTION_WALLET is not a valid address: generation payments cannot be sent"); }
+  const dbcKey = parseSecret(process.env.SOLCAMEO_DBC_TREASURY_SECRET), dbcAddress = process.env.SOLCAMEO_DBC_TREASURY_WALLET?.trim();
+  if (dbcKey && dbcAddress && dbcKey.publicKey.toBase58() !== dbcAddress) add(checks, "signer.dbcTreasury.address", "warn", `SOLCAMEO_DBC_TREASURY_WALLET (${dbcAddress}) is not the wallet of SOLCAMEO_DBC_TREASURY_SECRET (${dbcKey.publicKey.toBase58()}). Launch fees are claimed by the key, so remove or fix the address.`);
+  const escrowId = process.env.NEXT_PUBLIC_VELLO_ESCROW_PROGRAM_ID?.trim();
+  if (escrowId && connection) {
+    try {
+      const info = await connection.getAccountInfo(new PublicKey(escrowId), "confirmed");
+      add(checks, "escrow", info?.executable ? "ok" : "warn", info?.executable ? "Campaign escrow program is deployed on mainnet" : "Campaign escrow program is NOT deployed on mainnet: funding and paying out campaigns will fail until it is");
+    } catch { add(checks, "escrow", "warn", "Could not verify the campaign escrow program"); }
+  }
 
   let platformOk = false;
   try { platformOk = !!new PublicKey(process.env.SOLCAMEO_PLATFORM_WALLET ?? ""); } catch { platformOk = false; }

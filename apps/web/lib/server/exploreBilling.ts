@@ -1,4 +1,5 @@
-import { refreshAgentFunds, settleSoon } from "./agentWallet";
+import { refreshAgentFunds } from "./agentWallet";
+import { payForCharge } from "./generationPayment";
 import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -14,17 +15,22 @@ export type ChargeResult = { ok: true; costUsdc: number; duplicate?: boolean } |
 
 /**
  * Charge the agent for one render. The cost lands on the agent's tab (or its owner's credits)
- * and the agent wallet settles it on-chain to the Solcameo treasury, exactly like every other
- * metered service. Idempotent per runId, so a retry never charges twice.
+ * and the agent wallet pays it on-chain to the generation collection wallet before the render starts. Idempotent per runId, so a retry never charges twice.
  */
 export async function chargeExploreRun(mint: string, runId: string, priceUsdc: number): Promise<ChargeResult> {
   const qty = Math.max(1, Math.round(priceUsdc * 100));
   try {
     await refreshAgentFunds(mint);
     const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
-    if (r.ok) settleSoon(mint);
-    if (r.ok) return { ok: true, costUsdc: r.costUsdc, ...("duplicate" in r && r.duplicate ? { duplicate: true } : {}) };
-    return { ok: false, reason: r.reason ?? "needs_funding" };
+    if (!r.ok) return { ok: false, reason: r.reason ?? "needs_funding" };
+    const duplicate = "duplicate" in r && r.duplicate;
+    // Pay first: the USDC reaches the generation wallet on-chain before any provider is called. A retry of a run that
+    // was already booked has already paid, so it is not charged again.
+    if (!duplicate) {
+      const paid = await payForCharge(mint);
+      if (!paid.ok) { await refundExploreRun(mint, runId); return { ok: false, reason: "payment_failed" }; }
+    }
+    return { ok: true, costUsdc: r.costUsdc, ...(duplicate ? { duplicate: true } : {}) };
   } catch {
     return { ok: false, reason: "billing_unavailable" };
   }
@@ -41,4 +47,5 @@ export const CHARGE_MESSAGES: Record<string, string> = {
   daily_cap: "This agent hit its daily spend cap. Raise the cap or try again tomorrow.",
   suspended: "This agent is suspended.",
   billing_unavailable: "Billing is temporarily unavailable. Please try again.",
+  payment_failed: "The on-chain payment from this agent wallet did not confirm, so nothing was generated or charged. Please try again.",
 };

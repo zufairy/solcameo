@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 import { randomUUID } from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -14,7 +15,7 @@ import { decideUnknownSettlement } from "@/lib/economy/recoveryDecisions";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const TREASURY = process.env.NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET?.trim() ?? "";
+const TREASURY = generationCollectionWallet();
 
 type RowOutcome =
   | { settlementId: string; result: "paid"; txSignature: string; verified?: boolean }

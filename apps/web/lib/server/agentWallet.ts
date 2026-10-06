@@ -36,6 +36,12 @@ export async function refreshAgentFunds(mintAddress: string) {
  * throws: a deferred sweep is picked up by the keeper, and a render that failed (refunded first) leaves nothing to sweep.
  */
 export function settleSoon(mintAddress: string) {
-  const run = () => void settleAgentEconomics(mintAddress).catch(() => undefined);
-  try { after(run); } catch { run(); }
+  const run = async () => {
+    const result = await settleAgentEconomics(mintAddress);
+    if (result.status === "skipped" || (result.status === "accruing" && result.reason !== "nothing to settle")) {
+      console.warn("[generation-settlement] Payment pending; keeper will retry", { mintAddress, ...result });
+    }
+  };
+  // Return the promise to Next.js so the response lifecycle waits for settlement.
+  try { after(run); } catch { void run().catch(() => undefined); }
 }

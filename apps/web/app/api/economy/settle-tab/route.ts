@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 import { requireInternalOrUserAuth, requireOwnerWithSiws } from "@/lib/server/requireAuth";
 import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED, type SweepResult } from "@/lib/economy/vaultSweep";
 
 export const runtime = "nodejs";
 
-const TREASURY = process.env.NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET ?? "";
+const TREASURY = generationCollectionWallet();
 
 export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);

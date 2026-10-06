@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   // Every engine attempt is its own charge and is refunded if that attempt fails.
   if (walletFunded) {
     const charge = await chargeAgentGeneration(a.mint, billingRunId, "image_gen");
-    if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+    if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });
   }
   try {
     const { taskId, engine } = await createShirtTask({ prompt, urls: logo ? [portrait, logo] : [portrait], ratio, engineIndex });

@@ -139,3 +139,8 @@ _to_delete/
 target/
 /local-assets/
 /demo-clips/
+
+# Wallet keypairs: never commit
+feepayer.json
+treasury.json
+*-keypair.json
