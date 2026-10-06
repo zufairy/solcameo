@@ -57,6 +57,7 @@ import PostingTab from "./PostingTab";
 import SchedulePanel from "./SchedulePanel";
 import AppStoreTab from "./AppStoreTab";
 import VideoDirectorTab from "./VideoDirectorTab";
+import EmptyVideoStack from "./EmptyVideoStack";
 import NextVideoCard from "./NextVideoCard";
 import IdeasPanel from "./IdeasPanel";
 import { ClippingFlowCanvas } from "@/components/builder/clipping-flow/ClippingFlowCanvas";
@@ -3874,9 +3875,13 @@ function ClipperHomeCockpit(props: {
                 </button>
               </div>
               {!nextScheduledPost && recentClips.length === 0 ? (
-                <PaperCard className="p-4 !bg-zinc-900/50 !border-white/10 backdrop-blur-xl">
-                  <p className="text-[12.5px] text-zinc-500">Nothing yet, generate a video in the Videos tab or run the Clipping pipeline.</p>
-                </PaperCard>
+                isClipping ? (
+                  <PaperCard className="p-4 !bg-zinc-900/50 !border-white/10 backdrop-blur-xl">
+                    <p className="text-[12.5px] text-zinc-500">Nothing yet, run the Clipping pipeline to make your first clips.</p>
+                  </PaperCard>
+                ) : (
+                  <EmptyVideoStack onGenerate={() => setActiveTab("director")} />
+                )
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4">
                   {nextScheduledPost && (
