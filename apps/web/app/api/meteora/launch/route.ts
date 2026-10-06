@@ -32,6 +32,7 @@ import {
 } from "@/lib/server/pumpLaunch";
 import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { getNetwork } from "@/lib/solana/network";
+import { LAUNCH_MIN_LAMPORTS, formatSol } from "@/lib/meteora/launchCost";
 export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const prep = await prepareAuthedJson(req, 16384);
@@ -234,6 +235,15 @@ export async function POST(req: NextRequest) {
       }
     }
     const config = new PublicKey(receipt.config);
+    // The wallet pays all on-chain rent. Refuse BEFORE asking for a signature if it can't cover this step,
+    // instead of letting the simulation fail after the first transaction has already been paid.
+    const requiredLamports = receipt.stage === "config" ? LAUNCH_MIN_LAMPORTS.total : LAUNCH_MIN_LAMPORTS.pool;
+    const balanceLamports = await connection.getBalance(payer, "confirmed");
+    if (balanceLamports < requiredLamports)
+      return NextResponse.json({
+        error: `Your wallet needs about ${formatSol(requiredLamports)} SOL to ${receipt.stage === "config" ? "launch" : "finish this launch"} (it has ${formatSol(balanceLamports) || "0"} SOL). This covers on-chain rent and network fees. Add SOL, then press Launch again. Nothing is lost.`,
+        code: "INSUFFICIENT_SOL", requiredLamports, balanceLamports,
+      }, { status: 402 });
     const token = (
       await convexClient().query(api.solstarCreate.getLaunchCharacter, {
         characterId: receipt.characterId as Id<"ssCharacters">,

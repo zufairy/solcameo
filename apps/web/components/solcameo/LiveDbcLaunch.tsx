@@ -11,6 +11,7 @@ import { Loader2, CheckCircle2, Rocket, Check } from "lucide-react";
 import { unlockLaunchAudio } from "@/lib/client/launchSound";
 import type { DbcOptions } from "@/lib/meteora/options";
 import { Notice } from "./Notice";
+import { LAUNCH_MIN_LAMPORTS, formatSol } from "@/lib/meteora/launchCost";
 
 const LAUNCH_STEPS = [
   { title: "Approve curve", hint: "Tap Approve in your wallet to lock in your launch settings." },
@@ -25,6 +26,8 @@ type Pending = {
   stage: "config" | "pool";
   signature?: string;
 };
+/** True only when the balance is known and too small to cover the launch (unknown is left to the server check). */
+const lowSol = (lamports: number | null | undefined) => typeof lamports === "number" && lamports < LAUNCH_MIN_LAMPORTS.pool;
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 async function call(body: unknown) {
@@ -63,7 +66,7 @@ export function LiveDbcLaunch({
   }, [address, check]);
   const [busy, setBusy] = useState(false),
     [status, setStatus] = useState(""),
-    [error, setError] = useState("");
+    [launchError, setError] = useState("");
   const [launchStep, setLaunchStep] = useState(0);
   const launchLock = useRef(false);
   const autoStarted = useRef(false);
@@ -74,8 +77,8 @@ export function LiveDbcLaunch({
       setError("Connect your Solana wallet to approve the launch.");
       return;
     }
-    if (!preflight?.ready || preflight.balanceLamports === 0) {
-      setError(getNetworkLabel() === "Devnet" ? "Verify the devnet connection and fund your wallet with test SOL first." : "Verify the network connection and make sure your wallet holds enough SOL for the launch.");
+    if (!preflight?.ready || lowSol(preflight.balanceLamports)) {
+      setError(!preflight?.ready ? (getNetworkLabel() === "Devnet" ? "Verify the devnet connection and fund your wallet with test SOL first." : "Verify the network connection, then launch.") : `Your wallet needs about ${formatSol(LAUNCH_MIN_LAMPORTS.total)} SOL for on-chain rent and fees before launching. Add SOL, then launch.`);
       return;
     }
     launchLock.current = true;
@@ -216,17 +219,17 @@ export function LiveDbcLaunch({
     }
   }, [publicKey, signTransaction, preflight, characterId, options, onComplete]);
   useEffect(() => {
-    // Auto-start can't proceed: say why instead of leaving the launch guide waiting forever.
-    if (!autoStart || autoStarted.current || !preflight) return;
-    if (!publicKey || !signTransaction) setError("Connect your Solana wallet to approve the launch.");
-    else if (!preflight.ready) setError(preflight.error ?? "The network connection could not be verified. Check again, then launch.");
-    else if (preflight.balanceLamports === 0) setError("Your wallet has no SOL. Add SOL for fees and rent, then launch.");
-  }, [autoStart, publicKey, signTransaction, preflight]);
-  useEffect(() => {
-    if (!autoStart || autoStarted.current || !publicKey || !signTransaction || !preflight?.ready || preflight.balanceLamports === 0) return;
+    if (!autoStart || autoStarted.current || !publicKey || !signTransaction || !preflight?.ready || lowSol(preflight.balanceLamports)) return;
     autoStarted.current = true;
     void launch();
   }, [autoStart, publicKey, signTransaction, preflight, launch]);
+  // When auto-start can't proceed, say why instead of leaving the launch guide waiting forever.
+  const startBlock = autoStart && preflight && !busy && launchStep === 0
+    ? (!publicKey || !signTransaction ? "Connect your Solana wallet to approve the launch."
+      : !preflight.ready ? (preflight.error ?? "The network connection could not be verified. Check again, then launch.")
+      : lowSol(preflight.balanceLamports) ? `Your wallet needs about ${formatSol(LAUNCH_MIN_LAMPORTS.total)} SOL for on-chain rent and fees before launching. Add SOL, then launch.` : "")
+    : "";
+  const error = launchError || startBlock;
   useEffect(() => { onProgress?.({ step: launchStep, status, busy, error }); }, [onProgress, launchStep, status, busy, error]);
   const complete = launchStep >= 2;
   const instruction = error ? "" : status || (busy ? "Opening your wallet…" : !publicKey ? "Connect your wallet to begin. You will approve twice." : LAUNCH_STEPS[Math.min(launchStep, 2)].hint);
@@ -272,11 +275,11 @@ export function LiveDbcLaunch({
         </p>
       </div>
 
-      {preflight?.balanceLamports != null && <p className="mt-3 text-center text-[11px] text-zinc-500">Wallet balance {(preflight.balanceLamports / 1e9).toFixed(4)} SOL · covers fees and rent, no token purchase</p>}
+      {preflight?.balanceLamports != null && <p className="mt-3 text-center text-[11px] text-zinc-500">Wallet balance {(preflight.balanceLamports / 1e9).toFixed(4)} SOL · launching needs about {formatSol(LAUNCH_MIN_LAMPORTS.total)} SOL for on-chain rent and fees, no token purchase</p>}
       {preflight?.error && <div className="mt-3"><Notice tone="warn">{preflight.error}</Notice></div>}
-      {(!preflight?.ready || preflight.balanceLamports === 0) && <div className="mt-3 flex items-center justify-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
+      {(!preflight?.ready || lowSol(preflight.balanceLamports)) && <div className="mt-3 flex items-center justify-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
       <Button
-        disabled={busy || (!!publicKey && (!preflight?.ready || preflight.balanceLamports === 0))}
+        disabled={busy || (!!publicKey && (!preflight?.ready || lowSol(preflight.balanceLamports)))}
         onClick={() => { unlockLaunchAudio(); if (publicKey) void launch(); else setVisible(true); }}
         className="mt-4 h-12 w-full rounded-xl bg-[#d7ff00] text-[15px] font-semibold text-zinc-950 shadow-[0_10px_28px_-10px_rgba(215,255,0,0.55)] hover:bg-[#e4ff59]"
       >

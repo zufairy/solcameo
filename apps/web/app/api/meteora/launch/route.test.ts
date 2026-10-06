@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   rpc: {
     getLatestBlockhash: vi.fn(),
     getBlockHeight: vi.fn(),
+    getBalance: vi.fn(),
     getGenesisHash: vi.fn().mockResolvedValue("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"),
     sendRawTransaction: vi.fn(),
     getTransaction: vi.fn(),
@@ -110,6 +111,7 @@ beforeEach(() => {
   });
   m.rpc.getLatestBlockhash.mockResolvedValue({ blockhash });
   m.rpc.isBlockhashValid.mockResolvedValue({ value: true });
+  m.rpc.getBalance.mockResolvedValue(1_000_000_000);
   vi.stubEnv("SOLCAMEO_DBC_TREASURY_SECRET", JSON.stringify([...Keypair.generate().secretKey]));
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -121,6 +123,20 @@ describe("Meteora wallet launch", () => {
     });
     expect((await POST(new NextRequest("http://localhost"))).status).toBe(403);
     expect(m.query).not.toHaveBeenCalled();
+  });
+  it("refuses to build a transaction when the wallet cannot cover the on-chain rent", async () => {
+    m.rpc.getBalance.mockResolvedValue(171_067);
+    const res = await request({
+      action: "prepare",
+      characterId,
+      mint: Keypair.generate().publicKey.toBase58(),
+      config: Keypair.generate().publicKey.toBase58(),
+      options: DEFAULT_DBC,
+    });
+    expect(res.status).toBe(402);
+    const body = await res.json();
+    expect(body.code).toBe("INSUFFICIENT_SOL");
+    expect(body.requiredLamports).toBeGreaterThan(171_067);
   });
   it("prepares config without sending a transaction", async () => {
     const res = await request({
