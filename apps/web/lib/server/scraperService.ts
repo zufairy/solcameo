@@ -13,7 +13,7 @@
  */
 
 import { getPostAnalytics, resolveUsername } from "./uploadPost";
-import { fetchXPostViews, tweetIdFromUrl } from "./xApi";
+import { fetchXPostViews, fetchXPostViewsForProfile, tweetIdFromUrl } from "./xApi";
 
 export type ScrapePlatform = "tiktok" | "instagram" | "youtube";
 
@@ -68,7 +68,10 @@ export async function fetchUploadPostViews(args: {
     if ((platform === "x" || platform === "twitter") && args.postUrl) {
       const tweetId = tweetIdFromUrl(args.postUrl);
       if (tweetId) {
-        const r = await fetchXPostViews(tweetId);
+        // The agent's own connected X account first (no extra token needed), then the app bearer token.
+        const profile = args.mintAddress ? resolveUsername(args.mintAddress) : "";
+        let r = profile ? await fetchXPostViewsForProfile(profile, tweetId) : { ok: false as const, reason: "no_profile" };
+        if (!r.ok) r = await fetchXPostViews(tweetId);
         if (r.ok) return { ok: true, views: r.views, raw: r.raw, postUrl: args.postUrl, platformPostId: tweetId };
       }
     }

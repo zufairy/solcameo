@@ -48,6 +48,7 @@ import { playLaunchSound, unlockLaunchAudio } from "@/lib/client/launchSound";
 import { Notice } from "./Notice";
 import dynamic from "next/dynamic";
 import { Loader2 as Spinner, Wand2 } from "lucide-react";
+import { TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 
 const LaunchConfetti = dynamic(() => import("./LaunchConfetti"), { ssr: false });
 import {
@@ -275,7 +276,7 @@ function InfluencerOnboardingContent({
       if (!storageId.current)
         storageId.current = (
           await post("/api/character/draft-image", { url: character.image.url })
-        ).imageStorageId;
+        ).imageUrl;
       requestKey.current ??= crypto.randomUUID();
       try {
         sessionStorage.setItem(
@@ -295,7 +296,7 @@ function InfluencerOnboardingContent({
       const result = await post("/api/solstar/characters", {
         ...concept,
         rightsAttested: rights,
-        imageStorageId: storageId.current,
+        imageUrl: storageId.current,
         idempotencyKey: requestKey.current,
       });
       if (launchMode === "live") {
@@ -706,7 +707,7 @@ function InfluencerOnboardingContent({
                     {concept.bio}
                   </p>
                 )}
-                {step >= 2 && <dl className="mt-5 space-y-2.5 border-t-2 border-black pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${dbcOptions.feeBps / 100}%`], ["Anti-sniper", dbcOptions.antiSniper ? `On · ${dbcOptions.antiSniperLevel}` : "Off"], ["Dynamic fee", dbcOptions.dynamicFee ? "On" : "Off"], ["Autopilot content", dbcOptions.autopilot ? "On" : "Off"], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="font-medium text-black/60">{label}</dt><dd className="font-bold text-black">{value}</dd></div>)}</dl>}
+                {step >= 2 && <dl className="mt-5 space-y-2.5 border-t-2 border-black pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${TRADING_FEE_BPS / 100}%`], ["Anti-sniper", dbcOptions.antiSniper ? `On · ${dbcOptions.antiSniperLevel}` : "Off"], ["Dynamic fee", dbcOptions.dynamicFee ? "On" : "Off"], ["Autopilot content", dbcOptions.autopilot ? "On" : "Off"], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="font-medium text-black/60">{label}</dt><dd className="font-bold text-black">{value}</dd></div>)}</dl>}
                 <Badge
                   variant="outline"
                   className="mt-4 rounded-none border-2 border-black bg-transparent px-2 font-bold uppercase text-black"

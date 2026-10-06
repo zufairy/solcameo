@@ -33,7 +33,7 @@ describe("character-first coin creation", () => {
     expect(draft.pendingCharacterId).toBe("character123");
   });
   it("requires a selected portrait, review and image rights before sending creation requests", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ imageStorageId: "storage123" }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ characterId: "character123" }) });
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ imageUrl: "https://cdn.example.com/characters/final/a.webp" }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ characterId: "character123" }) });
     vi.stubGlobal("fetch", fetchMock); mocks.signed.mockResolvedValue("signed-session");
     await mount();
     expect(host.querySelector("button[disabled]")?.textContent).toContain("Coin details");
@@ -45,7 +45,7 @@ describe("character-first coin creation", () => {
     await act(async () => { (host.querySelector('[role="switch"]') as HTMLButtonElement).click(); });
     await click("Launch");
     expect(mocks.signed).toHaveBeenCalledOnce(); expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ name: "Orbit Muse", ticker: "ORBIT", imageStorageId: "storage123", rightsAttested: true });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ name: "Orbit Muse", ticker: "ORBIT", imageUrl: "https://cdn.example.com/characters/final/a.webp", rightsAttested: true });
     expect(mocks.push).not.toHaveBeenCalled(); expect(host.textContent).toContain("Approve");
   });
   it("does not create a coin when wallet verification is refused", async () => {

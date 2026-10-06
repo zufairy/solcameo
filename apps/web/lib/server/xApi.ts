@@ -237,8 +237,8 @@ export function tweetIdFromUrl(url: string): string | undefined {
  * Live view count straight from the X API (v2 tweet lookup, public_metrics.impression_count).
  * App-only bearer token, so it works for any public post — no per-agent OAuth needed.
  */
-export async function fetchXPostViews(tweetId: string): Promise<{ ok: true; views: number; raw: Record<string, number> } | { ok: false; reason: string }> {
-  const bearer = process.env.X_BEARER_TOKEN;
+export async function fetchXPostViews(tweetId: string, userToken?: string): Promise<{ ok: true; views: number; raw: Record<string, number> } | { ok: false; reason: string }> {
+  const bearer = userToken ?? process.env.X_BEARER_TOKEN;
   if (!bearer) return { ok: false, reason: "x_bearer_not_configured" };
   try {
     const res = await fetch(`https://api.x.com/2/tweets/${encodeURIComponent(tweetId)}?tweet.fields=public_metrics`, {
@@ -253,5 +253,15 @@ export async function fetchXPostViews(tweetId: string): Promise<{ ok: true; view
     return { ok: true, views: Math.max(0, Math.floor(metrics.impression_count)), raw: metrics };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? `x_api_${e.message}` : "x_api_error" };
+  }
+}
+
+/** Same lookup, authenticated as the agent's own connected X account (its OAuth token has tweet.read). */
+export async function fetchXPostViewsForProfile(profile: string, tweetId: string) {
+  try {
+    const a = await activeX(profile);
+    return await fetchXPostViews(tweetId, a.access_token);
+  } catch {
+    return { ok: false as const, reason: "x_account_not_connected" };
   }
 }

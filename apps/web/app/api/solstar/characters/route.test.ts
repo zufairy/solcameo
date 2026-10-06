@@ -85,6 +85,17 @@ describe("POST /api/solstar/characters", () => {
       rightsAttested: true, idempotencyKey: "key-00000001", authSecret: "test-secret",
     });
   });
+  it("accepts an R2 portrait URL under our prefix and rejects any other host", async () => {
+    vi.stubEnv("R2_PUBLIC_BASE_URL", "https://cdn.example.com");
+    const { imageStorageId: _drop, ...base } = good;
+    void _drop;
+    const ok = await run({ ...base, imageUrl: "https://cdn.example.com/characters/final/2026-10-06/a.webp" });
+    expect(ok.status).toBe(200);
+    expect(mocks.mutation).toHaveBeenCalledWith("createCharacter", expect.objectContaining({ imageUrl: "https://cdn.example.com/characters/final/2026-10-06/a.webp" }));
+    const bad = await run({ ...base, imageUrl: "https://evil.example.com/characters/final/a.webp" });
+    expect(bad.status).toBe(400);
+    vi.unstubAllEnvs();
+  });
   it.each([
     ["ticker_taken", 409], ["idempotency_conflict", 409], ["create_limit", 429], ["invalid_name", 400],
     ["invalid_ticker", 400], ["invalid_bio", 400], ["invalid_category", 400], ["invalid_image", 400],

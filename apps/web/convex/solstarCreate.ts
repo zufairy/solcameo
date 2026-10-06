@@ -28,7 +28,8 @@ export const createCharacter = mutation({
   args: {
     wallet: v.string(), name: v.string(), ticker: v.string(), bio: v.string(), category: v.string(),
     launchOptions: v.optional(launchOptionsValidator),
-    imageStorageId: v.id("_storage"), rightsAttested: v.boolean(), idempotencyKey: v.string(), authSecret: v.string(),
+    imageStorageId: v.optional(v.id("_storage")), imageUrl: v.optional(v.string()),
+    rightsAttested: v.boolean(), idempotencyKey: v.string(), authSecret: v.string(),
   },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
@@ -56,11 +57,18 @@ export const createCharacter = mutation({
       }
     }
 
-    const file = await ctx.db.system.get("_storage", a.imageStorageId);
-    if (!file || file.size <= 0 || file.size > IMAGE_MAX_BYTES || !(IMAGE_TYPES as readonly string[]).includes(file.contentType ?? "")) {
-      throw new Error("invalid_image");
-    }
-    const imageUrl = await ctx.storage.getUrl(a.imageStorageId);
+    // Portraits are stored in R2 and passed in as a URL; the Convex-storage path only serves drafts made before the move.
+    let imageUrl: string | null;
+    if (a.imageUrl) {
+      if (!/^https:\/\/[^\s]{1,380}$/.test(a.imageUrl)) throw new Error("invalid_image");
+      imageUrl = a.imageUrl;
+    } else if (a.imageStorageId) {
+      const file = await ctx.db.system.get("_storage", a.imageStorageId);
+      if (!file || file.size <= 0 || file.size > IMAGE_MAX_BYTES || !(IMAGE_TYPES as readonly string[]).includes(file.contentType ?? "")) {
+        throw new Error("invalid_image");
+      }
+      imageUrl = await ctx.storage.getUrl(a.imageStorageId);
+    } else throw new Error("invalid_image");
     if (imageUrl === null) throw new Error("invalid_image");
 
     const taken = await ctx.db.query("ssTokens").withIndex("by_network_ticker", (q) => q.eq("network", "paper").eq("ticker", ticker)).first();
@@ -71,7 +79,7 @@ export const createCharacter = mutation({
 
     const characterId = await ctx.db.insert("ssCharacters", {
       ...(launchOptions ? { launchOptions } : {}), ownerWallet: wallet, name, bio, referenceImageUrl: imageUrl, category: a.category, status: "approved",
-      rightsAttested: true, rightsReviewed: false, createdAt: now, idempotencyKey: key, imageStorageId: a.imageStorageId,
+      rightsAttested: true, rightsReviewed: false, createdAt: now, idempotencyKey: key, ...(a.imageStorageId ? { imageStorageId: a.imageStorageId } : {}),
     });
     const tokenId = await ctx.db.insert("ssTokens", {
       characterId, network: "paper", name, ticker, description: bio, state: "paper",

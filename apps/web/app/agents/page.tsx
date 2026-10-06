@@ -29,6 +29,7 @@ import { AppHeaderShell } from "@/components/home/app-shell";
 import { formatAgentDescription } from "@/lib/agentDescription";
 import { socialProfileUrl } from "@/lib/socialProfileUrl";
 import { useAgentCap } from "@/lib/client/useAgentCap";
+import { CATEGORIES } from "@/lib/solstar/createForm";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { ChangePill } from "@/components/solstar/MarketTable";
@@ -71,9 +72,9 @@ type AgentMarketMetrics = {
   followerDelta: number;
 };
 
-const NICHES = ["All","Lifestyle","Tech","Fashion","Fitness","Food","Travel","Finance","Gaming","Beauty","Crypto"];
+// Same categories the creator picks from when launching an influencer.
+const NICHES = ["All", ...CATEGORIES];
 const LANGUAGES = ["All","Manglish","Bahasa Malaysia","English","Bahasa Indonesia","Tagalog","Mandarin","Arabic"];
-const AGENT_TYPES = ["AI Influencer"];
 
 // Map niche → one of the 2 canonical agent types (fallback only — prefer stored agent.agentType)
 const NICHE_TO_TYPE: Record<string, string> = {
@@ -1196,7 +1197,9 @@ function AgentHeroActionCard({ href, title, art }: {
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transition-none"
       />
-      <span className="relative block text-[13px] font-semibold leading-[1.16] tracking-[-0.02em] sm:text-[14px]">{title}</span>
+      {/* Scrim keeps the title readable over a busy photo. */}
+      <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/35 to-black/5" />
+      <span className="relative block text-[13px] font-semibold leading-[1.16] tracking-[-0.02em] [text-shadow:0_1px_8px_rgba(0,0,0,0.7)] sm:text-[14px]">{title}</span>
     </Link>
   );
 }
@@ -1840,9 +1843,8 @@ export default function AgentsPage() {
   const [view, setView] = useState<ViewMode>("grid");
   const [niche, setNiche] = useState("All");
   const [language, setLanguage] = useState("All");
-  const [agentTypeFilter, setAgentTypeFilter] = useState("AI Influencer");
   // Which toolbar dropdown is open — at most one at a time.
-  const [openDropdown, setOpenDropdown] = useState<"sort" | "agentType" | "niche" | "language" | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<"sort" | "niche" | "language" | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selected, setSelected] = useState<{ agent: any; index: number } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1875,10 +1877,10 @@ export default function AgentsPage() {
       case "newest":         list.sort(newest); break;
     }
     return list;
-  }, [agents, search, sort, niche, language, agentTypeFilter, agentMetrics]);
+  }, [agents, search, sort, niche, language, agentMetrics]);
 
   const hasActiveFilters = niche !== "All" || language !== "All";
-  const clearFilters = () => { setNiche("All"); setLanguage("All"); setAgentTypeFilter("AI Influencer"); };
+  const clearFilters = () => { setNiche("All"); setLanguage("All");  };
   const loading = rawAgents === undefined;
 
   // Compact formatters for the collection stat bar.
@@ -2000,8 +2002,8 @@ export default function AgentsPage() {
             with copy protected on the left and the illustration on the right. */}
         <div className="relative mt-8 flex items-center justify-between gap-2.5">
             <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:gap-3 md:flex">
-              <AgentHeroActionCard href="/docs/start" title="New? Start Here!" art="/brand/agents-cta-start.gif" />
-              <AgentHeroActionCard href="/home" title="Launch your agent" art="/brand/agents-cta-rocket.gif" />
+              <AgentHeroActionCard href="/docs/start" title="New? Start Here!" art="/brand/agents-cta-start-v3.jpg" />
+              <AgentHeroActionCard href="/home" title="Launch your agent" art="/brand/agents-cta-rocket-v3.gif" />
             </div>
             {/* Activity & Videos — labelled buttons from sm up (mobile uses the icon pill above). */}
             <div className="hidden sm:block"><PanelSwitch panel={panel} setPanel={setPanel} /></div>
@@ -2029,7 +2031,6 @@ export default function AgentsPage() {
 
         {/* Filters — Agent Type / Niche / Language, plus Sort, all inline
             (sidebar removed). Only one of these dropdowns is open at a time. */}
-        <ToolbarDropdown label="Agent Type" value={agentTypeFilter} options={AGENT_TYPES} isOpen={openDropdown === "agentType"} onToggle={() => setOpenDropdown(o => o === "agentType" ? null : "agentType")} onSelect={(v) => { setAgentTypeFilter(v); setOpenDropdown(null); }} />
         <ToolbarDropdown label="Niche" value={niche} options={NICHES} isOpen={openDropdown === "niche"} onToggle={() => setOpenDropdown(o => o === "niche" ? null : "niche")} onSelect={(v) => { setNiche(v); setOpenDropdown(null); }} />
         <ToolbarDropdown label="Language" value={language} options={LANGUAGES} isOpen={openDropdown === "language"} onToggle={() => setOpenDropdown(o => o === "language" ? null : "language")} onSelect={(v) => { setLanguage(v); setOpenDropdown(null); }} />
 
@@ -2106,7 +2107,7 @@ export default function AgentsPage() {
           {!loading && filtered.length > 0 && view === "grid" && (
             // key includes tab + active filters → the grid remounts on tab switch
             // OR any filter change, so the blur-stagger reveal replays each time.
-            <div key={`${tab}-${niche}-${language}-${agentTypeFilter}`} className="cards-reveal-grid grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div key={`${tab}-${niche}-${language}`} className="cards-reveal-grid grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Invest tab → Instant Buy hero cell */}
               {tab === "invest" && (
                 <FeatureTile
@@ -2126,7 +2127,7 @@ export default function AgentsPage() {
           )}
 
           {!loading && filtered.length > 0 && view === "list" && (
-            <div key={`${tab}-${niche}-${language}-${agentTypeFilter}`} className="cards-reveal-grid flex min-w-[680px] flex-col">
+            <div key={`${tab}-${niche}-${language}`} className="cards-reveal-grid flex min-w-[680px] flex-col">
               {filtered.map((agent, i) => (
                 <AgentRow key={agent._id} agent={agent} index={i} onClick={() => setSelected({ agent, index: i })} />
               ))}

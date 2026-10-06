@@ -85,7 +85,7 @@ export const generate = internalAction({
         timeBudgetMs: 560_000,
         // Concatenate frame-chained Seedance clips into one file. Kie can't
         // merge Seedance and ffmpeg.wasm is browser-only, so the binary concat
-        // runs in the Next route; we store the returned bytes in Convex storage.
+        // runs in the Next route; we store the returned bytes in R2.
         stitchClips: async (clipUrls, opts) => {
           const res = await appFetch(`/api/video/concat`, {
             method: "POST",
@@ -96,13 +96,9 @@ export const generate = internalAction({
             throw new Error(`concat HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
           }
           const buf = await res.arrayBuffer();
-          if (r2Configured()) {
-            const { url } = await putVideo(buf, { keyPrefix: "generated" });
-            return url;
-          }
-          const storageId = await ctx.storage.store(new Blob([buf], { type: "video/mp4" }));
-          const url = await ctx.storage.getUrl(storageId);
-          if (!url) throw new Error("ctx.storage.getUrl returned null after store");
+          // Videos live in R2 only; never fall back to Convex file storage.
+          if (!r2Configured()) throw new Error("R2 storage is not configured for generated videos");
+          const { url } = await putVideo(buf, { keyPrefix: "generated" });
           return url;
         },
       });
@@ -128,13 +124,8 @@ export const generate = internalAction({
         });
         if (!res.ok) throw new Error(`concat HTTP ${res.status}`);
         const joined = await res.arrayBuffer();
-        if (r2Configured()) {
-          videoData.videoUrl = (await putVideo(joined, { keyPrefix: "generated" })).url;
-        } else {
-          const storageId = await ctx.storage.store(new Blob([joined], { type: "video/mp4" }));
-          const url = await ctx.storage.getUrl(storageId);
-          if (url) videoData.videoUrl = url;
-        }
+        if (!r2Configured()) throw new Error("R2 storage is not configured for generated videos");
+        videoData.videoUrl = (await putVideo(joined, { keyPrefix: "generated" })).url;
       } catch (e) {
         console.warn("[videoJobsGenerate.generate] hook video join failed (keeping base video):", e instanceof Error ? e.message : e);
       }
