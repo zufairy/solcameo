@@ -405,18 +405,13 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                     key={e.id}
                     className="border-b border-white/5 px-3 py-2.5"
                   >
-                    <p className="mb-1 font-sans tabular-nums text-[10px] text-zinc-500">
-                      {short(e.wallet || "Vello")} ·{" "}
-                      {new Date(e.createdAt).toLocaleTimeString("en-MY", {
-                        timeZone: "Asia/Kuala_Lumpur",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                    <p className="mb-1 font-sans tabular-nums text-[10px] text-white/70">
+                      {short(e.wallet || "Solcameo")}
                     </p>
-                    <p className="text-xs leading-relaxed text-zinc-300">
-                      {e.body}
+                    <p className="text-xs leading-relaxed text-white">
+                      {e.body ? e.body.charAt(0).toUpperCase() + e.body.slice(1) : ""}
                     </p>
-                    <div className="mt-1.5 flex items-center gap-2 text-zinc-500">
+                    <div className="mt-1.5 flex items-center gap-2 text-white">
                       {character.referenceImageUrl && (
                         <img
                           src={character.referenceImageUrl}
@@ -425,9 +420,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                         />
                       )}
                       <span className="text-xs">${token.ticker}</span>
-                      <span className="ml-auto text-[10px] text-emerald-300">
-                        {token.network}
-                      </span>
+                      <time dateTime={new Date(e.createdAt).toISOString()} title={new Date(e.createdAt).toLocaleString()} className="ml-auto font-sans text-[10px] tabular-nums text-white/70">
+                        {new Date(e.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                      </time>
                     </div>
                   </div>
                 ))
