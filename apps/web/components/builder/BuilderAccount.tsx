@@ -37,6 +37,7 @@ export function BuilderAccount({ agentWalletAddress, mintAddress, agentName, rea
     const listener = (event: Event) => {
       const request = (event as CustomEvent<AgentFundingRequest>).detail;
       if (request.mintAddress !== mintAddress) return;
+      event.preventDefault(); // handled here, so the app-wide gate stays closed
       setRequired(request.required); setFundOpen(true); void agent.refresh();
     };
     window.addEventListener(AGENT_FUNDING_EVENT, listener);

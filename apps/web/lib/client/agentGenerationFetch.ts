@@ -18,6 +18,7 @@ export async function notifyAgentFunding(response: Response, input: RequestInfo 
       const mint = data.mintAddress ?? body.mintAddress ?? body.username;
       if (typeof mint === "string" && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent<AgentFundingRequest>(AGENT_FUNDING_EVENT, {
+          cancelable: true,
           detail: { mintAddress: mint, required: typeof data.required === "number" ? data.required : data.estCostUsdc },
         }));
       }

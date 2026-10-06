@@ -1,4 +1,5 @@
 "use client";
+import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -7,7 +8,7 @@ export type LiveVideo = { id: string; url: string; poster?: string; name: string
 /** Live published chapters and live devnet characters, shared by every section. */
 export function useLiveData() {
   const episodes = useQuery(api.solstarDiscovery.latestVideos, {});
-  const market = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
+  const market = useQuery(api.solstarMarket.listMarket, { sort: "new", network: LIVE_NETWORK, liveOnly: true });
   const seen = new Set<string>();
   const real = (episodes ?? []).filter(e => !e.sample && e.videoUrl);
   const pool = real.length ? real : (episodes ?? []).filter(e => e.videoUrl);

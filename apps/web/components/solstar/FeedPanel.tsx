@@ -1,5 +1,6 @@
 "use client";
 
+import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
@@ -120,7 +121,9 @@ function FeedList() {
 
   if (rows && initialIds === null) setInitialIds(new Set(rows.map((r) => r.id)));
 
-  const views = (rows ?? []).map(toFeedView).filter((v): v is FeedView => v !== null);
+  const views = (rows ?? []).map(toFeedView).filter((v): v is FeedView => v !== null)
+    // Mainnet shows real trades only: no simulated paper fills, and nothing from coins outside the live mainnet market.
+    .filter((v) => !MAINNET_ONLY || (!(v.kind === "trade" && v.simulated) && (!("characterId" in v) || !v.characterId || !chars || chars.has(v.characterId))));
   const status = rows === undefined ? "Loading live feed" : `${views.length} items in the live feed`;
 
   return (

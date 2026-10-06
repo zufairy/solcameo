@@ -93,6 +93,7 @@ import type * as solstarDiscovery from "../solstarDiscovery.js";
 import type * as solstarFeed from "../solstarFeed.js";
 import type * as solstarFlywheel from "../solstarFlywheel.js";
 import type * as solstarLiveCam from "../solstarLiveCam.js";
+import type * as platformToken from "../platformToken.js";
 import type * as solstarMarket from "../solstarMarket.js";
 import type * as solstarTrade from "../solstarTrade.js";
 import type * as storageMigration from "../storageMigration.js";
@@ -206,6 +207,7 @@ declare const fullApi: ApiFromModules<{
   solstarFeed: typeof solstarFeed;
   solstarFlywheel: typeof solstarFlywheel;
   solstarLiveCam: typeof solstarLiveCam;
+  platformToken: typeof platformToken;
   solstarMarket: typeof solstarMarket;
   solstarTrade: typeof solstarTrade;
   storageMigration: typeof storageMigration;

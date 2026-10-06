@@ -29,7 +29,7 @@ import {
   unsignedPumpTransaction,
   publicWallet,
 } from "@/lib/server/pumpLaunch";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { getNetwork } from "@/lib/solana/network";
 export const maxDuration = 60;
 export async function POST(req: NextRequest) {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const connection = dbcConnection(),
       client = new DynamicBondingCurveClient(connection, "confirmed"),
       payer = new PublicKey(wallet);
-    if (getNetwork() === "devnet") await assertDevnet(connection);
+    await assertConfiguredChain(connection, getNetwork() === "mainnet-beta" ? "mainnet" : "devnet");
     let receipt: DbcReceipt;
     if (body.action === "prepare") {
       if (

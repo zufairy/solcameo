@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- character portraits hosted on remote storage */
+import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
@@ -215,7 +216,7 @@ function TrendingFeed() {
 function Discovery() {
   const reduced = useReducedMotion();
   const [tab, setTab] = useState("trending");
-  const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
+  const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: LIVE_NETWORK, liveOnly: true });
   const rows = tab === "episodes" ? live?.filter(r => r.videosPosted > 0) : live;
   return <>
     <div className="sticky top-0 z-10 flex items-stretch gap-5 border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">

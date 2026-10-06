@@ -4,7 +4,8 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { authorizeCharacterOwner } from "@/lib/server/characterAuth";
 import { HfError, submitVideo } from "@/lib/server/higgsfield";
-import { getReference } from "@/lib/server/exploreReferences";
+import { resolveReference } from "@/lib/server/exploreReferences";
+import { withCastKey } from "@/lib/explore/castKey";
 import { CHARGE_MESSAGES, chargeExploreRun, priceUsd, refundExploreRun } from "@/lib/server/exploreBilling";
 
 export const runtime = "nodejs";
@@ -24,13 +25,13 @@ export async function POST(req: NextRequest) {
   const a = await authorizeCharacterOwner(req, typeof body.mintAddress === "string" ? body.mintAddress : null);
   if (a.error) return a.error;
 
-  const ref = typeof body.referenceId === "string" ? getReference(body.referenceId) : null;
-  if (!ref) return NextResponse.json({ error: "Unknown reference video" }, { status: 400 });
+  const ref = typeof body.referenceId === "string" ? await resolveReference(body.referenceId, body.referencePage) : null;
+  if (!ref) return NextResponse.json({ error: "This reference video is no longer available. Pick another one." }, { status: 400 });
   const images = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
   if (!images.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
   const mode = body.mode === "object-swap" ? "object-swap" : "motion-transfer";
   const resolution = (["480p", "720p", "1080p"].includes(body.resolution as string) ? body.resolution : "720p") as "480p" | "720p" | "1080p";
-  const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 4000) : "";
+  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", body.castTokens, images.length, mode);
   const price = priceUsd(ref.duration, resolution);
   if (price === null) return NextResponse.json({ error: "This reference must be between 4 and 30 seconds." }, { status: 400 });
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const runId = `explore:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
-  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason }, { status: 402 });
+  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
 
   try {
     const requestId = await submitVideo(

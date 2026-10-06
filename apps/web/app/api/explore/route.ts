@@ -9,7 +9,8 @@ const TARGET = 24; // stop scanning once this many matches are found
 async function page(cursor: number) {
   const res = await fetch(`${FEED}?lang=en&source=community&size=${PAGE}&cursor=${cursor}&sort=trending`, { next: { revalidate: 600 }, signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error("Upstream unavailable");
-  return normalizeFeed(await res.json());
+  const feed = normalizeFeed(await res.json());
+  return { ...feed, items: feed.items.map((i) => ({ ...i, page: cursor })) };
 }
 
 /**

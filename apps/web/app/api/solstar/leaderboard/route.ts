@@ -6,6 +6,7 @@ import { getUnClaimLpFee } from "@meteora-ag/cp-amm-sdk";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { convexClient } from "@/lib/server/solstarRoute";
+import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { getRpcCandidates } from "@/lib/solana/network";
 import { migratedPool } from "@/lib/server/dammLifecycle";
 import { readMarketSwap, readPoolHistory } from "@/lib/server/marketLeaderboard";
@@ -174,7 +175,7 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
 export async function GET(req: NextRequest) {
   const period = req.nextUrl.searchParams.get("period") ?? "all";
   if (!Object.hasOwn(LEADERBOARD_PERIODS, period)) return NextResponse.json({ error: "Invalid period" }, { status: 400 });
-  const network = "mainnet" as const; // the home leaderboard ranks live mainnet tokens only
+  const network = LIVE_NETWORK; // mainnet unless the deployment is explicitly pointed at devnet
   const viewsOnly = req.nextUrl.searchParams.get("metric") === "views";
   const realizedOnly = req.nextUrl.searchParams.get("metric") === "realized";
   const key = `${network}:${period}:${viewsOnly}:${realizedOnly}`;

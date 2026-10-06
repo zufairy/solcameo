@@ -1,4 +1,5 @@
 "use client";
+import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -98,7 +99,9 @@ function Content() {
   const [selected, setSelected] = useState<Video | null>(null);
   const solUsd = useSolUsd();
   const mainnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "mainnet" });
-  const markets = useMemo(() => new Map((mainnet ?? []).map(row => [String(row.characterId), row])), [mainnet]);
+  const devnet = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? "skip" : { sort: "mcap", network: "devnet" });
+  const paper = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? "skip" : { sort: "mcap", network: "paper" });
+  const markets = useMemo(() => new Map([...(mainnet ?? []), ...(devnet ?? []), ...(paper ?? [])].map(row => [String(row.characterId), row])), [mainnet, devnet, paper]);
   const [caps, setCaps] = useState<Record<string, number>>({});
   const episodes = useQuery(api.solstarDiscovery.latestVideos, { network: "mainnet" });
   const created = useQuery(api.clipJobs.globalVideoFeed, { limit: 200, kind: "ugc" });
@@ -134,25 +137,40 @@ function Content() {
   useEffect(() => {
     if (!poolIds) return;
     const controller = new AbortController();
+    const ids = new Set(poolIds.split(","));
+    const seenMigrated = new Set<string>();
     let busy = false;
+    let tick = 0;
+    const put = (id: string, capSol: unknown) => { if (typeof capSol === "number" && Number.isFinite(capSol) && !controller.signal.aborted) setCaps(previous => previous[id] === capSol ? previous : { ...previous, [id]: capSol }); };
+    // One batched Solana RPC read for every coin (shared 3s server cache), so caps move with the chain.
+    const live = async () => {
+      const response = await fetch("/api/tokenomics/live", { signal: controller.signal, cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as { coins?: { characterId: string; capSol: number | null; migrated: boolean }[] };
+      for (const coin of data.coins ?? []) {
+        if (!ids.has(coin.characterId)) continue;
+        if (coin.migrated) seenMigrated.add(coin.characterId); else put(coin.characterId, coin.capSol);
+      }
+    };
+    // Graduated coins trade on DAMM, which the batched read doesn't price: ask the pool route, but less often.
+    const graduated = async () => {
+      await Promise.allSettled([...seenMigrated].map(async id => {
+        const response = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(id)}`, { signal: controller.signal });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.available) put(id, data.capSol);
+      }));
+    };
     const refresh = async () => {
       if (busy || document.visibilityState === "hidden") return;
       busy = true;
       try {
-        const ids = poolIds.split(",");
-        for (let i = 0; i < ids.length; i += 4) {
-          if (controller.signal.aborted) break;
-          await Promise.allSettled(ids.slice(i, i + 4).map(async id => {
-            const response = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(id)}`, { signal: controller.signal });
-            if (!response.ok) return;
-            const data = await response.json();
-            if (!controller.signal.aborted && data.available && typeof data.capSol === "number" && Number.isFinite(data.capSol)) setCaps(previous => ({ ...previous, [id]: data.capSol }));
-          }));
-        }
+        await live().catch(() => undefined);
+        if (tick++ % 3 === 0) await graduated();
       } finally { busy = false; }
     };
     void refresh();
-    const timer = setInterval(() => void refresh(), 10_000);
+    const timer = setInterval(() => void refresh(), 3_000);
     window.addEventListener("solcameo:trade-confirmed", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => { controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); document.removeEventListener("visibilitychange", refresh); };

@@ -47,7 +47,7 @@ export function useMotionRuns(mintAddress: string) {
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  const start = useCallback(async (p: { mode: MotionMode; videoUrl: string; imageUrls: string[]; prompt?: string; resolution: Resolution; title?: string; poster?: string; explore?: { referenceId: string; autoPost: boolean } }) => {
+  const start = useCallback(async (p: { mode: MotionMode; videoUrl: string; imageUrls: string[]; prompt?: string; resolution: Resolution; title?: string; poster?: string; explore?: { referenceId: string; referencePage?: number; castTokens?: string[]; autoPost: boolean } }) => {
     const id = uid();
     setRuns((prev) => [{ id, createdAt: Date.now(), status: "pending", mode: p.mode, title: p.title, poster: p.poster }, ...prev]);
     const patch = (fn: (r: MotionRun) => MotionRun) => alive.current && setRuns((prev) => prev.map((r) => (r.id === id ? fn(r) : r)));
@@ -56,7 +56,7 @@ export function useMotionRuns(mintAddress: string) {
       const { requestId } = await api<{ requestId: string }>(p.explore ? "/api/explore/generate" : "/api/character/motion", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(p.explore
-          ? { mintAddress, referenceId: p.explore.referenceId, autoPost: p.explore.autoPost, mode: p.mode, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }
+          ? { mintAddress, referenceId: p.explore.referenceId, referencePage: p.explore.referencePage, castTokens: p.explore.castTokens, autoPost: p.explore.autoPost, mode: p.mode, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }
           : { mintAddress, mode: p.mode, videoUrl: p.videoUrl, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }),
       });
       const t0 = Date.now();

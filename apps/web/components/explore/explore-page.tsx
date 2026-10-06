@@ -41,6 +41,7 @@ import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
+import { castToken } from "@/lib/explore/castKey";
 import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, type ExploreModel } from "@/lib/explore/models";
 import {
   formatGenerationUsd,
@@ -351,7 +352,7 @@ function Generator({
                 resolution: resolution as GenjutsuResolution,
                 title: item.title,
                 poster: item.thumbUrl,
-                explore: { referenceId: item.id, autoPost: xConnected && autoPost },
+                explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token)], autoPost: xConnected && autoPost },
               })
         }
       >

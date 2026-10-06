@@ -41,7 +41,7 @@ import {
   buildEscrowProgram, topUpCampaignTx, getEscrowBalance, refundRemainingTx,
 } from "@/lib/escrow";
 import { SOL_GAS_FLOOR } from "@/lib/client/usdcClient";
-import { getAccountExplorerUrl, getTxExplorerUrl, getReadRpcUrl } from "@/lib/solana/network";
+import { getAccountExplorerUrl, getTxExplorerUrl, getReadRpcUrl, getNetworkLabel, getUsdcMint } from "@/lib/solana/network";
 import { isOwnerWallet } from "@/lib/solana/activeWallet";
 import { canReclaim, reclaimUnlockMs, type ReclaimBlockedReason } from "@/lib/campaignReclaim";
 import { canMigrate } from "@/lib/campaignMigrate";
@@ -1695,9 +1695,9 @@ export function CampaignDetail({ campaign, campaignDocId, variant = "page" }: Pr
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { label: "Network", value: "Solana Devnet", mono: false },
+                { label: "Network", value: `Solana ${getNetworkLabel()}`, mono: false },
                 { label: "Protocol", value: "Vello Escrow v1", mono: false },
-                { label: "USDC Mint", value: "4zMMC9…ncDU", mono: true },
+                { label: "USDC Mint", value: `${getUsdcMint().slice(0, 6)}…${getUsdcMint().slice(-4)}`, mono: true },
               ].map(({ label, value, mono }) => (
                 <div key={label} className="flex items-center justify-between">
                   <span className="text-xs text-zinc-600">{label}</span>
