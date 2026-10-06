@@ -191,9 +191,15 @@ export function LiveDbcLaunch({
               action: "confirm",
               receipt: pending.receipt,
               signature: pending.signature,
+              transaction: pending.transaction,
             });
             break;
           } catch (e) {
+            if ((e as { code?: string }).code === "BLOCKHASH_EXPIRED" || (e as { code?: string }).code === "TX_FAILED") {
+              // This signature can never land: forget it so the next press of Launch asks for a fresh approval.
+              pending.signature = undefined; save(pending);
+              throw e;
+            }
             if (!(e instanceof Error) || !e.message.includes("not confirmed")) throw e;
             if (attempt === 35) throw new Error("Solana is still confirming your transaction. Nothing is lost: press Launch to keep checking it.");
             // A busy network can drop a transaction that was only sent once. Re-send the same signed transaction

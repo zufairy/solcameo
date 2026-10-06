@@ -260,8 +260,18 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
           commitment: "confirmed",
           maxSupportedTransactionVersion: 0,
         });
-        if (!confirmed || !confirmed.meta || confirmed.meta.err)
+        if (!confirmed || !confirmed.meta || confirmed.meta.err) {
+          // Say what really happened instead of waiting forever: failed on chain, dropped, or still pending.
+          const failure = confirmed?.meta?.err ?? (await connection.getSignatureStatuses([body.signature], { searchTransactionHistory: true })).value[0]?.err;
+          if (failure) return NextResponse.json({ error: `Solana rejected the transaction: ${JSON.stringify(failure)}. Nothing was created. Press Launch to try again.`, code: "TX_FAILED" }, { status: 409 });
+          if (typeof body.transaction === "string" && body.transaction.length < 6000) {
+            const sent = VersionedTransaction.deserialize(Buffer.from(body.transaction, "base64"));
+            const seen = (await connection.getSignatureStatuses([body.signature], { searchTransactionHistory: true })).value[0];
+            if (!seen && !(await connection.isBlockhashValid(sent.message.recentBlockhash, { commitment: "confirmed" })).value)
+              return NextResponse.json({ error: "Your approval expired before Solana processed it. Nothing was charged. Press Launch to sign a fresh one.", code: "BLOCKHASH_EXPIRED" }, { status: 409 });
+          }
           throw new Error("Transaction is not confirmed successfully yet.");
+        }
         const confirmedTx = new VersionedTransaction(
           confirmed.transaction.message,
         );
