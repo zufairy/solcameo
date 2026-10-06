@@ -25,7 +25,6 @@ import {
   AlertTriangle,
   Heart,
   ChevronDown,
-  Users,
   CalendarClock,
   ShieldCheck,
   ShieldAlert,
@@ -351,23 +350,48 @@ function WeeklyScheduleStrip({ mintAddresses, agentsByMint }: { mintAddresses: s
   </section>;
 }
 
-/** A quiet identity mark and one clear creation action. */
+/** Fanned portrait reel: the centre clip is largest and in front, each side steps down in size and sits behind it. */
+const REEL = [
+  { size: "h-[216px] w-[122px] sm:h-[266px] sm:w-[150px]", z: "z-0", hideSmall: true, shift: "" },
+  { size: "h-[244px] w-[138px] sm:h-[300px] sm:w-[169px]", z: "z-10", hideSmall: false, shift: "-ml-5 sm:-ml-8" },
+  { size: "h-[276px] w-[155px] sm:h-[340px] sm:w-[191px]", z: "z-20", hideSmall: false, shift: "-ml-5 sm:-ml-8" },
+  { size: "h-[244px] w-[138px] sm:h-[300px] sm:w-[169px]", z: "z-10", hideSmall: false, shift: "-ml-5 sm:-ml-8" },
+  { size: "h-[216px] w-[122px] sm:h-[266px] sm:w-[150px]", z: "z-0", hideSmall: true, shift: "-ml-5 sm:-ml-8" },
+] as const;
+
 function NoAgentsIllustration() {
-  return <div aria-hidden className="relative grid size-28 place-items-center">
-    <div className="absolute inset-0 rounded-full border border-white/[0.05]" />
-    <div className="absolute inset-3 rounded-full border border-white/[0.09]" />
-    <div className="grid size-14 place-items-center rounded-2xl border border-[#d7ff00]/20 bg-[#d7ff00]/5"><Users className="size-6 text-[#d7ff00]" strokeWidth={1.25} /></div>
-    <span className="absolute right-3 top-4 size-1.5 rounded-full bg-[#d7ff00]" />
+  const reduced = useReducedMotion();
+  const feed = useQuery(api.clipJobs.globalVideoFeed, { limit: 20, kind: "ugc" });
+  const clips = (Array.isArray(feed) ? [] : feed?.items ?? []).filter(item => item.videoUrl).slice(0, REEL.length);
+  return <div aria-hidden className="flex items-center justify-center pb-2 pt-2">
+    {REEL.map((card, index) => {
+      const clip = clips.length ? clips[index % clips.length] : undefined;
+      return <motion.div
+        key={index}
+        initial={reduced ? false : { opacity: 0, y: 28, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, delay: Math.abs(index - 2) * 0.09, ease: [0.22, 1, 0.36, 1] }}
+        className={`relative shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-[#1b1d20] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)] ${card.size} ${card.z} ${card.shift} ${card.hideSmall ? "hidden md:block" : ""}`}
+      >
+        {clip && <video
+          src={clip.videoUrl}
+          poster={clip.posterUrl ?? undefined}
+          muted loop playsInline preload="metadata"
+          autoPlay={!reduced}
+          className="absolute inset-0 size-full object-cover"
+        />}
+      </motion.div>;
+    })}
   </div>;
 }
 
 function EmptyDashboard() {
-  return <motion.div {...blurIn(0.08)} className="flex min-h-[360px] flex-col items-center justify-center px-4 py-12 text-center">
+  return <motion.div {...blurIn(0.08)} className="flex min-h-[420px] flex-col items-center justify-center px-4 py-10 text-center">
     <NoAgentsIllustration />
-    <h2 className="mt-5 text-xl font-medium tracking-tight text-white">Your influencers start here</h2>
-    <p className="mt-2 text-xs text-zinc-500">One character. One coin. One agent.</p>
+    <h2 className="mt-9 max-w-xl text-balance text-[2.1rem] font-black uppercase leading-[0.95] tracking-[-0.035em] text-white sm:text-5xl">Your influencers<br />start here</h2>
+    <p className="mt-4 max-w-md text-balance text-[15px] leading-6 text-zinc-500">One character. One coin. One agent.</p>
     <Button nativeButton={false}
-                render={<Link href="/create" />} className="mt-6 h-9 rounded-lg bg-[#d7ff00] px-4 text-xs font-medium text-black shadow-none hover:bg-[#e4ff59]"><Plus className="size-3.5" /> Create AI influencer</Button>
+                render={<Link href="/create" />} className="mt-7 h-10 rounded-lg bg-[#d7ff00] px-5 text-sm font-semibold text-black shadow-none hover:bg-[#e4ff59]"><Plus className="size-4" /> Create AI influencer</Button>
   </motion.div>;
 }
 
