@@ -267,7 +267,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
   const limitReached = status?.limitReached === true;
 
   if (isGlass) {
-    const ids = only && only.length ? only : ["tiktok", "youtube"];
+    const ids = only && only.length ? only : ["tiktok", "x"];
     const labelOf = (id: string) => platforms.find((p) => p.id === id)?.label ?? (id === "tiktok" ? "TikTok" : id === "youtube" ? "YouTube" : id);
     return (
       <div className="flex flex-col gap-2" style={{ fontFamily: "var(--font-inter)" }}>
@@ -282,11 +282,11 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 26, delay: 0.05 * i }}
-              className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-3 py-2.5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors duration-300 ${
+              className={`relative flex items-center gap-3 overflow-hidden rounded-[3px] border px-3 py-2.5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors duration-300 ${
                 isConnected ? "border-white/25 bg-white/[0.10]" : "border-white/[0.10] bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]"
               }`}
             >
-              <PlatformBadge id={id} label={labelOf(id)} className="size-9 text-[12px] ring-1 ring-white/20 shadow-[0_4px_14px_rgba(0,0,0,0.35)]" />
+              <PlatformBadge id={id} label={labelOf(id)} className="size-9 !rounded-[3px] text-[12px] ring-1 ring-white/20 shadow-[0_4px_14px_rgba(0,0,0,0.35)]" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13.5px] font-semibold leading-tight text-white">{labelOf(id)}</span>
                 <span className="mt-0.5 flex items-center gap-1.5 truncate text-[11.5px] text-white/45">
@@ -295,7 +295,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
                 </span>
               </span>
               {loading && !status ? (
-                <span className="h-8 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+                <span className="h-8 w-20 animate-pulse rounded-[3px] bg-white/[0.06]" />
               ) : isConnected ? (
                 <button
                   type="button"
@@ -303,7 +303,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
                   disabled={refreshing}
                   aria-label="Refresh connection status"
                   title="Refresh connection status"
-                  className="grid size-8 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/70 transition-all hover:border-white/30 hover:bg-white/[0.14] hover:text-white active:scale-95 disabled:opacity-60"
+                  className="grid size-8 place-items-center rounded-[3px] border border-white/15 bg-white/[0.07] text-white/70 transition-all hover:border-white/30 hover:bg-white/[0.14] hover:text-white active:scale-95 disabled:opacity-60"
                 >
                   <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
                 </button>
@@ -312,7 +312,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
                   type="button"
                   disabled={notConfigured || busy}
                   onClick={() => handleConnect(id)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-gradient-to-b from-white/[0.22] to-white/[0.08] px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl transition-all hover:from-white/[0.3] hover:to-white/[0.12] active:scale-[0.96] disabled:opacity-60"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-white/25 bg-gradient-to-b from-white/[0.22] to-white/[0.08] px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl transition-all hover:from-white/[0.3] hover:to-white/[0.12] active:scale-[0.96] disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="size-3 animate-spin" /> : null}
                   {busy && retrySeconds > 0 ? `Retry ${retrySeconds}s` : busy ? "Opening…" : "Connect"}

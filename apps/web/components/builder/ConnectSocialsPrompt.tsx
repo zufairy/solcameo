@@ -41,21 +41,21 @@ interface Props {
   /** Drives the copy — clippers post existing footage, influencers post original UGC. */
   agentType: "clipping" | "influencer";
   tiktokConnected: boolean;
-  youtubeConnected: boolean;
+  xConnected: boolean;
   onClose: () => void;
   /** Jump the parent workspace to the full Schedule/Posting tab. */
   onOpenSchedule: () => void;
 }
 
 /**
- * Nudge shown while a minted agent is missing TikTok or YouTube — the two
+ * Nudge shown while a minted agent is missing TikTok or X — the two
  * required distribution targets. Hides ONLY once both are connected. Connects
  * INLINE (embeds SocialConnectionsPanel) instead of just linking away, so
  * "guide to connect" ends in a completed connection right here. Minimal glass
  * surface, sharp corners — no icon, no "minted" chrome, just the task.
  */
 export default function ConnectSocialsPrompt({
-  open, mintAddress, agentName, agentType, tiktokConnected, youtubeConnected, onClose, onOpenSchedule,
+  open, mintAddress, agentName, agentType, tiktokConnected, xConnected, onClose, onOpenSchedule,
 }: Props) {
   const [portalReady, setPortalReady] = useState(false);
   useEffect(() => setPortalReady(true), []);
@@ -65,7 +65,7 @@ export default function ConnectSocialsPrompt({
   if (!portalReady) return null;
 
   const verb = agentType === "clipping" ? "post its clips" : "publish its content";
-  const count = Number(tiktokConnected) + Number(youtubeConnected);
+  const count = Number(tiktokConnected) + Number(xConnected);
   const allDone = count === 2;
 
   return createPortal(
@@ -88,7 +88,7 @@ export default function ConnectSocialsPrompt({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            className="relative w-full max-w-[360px] overflow-hidden rounded-3xl border border-white/[0.18] p-5 shadow-[0_30px_90px_-25px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.22)]"
+            className="relative w-full max-w-[360px] overflow-hidden rounded-[4px] border border-white/[0.18] p-5 shadow-[0_30px_90px_-25px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.22)]"
             style={{
               background: "linear-gradient(150deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 60%, rgba(255,255,255,0.07))",
               backdropFilter: "blur(28px) saturate(170%)",
@@ -102,7 +102,7 @@ export default function ConnectSocialsPrompt({
               type="button"
               onClick={close}
               aria-label="Close"
-              className="absolute right-3.5 top-3.5 grid size-7 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white/55 transition-colors hover:bg-white/[0.12] hover:text-white"
+              className="absolute right-3.5 top-3.5 grid size-7 place-items-center rounded-[3px] border border-white/10 bg-white/[0.07] text-white/55 transition-colors hover:bg-white/[0.12] hover:text-white"
             >
               <X className="size-4" />
             </button>
@@ -110,7 +110,7 @@ export default function ConnectSocialsPrompt({
             <div className="relative">
               <div className="flex items-center gap-1.5" aria-label={`${count} of 2 connected`}>
                 {[0, 1].map((i) => (
-                  <motion.span key={i} layout className={`h-1 rounded-full transition-colors duration-500 ${i < count ? "w-7 bg-white" : "w-4 bg-white/20"}`} />
+                  <motion.span key={i} layout className={`h-1 rounded-[1px] transition-colors duration-500 ${i < count ? "w-7 bg-white" : "w-4 bg-white/20"}`} />
                 ))}
                 <span className="ml-1.5 text-[11px] font-medium tabular-nums text-white/45">{count} of 2</span>
               </div>
@@ -118,12 +118,12 @@ export default function ConnectSocialsPrompt({
                 {allDone ? `${agentName} is ready to post` : `Connect ${agentName}\u2019s socials`}
               </h2>
               <p className="mt-1 text-[12.5px] leading-relaxed text-white/50">
-                {allDone ? "Both accounts are linked. You can change them any time in the Schedule tab." : `TikTok and YouTube are required before ${agentName} can ${verb}.`}
+                {allDone ? "Both accounts are linked. You can change them any time in the Schedule tab." : `TikTok and X are required before ${agentName} can ${verb}.`}
               </p>
             </div>
 
             <div className="relative mt-4">
-              <SocialConnectionsPanel username={mintAddress} variant="glass" only={["tiktok", "youtube"]} />
+              <SocialConnectionsPanel username={mintAddress} variant="glass" only={["tiktok", "x"]} />
             </div>
 
             <div className="relative mt-4 flex items-center justify-between gap-3">
@@ -137,7 +137,7 @@ export default function ConnectSocialsPrompt({
               <button
                 type="button"
                 onClick={close}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[12.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] backdrop-blur-xl transition-all active:scale-[0.97] ${allDone ? "bg-white/[0.25] hover:bg-white/[0.32]" : "bg-white/[0.08] text-white/80 hover:bg-white/[0.15] hover:text-white"}`}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-[3px] border border-white/25 px-4 text-[12.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] backdrop-blur-xl transition-all active:scale-[0.97] ${allDone ? "bg-white/[0.25] hover:bg-white/[0.32]" : "bg-white/[0.08] text-white/80 hover:bg-white/[0.15] hover:text-white"}`}
               >
                 {allDone && <Check className="size-4" strokeWidth={3} />}
                 {allDone ? "Done" : "Later"}

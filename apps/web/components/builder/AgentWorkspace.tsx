@@ -746,7 +746,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
       const json = (await res.json()) as { connected?: Record<string, unknown>; ok?: boolean };
       if (json.ok === false) return;
       const conn = json.connected ?? {};
-      setSocialsConnected({ tiktok: Boolean(conn.tiktok), youtube: Boolean(conn.youtube) });
+      setSocialsConnected({ tiktok: Boolean(conn.tiktok), x: Boolean(conn.x) });
     } catch {
       // transient — keep last known state
     }
@@ -761,7 +761,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
       document.removeEventListener("visibilitychange", onFocus);
     };
   }, [refreshSocialsStatus]);
-  const requiredSocialsConnected = Boolean(socialsConnected?.tiktok && socialsConnected?.youtube);
+  const requiredSocialsConnected = Boolean(socialsConnected?.tiktok && socialsConnected?.x);
   const showConnectPrompt =
     isMinted && isRealMint && socialsConnected !== null && !requiredSocialsConnected &&
     !connectPromptDismissedLocal && !isConnectPromptDismissed(mintAddress);
@@ -2320,7 +2320,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
         agentName={displayName || "Your agent"}
         agentType={isClipping ? "clipping" : "influencer"}
         tiktokConnected={Boolean(socialsConnected?.tiktok)}
-        youtubeConnected={Boolean(socialsConnected?.youtube)}
+        xConnected={Boolean(socialsConnected?.x)}
         onClose={() => setConnectPromptDismissedLocal(true)}
         onOpenSchedule={() => setActiveTab(isClipping ? "posting" : "schedule")}
       />

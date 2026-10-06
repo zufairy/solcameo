@@ -16,22 +16,23 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
 
-const mount = (connected: Record<string, unknown>, tt: boolean, yt: boolean) => {
+const mount = (connected: Record<string, unknown>, tt: boolean, xc: boolean) => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
     ok: true, configured: true, connected,
-    platforms: [{ id: "tiktok", label: "TikTok" }, { id: "youtube", label: "YouTube" }, { id: "instagram", label: "Instagram" }],
+    platforms: [{ id: "tiktok", label: "TikTok" }, { id: "x", label: "X" }, { id: "instagram", label: "Instagram" }],
   }), { status: 200 })));
   return act(async () => {
-    root.render(<ConnectSocialsPrompt open mintAddress="M" agentName="Aria" agentType="clipping" tiktokConnected={tt} youtubeConnected={yt} onClose={() => {}} onOpenSchedule={() => {}} />);
+    root.render(<ConnectSocialsPrompt open mintAddress="M" agentName="Aria" agentType="clipping" tiktokConnected={tt} xConnected={xc} onClose={() => {}} onOpenSchedule={() => {}} />);
     await new Promise((r) => setTimeout(r, 400));
   });
 };
 
-it("focuses on TikTok and YouTube only, with no Add button or dividers", async () => {
+it("focuses on TikTok and X only, with no Add button or dividers", async () => {
   await mount({}, false, false);
   const t = document.body.textContent ?? "";
   expect(t).toContain("TikTok");
-  expect(t).toContain("YouTube");
+  expect(t).toContain("X");
+  expect(t).not.toContain("YouTube");
   expect(t).not.toContain("Instagram");
   expect(t).not.toContain("Add account");
   expect(t).not.toMatch(/\bAdd\b/);
@@ -41,7 +42,7 @@ it("focuses on TikTok and YouTube only, with no Add button or dividers", async (
 });
 
 it("shows the done state once both are connected", async () => {
-  await mount({ tiktok: { displayName: "aria" }, youtube: { displayName: "ariayt" } }, true, true);
+  await mount({ tiktok: { displayName: "aria" }, x: { displayName: "ariax" } }, true, true);
   const t = document.body.textContent ?? "";
   expect(t).toContain("Aria is ready to post");
   expect(t).toContain("@aria");
