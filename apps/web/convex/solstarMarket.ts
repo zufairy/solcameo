@@ -79,7 +79,11 @@ export const listMarket = query({
     // Convex aborts a query that reads more than ~16k documents, and this one runs on every page (the ticker).
     // Counting followers and episodes per token used to read up to 2,002 documents each, so a few popular coins
     // were enough to break every page. Share a fixed read budget across the listed coins instead.
+    // Episode documents are large (prompts, URLs), so they get a much smaller count cap than the tiny follow rows.
     const countCap = Math.max(20, Math.min(1000, Math.floor(8000 / Math.max(1, tokens.length) / 2)));
+    const episodeCap = Math.min(countCap, 10);
+    // The simulated paper ledger replays every trade per coin; share a fixed budget of replayed rows across the list.
+    const statsLimit = Math.max(50, Math.floor(8000 / Math.max(1, tokens.length)));
     const rows: Array<Row & { volume: bigint; mcap: bigint; change: bigint }> =
       [];
     for (const token of tokens) {
@@ -102,11 +106,11 @@ export const listMarket = query({
         .order("desc")
         .first();
       const stats =
-        token.network === "paper" ? await terminalStats(ctx, token._id) : null;
+        token.network === "paper" ? await terminalStats(ctx, token._id, statsLimit) : null;
       const episodes = await ctx.db
         .query("ssEpisodes")
         .withIndex("by_token", (q) => q.eq("tokenId", token._id))
-        .take(countCap + 1);
+        .take(episodeCap + 1);
       const following = await ctx.db
         .query("ssFollows")
         .withIndex("by_character", (q) => q.eq("characterId", character._id))
@@ -146,8 +150,8 @@ export const listMarket = query({
         createdAt: token.createdAt,
         ...(character.xUrl ? { xUrl: character.xUrl } : {}),
         ...(character.websiteUrl ? { websiteUrl: character.websiteUrl } : {}),
-        videosPosted: Math.min(episodes.length, countCap),
-        videosCountCapped: episodes.length > countCap,
+        videosPosted: Math.min(episodes.length, episodeCap),
+        videosCountCapped: episodes.length > episodeCap,
         holders: stats?.holders.length ?? null,
         changes: stats?.changes ?? null,
         sparkline: stats?.points.slice(-32).map((p) => p.price) ?? [],
