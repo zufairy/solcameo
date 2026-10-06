@@ -1599,8 +1599,14 @@ html.light body *, html.dark body * {
 @font-face { font-family: CalloutFraunces; src: url('/fonts/captions/Fraunces-SemiBold.ttf'); font-weight: 600; font-display: swap; }
 @font-face { font-family: CalloutManrope; src: url('/fonts/captions/Manrope-Medium.ttf'); font-weight: 500; font-display: swap; }
 
-/* Shared glass surface for the four home-feed column headers. */
+/* Shared glass surface for the four home-feed column headers. Identical height; a little top breathing room under the ticker. */
 .feed-glass-header {
+  box-sizing: border-box;
+  height: 52px;
+  padding-top: 6px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
   background-color: rgba(23, 25, 27, 0.82);
   background-image:
     radial-gradient(ellipse at 22% -35%, rgba(255, 255, 255, 0.24), transparent 66%),
