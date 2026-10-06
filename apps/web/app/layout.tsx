@@ -7,6 +7,7 @@ import { ShellGate } from "@/components/layout/shell-gate";
 import { ThemeProvider, THEME_NO_FLASH_SCRIPT } from "@/providers/theme-provider";
 import { SolanaWalletProvider } from "@/providers/wallet-provider";
 import { ConvexClientProvider } from "@/providers/convex-provider";
+import { AgentFundingGate } from "@/components/builder/AgentFundingGate";
 import { SupabaseAuthProvider } from "@/providers/supabase-auth-provider";
 import { ErrorBoundary } from "@/components/error/error-boundary";
 import {
@@ -187,6 +188,7 @@ export default function RootLayout({
                   <div className="flex min-h-screen flex-col overflow-x-clip">
                     <ShellGate>{children}</ShellGate>
                   </div>
+                  <AgentFundingGate />
                 </SolanaWalletProvider>
               </SupabaseAuthProvider>
             </ConvexClientProvider>

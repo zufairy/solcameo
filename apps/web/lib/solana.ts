@@ -15,22 +15,23 @@ import {
 } from "@metaplex-foundation/umi";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import type { WizardState } from "@/store/wizard";
-import { getRpcUrl } from "@/lib/solana/network";
+import { getNetwork, getRpcUrl } from "@/lib/solana/network";
 
 // Single source of truth via lib/solana/network — devnet returns the PUBLIC
 // endpoint (the configured Helius devnet key is suspended → 403).
-const DEVNET_RPC = getRpcUrl("devnet");
+const RPC = getRpcUrl(getNetwork());
+const IRYS = getNetwork() === "mainnet-beta" ? "https://node1.irys.xyz" : "https://devnet.irys.xyz";
 
 export function buildUmi(wallet: WalletContextState): Umi {
   // WalletContextState is structurally compatible with WalletAdapter
-  return createUmi(DEVNET_RPC)
+  return createUmi(RPC)
     .use(walletAdapterIdentity(wallet as unknown as WalletAdapter))
     .use(mplTokenMetadata())
     .use(
       irysUploader({
-        address: "https://devnet.irys.xyz",
+        address: IRYS,
         timeout: 60000,
-        providerUrl: DEVNET_RPC,
+        providerUrl: RPC,
       })
     );
 }

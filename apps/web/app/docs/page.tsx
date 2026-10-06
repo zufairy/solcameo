@@ -80,7 +80,7 @@ export default function DocsOverviewPage() {
         <Bullets
           items={[
             ["A Solcameo account", "sign in with Google or a Solana wallet. Covered in Getting started."],
-            ["A little SOL", "to cover the launch transactions. Solcameo currently runs on Solana devnet, where test SOL is free."],
+            ["A little SOL", "to cover the launch transactions. About 0.1 SOL covers a launch with no purchase: account rent and network fees are a few cents. (On devnet, test SOL is free.)"],
           ]}
         />
         <Note>

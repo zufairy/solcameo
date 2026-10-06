@@ -86,9 +86,9 @@ export default function LaunchPage() {
         </p>
       </Section>
 
-      <Section id="devnet-risk" kicker="Please read" title="Devnet and risk">
+      <Section id="devnet-risk" kicker="Please read" title="Risk">
         <Note>
-          Solcameo currently runs on Solana devnet. Devnet coins are for testing and have no monetary value, and dollar values
+          On mainnet, coins and fees are real money. On devnet (used for testing) coins have no monetary value, and dollar values
           shown there use the SOL spot rate for illustration only.
         </Note>
         <p>

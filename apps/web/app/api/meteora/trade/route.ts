@@ -13,7 +13,7 @@ import {
   convexClient,
   isConvexIdString,
 } from "@/lib/server/solstarRoute";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { dbcConnection, dbcReadiness } from "@/lib/server/meteoraLaunch";
 import {
   unsignedPumpTransaction,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: dbcReadiness().reason }, { status: 503 });
   try {
     const connection = dbcConnection();
-    if (network === "devnet") await assertDevnet(connection);
+    await assertConfiguredChain(connection, network === "mainnet" ? "mainnet" : "devnet");
     const client = new DynamicBondingCurveClient(connection, "confirmed");
     const payer = new PublicKey(wallet);
     if (body.action === "prepare" || body.action === "quote") {

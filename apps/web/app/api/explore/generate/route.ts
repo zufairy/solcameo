@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const runId = `explore:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
-  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason }, { status: 402 });
+  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
 
   try {
     const requestId = await submitVideo(
