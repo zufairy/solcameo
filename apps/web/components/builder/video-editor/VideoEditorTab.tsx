@@ -4412,7 +4412,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
               title={clipLabel
                 ? "Burns this clip for real, and saves its caption style, hook design, and music track as the default for every FUTURE video — other clips already in the timeline are left untouched"
                 : "Push this clip's caption style, hook design, media overlays, and music track onto every other clip in the timeline"}
-              className="flex items-center gap-2 rounded-lg border border-lime-400/30 bg-lime-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-lime-300 backdrop-blur-xl transition-colors hover:bg-lime-400/20 disabled:opacity-50">
+              className="flex items-center gap-2 rounded-[3px] bg-lime-400/[0.14] px-3.5 py-2 text-[12.5px] font-medium tracking-tight text-lime-300 backdrop-blur-xl transition-colors hover:bg-lime-400/[0.24] disabled:opacity-50">
               {applyingAll ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
               {applyingAll ? "Applying…" : clipLabel ? "Apply & save as default" : "Save"}
             </button>
@@ -4420,8 +4420,8 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
           {clipLabel ? (
             <button type="button" onClick={applySelectedClip} disabled={!selected || applyingId === selected?.id || applyingAll}
               title="Burns the configured captions, hook text, and music into this clip's video for real"
-              className="flex items-center gap-2 rounded-lg border border-white/25 bg-white/[0.12] px-4 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-colors hover:bg-white/[0.2] disabled:opacity-40">
-              {applyingId === selected?.id ? <Loader2 className="size-3.5 animate-spin" /> : <Scissors className="size-3.5" />}
+              className="flex items-center gap-2 rounded-[3px] bg-white/[0.12] px-4 py-2 text-[12.5px] font-medium tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-xl transition-colors hover:bg-white/[0.2] disabled:opacity-40">
+              {applyingId === selected?.id ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" strokeWidth={2.5} />}
               {applyingId === selected?.id ? "Applying…" : clipLabel}
             </button>
           ) : (
@@ -6097,8 +6097,10 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
         </AnimatePresence>
 
         {/* Right rail */}
-        <div className="w-24 shrink-0 border-l border-white/10 bg-black/20 backdrop-blur-xl flex flex-col items-center gap-5 py-6 overflow-y-auto editor-scroll">
-          {railLabels.map((label) => {
+        <div className="flex w-24 shrink-0">
+        <div className="my-3 mr-3 flex min-w-0 flex-1 flex-col items-center gap-5 overflow-y-auto editor-scroll rounded-[14px] border border-white/[0.14] bg-gradient-to-b from-white/[0.09] to-white/[0.03] py-6 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl">
+          {/* The AI-influencer Editor has no clipping tool. */}
+          {railLabels.filter((label) => !(clipLabel && label === "Clipping")).map((label) => {
             const Icon = railIcons[label];
             // Caption and Text Hooks are single-layer, replace-on-pick overlays —
             // give them a live on/off dot right on the rail (same idea as a mute
@@ -6142,6 +6144,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
               </button>
             );
           })}
+        </div>
         </div>
         </div>
 
