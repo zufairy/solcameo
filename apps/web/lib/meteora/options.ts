@@ -34,3 +34,10 @@ export const ANTI_SNIPER_LEVELS = {
   standard: { startingFeeBps: 3000, numberOfPeriod: 18, totalDuration: 180 },
   strict: { startingFeeBps: 5000, numberOfPeriod: 30, totalDuration: 300 },
 } as const;
+
+/** Platform fair-launch preset based on Meteora's documented market-cap example.
+ * Full permanent liquidity locking is Solcameo's deliberate protection choice. */
+export const PLATFORM_DBC = dbcOptionsSchema.parse({
+  economy: "creator-only", shape: "classic", initialCapSol: 20, graduationCapSol: 600,
+  feeBps: 100, antiSniper: false, dynamicFee: true, autopilot: false,
+});

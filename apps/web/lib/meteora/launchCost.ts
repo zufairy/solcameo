@@ -5,10 +5,13 @@
  */
 export const LAUNCH_MIN_LAMPORTS = {
   /** Before anything is signed: both transactions still to come. */
-  total: 36_000_000,
+  total: 50_000_000,
   /** Second transaction only (pool + mint + metadata), once the curve config exists. */
-  pool: 25_000_000,
+  pool: 40_000_000,
 } as const;
+
+/** Meteora launch intake recommendation: keep a buffer beyond estimated rent. */
+export const PLATFORM_RECOMMENDED_LAMPORTS = 100_000_000;
 
 export const lamportsToSol = (lamports: number) => lamports / 1e9;
 export const formatSol = (lamports: number) => lamportsToSol(lamports).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");

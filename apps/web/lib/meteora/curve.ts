@@ -18,9 +18,9 @@ import {
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { ANTI_SNIPER_LEVELS, dbcOptionsSchema, type DbcOptions } from "./options";
 import { CREATOR_TRADING_FEE_PERCENTAGE, TRADING_FEE_BPS } from "./feePolicy";
-export function buildDbcCurve(input: DbcOptions) {
+export function buildDbcCurve(input: DbcOptions, profile: "influencer" | "platform" = "influencer") {
   // The trading fee is flat for every coin, whatever an older stored option says.
-  const o = { ...dbcOptionsSchema.parse(input), feeBps: TRADING_FEE_BPS as number };
+  const o = { ...dbcOptionsSchema.parse(input), feeBps: profile === "platform" ? 100 : TRADING_FEE_BPS as number };
   const sniper = o.antiSniper ? ANTI_SNIPER_LEVELS[o.antiSniperLevel] : null;
   const base: BuildCurveBaseParams = {
     token: {
@@ -29,7 +29,7 @@ export function buildDbcCurve(input: DbcOptions) {
       tokenQuoteDecimal: 9,
       tokenAuthorityOption: TokenAuthorityOption.Immutable,
       totalTokenSupply: 1_000_000_000,
-      leftover: 1000,
+      leftover: profile === "platform" ? 0 : 1000,
     },
     fee: {
       baseFeeParams: {
@@ -53,7 +53,7 @@ export function buildDbcCurve(input: DbcOptions) {
       migratedPoolFee: {
         collectFeeMode: MigratedCollectFeeMode.QuoteToken,
         dynamicFee: o.dynamicFee ? DammV2DynamicFeeMode.Enabled : DammV2DynamicFeeMode.Disabled,
-        poolFeeBps: o.feeBps,
+        poolFeeBps: profile === "platform" ? 200 : o.feeBps,
       },
       migrationFee: { feePercentage: 0, creatorFeePercentage: 0 },
     },

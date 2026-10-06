@@ -6,7 +6,9 @@ import { handleDbcLaunch } from "@/lib/server/dbcLaunchRoute";
 import { platformLaunchOwner } from "@/lib/server/platformLaunchOwner";
 import { dbcReadiness } from "@/lib/server/meteoraLaunch";
 import { platformTokenMint } from "@/lib/server/platformTokenChain";
-import { DEFAULT_DBC, dbcOptionsSchema } from "@/lib/meteora/options";
+import { PLATFORM_DBC, dbcOptionsSchema } from "@/lib/meteora/options";
+import { buildDbcCurve } from "@/lib/meteora/curve";
+import { LAUNCH_MIN_LAMPORTS, PLATFORM_RECOMMENDED_LAMPORTS } from "@/lib/meteora/launchCost";
 import { getNetwork } from "@/lib/solana/network";
 
 export const runtime = "nodejs";
@@ -23,7 +25,9 @@ export async function GET() {
   try {
     const row = await convexClient().query(api.platformLaunch.get, { network: network(), authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
     const mint = await platformTokenMint();
-    return NextResponse.json({ ...dbcReadiness(), owner: await platformLaunchOwner(), mint: mint?.toBase58() ?? null, draft: row ? { name: row.name, description: row.description, image: row.image, mint: row.mint, config: row.config, pool: row.pool, signature: row.signature, state: row.state, options: JSON.parse(row.optionsJson) } : null }, { headers: { "Cache-Control": "no-store" } });
+    const options = row ? dbcOptionsSchema.parse(JSON.parse(row.optionsJson)) : PLATFORM_DBC;
+    const curve = buildDbcCurve(options, "platform");
+    return NextResponse.json({ ...dbcReadiness(), minimumLamports: LAUNCH_MIN_LAMPORTS.total, recommendedLamports: PLATFORM_RECOMMENDED_LAMPORTS, graduationNetSol: Number(curve.migrationQuoteThreshold.toString()) / 1e9, owner: await platformLaunchOwner(), mint: mint?.toBase58() ?? null, draft: row ? { name: row.name, description: row.description, image: row.image, mint: row.mint, config: row.config, pool: row.pool, signature: row.signature, state: row.state, options: JSON.parse(row.optionsJson) } : null }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Platform launch settings could not be loaded." }, { status: 503 });
   }
@@ -38,9 +42,10 @@ export async function POST(req: NextRequest) {
   try {
     if (await platformTokenMint()) return NextResponse.json({ error: "The platform token is already configured for this network." }, { status: 409 });
     const a = draftSchema.parse(prep.body);
-    const options = dbcOptionsSchema.parse({ ...DEFAULT_DBC, economy: "creator-only", autopilot: false, initialCapSol: a.initialCapSol, graduationCapSol: a.graduationCapSol });
+    const options = dbcOptionsSchema.parse({ ...PLATFORM_DBC, economy: "creator-only", autopilot: false, initialCapSol: a.initialCapSol, graduationCapSol: a.graduationCapSol });
+    const curve = buildDbcCurve(options, "platform");
     await convexClient().mutation(api.platformLaunch.draft, { network: network(), wallet: prep.wallet, name: a.name, description: a.description, image: a.image, optionsJson: JSON.stringify(options), authSecret: prep.secret });
-    return NextResponse.json({ ok: true, options });
+    return NextResponse.json({ ok: true, options, graduationNetSol: Number(curve.migrationQuoteThreshold.toString()) / 1e9 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof z.ZodError ? e.issues[0]?.message : e instanceof Error ? e.message : "Could not save platform launch." }, { status: 400 });
   }

@@ -1,10 +1,23 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DBC, dbcOptionsSchema } from "./options";
+import { DEFAULT_DBC, PLATFORM_DBC, dbcOptionsSchema } from "./options";
 import * as sdk from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { buildDbcCurve, previewDbc } from "./curve";
 import { CREATOR_TRADING_FEE_PERCENTAGE, FEE_SPLIT_PERCENT } from "./feePolicy";
 describe("Meteora DBC economics", () => {
+  it("builds the separate platform preset without influencer launch taxes", () => {
+    const c = buildDbcCurve(PLATFORM_DBC, "platform");
+    expect(PLATFORM_DBC).toMatchObject({ initialCapSol: 20, graduationCapSol: 600, antiSniper: false, dynamicFee: true, autopilot: false });
+    expect(c.tokenUpdateAuthority).toBe(1);
+    expect(Number(c.poolFees.baseFee.cliffFeeNumerator.toString())).toBe(10_000_000);
+    expect(c.creatorTradingFeePercentage).toBe(100);
+    expect(c.creatorPermanentLockedLiquidityPercentage).toBe(100);
+    expect(c.partnerLiquidityPercentage).toBe(0);
+    expect(c.migrationOption).toBe(1);
+    expect(c.migratedPoolFee?.poolFeeBps).toBe(200);
+    expect(c.migratedPoolFee?.dynamicFee).toBe(1);
+    expect(Number(c.migrationQuoteThreshold.toString())).toBeGreaterThan(0);
+  });
   it.each(["classic", "steady", "rocket", "whale"] as const)(
     "constructs %s with accurate graduation and buy quotes",
     (shape) => {

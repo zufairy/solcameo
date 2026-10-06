@@ -37,25 +37,12 @@ export function isMainnet(network?: SolanaNetwork): boolean {
 }
 
 /**
- * MAINNET FLIP — when the time comes, set ALL of the following in every
- * environment (Vercel, Convex bold-ram-39, Railway) and re-run the Phase-7
- * gates before taking live traffic:
- *
- *   NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta
- *   NEXT_PUBLIC_VELLO_ESCROW_PROGRAM_ID=<mainnet escrow program id>
- *   NEXT_PUBLIC_AGENT_VAULT_PROGRAM_ID=<mainnet agent-vault program id>
- *   NEXT_PUBLIC_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
- *
- * With NEXT_PUBLIC_USDC_MINT unset, all code paths (escrow, usdc-balance,
- * solanaVerify, agentVault, usdcTransfer) fall back to getUsdcMint() which
- * reads NEXT_PUBLIC_SOLANA_NETWORK — so flipping that one var is sufficient
- * for the mint. Explicitly setting NEXT_PUBLIC_USDC_MINT in the Convex env
- * is still recommended since Convex's copy of solanaVerify.ts inlines the
- * same table and respects the override.
- *
- * Do NOT flip without: audit, custody multisig, upgrade-authority gate,
- * RPC switch to Helius mainnet, and Phase-7 sign-off (see
- * docs/campaign-treasury/ORACLE-RESULT.md §7).
+ * Influencer/platform DBC launches use Meteora's existing mainnet program.
+ * Set NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta and SOLCAMEO_DBC_LIVE_ENABLED=true,
+ * use a mainnet Helius RPC, then rebuild Next.js so client network constants match.
+ * Campaign escrow and custom agent-vault programs belong to the legacy product;
+ * they are not dependencies of the current DBC + funded agent-wallet launch flow.
+ * USDC is selected by getUsdcMint() for the configured network.
  */
 
 /** Helius RPC for the selected cluster, when configured. */

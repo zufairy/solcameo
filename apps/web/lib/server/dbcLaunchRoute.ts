@@ -75,9 +75,9 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
         throw new Error("This character has a saved launch. Resume it first.");
       publicWallet(body.mint);
       publicWallet(body.config);
-      const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 }; // flat fee for every coin
+      const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: (platform ? 100 : TRADING_FEE_BPS) as 25 | 100 | 150 | 200 }; // flat fee for every coin
       if (options.economy === "sustainable-v1") dbcTreasury();
-      buildDbcCurve(options); // Validate construction before metadata upload or wallet costs.
+      buildDbcCurve(options, platform ? "platform" : "influencer"); // Validate construction before metadata upload or wallet costs.
       const metadata = await putImage(
         Buffer.from(
           JSON.stringify({
@@ -118,7 +118,7 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
         const sigs = await connection.getSignaturesForAddress(landed.publicKey, { limit: 100 }, "confirmed");
         const first = sigs.filter((x) => !x.err).at(-1);
         if (!first) throw new Error("Pool found, but its creation transaction could not be read yet. Retry shortly.");
-        const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 };
+        const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: (platform ? 100 : TRADING_FEE_BPS) as 25 | 100 | 150 | 200 };
         await finalize({
           characterId: body.characterId as Id<"ssCharacters">, wallet, mint: token.mint, config: landed.account.poolState.config.toBase58(),
           pool: landed.publicKey.toBase58(), network: getNetwork() === "mainnet-beta" ? "mainnet" : "devnet", launchSignature: first.signature,
@@ -127,8 +127,8 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
         return NextResponse.json({ mode: "complete" });
       }
       // Case 2: the old mint was never created. Reuse the curve config the first transaction already paid for.
-      const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 };
-      const wanted = buildDbcCurve(options);
+      const options = { ...(platform ? await storedOptions() : dbcOptionsSchema.parse(body.options)), feeBps: (platform ? 100 : TRADING_FEE_BPS) as 25 | 100 | 150 | 200 };
+      const wanted = buildDbcCurve(options, platform ? "platform" : "influencer");
       let configKey: PublicKey | null = token.dbcConfig ? new PublicKey(token.dbcConfig) : null;
       if (!configKey) {
         const owned = await client.state.getPoolConfigsByOwner(payer);
@@ -325,7 +325,7 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
     const tx =
       receipt.stage === "config"
         ? await client.partner.createConfig({
-            ...buildDbcCurve(receipt.options),
+            ...buildDbcCurve(receipt.options, platform ? "platform" : "influencer"),
             config,
             feeClaimer: receipt.options.economy === "sustainable-v1" ? dbcTreasury().publicKey : payer,
             leftoverReceiver: payer,

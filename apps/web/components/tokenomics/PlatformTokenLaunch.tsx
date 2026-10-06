@@ -6,10 +6,10 @@ import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { ensureSiwsViaRegistered } from "@/lib/client/siwsIdentity";
-import { DEFAULT_DBC, type DbcOptions } from "@/lib/meteora/options";
+import { PLATFORM_DBC, type DbcOptions } from "@/lib/meteora/options";
 import { getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
 
-type State = { error?: string; ready: boolean; reason: string; network: string; owner: string | null; mint: string | null; draft: null | { name: string; description: string; image: string; state: string; pool?: string; signature?: string; options: DbcOptions } };
+type State = { minimumLamports: number; recommendedLamports: number; graduationNetSol: number; error?: string; ready: boolean; reason: string; network: string; owner: string | null; mint: string | null; draft: null | { name: string; description: string; image: string; state: string; pool?: string; signature?: string; options: DbcOptions } };
 const glass = "rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl";
 const input = "mt-2 w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-[#d7ff00]/60";
 export function PlatformTokenLaunch() {
@@ -19,8 +19,8 @@ export function PlatformTokenLaunch() {
   const [name, setName] = useState("Solcameo");
   const [description, setDescription] = useState("The Solcameo platform token, supported by platform revenue buybacks.");
   const [image, setImage] = useState("https://solcameo.com/assets/solcameo-light.png");
-  const [opening, setOpening] = useState(DEFAULT_DBC.initialCapSol);
-  const [graduation, setGraduation] = useState(DEFAULT_DBC.graduationCapSol);
+  const [opening, setOpening] = useState(PLATFORM_DBC.initialCapSol);
+  const [graduation, setGraduation] = useState(PLATFORM_DBC.graduationCapSol);
   const [options, setOptions] = useState<DbcOptions | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +47,7 @@ export function PlatformTokenLaunch() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not prepare launch.");
       setOptions(data.options);
+      setState(current => current ? { ...current, graduationNetSol: data.graduationNetSol } : current);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not prepare launch."); }
     finally { setBusy(false); }
   }
@@ -61,9 +62,9 @@ export function PlatformTokenLaunch() {
           <label className="block text-sm">Description<textarea className={input} value={description} onChange={e => setDescription(e.target.value)} maxLength={1000} rows={3} /></label>
           <div className="grid grid-cols-2 gap-4"><label className="text-sm">Opening market cap · SOL<input className={input} type="number" min="0.1" step="0.1" value={opening} onChange={e => setOpening(Number(e.target.value))} /></label><label className="text-sm">Graduation market cap · SOL<input className={input} type="number" min="1" value={graduation} onChange={e => setGraduation(Number(e.target.value))} /></label></div>
         </fieldset>
-        <div className="mt-6 border-t border-white/10 pt-5 text-sm leading-6 text-white/60"><p>Fair launch through Meteora DBC → DAMM v2. Mint authority is immutable; graduated liquidity is permanently locked. No initial token purchase required.</p><p className="mt-3">This option has no reserved team, treasury or reward allocation and no team vesting. The published 60/15/12/10/3 allocation is a separate planned model and is not applied by this launch.</p><p className="mt-3">Platform revenue: <span className="text-white">30% buybacks · 40% operations · 30% treasury.</span> Purchased tokens: 50% burn · 50% rewards budget. Holder reward payouts are planned.</p></div>
+        <div className="mt-6 border-t border-white/10 pt-5 text-sm leading-6 text-white/60"><p>Fair launch through Meteora DBC → DAMM v2. Mint authority is immutable; graduated liquidity is permanently locked. No initial token purchase required.</p><p className="mt-3">Platform preset: 1% base trading fee with dynamic fees, 2% graduated pool base fee with dynamic fees, SOL quote, immutable SPL mint, 6 decimals and 100% permanently locked graduated liquidity. No opening anti-sniper surcharge.</p><p className="mt-3">This option has no reserved team, treasury or reward allocation and no team vesting. The published 60/15/12/10/3 allocation is a separate planned model and is not applied by this launch.</p><p className="mt-3">Platform revenue: <span className="text-white">30% buybacks · 40% operations · 30% treasury.</span> Purchased tokens: 50% burn · 50% rewards budget. Holder reward payouts are planned.</p></div>
       </section>
-      <div className="space-y-4">{!state ? <div className={glass}><Loader2 className="animate-spin" />Loading launch settings…</div> : <><div className={glass}><p className="text-sm text-white/60">{state.network} · platform wallet</p><p className="mt-2 break-all text-xs">{state.owner ?? "Platform wallet is not configured."}</p>{!state.ready && <p className="mt-3 text-sm text-amber-200">{state.reason}</p>}{publicKey && !owner && <p className="mt-3 text-sm text-amber-200">Switch to the platform wallet to continue.</p>}</div>{options && owner ? <LiveDbcLaunch characterId="platform" endpoint="/api/tokenomics/launch" platform options={options} onComplete={refresh} /> : <button className="h-12 w-full rounded-xl bg-[#d7ff00] font-semibold text-black disabled:opacity-40" disabled={busy || (!!publicKey && (!owner || !state.ready))} onClick={() => publicKey ? void review() : setVisible(true)}>{busy ? "Preparing…" : !publicKey ? "Connect platform wallet" : "Review launch"}</button>}</> }</div>
+      <div className="space-y-4">{!state ? <div className={glass}><Loader2 className="animate-spin" />Loading launch settings…</div> : <><div className={glass}><p className="text-sm text-white/60">{state.network} · platform wallet</p><p className="mt-2 break-all text-xs">{state.owner ?? "Platform wallet is not configured."}</p><p className="mt-3 text-sm text-white/60">Prepare {state.recommendedLamports / 1e9} SOL for rent and fees. Minimum launch balance: {state.minimumLamports / 1e9} SOL.</p><p className="mt-3 text-xs text-white/45">{state.graduationNetSol.toFixed(2)} SOL net trading reserves to graduate with the saved/default caps. This is contributed by trading, not required upfront from you.</p>{!state.ready && <p className="mt-3 text-sm text-amber-200">{state.reason}</p>}{publicKey && !owner && <p className="mt-3 text-sm text-amber-200">Switch to the platform wallet to continue.</p>}</div>{options && owner ? <LiveDbcLaunch characterId="platform" endpoint="/api/tokenomics/launch" platform options={options} onComplete={refresh} /> : <button className="h-12 w-full rounded-xl bg-[#d7ff00] font-semibold text-black disabled:opacity-40" disabled={busy || (!!publicKey && (!owner || !state.ready))} onClick={() => publicKey ? void review() : setVisible(true)}>{busy ? "Preparing…" : !publicKey ? "Connect platform wallet" : "Review launch"}</button>}</> }</div>
     </div>}
     {error && <div role="alert" className="mt-5 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">{error}<button onClick={() => { setError(""); void refresh(); }} className="ml-3 underline">Retry</button></div>}
   </div>;
