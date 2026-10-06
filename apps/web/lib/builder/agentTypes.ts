@@ -4,6 +4,7 @@
  */
 
 import { HIGGSFIELD_ENGINES } from "./higgsfieldEngines";
+import { RETAIL_MARKUP } from "@/lib/pricing/retail";
 
 export type AgentType = "influencer" | "worker" | "trader" | "campaign" | "clipping";
 
@@ -833,13 +834,13 @@ export function maxClipForModel(kieModel: string): number {
   return 8;                                               // Veo (+ unknown, conservative)
 }
 
-// Operator-facing engine menu + RETAIL credit debits. Provider prices must never
-// be exposed or billed directly: Vello targets 75% direct gross margin, so each
-// provider clip is billed at 4× its fully-loaded provider price. Failed jobs are
-// refunded by the task hold path; successful rerolls are new paid generations.
-// Cost model: provider price is quoted "per N seconds" → the retail
-// pricePerMaxClipUsdc is 4× that quote
-// and maxClipSeconds is N, so videoCostForLength bills ceil(targetSeconds/N) clips.
+// Operator-facing engine menu + RETAIL credit debits. Every engine is billed at the
+// provider's list price (Kie or Higgsfield) plus the 10% Solcameo fee (RETAIL_MARKUP).
+// Failed jobs are refunded by the task hold path; successful rerolls are new paid
+// generations.
+// Cost model: provider price is quoted "per N seconds" → pricePerMaxClipUsdc is that
+// quote plus 10%, and maxClipSeconds is N, so videoCostForLength bills
+// ceil(targetSeconds/N) clips.
 // `kieModel` is the slug sent to KIE. Veo uses the dedicated /veo/ endpoint; every
 // other engine routes through KIE's generic /jobs/createTask path (model slug +
 // prompt/image/duration). The non-Veo slugs below are best-effort — confirm them
@@ -852,10 +853,10 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:gj",
     provider: "higgsfield",
     formatOnly: true,
-    // Higgsfield list price $0.681/s at 720p (open.higgsfield.ai, checked 2026-10-06) x4 retail.
-    pricePerSecondUsdc: 0.681 * 4,
+    // Higgsfield list price $0.681/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
+    pricePerSecondUsdc: 0.681 * RETAIL_MARKUP,
     maxClipSeconds: 30,
-    pricePerMaxClipUsdc: 0.681 * 4 * 30,
+    pricePerMaxClipUsdc: 0.681 * RETAIL_MARKUP * 30,
     quality: "premium",
     description: "Higgsfield Genjutsu — transfers a library clip's motion onto your character. Used automatically by the Motion Swap format.",
   },
@@ -864,11 +865,11 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Seedance 2.5 · Higgsfield",
     kieModel: "hf:sd25",
     provider: "higgsfield",
-    // Higgsfield list price $0.4622/s at 720p (open.higgsfield.ai, checked 2026-10-06) x4 retail.
+    // Higgsfield list price $0.4622/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
     // Higgsfield bills per generated second, so videoCostForLength bills seconds, not whole clips.
-    pricePerSecondUsdc: 0.4622 * 4,
+    pricePerSecondUsdc: 0.4622 * RETAIL_MARKUP,
     maxClipSeconds: 30,
-    pricePerMaxClipUsdc: 0.4622 * 4 * 30,
+    pricePerMaxClipUsdc: 0.4622 * RETAIL_MARKUP * 30,
     quality: "premium",
     description: "Higgsfield · ByteDance Seedance 2.5 — up to a single 30s take with native audio, locked to your character image.",
   },
@@ -878,10 +879,10 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:sd20",
     provider: "higgsfield",
     // Token-metered: $0.014 per 1k tokens, tokens = ceil(s x w x h x 24 / 1024). 720x1280 portrait
-    // = 21,600 tokens/s = $0.3024/s (open.higgsfield.ai, checked 2026-10-06) x4 retail.
-    pricePerSecondUsdc: 0.3024 * 4,
+    // = 21,600 tokens/s = $0.3024/s (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
+    pricePerSecondUsdc: 0.3024 * RETAIL_MARKUP,
     maxClipSeconds: 15,
-    pricePerMaxClipUsdc: 0.3024 * 4 * 15,
+    pricePerMaxClipUsdc: 0.3024 * RETAIL_MARKUP * 15,
     quality: "premium",
     description: "Higgsfield · ByteDance Seedance 2.0 — smooth motion and strong identity lock, up to 1080p.",
   },
@@ -891,9 +892,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:gxv",
     provider: "higgsfield",
     // UNVERIFIED: Higgsfield's Grok Imagine page published no rate. Placeholder = Kie's Grok rate.
-    pricePerSecondUsdc: 0.2,
+    pricePerSecondUsdc: 0.1 * RETAIL_MARKUP,
     maxClipSeconds: 15,
-    pricePerMaxClipUsdc: 3,
+    pricePerMaxClipUsdc: 0.1 * RETAIL_MARKUP * 15,
     quality: "high",
     description: "Higgsfield · xAI Grok Imagine video — fast, expressive image-to-video, 2-15s takes.",
   },
@@ -901,9 +902,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     id: "gemini-omni",
     label: "Gemini Omni",
     kieModel: "gemini-omni-video",          // KIE jobs/createTask slug (docs.kie.ai/market/gemini-omni-video)
-    pricePerSecondUsdc: 3.6 / 10,
+    pricePerSecondUsdc: (1.8 * RETAIL_MARKUP) / 10,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 3.6,
+    pricePerMaxClipUsdc: 1.8 * RETAIL_MARKUP,
     quality: "premium",
     description: "Gemini Omni — Google's multimodal video model. Strong prompt adherence and native audio. 360 credits per 10s segment.",
   },
@@ -911,9 +912,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     id: "veo3-fast",
     label: "Google Veo 3.1 Fast",
     kieModel: "veo3_fast",
-    pricePerSecondUsdc: 1.20 / 8,
+    pricePerSecondUsdc: (0.6 * RETAIL_MARKUP) / 8,
     maxClipSeconds: 8,
-    pricePerMaxClipUsdc: 1.20,
+    pricePerMaxClipUsdc: 0.6 * RETAIL_MARKUP,
     quality: "high",
     description: "Google Veo 3.1 Fast — REFERENCE_2_VIDEO character lock (1-3 refs), native audio, 9:16 native. 120 credits per 8s segment.",
   },
@@ -921,9 +922,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     id: "seedance-v2",
     label: "Seedance 2.0",
     kieModel: "bytedance/seedance-2-fast",
-    pricePerSecondUsdc: 8.0 / 10,
+    pricePerSecondUsdc: (4.0 * RETAIL_MARKUP) / 10,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 8.0,
+    pricePerMaxClipUsdc: 4.0 * RETAIL_MARKUP,
     quality: "premium",
     description: "ByteDance Seedance 2.0 — smooth motion + strong character lock, frame-chained into longer takes. 800 credits per 10s segment.",
   },
@@ -937,9 +938,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     // direction — and both the preflight 402 gate AND the billed render cost
     // read this one constant, so a 30s render was estimated AND charged at
     // ~$9 instead of ~$1.80. Correct here in ONE place.
-    pricePerSecondUsdc: 0.20,
+    pricePerSecondUsdc: (1.2 * RETAIL_MARKUP) / 12,
     maxClipSeconds: 12,                     // model's native duration ceiling (4-12s/clip)
-    pricePerMaxClipUsdc: 2.4,
+    pricePerMaxClipUsdc: 1.2 * RETAIL_MARKUP,
     quality: "premium",
     description: "ByteDance Seedance 1.5 Pro — cinema-quality motion with synced multilingual dialogue/audio and cinematic camera control. 240 credits per 12s segment.",
   },
@@ -947,9 +948,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     id: "kling-v3",
     label: "Kling 3.0",
     kieModel: "kwaivgi/kling-v3",           // confirm slug vs kie.ai catalog
-    pricePerSecondUsdc: 4.0 / 10,
+    pricePerSecondUsdc: (2.0 * RETAIL_MARKUP) / 10,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 4.0,
+    pricePerMaxClipUsdc: 2.0 * RETAIL_MARKUP,
     quality: "high",
     description: "Kling 3.0 — cinematic motion and physical realism. Great for dynamic, high-production shots. 400 credits per 10s segment.",
   },
@@ -958,9 +959,9 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Grok Imagine 1.5",
     kieModel: "grok-imagine/image-to-video", // KIE jobs/createTask slug (docs.kie.ai/market/grok-imagine/image-to-video)
     // Grok renders ONE native take up to 30s → a ≤30s video is a SINGLE clip.
-    pricePerSecondUsdc: 6.0 / 30,
+    pricePerSecondUsdc: (3.0 * RETAIL_MARKUP) / 30,
     maxClipSeconds: 30,
-    pricePerMaxClipUsdc: 6.0,
+    pricePerMaxClipUsdc: 3.0 * RETAIL_MARKUP,
     quality: "high",
     description: "xAI Grok Imagine 1.5 — expressive image-to-video, up to a single coherent 30s take, locked to the reference image. 600 credits per 30s segment.",
   },
@@ -993,9 +994,8 @@ export function videoCostForLength(engine: VideoEngineOption, seconds: number): 
   return clips * engine.pricePerMaxClipUsdc;
 }
 
-/** Retail storyboard debit. Provider image cost is about $0.04; 16 credits
- * preserves the same 75% direct-margin floor as the video segments. */
-export const VIDEO_STORYBOARD_COST_USDC = 0.16;
+/** Retail storyboard debit: the provider image cost (about $0.04) plus the 10% Solcameo fee. */
+export const VIDEO_STORYBOARD_COST_USDC = 0.04 * RETAIL_MARKUP;
 
 /** Full customer-facing and reservable generation quote, in credits. */
 export function videoCreditsForLength(engine: VideoEngineOption, seconds: number): number {

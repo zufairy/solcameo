@@ -4,6 +4,9 @@ import { api } from "@/convex/_generated/api";
 import { resolveImageEngine } from "@/lib/builder/imageEngines";
 import { generateCarouselImage } from "@/lib/server/carouselImage";
 import { normalizeImagesForKie } from "@/lib/server/imageForKie";
+import { randomUUID } from "node:crypto";
+import { CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
+import { chargeImage, refundImage } from "@/lib/server/imageBilling";
 import { requireInternalOrUserAuth, requireOwnerWithSiws } from "@/lib/server/requireAuth";
 
 // Image generation is slow (KIE create → poll → persist), so give the route room
@@ -30,6 +33,8 @@ export async function POST(req: NextRequest) {
      *  lookup below when non-empty. Lets the operator generate "this exact photo
      *  in a different style" instead of always defaulting to the agent's face. */
     referenceImageUrls?: string[];
+    /** Extra references (for example @mentioned cameos) appended after the agent's own or the operator-picked ones. */
+    extraReferenceImageUrls?: string[];
   };
   try {
     body = await req.json();
@@ -78,7 +83,9 @@ export async function POST(req: NextRequest) {
     // animated GIF (which KIE's image models can't read), so it's only included as
     // a fallback when it's a real static image. Best-effort + normalized to
     // Kie-safe public .png — a bad ref is dropped, never a hard failure.
-    const explicitRefs = (body.referenceImageUrls ?? []).filter((u) => typeof u === "string" && u.trim()).slice(0, 8);
+    const isUrl = (u: unknown): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim());
+    const explicitRefs = (body.referenceImageUrls ?? []).filter(isUrl).slice(0, 8);
+    const extraRefs = (body.extraReferenceImageUrls ?? []).filter(isUrl).slice(0, 4);
     const stills = (agent?.avatarStills ?? []).filter(Boolean);
     const avatarFallback = agent?.avatarUrl && !/\.gif/i.test(agent.avatarUrl) ? [agent.avatarUrl] : [];
 
@@ -102,7 +109,7 @@ export async function POST(req: NextRequest) {
       // explicit "use THIS image" choice, not a fallback to blend with the
       // agent's own face.
       refImageUrls = await normalizeImagesForKie(
-        explicitRefs.length > 0 ? explicitRefs : [...stills, ...avatarFallback].slice(0, 8),
+        [...(explicitRefs.length > 0 ? explicitRefs : [...stills, ...avatarFallback].slice(0, 4)), ...extraRefs].slice(0, 8),
       );
       if (refImageUrls.length > 0) {
         console.log(`[carousel/generate] using ${refImageUrls.length} ${explicitRefs.length > 0 ? "operator-picked" : "agent"} reference image(s)`);
@@ -123,13 +130,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { imageUrl, engineId, engineLabel } = await generateCarouselImage({
-      prompt,
-      engine,
-      aspectRatio: body.aspectRatio,
-      refImageUrls: refImageUrls.length > 0 ? refImageUrls : undefined,
-      apiKey: process.env.KIE_API_KEY,
-    });
+    // Bill the chosen engine (provider price plus 10%) before spending a generation. Agent-side
+    // callers (internal) are billed by their own task, so only user requests are charged here.
+    const runId = `img:${randomUUID()}`;
+    let charged = false;
+    if (!auth.internal && agent) {
+      const charge = await chargeImage(mintAddress, runId, engine);
+      if (!charge.ok) return NextResponse.json({ ok: false, error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason }, { status: 402 });
+      charged = true;
+    }
+    let generated: Awaited<ReturnType<typeof generateCarouselImage>>;
+    try {
+      generated = await generateCarouselImage({
+        prompt,
+        engine,
+        aspectRatio: body.aspectRatio,
+        refImageUrls: refImageUrls.length > 0 ? refImageUrls : undefined,
+        apiKey: process.env.KIE_API_KEY,
+      });
+    } catch (e) {
+      if (charged) await refundImage(mintAddress, runId);
+      throw e;
+    }
+    const { imageUrl, engineId, engineLabel } = generated;
 
     // Record the generation for the history grid. sessionId fallback = mintAddress
     // so pre-mint rows are still listable and minted rows key under by_mint.

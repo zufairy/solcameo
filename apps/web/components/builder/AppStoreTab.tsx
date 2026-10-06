@@ -14,7 +14,7 @@ import {
 import { useMutation } from "convex/react";
 import { getSkillsForAgent, estimateDailyBurn, type Skill } from "@/lib/builder/skillsCatalog";
 import { CAPTION_PRESETS } from "@/lib/builder/captionPresets";
-import { IMAGE_ENGINES, resolveImageEngine } from "@/lib/builder/imageEngines";
+import { IMAGE_ENGINES, imageRetailPriceUsd, resolveImageEngine } from "@/lib/builder/imageEngines";
 import { HOOK_DESIGNS, DEFAULT_HOOK_DESIGN_ID, DEFAULT_HOOK_DURATION_SEC } from "@/lib/builder/hookDesigns";
 import tiktok from "@/assets/logos/tiktok.svg";
 import solana from "@/assets/logos/solana.svg";
@@ -913,7 +913,7 @@ function ImagePostsConfig({ mintAddress, accent }: { mintAddress?: string; accen
           <span className="block text-[12px] font-semibold text-zinc-800">Generate image only</span>
           <span className="block text-[11px] text-zinc-500">
             Skip video generation entirely, every post becomes a still, published as a photo to your connected
-            accounts. Costs one image (~${engine.pricePerImageUsdc.toFixed(2)}) instead of a video render.
+            accounts. Costs one image (~${imageRetailPriceUsd(engine).toFixed(3)}) instead of a video render.
           </span>
         </span>
       </label>
@@ -944,7 +944,7 @@ function ImagePostsConfig({ mintAddress, accent }: { mintAddress?: string; accen
         >
           {IMAGE_ENGINES.map((opt) => (
             <option key={opt.id} value={opt.id}>
-              {opt.label} · {opt.resolution} · ${opt.pricePerImageUsdc.toFixed(2)}
+              {opt.label} · {opt.resolution} · ${imageRetailPriceUsd(opt).toFixed(3)}
             </option>
           ))}
         </select>

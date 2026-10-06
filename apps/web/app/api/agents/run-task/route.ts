@@ -1849,10 +1849,16 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     // instead of the pick.
     const operatorRefOnly = !castRefs.length && !!operatorRef;
     const usingBibleRefs = operatorRefOnly && !oneOffRef && !pinnedRefUsable && !!bibleRefs.primary;
-    const extraRefs = castRefs.length > 1 ? castRefs.slice(1, 3)
+    const baseExtraRefs = castRefs.length > 1 ? castRefs.slice(1, 3)
       : usingBibleRefs ? bibleRefs.extras.slice(0, 2)
       : operatorRefOnly ? []
       : stills.slice(1, 3);
+    // @mentioned cameos from the Videos tab prompt box ride along as extra character references.
+    const mentionRefs = (Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])
+      .filter((u): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim()))
+      .map((u) => u.trim())
+      .slice(0, 2);
+    const extraRefs = mentionRefs.length ? [...mentionRefs, ...baseExtraRefs].slice(0, 2) : baseExtraRefs;
     if (operatorRefOnly) stills = [];
     if (usingBibleRefs) console.log(`[run-task] bible identity refs: ${1 + extraRefs.length} (archetype=${refBible?.archetype ?? "custom"})`);
 
@@ -1924,7 +1930,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     // is billed separately by the task's own cost below.
     const renderCostUsdc = directives.overlays.mainVideosOnly
       ? 0
-      : +(VIDEO_STORYBOARD_COST_USDC + videoCostForLength(engine, finalDurationSeconds)).toFixed(4);
+      : +((input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, finalDurationSeconds)).toFixed(4);
 
     // Scene beats the script call already authored — mapped snake→camel and
     // threaded to the pipeline so it can skip the redundant planner round trip.
@@ -3367,7 +3373,7 @@ export async function POST(req: NextRequest) {
           const seconds = typeof input.durationSeconds === "number"
             ? input.durationSeconds
             : configuredRange.max;
-          return VIDEO_STORYBOARD_COST_USDC + videoCostForLength(engine, seconds);
+          return (input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds);
         } catch { return 0.75; }
       }
       const BASELINE: Record<string, number> = {

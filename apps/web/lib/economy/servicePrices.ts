@@ -1,4 +1,4 @@
-export type Service = "render" | "image_gen" | "llm_message" | "social_post" | "transcription" | "explore_video";
+export type Service = "render" | "image_gen" | "llm_message" | "social_post" | "transcription" | "explore_video" | "gen_image";
 
 /** USDC list price per unit of each metered service. Tunable. Spec §6.1. */
 export const SERVICE_PRICES: Record<Service, number> = {
@@ -9,6 +9,8 @@ export const SERVICE_PRICES: Record<Service, number> = {
   transcription: 0.10,
   // Explore Genjutsu renders: qty is the whole-cent price (Higgsfield rate plus the 10% Solcameo fee).
   explore_video: 0.01,
+  // Studio images: qty is tenths of a cent (provider price plus 10%), so $0.044 is qty 44.
+  gen_image: 0.001,
 };
 
 /**

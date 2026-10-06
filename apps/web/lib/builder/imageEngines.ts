@@ -1,3 +1,4 @@
+import { retailUsd } from "@/lib/pricing/retail";
 /**
  * KIE image engines the operator can pick from.
  *
@@ -30,7 +31,7 @@ export interface ImageEngine {
    * purposes — a reference genuinely works, just not on this literal slug.
    */
   acceptsReferences: boolean;
-  /** Rough per-image cost, for the App Store card. */
+  /** Provider (Kie) list price per image. Customers pay this plus 10%: use imageRetailPriceUsd. */
   pricePerImageUsdc: number;
 }
 
@@ -89,6 +90,11 @@ export const IMAGE_ENGINES: ImageEngine[] = [
     pricePerImageUsdc: 0.03,
   },
 ];
+
+/** What one image costs the customer: the provider price plus the 10% Solcameo fee. */
+export function imageRetailPriceUsd(engine: Pick<ImageEngine, "pricePerImageUsdc">): number {
+  return retailUsd(engine.pricePerImageUsdc);
+}
 
 export const DEFAULT_IMAGE_ENGINE: ImageEngine["id"] = "nano-banana-pro";
 

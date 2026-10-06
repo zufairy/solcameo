@@ -23,6 +23,8 @@ import {
   ExternalLink,
   Loader2,
   Plus,
+  Rocket,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -42,7 +44,24 @@ const short = (a: string, n = 4) => `${a.slice(0, n)}…${a.slice(-n)}`;
 const usdFmt = (v: number) =>
   `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-type Activity = { signature: string; time: number | null; failed: boolean };
+type Activity = { signature: string; time: number | null; failed: boolean; sol: number | null; peer: string | null };
+
+/** The real Solana mark (three skewed bars, official gradient). */
+function SolanaLogo({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 397.7 311.7" className={className} aria-label="Solana" role="img">
+      <defs>
+        <linearGradient id="solLogoGrad" x1="360.879" y1="351.455" x2="141.213" y2="-69.294" gradientTransform="matrix(1 0 0 -1 0 314)" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#00FFA3" />
+          <stop offset="1" stopColor="#DC1FFF" />
+        </linearGradient>
+      </defs>
+      <path fill="url(#solLogoGrad)" d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
+      <path fill="url(#solLogoGrad)" d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
+      <path fill="url(#solLogoGrad)" d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
+    </svg>
+  );
+}
 
 /** Top-bar account: Deposit, quick create, balance chip with the wallet panel, and the profile avatar. */
 export function AccountMenu() {
@@ -78,6 +97,7 @@ export function AccountMenu() {
 
   const [open, setOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
   const [tab, setTab] = useState<"send" | "receive" | "activity">("send");
   // Incoming deposits: the balance subscription is on chain, so any increase is a real receive.
   const [received, setReceived] = useState<number | null>(null);
@@ -160,10 +180,25 @@ export function AccountMenu() {
   useEffect(() => {
     if (!open || tab !== "activity" || !publicKey) return;
     let live = true;
+    const me = publicKey.toBase58();
     connection
       .getSignaturesForAddress(publicKey, { limit: 8 }, "confirmed")
-      .then((rows) => {
-        if (live) setActivity(rows.map((r) => ({ signature: r.signature, time: r.blockTime ?? null, failed: !!r.err })));
+      .then(async (rows) => {
+        const base: Activity[] = rows.map((r) => ({ signature: r.signature, time: r.blockTime ?? null, failed: !!r.err, sol: null, peer: null }));
+        if (live) setActivity(base);
+        // Fill in amount + counterparty from the parsed transactions (RPC), best effort.
+        const parsed = await connection.getParsedTransactions(rows.map((r) => r.signature), { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
+        if (!live || !parsed) return;
+        setActivity(base.map((a, i) => {
+          const tx = parsed[i];
+          if (!tx?.meta) return a;
+          const keys = tx.transaction.message.accountKeys.map((k) => k.pubkey.toBase58());
+          const idx = keys.indexOf(me);
+          if (idx < 0) return a;
+          const delta = (tx.meta.postBalances[idx] - tx.meta.preBalances[idx]) / LAMPORTS_PER_SOL;
+          const peerIdx = keys.findIndex((_, k) => k !== idx && Math.sign(tx.meta!.postBalances[k] - tx.meta!.preBalances[k]) === -Math.sign(delta) && tx.meta!.postBalances[k] !== tx.meta!.preBalances[k] && keys[k] !== "11111111111111111111111111111111");
+          return { ...a, sol: delta, peer: peerIdx >= 0 ? keys[peerIdx] : null };
+        }));
       })
       .catch(() => live && setActivity([]));
     return () => {
@@ -203,13 +238,32 @@ export function AccountMenu() {
       >
         Deposit
       </button>
-      <Link
-        href="/create"
-        aria-label="Create"
-        className="hidden size-10 place-items-center rounded-lg border border-white/10 bg-[#14161a] text-zinc-200 transition-colors hover:border-white/25 hover:text-white sm:grid"
-      >
-        <Plus className="size-4" />
-      </Link>
+      <Popover open={plusOpen} onOpenChange={setPlusOpen}>
+        <PopoverTrigger
+          aria-label="Create or invest"
+          className="hidden size-10 place-items-center rounded-lg border border-white/10 bg-[#14161a] text-zinc-200 outline-none transition-colors hover:border-white/25 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:border-white/25 data-[popup-open]:text-white sm:grid"
+        >
+          <Plus className={`size-4 transition-transform duration-200 ${plusOpen ? "rotate-45" : ""}`} />
+        </PopoverTrigger>
+        <PopoverContent align="end" sideOffset={10} className="w-[264px] gap-0 rounded-2xl border border-white/10 bg-[#141619]/95 p-1.5 text-zinc-200 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8)] ring-0 backdrop-blur-2xl">
+          {[
+            { href: "/create", title: "Create a token", sub: "Launch your AI influencer coin", Icon: Rocket },
+            { href: "/market", title: "Invest in influencer", sub: "Browse the market and buy in", Icon: TrendingUp },
+          ].map(({ href, title, sub, Icon }) => (
+            <button key={href} type="button" onClick={() => { setPlusOpen(false); router.push(href); }}
+              className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-white/[0.06]">
+              <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-gradient-to-b from-white/[0.14] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] ring-1 ring-white/10 transition-transform group-hover:scale-105">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-white">{title}</span>
+                <span className="block text-[11px] text-zinc-500">{sub}</span>
+              </span>
+              <ArrowUpRight className="size-3.5 text-zinc-600 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-300" />
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
@@ -246,7 +300,7 @@ export function AccountMenu() {
             </p>
             <div className="mt-3 flex items-center gap-2.5">
               <span className="grid size-7 place-items-center rounded-full bg-black ring-1 ring-white/10">
-                <span className="size-3 rounded-sm bg-gradient-to-br from-[#9945ff] to-[#14f195]" />
+                <SolanaLogo className="size-3.5" />
               </span>
               <span className="text-sm text-white">SOL</span>
               <span className="ml-auto text-sm text-white tabular-nums">
@@ -278,7 +332,7 @@ export function AccountMenu() {
             <div className="min-w-0">
               <p className="text-xs text-zinc-500">Connected with</p>
               <p className="truncate text-sm text-white">
-                {walletName} <span className="text-zinc-400">· {embedded ? "embedded wallet" : "external wallet"}</span>
+                {walletName}{embedded && <span className="text-zinc-400"> · embedded wallet</span>}
               </p>
             </div>
           </div>
@@ -408,21 +462,28 @@ export function AccountMenu() {
                 ) : !activity.length ? (
                   <li className="py-6 text-center text-sm text-zinc-600">No transactions yet.</li>
                 ) : (
-                  activity.map((a) => (
-                    <li key={a.signature}>
-                      <a
-                        href={getTxExplorerUrl(a.signature)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center justify-between py-2.5 text-sm text-zinc-300 hover:text-white"
-                      >
-                        <span className="tabular-nums">{short(a.signature, 6)}</span>
-                        <span className={`text-xs ${a.failed ? "text-red-300" : "text-zinc-500"}`}>
-                          {a.failed ? "Failed" : a.time ? new Date(a.time * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Confirmed"}
-                        </span>
-                      </a>
-                    </li>
-                  ))
+                  activity.map((a) => {
+                    const out = (a.sol ?? 0) < 0;
+                    const label = a.failed ? "Failed" : a.sol == null ? "Transaction" : Math.abs(a.sol) < 0.0000011 ? "Interaction" : out ? "Sent" : "Received";
+                    return (
+                      <li key={a.signature}>
+                        <a href={getTxExplorerUrl(a.signature)} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 py-2 text-zinc-300 hover:text-white">
+                          <span className={`grid size-6 shrink-0 place-items-center rounded-md ${a.failed ? "bg-red-500/10 text-red-300" : out ? "bg-white/[0.06] text-zinc-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                            {out ? <ArrowUpRight className="size-3" /> : <ArrowDownLeft className="size-3" />}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[12px] font-medium leading-tight">{label}{a.peer ? <span className="font-normal text-zinc-500"> · {out ? "to" : "from"} {short(a.peer, 4)}</span> : null}</span>
+                            <span className="block text-[10px] leading-tight text-zinc-500">
+                              {a.time ? new Date(a.time * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Confirmed"} · {short(a.signature, 4)}
+                            </span>
+                          </span>
+                          {a.sol != null && Math.abs(a.sol) >= 0.0000011 && (
+                            <span className={`shrink-0 text-[10px] tabular-nums ${out ? "text-zinc-400" : "text-emerald-400"}`}>{out ? "−" : "+"}{Math.abs(a.sol).toFixed(Math.abs(a.sol) < 0.001 ? 6 : 4)} SOL</span>
+                          )}
+                        </a>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
             )}
