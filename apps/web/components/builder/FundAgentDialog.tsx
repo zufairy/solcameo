@@ -95,7 +95,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
           <DialogDescription className="text-zinc-500">Generations are paid from this agent’s USDC balance. Deposit from your connected wallet or send directly to its address.</DialogDescription>
         </DialogHeader>
 
-        {suggestedUsdc != null && suggestedUsdc > 0 && <p className="rounded-xl border border-[#d7ff00]/20 bg-[#d7ff00]/[0.06] px-3 py-2 text-xs text-[#e5f7a3]">This generation needs ${suggestedUsdc.toFixed(2)} USDC. Fund the agent, then try again.</p>}
+        {suggestedUsdc != null && suggestedUsdc > 0 && <p role="alert" className="flex items-center gap-2 rounded-none border-2 border-black bg-white px-2.5 py-1.5 text-[12.5px] font-bold leading-tight text-black shadow-[3px_3px_0_0_#d7ff00,3px_3px_0_2px_#000]"><span aria-hidden className="text-sm leading-none">⚠️</span><span>This generation needs ${suggestedUsdc.toFixed(2)} USDC. Fund the agent, then try again.</span></p>}
         <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           {agentWallet && <div className="shrink-0 rounded-xl bg-white p-2"><QRCodeSVG value={agentWallet} size={76} /></div>}
           <div className="min-w-0 flex-1">
