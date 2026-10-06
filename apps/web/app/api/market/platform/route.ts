@@ -23,7 +23,11 @@ async function compute(): Promise<Snapshot | null> {
   const network = dbcReadiness().network;
   const row = await convexClient().query(api.platformLaunch.get, { network, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
   if (!row || row.state !== "live" || !row.pool || !row.mint || !row.config) return null;
-  const listing = await convexClient().query(api.platformLaunch.listing, { network, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" }).catch(() => null);
+  const secret = process.env.INTERNAL_CRON_SECRET ?? "";
+  let listing = await convexClient().query(api.platformLaunch.listing, { network, authSecret: secret }).catch(() => null);
+  // A live token with no market listing (the link step failed, or it went live before listing existed) heals itself here,
+  // so /market/<id> and the trade box always exist for it. linkListing is idempotent.
+  if (!listing) listing = await convexClient().mutation(api.platformLaunch.linkListing, { network, authSecret: secret }).catch(() => null);
   const connection = dbcConnection();
   const client = new DynamicBondingCurveClient(connection, "confirmed");
   const poolKey = new PublicKey(row.pool);
