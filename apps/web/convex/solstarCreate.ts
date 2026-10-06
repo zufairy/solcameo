@@ -138,7 +138,7 @@ export const finalizePumpLaunch = mutation({
 
 /** Reserve before submission, so parallel tabs cannot launch two mints for one character. */
 export const reservePumpMint = mutation({
-  args: { characterId: v.id("ssCharacters"), wallet: v.string(), mint: v.string(), authSecret: v.string() },
+  args: { characterId: v.id("ssCharacters"), wallet: v.string(), mint: v.string(), config: v.optional(v.string()), authSecret: v.string() },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
     const character = await ctx.db.get(a.characterId);
@@ -147,8 +147,41 @@ export const reservePumpMint = mutation({
     if (!token) throw new Error("token_not_found");
     if (token.mint && token.mint !== a.mint) throw new Error("launch_conflict");
     if (token.state === "live") throw new Error("already_launched");
-    await ctx.db.patch(token._id, { mint: a.mint, state: "pending" });
+    await ctx.db.patch(token._id, { mint: a.mint, state: "pending", ...(a.config ? { dbcConfig: a.config } : {}) });
     return { mint: a.mint };
+  },
+});
+
+/**
+ * Recovery: swap a reserved mint for a fresh one. The caller (server) has already proven on chain that the old mint
+ * account was never created, so no token exists under it, and that the curve config the launch already paid for is `config`.
+ */
+export const replaceReservedMint = mutation({
+  args: { characterId: v.id("ssCharacters"), wallet: v.string(), oldMint: v.string(), newMint: v.string(), config: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    const character = await ctx.db.get(a.characterId);
+    if (!character || character.ownerWallet !== a.wallet) throw new Error("character_not_found");
+    const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", a.characterId)).first();
+    if (!token) throw new Error("token_not_found");
+    if (token.state === "live") throw new Error("already_launched");
+    if (token.mint !== a.oldMint && token.mint !== a.newMint) throw new Error("launch_conflict");
+    await ctx.db.patch(token._id, { mint: a.newMint, dbcConfig: a.config, state: "pending" });
+    return { mint: a.newMint };
+  },
+});
+
+/** Recovery: clear a reservation that never reached the chain, so a fresh launch can start. */
+export const releaseReservedMint = mutation({
+  args: { characterId: v.id("ssCharacters"), wallet: v.string(), mint: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    const character = await ctx.db.get(a.characterId);
+    if (!character || character.ownerWallet !== a.wallet) throw new Error("character_not_found");
+    const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", a.characterId)).first();
+    if (!token || token.state === "live" || token.mint !== a.mint) return { released: false as const };
+    await ctx.db.patch(token._id, { mint: undefined, dbcConfig: undefined, state: "paper" });
+    return { released: true as const };
   },
 });
 

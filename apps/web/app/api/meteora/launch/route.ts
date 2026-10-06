@@ -93,6 +93,66 @@ export async function POST(req: NextRequest) {
         messageHash: "",
         expires: Date.now() + 7 * 86400000,
       };
+    } else if (body.action === "recover") {
+      // Resume a launch whose browser state is gone: find what already happened on chain and continue from there.
+      if (!isConvexIdString(body.characterId) || typeof body.mint !== "string") throw new Error("Invalid launch identifiers.");
+      publicWallet(body.mint);
+      const { character, token } = await convexClient().query(api.solstarCreate.getLaunchCharacter, {
+        characterId: body.characterId as Id<"ssCharacters">, wallet, authSecret: secret,
+      });
+      if (token.state === "live") return NextResponse.json({ mode: "complete" });
+      if (!token.mint) return NextResponse.json({ mode: "none" });
+      const oldMint = new PublicKey(token.mint);
+      // Case 1: the pool already exists on chain (the transaction landed, only the page lost track). Finish the record.
+      const landed = await client.state.getPoolByBaseMint(oldMint);
+      if (landed) {
+        if (landed.account.poolState.creator.toBase58() !== wallet) throw new Error("This launch belongs to a different wallet.");
+        const sigs = await connection.getSignaturesForAddress(landed.publicKey, { limit: 100 }, "confirmed");
+        const first = sigs.filter((x) => !x.err).at(-1);
+        if (!first) throw new Error("Pool found, but its creation transaction could not be read yet. Retry shortly.");
+        const options = { ...dbcOptionsSchema.parse(body.options), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 };
+        await convexClient().mutation(api.solstarCreate.finalizeDbcLaunch, {
+          characterId: body.characterId as Id<"ssCharacters">, wallet, mint: token.mint, config: landed.account.poolState.config.toBase58(),
+          pool: landed.publicKey.toBase58(), network: getNetwork() === "mainnet-beta" ? "mainnet" : "devnet", launchSignature: first.signature,
+          economy: options.economy, treasuryWallet: options.economy === "sustainable-v1" ? dbcTreasury().publicKey.toBase58() : undefined, authSecret: secret,
+        });
+        return NextResponse.json({ mode: "complete" });
+      }
+      // Case 2: the old mint was never created. Reuse the curve config the first transaction already paid for.
+      const options = { ...dbcOptionsSchema.parse(body.options), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 };
+      const wanted = buildDbcCurve(options);
+      let configKey: PublicKey | null = token.dbcConfig ? new PublicKey(token.dbcConfig) : null;
+      if (!configKey) {
+        const owned = await client.state.getPoolConfigsByOwner(payer);
+        for (const entry of owned) {
+          if (entry.account.sqrtStartPrice.toString() !== String(wanted.sqrtStartPrice) || entry.account.migrationQuoteThreshold.toString() !== String(wanted.migrationQuoteThreshold)) continue;
+          if ((await client.state.getPoolsByConfig(entry.publicKey)).length) continue; // already used by a launched coin
+          configKey = entry.publicKey;
+          break;
+        }
+      }
+      if (!configKey) {
+        // Nothing was paid on chain: free the reservation so a normal launch can start.
+        if ((await connection.getAccountInfo(oldMint, "confirmed")) === null) {
+          await convexClient().mutation(api.solstarCreate.releaseReservedMint, { characterId: body.characterId as Id<"ssCharacters">, wallet, mint: token.mint, authSecret: secret });
+          return NextResponse.json({ mode: "none" });
+        }
+        throw new Error("This launch has a token on chain but no pool. Contact support before retrying.");
+      }
+      if ((await connection.getAccountInfo(configKey, "confirmed")) === null) throw new Error("The saved curve configuration was not found on chain.");
+      if ((await connection.getAccountInfo(oldMint, "confirmed")) !== null) throw new Error("The reserved token already exists on chain without a pool. Contact support before retrying.");
+      await convexClient().mutation(api.solstarCreate.replaceReservedMint, {
+        characterId: body.characterId as Id<"ssCharacters">, wallet, oldMint: token.mint, newMint: body.mint, config: configKey.toBase58(), authSecret: secret,
+      });
+      const metadata = await putImage(
+        Buffer.from(JSON.stringify({ name: token.name, symbol: token.ticker, description: token.description, image: character.referenceImageUrl })),
+        "application/json",
+        { keyPrefix: `dbc-metadata/${body.characterId}` },
+      );
+      receipt = {
+        protocol: "meteora-dbc", wallet, characterId: body.characterId, mint: body.mint, config: configKey.toBase58(), uri: metadata.url, options,
+        network: getNetwork() === "mainnet-beta" ? "mainnet" : "devnet", stage: "pool", messageHash: "", expires: Date.now() + 7 * 86400000,
+      };
     } else {
       if (typeof body.receipt !== "string")
         throw new Error("Missing launch receipt.");
@@ -159,6 +219,7 @@ export async function POST(req: NextRequest) {
           characterId: receipt.characterId as Id<"ssCharacters">,
           wallet,
           mint: receipt.mint,
+          config: receipt.config,
           authSecret: secret,
         });
         if (!(await connection.isBlockhashValid(tx.message.recentBlockhash, {commitment: "confirmed"})).value) {
@@ -283,6 +344,7 @@ export async function POST(req: NextRequest) {
         lastValidBlockHeight: prepared.lastValidBlockHeight,
       }),
       stage: receipt.stage,
+      ...(body.action === "recover" ? { mode: "resume" as const } : {}),
     });
   } catch (e) {
     if (e instanceof Error && /blockhash not found/i.test(e.message))
