@@ -10,10 +10,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Download, Flame, Globe, Megaphone, Loader2 } from "lucide-react";
 import { calloutCardBlob, type CalloutCardData } from "@/lib/client/calloutCard";
 import { CalloutAttachments } from "./CalloutAttachments";
-import { CalloutMedia } from "./CalloutMedia";
 import type { CalloutAttachment } from "@/lib/solstar/calloutMedia";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { CalloutFeedCard } from "./CalloutFeedCard";
+import { CalloutRow, CalloutThreadDialog, useReplyCounts } from "./CalloutThread";
 import { CALLOUT_THEMES, type CalloutMetric, type CalloutTheme } from "@/lib/solstar/callout";
 import { CalloutVisual } from "./CalloutVisual";
 import { api } from "@/convex/_generated/api";
@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ensureSiwsViaRegistered, getCurrentSiwsToken } from "@/lib/client/siwsIdentity";
 import { useSolUsd } from "@/lib/client/useSolUsd";
-import { formatRelativeTime } from "@/lib/solstar/relativeTime";
 import { useNow } from "./feedShared";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import type { MarketRow } from "./MarketTable";
@@ -158,25 +157,17 @@ export function HomeCallouts() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `solcameo-${selected?.ticker ?? "callout"}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   function closeDialog() { setOpen(false); setPosted(false); setNote(""); if (posted) { setBody(""); setTradeMint(""); setPostedTrade(undefined); setAttachments([]); } }
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const replyCounts = useReplyCounts((callouts ?? []).map(c => c.id));
+  const cardFor = (c: NonNullable<typeof callouts>[number]): CalloutCardData => ({ ...buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet, { metric: c.calloutMetric ?? "earnings", theme: c.theme, tradePnlUsd: c.tradePnlUsd, onchainTrade: c.onchainTrade }), trader: c.trader });
+  const threadCall = callouts?.find(c => c.id === threadId) ?? null;
   const ranked = [...(rows ?? []).slice(0, 20)].sort((a, b) => Number(pools[b.characterId]?.appVolume24hLamports ?? 0) - Number(pools[a.characterId]?.appVolume24hLamports ?? 0));
   return <div className="@container min-w-0 font-apple text-zinc-200 antialiased">
     <div className="grid @3xl:h-[calc(100dvh-136px)] @3xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)] @3xl:divide-x @3xl:divide-white/10">
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
     <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 feed-glass-header px-4"><span className="grid size-7 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-sm font-semibold tracking-tight text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); setOpen(true); }} className="ml-auto flex h-9 items-center gap-2 rounded-lg bg-[#d7ff00] px-4 text-sm font-semibold text-black transition-colors hover:bg-[#e4ff59] active:scale-[0.98]"><Megaphone className="size-4" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
-      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Share your trade or call out an agent.</p> : callouts.map(c => {
-        const card = { ...buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet, { metric: c.calloutMetric ?? "earnings", theme: c.theme, tradePnlUsd: c.tradePnlUsd, onchainTrade: c.onchainTrade }), trader: c.trader };
-        return <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2.5 border-b border-white/5 px-4 py-3">
-          {c.trader ? <CalloutFeedCard data={card} /> : <Link href={`/market/${c.characterId}`} aria-label={`Open ${c.name} market`} className="block w-full max-w-[500px] shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"><CalloutFeedCard data={card} /></Link>}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-xs"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-300">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div>
-            <p className="my-2 whitespace-pre-wrap break-words text-[13px] leading-5 text-zinc-100">{c.body}</p>
-            {c.onchainTrade && <a href={getTxExplorerUrl(c.onchainTrade.signature, c.onchainTrade.network === "mainnet" ? "mainnet-beta" : "devnet")} target="_blank" rel="noopener noreferrer" className="mb-2 inline-block text-[10px] text-zinc-500 hover:text-zinc-200">View confirmed {c.onchainTrade.side} ↗</a>}
-            {c.attachments?.length ? <CalloutMedia attachments={c.attachments} /> : null}
-
-          </div>
-        </motion.article>;
-      })}
+      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Share your trade or call out an agent.</p> : callouts.map((c, i) => <CalloutRow key={c.id} c={c} card={cardFor(c)} now={now} replies={replyCounts[c.id] ?? 0} index={i} onOpen={() => setThreadId(c.id)} />)}
     </div>
     </section>
     <LeaderboardPanel />
@@ -194,9 +185,10 @@ export function HomeCallouts() {
       })}
     </section>
     </div>
+    <CalloutThreadDialog c={threadCall} card={threadCall ? cardFor(threadCall) : null} onClose={() => setThreadId(null)} />
     <Dialog open={open} onOpenChange={value => { if (sending || uploading) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
       <div className="grid gap-5 md:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[520px] space-y-4 md:max-w-none"><CalloutVisual replay data={cardData} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /><div><p className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">Feed preview · 500 × 100</p><CalloutFeedCard data={cardData} /></div></div>
+        <div className="mx-auto w-full max-w-[520px] space-y-4 md:max-w-none"><CalloutVisual replay data={cardData} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /><div><p className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">Feed preview</p><CalloutFeedCard data={cardData} /></div></div>
         <div className="flex min-w-0 flex-col gap-4 [&>*]:shrink-0 md:max-h-[calc(94dvh-40px)] md:overflow-y-auto md:overscroll-contain md:py-1 md:pr-1">
           <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Share your own trade P&L, or call out an agent. Choose a theme and make your call."}</DialogDescription></div>
           {!posted ? <>

@@ -84,6 +84,10 @@ export default defineSchema({
     attachments: v.optional(v.array(v.object({ url: v.string(), type: v.union(v.literal("image"), v.literal("gif")), alt: v.string() }))),
     network: v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet")), createdAt: v.number(),
   }).index("by_created", ["createdAt"]).index("by_wallet_kind_created", ["wallet", "kind", "createdAt"]).index("by_kind_created", ["kind", "createdAt"]),
+  /** Thread replies under a callout post in the home feed. */
+  ssCalloutReplies: defineTable({
+    calloutId: v.id("ssFeed"), wallet: v.string(), body: v.string(), createdAt: v.number(),
+  }).index("by_callout_created", ["calloutId", "createdAt"]).index("by_wallet_created", ["wallet", "createdAt"]),
   contentControlSettings: defineTable({
     key: v.string(), targetMint: v.optional(v.string()), autoAnnounce: v.boolean(), autoMilestones: v.optional(v.boolean()), updatedAt: v.number(),
   }).index("by_key", ["key"]),
