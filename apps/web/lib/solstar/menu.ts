@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   TrendingUp,
   Trophy,
-  Coins,
   Compass,
   type LucideIcon,
 } from "lucide-react";
@@ -44,7 +43,6 @@ const ITEMS: MenuItem[] = [
   item("Leaderboards", "/tournament", Trophy, "Workspace"),
   item("Tokenomics", "/tokenomics", Activity, "Workspace"),
   item("Analytics", "/analytics", BarChart3, "Workspace"),
-  item("Earnings", "/earnings", Coins, "Workspace"),
 ];
 /** Influencer-focused navigation, independent of the old landing-page flag. */
 export function getMenuItems(legacy: boolean): MenuItem[] {

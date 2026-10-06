@@ -8,7 +8,7 @@ import { useFullSignOut } from "@/providers/wallet-provider";
 import { AppHeaderShell } from "@/components/home/app-shell";
 import flashAvatar from "@/assets/flash.jpeg";
 import {
-  User, Zap, Receipt, TrendingUp, Layers, LogOut, ShieldCheck, type LucideIcon,
+  User, Zap, Layers, LogOut, ShieldCheck, type LucideIcon,
 } from "lucide-react";
 
 /** One shared settings hub — /profile, /billing, /billing/history, /earnings,
@@ -20,8 +20,7 @@ export type SettingsTab = "profile" | "billing" | "history" | "earnings" | "gene
 const NAV: { id: SettingsTab; label: string; href: string; icon: LucideIcon; blurb: string }[] = [
   { id: "profile", label: "Profile", href: "/profile", icon: User, blurb: "Account & wallets" },
   { id: "billing", label: "Billing", href: "/billing", icon: Zap, blurb: "Credits & top up" },
-  { id: "history", label: "History", href: "/billing/history", icon: Receipt, blurb: "All transactions" },
-  { id: "earnings", label: "Earnings", href: "/earnings", icon: TrendingUp, blurb: "Agent payouts" },
+  // History (/billing/history) and Earnings (/earnings) are hidden from the menu for now; the routes still exist.
   { id: "generations", label: "Generations", href: "/generations", icon: Layers, blurb: "Everything made" },
 ];
 
