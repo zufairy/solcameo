@@ -1,7 +1,8 @@
 /** Read-only platform launch preflight. Never signs or broadcasts a transaction. */
 import dotenv from "dotenv";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { DYNAMIC_BONDING_CURVE_PROGRAM_ID } from "@meteora-ag/dynamic-bonding-curve-sdk";
+import { Connection, PublicKey, Keypair, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { NATIVE_MINT } from "@solana/spl-token";
+import { DYNAMIC_BONDING_CURVE_PROGRAM_ID, DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { PLATFORM_DBC } from "../lib/meteora/options";
 import { buildDbcCurve } from "../lib/meteora/curve";
 import { LAUNCH_MIN_LAMPORTS, PLATFORM_RECOMMENDED_LAMPORTS } from "../lib/meteora/launchCost";
@@ -23,6 +24,18 @@ async function main() {
   ]);
   if (!program?.executable) throw new Error("Meteora DBC program is unavailable.");
   const curve = buildDbcCurve(PLATFORM_DBC, "platform");
+  let configurationSimulation: null | { passed: boolean; error: unknown; unitsConsumed?: number } = null;
+  if (process.argv.includes("--simulate")) {
+    // Unsigned simulation only. This generates no owner signature and submits no transaction.
+    const client = new DynamicBondingCurveClient(c, "confirmed");
+    const config = Keypair.generate().publicKey;
+    const unsigned = await client.partner.createConfig({ ...curve, config, payer: wallet, feeClaimer: wallet, leftoverReceiver: wallet, quoteMint: NATIVE_MINT });
+    const { blockhash } = await c.getLatestBlockhash();
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: wallet, recentBlockhash: blockhash, instructions: unsigned.instructions }).compileToV0Message());
+    const result = await c.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
+    configurationSimulation = { passed: result.value.err === null, error: result.value.err, unitsConsumed: result.value.unitsConsumed };
+    if (result.value.err) process.exitCode = 1;
+  }
   console.log(JSON.stringify({
     network: "mainnet", provider: "Helius", slot,
     dbcProgram: DYNAMIC_BONDING_CURVE_PROGRAM_ID.toBase58(), executable: true,
@@ -35,6 +48,7 @@ async function main() {
     graduatedBaseFeeBps: curve.migratedPoolFee?.poolFeeBps,
     permanentlyLockedLiquidityPct: curve.creatorPermanentLockedLiquidityPercentage,
     customProgramDeploymentRequired: false,
+    configurationSimulation,
     transactionSent: false,
   }, null, 2));
 }
