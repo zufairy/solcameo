@@ -44,6 +44,7 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
   const since = periodStart(period), prices = new Map<string, number>(), trades: RpcTrade[] = [], earners: EarnerRank[] = [], errors: string[] = [];
   let complete = true;
   const unknownBalances = new Set<string>();
+  const coinMeta = new Map<string, { ticker: string; name: string; imageUrl: string; marketUrl: string }>();
   // Bound concurrent pools to keep Helius reads fast without unbounded bursts.
   await mapBounded(rows, 3, async row => {
     let succeeded = false;
@@ -57,7 +58,7 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
         if (!config || !config.quoteMint.equals(NATIVE_MINT)) throw new Error("Unsupported quote mint");
         const mint = pool.poolState.baseMint.toBase58();
         if (realizedOnly) {
-          const history = await readPoolHistory(connection, address, network);
+          coinMeta.set(mint, { ticker: row.ticker, name: row.name, imageUrl: row.imageUrl, marketUrl: row.marketUrl });
           const poolTrades = history.transactions.flatMap(({ signature, tx }) => {
             const parsed = readMarketSwap(tx, signature, mint, address.toBase58());
             return parsed?.trade ? [parsed.trade] : [];
@@ -154,6 +155,7 @@ async function load(period: LeaderboardPeriod, network: "mainnet" | "devnet", vi
     if (!succeeded) { complete = false; errors.push(`${row.name}: RPC temporarily unavailable`); }
   });
   const traders = rankTraders(trades, prices, since, complete, realizedOnly).map(t => unknownBalances.has(t.wallet) ? { ...t, pnlSol: null, complete: false } : t).sort((a, b) => (b.pnlSol ?? -Infinity) - (a.pnlSol ?? -Infinity));
+  for (const t of traders) t.coins = t.coins?.map(coin => ({ ...coin, ...coinMeta.get(coin.mint) }));
   if (unknownBalances.size) errors.push("Some wallet balances changed outside tracked swaps or are unavailable; their cost basis cannot be verified");
   const wallets = [...new Set([...traders.map(t => t.wallet), ...earners.map(e => e.wallet)])];
   for (const client of clients) {

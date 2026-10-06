@@ -57,4 +57,12 @@ describe("realized tournament ranking", () => {
     expect(rankTraders(rows, new Map(), 0, true, true)[0].pnlSol).toBeCloseTo(-0.52);
     expect(rankTraders(rows, new Map(), 0, false, true)[0].pnlSol).toBeNull();
   });
+  it("breaks realized P&L down per coin, best first", () => {
+    const other = (signature: string, side: "buy" | "sell", units: number, sol: number, time = 100): RpcTrade => ({ ...trade(signature, side, units, sol, time), mint: "other" });
+    const rows = [trade("b", "buy", 100, 1), trade("s", "sell", 100, 1.4, 200), other("ob", "buy", 100, 1), other("os", "sell", 100, 0.5, 200)];
+    const coins = rankTraders(rows, new Map(), 0, true, true)[0].coins!;
+    expect(coins.map(c => c.mint)).toEqual(["coin", "other"]);
+    expect(coins[0].realizedSol).toBeCloseTo(0.38);
+    expect(coins[1].realizedSol).toBeCloseTo(-0.52);
+  });
 });
