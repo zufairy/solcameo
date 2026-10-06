@@ -1,6 +1,6 @@
 # Explore references
 
-The initial index contains 192 public Higgsfield motion references. `/api/explore` paginates the rest of the public community feed with caching. Original motion and finished preview URLs are kept separate. Categories are inferred from titles and descriptions; search and bookmarks apply to loaded references. Bookmarks are local to this browser.
+The page ships with a bundled index (the first 12 feed pages). Everything else comes from an indexed copy of the WHOLE public feed (`lib/explore/library.ts`): a background job scrapes every feed page, trims it, stores one snapshot in R2 (`explore/library/v1.json`) and keeps it in memory. `/api/explore` filters that copy locally, so search, category and length filters answer in milliseconds and page through every match; the first request after a deploy builds the snapshot on its own, and a Convex cron (every 3 hours) refreshes it through `POST /api/explore/refresh` (internal secret). The page keeps the next batch fetched ahead of the scroll. Original motion and finished preview URLs are kept separate. Categories are inferred from titles and descriptions; search and bookmarks apply to loaded references. Bookmarks are local to this browser.
 
 Refresh from the repository root:
 

@@ -10,7 +10,9 @@ import {
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useWalletUsdc } from "@/lib/client/usdcClient";
-import { sendFundingTransfer, confirmSignature } from "@/lib/solana/fundWallet";
+import { sendFundingTransfer } from "@/lib/solana/fundWallet";
+import { landTransaction } from "@/lib/solana/landTransaction";
+import { rpcCandidates } from "@/lib/solana/rpc";
 import {
   getNetworkLabel, getUsdcFaucetUrl, getAccountExplorerUrl, getTxExplorerUrl, isMainnet,
 } from "@/lib/solana/network";
@@ -117,7 +119,7 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
     setError(null);
     setTxSignature(null);
     try {
-      const { sig } = await sendFundingTransfer({
+      const { sig, raw, lastValidBlockHeight } = await sendFundingTransfer({
         connection,
         publicKey: pk,
         signTransaction: sign,
@@ -126,11 +128,16 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
         amount,
       });
       setTxSignature(sig);
-      // Poll the signature over HTTP (never hangs on a flaky websocket).
-      const status = await confirmSignature(connection, sig);
+      // Keep re-sending the same signed transaction while polling; stop the moment its blockhash can no longer land.
+      const status = await landTransaction({ raw, signature: sig, lastValidBlockHeight, urls: rpcCandidates() });
       void refreshAgentBalance();
+      if (status === "expired") {
+        setError("The network didn't include this deposit in time, so nothing was deducted. Please try again.");
+        setStep("error");
+        return;
+      }
       if (status !== "confirmed") {
-        setError("Deposit broadcast but not confirmed yet, open it on the explorer to check. Your balance updates the moment it lands.");
+        setError("Deposit sent but not confirmed yet. Open it on the explorer to check. Your balance updates the moment it lands.");
         setStep("error");
         return;
       }

@@ -22,6 +22,7 @@ import {
 import { getNetwork, getUsdcMint } from "./network";
 import { rpcTry, rpcCandidates } from "./rpc";
 import { splitFundingAmount } from "./fundingFee";
+import { computeBudgetInstructions, estimatePriorityPrice } from "./landTransaction";
 
 const USDC_DECIMALS = 6;
 // Failover over public devnet → Helius. The devnet Helius key is suspended
@@ -80,7 +81,7 @@ export async function confirmSignature(
   while (Date.now() - start < timeoutMs) {
     try {
       const { value } = await rpcTry(RPC_CANDIDATES, async (conn) =>
-        conn.getSignatureStatus(signature, { searchTransactionHistory: true }),
+        conn.getSignatureStatus(signature, { searchTransactionHistory: true }), 4000,
       );
       if (value?.err) throw new Error(`The transaction failed on-chain: ${JSON.stringify(value.err)}`);
       if (value?.confirmationStatus === "confirmed" || value?.confirmationStatus === "finalized") return "confirmed";
@@ -88,7 +89,7 @@ export async function confirmSignature(
       // Single candidate sweep failed (429/suspended/timeout) — ignore and retry;
       // "pending" is returned only after the whole window elapses with no success.
     }
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 450));
   }
   return "pending";
 }
@@ -127,7 +128,7 @@ export async function sendFundingTransfer(params: {
   agentWallet: string;
   token: FundToken;
   amount: number;
-}): Promise<{ sig: string; blockhash: string; lastValidBlockHeight: number }> {
+}): Promise<{ sig: string; blockhash: string; lastValidBlockHeight: number; raw: Uint8Array }> {
   const { publicKey, signTransaction, agentWallet, token, amount } = params;
   const mainnet = getNetwork() === "mainnet-beta";
   if (!(amount > 0)) throw new Error("Enter a positive amount");
@@ -149,6 +150,9 @@ export async function sendFundingTransfer(params: {
   // only waits for the slowest single round trip rather than the sum of all of them.
   const usdcMintKey = token === "USDC" ? new PublicKey(getUsdcMint()) : null;
   const solBalP = readSolBalanceOrNull(publicKey);
+  // Priority fee at the going rate for these accounts, fetched alongside the other reads (never blocks for long).
+  const computeUnits = token === "USDC" ? 90_000 : 30_000;
+  const priorityP = estimatePriorityPrice([publicKey.toBase58(), agentWallet, feeRecipient.toBase58()], computeUnits);
   const senderAccountP = usdcMintKey
     ? getAssociatedTokenAddress(usdcMintKey, publicKey).then((ata) => rpcTry(RPC_CANDIDATES, async (conn) => getAccount(conn, ata, "confirmed")).then(() => null, (e: unknown) => e))
     : Promise.resolve(null);
@@ -206,7 +210,7 @@ export async function sendFundingTransfer(params: {
   // (InvestPanel / share-purchase-dialog) uses. A v0 VersionedTransaction here
   // triggered the wallet's opaque "Unexpected error" on some Phantom builds.
   const tx = new Transaction();
-  tx.add(...instructions);
+  tx.add(...computeBudgetInstructions(computeUnits, await priorityP), ...instructions);
   tx.feePayer = publicKey;
   tx.recentBlockhash = blockhash;
 
@@ -217,7 +221,8 @@ export async function sendFundingTransfer(params: {
   // on devnet, so any subsequent Phantom "Unexpected error" is conclusively Phantom
   // being on the wrong network (Mainnet) — not the transaction or the agent.
   try {
-    const sim = await rpcTry(RPC_CANDIDATES, async (conn) => conn.simulateTransaction(tx));
+    // Bounded: a slow simulation must never hold up the wallet prompt (it only exists to explain failures).
+    const sim = await rpcTry(RPC_CANDIDATES, async (conn) => conn.simulateTransaction(tx), 3500);
     if (sim.value.err) {
       const logs = sim.value.logs ?? [];
       const tail = logs.length ? ` — ${logs.slice(-3).join(" | ").slice(0, 220)}` : "";
@@ -238,6 +243,7 @@ export async function sendFundingTransfer(params: {
   // is fully under our control and observable (no reliance on the wallet's send,
   // its RPC, or its websocket). This is what makes the transfer reliable.
   let sig: string;
+  let raw: Uint8Array;
   try {
     // Sign via the WALLET ADAPTER — the supported path, bound to this app's devnet
     // ConnectionProvider, and the SAME mechanism the app's working invest flow
@@ -255,8 +261,9 @@ export async function sendFundingTransfer(params: {
 
     // Broadcast through OUR RPC with preflight ON so it surfaces the real reason
     // instead of silently dropping a tx that can't land.
+    raw = signed.serialize();
     sig = await rpcTry(RPC_CANDIDATES, async (conn) =>
-      conn.sendRawTransaction(signed.serialize(), {
+      conn.sendRawTransaction(raw, {
         skipPreflight: false, preflightCommitment: "confirmed", maxRetries: 5,
       }),
     );
@@ -275,7 +282,7 @@ export async function sendFundingTransfer(params: {
       : "";
     throw new Error(`Transfer failed: ${msg.slice(0, 160)}${detail}${hint}`);
   }
-  return { sig, blockhash, lastValidBlockHeight };
+  return { sig, blockhash, lastValidBlockHeight, raw };
 }
 
 /**

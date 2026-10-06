@@ -16,13 +16,21 @@ import { getRpcCandidates, getNetwork } from "./network";
 export async function rpcTry<T>(
   urls: string[],
   fn: (conn: Connection) => Promise<T>,
+  /** Per-endpoint deadline. A hung RPC used to freeze the caller forever; now it fails over after this long. */
+  timeoutMs = 8000,
 ): Promise<T> {
   let lastError: unknown;
   for (const url of urls) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await fn(new Connection(url, "confirmed"));
+      return await Promise.race([
+        fn(new Connection(url, "confirmed")),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("RPC timeout")), timeoutMs); }),
+      ]);
     } catch (e) {
       lastError = e;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));

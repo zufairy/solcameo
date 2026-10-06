@@ -438,7 +438,9 @@ const SORTS: ReadonlyArray<{ value: string; label: string }> = [
 
 export function ExplorePage({ initial, short, fixedMint, persona = "", embedded = false }: { initial: Feed; short?: Short; fixedMint?: string; persona?: string; embedded?: boolean }) {
   const [items, setItems] = useState(() => withShort(initial, short));
-  const [next, setNext] = useState(initial.next);
+  // The bundled index records the next FEED PAGE; the indexed library is addressed by position (48 rows per page).
+  const firstCursor = initial.next ? (initial.next - 1) * 48 + 1 : null;
+  const [next, setNext] = useState(firstCursor);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [saved, setSaved] = useState<string[]>([]);
@@ -476,6 +478,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const [limit, setLimit] = useState(REVEAL);
   const sentinel = useRef<HTMLDivElement>(null);
   const request = useRef(0);
+  const batches = useRef(new Map<string, Promise<Feed & { error?: string }>>());
   const mode: GenMode = model.mode ?? "motion-transfer";
   const [scheduleItem, setScheduleItem] = useState<ReferenceVideo | null>(null);
   const [copied, setCopied] = useState(false);
@@ -578,7 +581,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
         if (limit < visible.length) setLimit((l) => l + REVEAL);
         else if (next && !loading && !error) loadMore();
       },
-      { rootMargin: "1100px 0px" },
+      { rootMargin: "2400px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -623,21 +626,44 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
     setCopyError("");
   }
   /** Fetch the next batch of the library for the current filters; `reset` starts a fresh result list. */
+  /**
+   * Batches are requested once and remembered, and the batch AFTER the one on screen is always fetched in the
+   * background (with its first thumbnails decoded into the browser cache), so scrolling never waits on the network.
+   */
+  function loadBatch(cursor: number): Promise<Feed & { error?: string }> {
+    const params = new URLSearchParams({ cursor: String(cursor) });
+    if (remote && bounds) {
+      if (query.trim()) params.set("q", query.trim());
+      if (category !== "All") params.set("category", category);
+      if (bounds.min > 0) params.set("min", String(bounds.min));
+      if (bounds.max > 0) params.set("max", String(bounds.max));
+    }
+    const key = params.toString();
+    let hit = batches.current.get(key);
+    if (!hit) {
+      if (batches.current.size > 24) batches.current.clear();
+      hit = fetch(`/api/explore?${key}`).then(async (res) => {
+        const d: Feed & { error?: string } = await res.json();
+        if (!res.ok) throw new Error(d.error ?? "Unable to load references");
+        return d;
+      });
+      batches.current.set(key, hit);
+      hit.catch(() => batches.current.delete(key));
+    }
+    return hit;
+  }
+  function prefetchAfter(d: Feed) {
+    if (!d.next) return;
+    void loadBatch(d.next).then((upcoming) => {
+      for (const item of upcoming.items.slice(0, 16)) if (item.thumbUrl) { const img = new Image(); img.decoding = "async"; img.src = item.thumbUrl; }
+    }).catch(() => undefined);
+  }
   async function fetchBatch(cursor: number, reset: boolean) {
     const id = ++request.current;
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ cursor: String(cursor) });
-      if (remote && bounds) {
-        if (query.trim()) params.set("q", query.trim());
-        if (category !== "All") params.set("category", category);
-        if (bounds.min > 0) params.set("min", String(bounds.min));
-        if (bounds.max > 0) params.set("max", String(bounds.max));
-      }
-      const res = await fetch(`/api/explore?${params}`);
-      const d: Feed & { error?: string } = await res.json();
-      if (!res.ok) throw new Error(d.error);
+      const d = await loadBatch(cursor);
       if (id !== request.current) return; // a newer filter change superseded this request
       setItems((prev) => {
         const base = reset ? PROMPT_REFERENCES : prev;
@@ -645,6 +671,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
         return [...base, ...d.items.filter((i) => !ids.has(i.id))];
       });
       setNext(d.next && d.next > cursor ? d.next : null);
+      prefetchAfter(d);
     } catch (e) {
       if (id === request.current) setError(e instanceof Error ? e.message : "Unable to load references");
     } finally {
@@ -656,13 +683,18 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   }
   // Any filter change restarts the walk through the library: back to the built-in index when nothing needs the
   // server, otherwise a fresh scan from page one (search is debounced while typing).
+  // Warm the first batch past the built-in index so the first long scroll never waits.
+  useEffect(() => {
+    if (firstCursor) prefetchAfter({ ...initial, next: firstCursor, items: [] } as Feed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     request.current++;
     const timer = setTimeout(() => {
       setLimit(REVEAL);
       if (!remote || !bounds) {
         setItems(withShort(initial, short));
-        setNext(initial.next);
+        setNext(firstCursor);
         setError("");
         setLoading(false);
       } else {

@@ -196,6 +196,18 @@ export const planPlatformEpoch = internalAction({
   },
 });
 
+/** Re-index the Explore reference library (R2 snapshot) so filters answer from our own copy. */
+export const refreshExploreLibrary = internalAction({
+  args: {},
+  handler: async (): Promise<{ ok: boolean }> => {
+    const res = await appFetch(`/api/explore/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(process.env.INTERNAL_CRON_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_CRON_SECRET } : {}) },
+    }).catch(() => null);
+    return { ok: !!res?.ok };
+  },
+});
+
 export const settleDueTabs = internalAction({
   args: {},
   handler: async (ctx): Promise<{ triggered: number }> => {
@@ -632,6 +644,7 @@ crons.interval(
 );
 
 crons.interval("settle due agent service tabs", { hours: 1 }, internal.crons.settleDueTabs, {});
+crons.interval("refresh explore reference library", { hours: 3 }, internal.crons.refreshExploreLibrary, {});
 
 // Recovery keeper — re-drive stranded fee settlements (booked but unpaid). Runs
 // at KEEPER_INTERVAL_MS (~10m); GRACE_MS keeps it from racing the in-band settle.

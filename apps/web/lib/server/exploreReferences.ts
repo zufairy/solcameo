@@ -1,6 +1,7 @@
 import references from "@/lib/explore/references.json";
 import short from "@/lib/explore/short-references.json";
 import { FEED, normalizeFeed } from "@/lib/explore/feed";
+import { findInLibrary } from "@/lib/explore/library";
 
 export interface ServerReference { id: string; title: string; videoUrl: string; thumbUrl?: string; duration: number; category: string }
 let byId: Map<string, ServerReference> | null = null;
@@ -36,6 +37,9 @@ async function feedPage(cursor: number): Promise<ServerReference[]> {
 export async function resolveReference(id: string, pageHint?: unknown): Promise<ServerReference | null> {
   const known = getReference(id);
   if (known) return known;
+  // The indexed library covers the whole feed, so a reference the page loaded is found by id without touching the feed.
+  const indexed = await findInLibrary(id).catch(() => null);
+  if (indexed) { table().set(indexed.id, indexed); return indexed; }
   const hint = Number(pageHint);
   if (!Number.isInteger(hint) || hint < 1 || hint > 10000) return null;
   for (const group of [[hint], [hint - 1, hint + 1], [hint - 2, hint + 2, hint + 3]]) {
