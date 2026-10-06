@@ -133,19 +133,25 @@ export function HomeCallouts() {
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
     <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); shuffleTheme(); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
-      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 border-b border-white/5 px-5 py-5 @md:flex-row">
-        <Link href={`/market/${c.characterId}`} aria-label={`Open ${c.name} market`} className="block w-full shrink-0 @md:w-[190px]"><CalloutArt theme={isThemeId(c.theme) ? c.theme : "colosseum"} data={buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet)} /></Link>
-        <div className="min-w-0 flex-1"><div className="flex items-center gap-2 text-xs"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-200">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div><p className="my-3 whitespace-pre-wrap break-words text-[15px] leading-6">{c.body}</p>
-          {(() => {
-            const t = isThemeId(c.theme) ? c.theme : "colosseum", card = buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet);
-            return <Link href={`/market/${c.characterId}`} data-theme={t} className="callout-info group relative flex items-center gap-3 overflow-hidden rounded-[12px] p-3">
-              <img src={c.imageUrl} alt="" className="relative size-12 rounded-[8px] object-cover ring-2 ring-[var(--ci-accent)]" />
-              <div className="relative min-w-0"><p className="truncate text-sm font-extrabold uppercase tracking-wide text-white">{c.name} <span className="ml-1 rounded-[4px] bg-white px-1.5 py-0.5 text-[10px] font-bold text-black">${c.ticker}</span></p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-white/70"><span><span className="text-white/45">Views </span><span className="font-semibold text-[var(--ci-accent)]">{compact(card.views ?? 0)}</span></span>{card.changePct != null && <span className={card.changePct >= 0 ? "text-[var(--ci-accent)]" : "text-rose-300"}>{card.changePct >= 0 ? "▲" : "▼"} {Math.abs(card.changePct).toFixed(1)}% <span className="text-white/45">{card.label === "SINCE CALL" ? "since call" : "since launch"}</span></span>}</p></div>
-              <div className="relative ml-auto text-right"><p className="text-[10px] text-white/45">Market cap</p><p className="text-sm font-semibold tabular-nums text-white">{usd(cap(String(c.characterId)), true)}</p></div>
-            </Link>;
-          })()}</div>
-      </motion.article>)}
+      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => {
+        const t = isThemeId(c.theme) ? c.theme : "colosseum", card = buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet);
+        const has = card.changePct != null, up = (card.changePct ?? 0) >= 0;
+        return <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="border-b border-white/5 px-5 py-4">
+          <div className="flex items-center gap-2 text-xs"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-300">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div>
+          <p className="my-2.5 whitespace-pre-wrap break-words text-[15px] leading-6 text-zinc-100">{c.body}</p>
+          <Link href={`/market/${c.characterId}`} data-theme={t} aria-label={`Open ${c.name} market`} className="callout-info group relative flex min-h-[96px] items-center gap-4 overflow-hidden rounded-[10px] p-4">
+            <img src={c.imageUrl} alt="" className="relative size-14 shrink-0 rounded-[8px] object-cover ring-2 ring-[var(--ci-accent)]" />
+            <div className="relative min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 truncate text-[15px] font-extrabold uppercase tracking-wide text-white"><span className="truncate">{c.name}</span><span className="shrink-0 rounded-[4px] bg-white px-1.5 py-0.5 text-[10px] font-bold text-black">${c.ticker}</span></p>
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-white/65"><span><span className="text-white/45">MCap </span><span className="font-semibold text-white">{usd(cap(String(c.characterId)), true)}</span></span><span><span className="text-white/45">Views </span><span className="font-semibold text-white">{compact(card.views ?? 0)}</span></span></p>
+            </div>
+            <div className="relative shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">{has ? (card.label === "SINCE CALL" ? "Since call" : "Since launch") : "Market cap"}</p>
+              <p className={`mt-1 text-[30px] font-black leading-none tabular-nums ${has ? (up ? "text-[var(--ci-accent)]" : "text-rose-300") : "text-[var(--ci-accent)]"}`}>{has ? `${up ? "▲" : "▼"} ${Math.abs(card.changePct as number).toFixed(1)}%` : usd(cap(String(c.characterId)), true)}</p>
+            </div>
+          </Link>
+        </motion.article>;
+      })}
     </div>
     </section>
     <section aria-label="Trending tokens" className="min-h-0 min-w-0 @3xl:overflow-y-auto @3xl:overscroll-contain"><div className="sticky top-0 z-10 flex h-14 items-center gap-3 border-y border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl @3xl:border-t-0"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Flame className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Trending</h2><span className="ml-auto text-[11px] text-zinc-500">Ranked by 24h volume · change since launch</span></div>
@@ -163,8 +169,8 @@ export function HomeCallouts() {
     </section>
     </div>
     <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
-      <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[340px] md:max-w-none"><CalloutArt replay scale={0.9} data={cardData} theme={theme} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /></div>
+      <div className="grid gap-5 md:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[520px] md:max-w-none"><CalloutArt replay scale={0.6} data={cardData} theme={theme} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /></div>
         <div className="flex min-w-0 flex-col gap-4 md:py-1">
           <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Pick an agent, pick a look, make your call."}</DialogDescription></div>
           <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Template</p>

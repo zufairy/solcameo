@@ -6,7 +6,7 @@ import { CARD_H, CARD_W, drawCalloutCard, loadCardImage, type CalloutCardData, t
  * A callout's share card, drawn in its chosen template. It counts up and draws its chart the first time it
  * scrolls into view, then idles with the template's own motion (see `.callout-art` in globals.css).
  */
-export function CalloutArt({ data, theme, className = "", scale = 0.5, replay = false }: { data: CalloutCardData; theme: CalloutThemeId; className?: string; /** Canvas resolution relative to 720×1280. Feed cards stay at 0.5; the preview uses more. */ scale?: number; /** Replay the count-up whenever the data or template changes (the composer preview). */ replay?: boolean }) {
+export function CalloutArt({ data, theme, className = "", scale = 0.5, replay = false }: { data: CalloutCardData; theme: CalloutThemeId; className?: string; /** Canvas resolution relative to 1600×900. Feed cards stay at 0.5; the preview uses more. */ scale?: number; /** Replay the count-up whenever the data or template changes (the composer preview). */ replay?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const latest = useRef({ data, theme });
@@ -54,7 +54,7 @@ export function CalloutArt({ data, theme, className = "", scale = 0.5, replay = 
   }, [key]);
 
   return (
-    <div ref={shell} data-theme={theme} className={`callout-art relative aspect-[9/16] w-full overflow-hidden rounded-[14px] bg-black ring-1 ring-white/15 ${className}`}>
+    <div ref={shell} data-theme={theme} className={`callout-art relative aspect-[16/9] w-full overflow-hidden rounded-[14px] bg-black ring-1 ring-white/15 ${className}`}>
       <canvas ref={canvas} role="img" aria-label={`${data.name} callout card`} className="absolute inset-0 size-full" />
     </div>
   );

@@ -67,7 +67,7 @@ export const postChat = mutation({
       if (!token) throw new Error("token_not_found");
       linked = { characterId: character._id, tokenId: token._id, network: token.network };
     }
-    const THEMES = ["colosseum", "solana", "lambo", "bullrun", "neon"];
+    const THEMES = ["colosseum", "solana", "lambo", "bullrun", "neon", "ferrari", "vault", "aurora"];
     const theme = a.characterId && a.theme && THEMES.includes(a.theme) ? a.theme : undefined;
     const callCapSol = a.characterId && typeof a.callCapSol === "number" && Number.isFinite(a.callCapSol) && a.callCapSol > 0 && a.callCapSol < 1e12 ? a.callCapSol : undefined;
     await ctx.db.insert("ssFeed", { kind: "chat", wallet, body, ...linked, ...(theme ? { theme } : {}), ...(callCapSol ? { callCapSol } : {}), createdAt: now });

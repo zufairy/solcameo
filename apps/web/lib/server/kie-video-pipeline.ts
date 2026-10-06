@@ -14,6 +14,7 @@
 //   Seedance: https://docs.kie.ai/market/bytedance/seedance-2-fast
 
 import { HIGGSFIELD_ENGINES, isHiggsfieldModel } from "@/lib/builder/higgsfieldEngines";
+import type { VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { submitVideoClip, waitForVideo } from "@/lib/server/higgsfield";
 import {
   MAX_VIDEO_SECONDS,
@@ -207,7 +208,7 @@ export interface GenerateVideoArgs {
   /** Output aspect ratio for the final video clips. Defaults to "9:16". */
   aspectRatio?: string;
   /** Requested output resolution. Engines that don't support 1080p stay at 720p. */
-  resolution?: "720p" | "1080p" | "4k";
+  resolution?: VideoQuality;
   videoModel?: string;
   /** Allow (and require) beats' `onScreenText` overlays to be rendered in-frame.
    *  Default templates say "no captions/logos"; Recreate sets this so the source
@@ -914,8 +915,12 @@ function resolveOutputAspect(model: string | undefined, aspect?: string): "16:9"
   return "9:16";
 }
 
-function resolveVideoResolution(model: string | undefined, requested?: "720p" | "1080p" | "4k"): "720p" | "1080p" | "4k" {
-  if (/veo/i.test(model ?? "")) return requested ?? "720p";
+function resolveVideoResolution(model: string | undefined, requested?: VideoQuality): VideoQuality {
+  const m = model ?? "";
+  if (/veo/i.test(m)) return requested ?? "720p";
+  // Each engine only gets a quality it really sells (kieVideoPricing lists the same set), so a stray value never reaches Kie.
+  if (/grok/i.test(m)) return requested === "480p" ? "480p" : "720p";
+  if (/gemini-omni/i.test(m)) return requested === "1080p" || requested === "4k" ? requested : "720p";
   return "720p";
 }
 
@@ -2338,7 +2343,7 @@ async function generateVeo3Video(args: {
   model: "veo3" | "veo3_fast" | "veo3_lite";
   aspectRatio: "16:9" | "9:16" | "Auto";
   durationSeconds: number;
-  resolution?: "720p" | "1080p" | "4k";
+  resolution?: VideoQuality;
   /** Retry attempts on timeout/failure — each one revises the prompt + refs. */
   maxAttempts?: number;
   /** Per-attempt poll timeout (ms). Shorter on retries to fit the render budget. */
@@ -2621,7 +2626,7 @@ async function generateExtendedVeo3(args: {
   imageUrls: string[];
   model: "veo3" | "veo3_fast" | "veo3_lite";
   aspectRatio: "16:9" | "9:16" | "Auto";
-  resolution?: "720p" | "1080p" | "4k";
+  resolution?: VideoQuality;
   /** Wall-clock deadline (epoch ms) at which we MUST stop chaining. */
   deadlineMs?: number;
   /** ffmpeg concat callback. When an extend is blocked by the safety filter, we
@@ -2933,7 +2938,7 @@ export interface GrokChainPlan {
   /** Start-frame + supporting references for the BASE clip only (extends inherit frames). */
   refImages: string[];
   aspectRatio: "16:9" | "9:16" | "1:1";
-  resolution: "720p" | "1080p" | "4k";
+  resolution: VideoQuality;
   /** 1 (base) + extendPrompts.length. */
   totalSegments: number;
 }
@@ -3535,7 +3540,7 @@ async function generateSeedanceClip(args: {
         ...(args.referenceImageUrls?.length ? { reference_image_urls: args.referenceImageUrls.slice(0, 9) } : {}),
         aspect_ratio: args.aspectRatio ?? "9:16",
         duration,
-        resolution: "720p",
+        resolution: args.resolution === "480p" ? "480p" : "720p",
         ...(args.wantLastFrame ? { return_last_frame: true } : {}),
       };
   const taskId = args.resumeTaskId || await createJobsTask(model, input);
@@ -3621,7 +3626,7 @@ async function generateSeedanceStitched(args: {
   const pro = is15ProModel(genArgs.videoModel);
   const seedanceResolution: "480p" | "720p" | "1080p" | undefined = pro
     ? (genArgs.resolution === "1080p" ? "1080p" : "720p")
-    : undefined;
+    : (genArgs.resolution === "480p" ? "480p" : undefined);
   const seedanceWindowSec = pro ? SEEDANCE_15_PRO_MAX_CLIP : (/seedance/i.test(genArgs.videoModel ?? "") ? SEEDANCE_MAX_CLIP : 8);
   let segments = packBeatsIntoWindows(beats, seedanceWindowSec, totalSegments);
   const clipLo = pro ? SEEDANCE_15_PRO_MIN_CLIP : SEEDANCE_MIN_CLIP;

@@ -5,6 +5,7 @@
 
 import { HIGGSFIELD_ENGINES } from "./higgsfieldEngines";
 import { RETAIL_MARKUP } from "@/lib/pricing/retail";
+import { kieProviderCostUsd, type VideoQuality } from "./kieVideoPricing";
 
 export type AgentType = "influencer" | "worker" | "trader" | "campaign" | "clipping";
 
@@ -902,68 +903,68 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     id: "gemini-omni",
     label: "Gemini Omni",
     kieModel: "gemini-omni-video",          // KIE jobs/createTask slug (docs.kie.ai/market/gemini-omni-video)
-    pricePerSecondUsdc: (1.8 * RETAIL_MARKUP) / 10,
+    // Kie list price (kie.ai/pricing, 2026-10-06): 126 credits ($0.63) per 10s clip at 720p/1080p. Exact per-length and 4K prices live in kieVideoPricing.
+    pricePerSecondUsdc: (0.63 * RETAIL_MARKUP) / 10,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 1.8 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.63 * RETAIL_MARKUP,
     quality: "premium",
-    description: "Gemini Omni — Google's multimodal video model. Strong prompt adherence and native audio. 360 credits per 10s segment.",
+    description: "Gemini Omni — Google's multimodal video model. Strong prompt adherence and native audio. 126 credits per 10s clip.",
   },
   {
     id: "veo3-fast",
     label: "Google Veo 3.1 Fast",
     kieModel: "veo3_fast",
-    pricePerSecondUsdc: (0.6 * RETAIL_MARKUP) / 8,
+    // Kie list price: 60 credits ($0.30) per 8s clip at 720p.
+    pricePerSecondUsdc: (0.3 * RETAIL_MARKUP) / 8,
     maxClipSeconds: 8,
-    pricePerMaxClipUsdc: 0.6 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.3 * RETAIL_MARKUP,
     quality: "high",
-    description: "Google Veo 3.1 Fast — REFERENCE_2_VIDEO character lock (1-3 refs), native audio, 9:16 native. 120 credits per 8s segment.",
+    description: "Google Veo 3.1 Fast — REFERENCE_2_VIDEO character lock (1-3 refs), native audio, 9:16 native. 60 credits per 8s clip.",
   },
   {
     id: "seedance-v2",
     label: "Seedance 2.0",
     kieModel: "bytedance/seedance-2-fast",
-    pricePerSecondUsdc: (4.0 * RETAIL_MARKUP) / 10,
+    // Kie list price (Seedance 2.0 Fast, no video input): 24.8 credits ($0.124) per second at 720p.
+    pricePerSecondUsdc: 0.124 * RETAIL_MARKUP,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 4.0 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.124 * 10 * RETAIL_MARKUP,
     quality: "premium",
-    description: "ByteDance Seedance 2.0 — smooth motion + strong character lock, frame-chained into longer takes. 800 credits per 10s segment.",
+    description: "ByteDance Seedance 2.0 Fast — smooth motion + strong character lock, frame-chained into longer takes. 24.8 credits per second at 720p.",
   },
   {
     id: "seedance-1-5-pro",
     label: "Seedance 1.5 Pro",
     kieModel: "bytedance/seedance-1.5-pro", // docs.kie.ai/market/bytedance/seedance-1-5-pro
-    // Upstream lists ~$0.023/s for this model (OpenRouter); ~2x padded for
-    // Kie's markup → $0.05/s. The previous "best-effort" $0.25/s ($3.00/clip)
-    // priced 1.5 Pro ABOVE the heavier Seedance 2.0 ($0.20/s) — clearly wrong
-    // direction — and both the preflight 402 gate AND the billed render cost
-    // read this one constant, so a 30s render was estimated AND charged at
-    // ~$9 instead of ~$1.80. Correct here in ONE place.
-    pricePerSecondUsdc: (1.2 * RETAIL_MARKUP) / 12,
+    // Kie list price (without audio, which is how the render requests it): 3.5 credits ($0.0175) per second at 720p, 7.5 at 1080p.
+    pricePerSecondUsdc: 0.0175 * RETAIL_MARKUP,
     maxClipSeconds: 12,                     // model's native duration ceiling (4-12s/clip)
-    pricePerMaxClipUsdc: 1.2 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.0175 * 12 * RETAIL_MARKUP,
     quality: "premium",
-    description: "ByteDance Seedance 1.5 Pro — cinema-quality motion with synced multilingual dialogue/audio and cinematic camera control. 240 credits per 12s segment.",
+    description: "ByteDance Seedance 1.5 Pro — cinema-quality motion and cinematic camera control. 3.5 credits per second at 720p.",
   },
   {
     id: "kling-v3",
     label: "Kling 3.0",
     kieModel: "kwaivgi/kling-v3",           // confirm slug vs kie.ai catalog
-    pricePerSecondUsdc: (2.0 * RETAIL_MARKUP) / 10,
+    // Kie list price (without audio): 14 credits ($0.07) per second at 720p.
+    pricePerSecondUsdc: 0.07 * RETAIL_MARKUP,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 2.0 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.07 * 10 * RETAIL_MARKUP,
     quality: "high",
-    description: "Kling 3.0 — cinematic motion and physical realism. Great for dynamic, high-production shots. 400 credits per 10s segment.",
+    description: "Kling 3.0 — cinematic motion and physical realism. Great for dynamic, high-production shots. 14 credits per second at 720p.",
   },
   {
     id: "grok-imagine-15",
     label: "Grok Imagine 1.5",
     kieModel: "grok-imagine/image-to-video", // KIE jobs/createTask slug (docs.kie.ai/market/grok-imagine/image-to-video)
     // Grok renders ONE native take up to 30s → a ≤30s video is a SINGLE clip.
-    pricePerSecondUsdc: (3.0 * RETAIL_MARKUP) / 30,
+    // Kie list price (image-to-video): 4.5 credits ($0.0225) per second at 720p, 2.4 at 480p.
+    pricePerSecondUsdc: 0.0225 * RETAIL_MARKUP,
     maxClipSeconds: 30,
-    pricePerMaxClipUsdc: 3.0 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.0225 * 30 * RETAIL_MARKUP,
     quality: "high",
-    description: "xAI Grok Imagine 1.5 — expressive image-to-video, up to a single coherent 30s take, locked to the reference image. 600 credits per 30s segment.",
+    description: "xAI Grok Imagine 1.5 — expressive image-to-video, up to a single coherent 30s take, locked to the reference image. 4.5 credits per second at 720p.",
   },
 ];
 
@@ -984,8 +985,14 @@ export function selectableVideoEngines(): VideoEngineOption[] {
  * Cost of one finished video at the requested length on the chosen engine.
  * Accounts for Kie billing per-clip — a 30s video on an 8s-max engine = 4 clips.
  */
-export function videoCostForLength(engine: VideoEngineOption, seconds: number): number {
+export function videoCostForLength(engine: VideoEngineOption, seconds: number, quality?: VideoQuality): number {
   if (seconds <= 0) return 0;
+  // Engines on Kie have an exact price table (per second / per clip, per quality). It is the single source for
+  // both the quote shown in the builder and the debit, so what you see is what is charged.
+  if (engine.provider !== "higgsfield") {
+    const exact = kieProviderCostUsd(engine.id, seconds, quality);
+    if (exact !== null) return exact * RETAIL_MARKUP;
+  }
   // Number of clips needed to cover the requested duration
   // Higgsfield bills per generated second (no whole-clip minimum).
   if (engine.provider === "higgsfield") return Math.ceil(seconds) * engine.pricePerSecondUsdc;
