@@ -29,7 +29,8 @@ it("lists open positions without pool vaults, pins you first and flags profit an
   expect(rows).toHaveLength(2);
   expect(rows[0].textContent).toContain("YOU3");
   expect(rows[0].textContent).toContain("You");
-  expect(host.textContent).toContain("Live");
+  expect(host.textContent).not.toContain("synced");
+  expect(host.textContent).not.toContain("Held value");
   expect(host.textContent).not.toContain("POOL");
   // whale: 100M tokens × 0.001 = 100,000 SOL value vs 50,000 cost → profitable
   expect(rows[1].textContent).toContain("+");

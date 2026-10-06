@@ -609,20 +609,20 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4">
             <div className="flex gap-4">
-              {["holders", "trades", "videos"].map((t) => (
+              {[...(onChain ? ["open"] : []), "holders", "trades", "videos"].map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={`border-b-2 py-4 text-sm capitalize ${tab === t ? "border-emerald-300 text-white" : "border-transparent text-zinc-500"}`}
                 >
-                  {t === "holders" && onChain ? "Open trades" : t}
-                  {t === "holders" && onChain && chainMarket?.state ? (
+                  {t === "open" ? "Open trades" : t}
+                  {t === "open" && chainMarket?.state ? (
                     <span className="ml-2 rounded bg-white/5 px-1.5 text-xs tabular-nums text-zinc-400">
                       {countOpen(chainMarket)}
                     </span>
-                  ) : t === "holders" && stats ? (
+                  ) : t === "holders" && (onChain ? chainMarket : stats) ? (
                     <span className="ml-2 rounded bg-white/5 px-1.5 text-xs text-zinc-500">
-                      {stats.holders.length}
+                      {onChain ? chainMarket?.holders.filter(h => !h.isPool).length : stats?.holders.length}
                     </span>
                   ) : null}
                 </button>
@@ -638,7 +638,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               />
             )}
           </div>
-          {tab === "holders" && onChain ? (
+          {tab === "open" && onChain ? (
             <OpenTrades
               market={chainMarket}
               you={publicKey?.toBase58()}
@@ -649,6 +649,24 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               identity={holderIdentity}
               explorer={explorer}
             />
+          ) : tab === "holders" && onChain ? (
+            <div className="overflow-auto">
+              <Table className="min-w-[420px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
+                <TableHeader><TableRow className="border-white/10">
+                  {["Holder", "Tokens held", "% supply"].map(label => <TableHead key={label} className="text-xs text-zinc-500">{label}</TableHead>)}
+                </TableRow></TableHeader>
+                <TableBody>
+                  {chainMarket?.holders.filter(h => !h.isPool && h.wallet.toLowerCase().includes(search.toLowerCase())).map(h => (
+                    <TableRow key={h.wallet} className="border-white/10">
+                      <TableCell className="text-xs">{holderIdentity(h.wallet)}</TableCell>
+                      <TableCell className="font-sans tabular-nums">{(Number(h.units) / 10 ** (chainMarket.state?.decimals ?? 6)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="font-sans tabular-nums">{h.supplyPct.toFixed(3)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {!chainMarket?.state ? <p className="p-6 text-center text-xs text-zinc-500">Loading holders…</p> : !chainMarket.holders.some(h => !h.isPool && h.wallet.toLowerCase().includes(search.toLowerCase())) && <p className="p-6 text-center text-xs text-zinc-500">No matching holders yet.</p>}
+            </div>
           ) : tab === "holders" ? (
             <div className="overflow-auto">
               <Table className="min-w-[530px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">

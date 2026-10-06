@@ -40,8 +40,8 @@ export function OpenTrades({ market, you, dev, usd, search, ticker, identity, ex
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
-  const { rows, totals } = useMemo(() => {
-    if (!market?.state) return { rows: [] as Row[], totals: { value: 0, open: 0, winners: 0, measured: 0 } };
+  const rows = useMemo(() => {
+    if (!market?.state) return [] as Row[];
     const dec = market.state.decimals, price = market.state.priceSol, supply = Number(market.state.supplyRaw) / 10 ** dec || 1;
     const holders = new Map(market.holders.map((h) => [h.wallet, h]));
     const positions = new Map(market.positions.map((p) => [p.wallet, p]));
@@ -62,8 +62,7 @@ export function OpenTrades({ market, you, dev, usd, search, ticker, identity, ex
       });
     }
     out.sort((a, b) => (a.wallet === you ? -1 : b.wallet === you ? 1 : b.valueSol - a.valueSol));
-    const measured = out.filter((r) => r.unrealized != null);
-    return { rows: out, totals: { value: out.reduce((n, r) => n + r.valueSol, 0), open: out.length, winners: measured.filter((r) => (r.unrealized ?? 0) > 0).length, measured: measured.length } };
+    return out;
   }, [market, you]);
 
   // Briefly tint a row when its size or P&L moves so changes are noticed without any refresh.
@@ -85,8 +84,7 @@ export function OpenTrades({ market, you, dev, usd, search, ticker, identity, ex
 
   const money = (sol: number, signed = false) => (usd ? `${sol < 0 ? "−" : signed && sol > 0 ? "+" : ""}$${Math.abs(sol * usd) >= 100 ? Math.round(Math.abs(sol * usd)).toLocaleString("en-US") : Math.abs(sol * usd).toFixed(2)}` : `${solFmt(sol, signed)} SOL`);
   const shown = rows.filter((r) => r.wallet.toLowerCase().includes(search.trim().toLowerCase()));
-  const age = market?.state ? Math.max(0, Math.round((now - market.state.syncedAt) / 1000)) : 0;
-  const stale = !!market?.state && (age > 60 || !!market.state.error);
+
 
   if (market === undefined || !market.state) {
     return (
@@ -99,21 +97,6 @@ export function OpenTrades({ market, you, dev, usd, search, ticker, identity, ex
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/[0.06] px-4 py-3">
-        <span className="inline-flex items-center gap-2 text-[11px] font-medium text-zinc-300">
-          <span className="relative flex size-2"><span className={`absolute inline-flex size-full rounded-full ${stale ? "bg-amber-400" : "animate-ping bg-emerald-400/60"}`} /><span className={`relative size-2 rounded-full ${stale ? "bg-amber-400" : "bg-emerald-400"}`} /></span>
-          {stale ? "Reconnecting" : "Live"}<span className="font-normal text-zinc-500">· synced {age}s ago</span>
-        </span>
-        <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
-          <div className="flex items-baseline gap-1.5"><dt className="text-zinc-500">Open positions</dt><dd className="text-[13px] font-semibold tabular-nums text-white">{totals.open}</dd></div>
-          <div className="flex items-baseline gap-1.5"><dt className="text-zinc-500">Held value</dt><dd className="text-[13px] font-semibold tabular-nums text-white">{money(totals.value)}</dd></div>
-          {totals.measured > 0 && (
-            <div className="flex items-center gap-2"><dt className="text-zinc-500">In profit</dt>
-              <dd className="flex items-center gap-2"><span className="text-[13px] font-semibold tabular-nums text-white">{totals.winners}/{totals.measured}</span>
-                <span className="flex h-1.5 w-16 overflow-hidden rounded-full bg-rose-400/30" aria-hidden><span className="bg-emerald-400 transition-[width] duration-500" style={{ width: `${(totals.winners / totals.measured) * 100}%` }} /></span></dd></div>
-          )}
-        </dl>
-      </div>
       <Table className="min-w-[640px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
         <TableHeader>
           <TableRow className="border-white/[0.06] hover:bg-transparent">
