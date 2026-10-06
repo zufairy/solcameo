@@ -17,7 +17,7 @@ const price = (n: number) => (n >= 0.01 ? sol(n, 4) : n.toPrecision(3));
  * Your position in this coin: how much you hold, what you paid on average, what it is worth and your profit or loss,
  * with one-click sell presets (25 / 50 / close). Presets fill the trade ticket; the wallet still approves every swap.
  */
-export function PositionCard({ mint, ticker, network }: { mint?: string; ticker: string; network: string }) {
+export function PositionCard({ mint, network }: { mint?: string; ticker: string; network: string }) {
   const { publicKey } = useUnifiedSolanaWallet();
   const wallet = publicKey?.toBase58();
   const compatible = network === (getNetwork() === "mainnet-beta" ? "mainnet" : getNetwork());
