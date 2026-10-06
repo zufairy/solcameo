@@ -6,11 +6,12 @@ import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import { castToken } from "@/lib/explore/castKey";
 import type { ReferenceVideo } from "@/lib/explore/feed";
 
 export interface CameoMember { token: string; name: string; avatarUrl: string; ticker?: string; self?: boolean }
 
-const tokenOf = (name: string) => name.replace(/\s+/g, "").replace(/[^\w-]/g, "") || "agent";
+const tokenOf = castToken;
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
 
 /** Scene-direction box with @cameo mentions and a "magic" auto-written scenario. */
@@ -168,8 +169,9 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "mot
 
   // Automatic scenario: on open, and whenever the cast changes, until the operator writes their own.
   useEffect(() => {
-    if (userWrote(value)) return;
-    const t = window.setTimeout(() => void magic(), 600);
+    // A new cameo remakes the scene so it fits the cast; the operator's own wording is kept as the draft to improve.
+    const keepDraft = userWrote(value);
+    const t = window.setTimeout(() => void magic({ keepDraft }), 600);
     return () => window.clearTimeout(t);
   }, [castKey, item.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
