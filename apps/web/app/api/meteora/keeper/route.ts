@@ -12,7 +12,7 @@ import { dbcTreasury } from "@/lib/server/dbcTreasury";
 import { convexClient } from "@/lib/server/solstarRoute";
 import { unsignedPumpTransaction } from "@/lib/server/pumpLaunch";
 import { confirmedQuoteDebit } from "@/lib/server/dbcClaimAccounting";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 import { assertPublicHttpUrl } from "@/lib/server/downloader";
 export const maxDuration = 60;
 export async function POST(req: NextRequest) {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     });
   try {
     const conn = dbcConnection();
-    if (work.token.network === "devnet") await assertDevnet(conn);
+    await assertConfiguredChain(conn, work.token.network === "mainnet" ? "mainnet" : "devnet");
     if (
       (work.token.network === "mainnet") !==
       (dbcReadiness().network === "mainnet")

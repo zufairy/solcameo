@@ -1,4 +1,5 @@
-import { refreshAgentFunds } from "./agentWallet";
+import { refreshAgentFunds, settleSoon } from "./agentWallet";
+import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { estimateGenerationUsd, type GenjutsuResolution } from "@/lib/explore/generationPrice";
@@ -20,7 +21,8 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
   const qty = Math.max(1, Math.round(priceUsdc * 100));
   try {
     await refreshAgentFunds(mint);
-    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, authSecret: secret() });
+    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    if (r.ok) settleSoon(mint);
     if (r.ok) return { ok: true, costUsdc: r.costUsdc, ...("duplicate" in r && r.duplicate ? { duplicate: true } : {}) };
     return { ok: false, reason: r.reason ?? "needs_funding" };
   } catch {

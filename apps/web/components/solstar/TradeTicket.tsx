@@ -1,5 +1,6 @@
 "use client";
 import { DbcTradeTicket } from "./DbcTradeTicket";
+import { PositionCard } from "./PositionCard";
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -24,7 +25,12 @@ const human = (units: bigint, decimals: number) =>
     "",
   );
 export function TradeTicket({ token }: { token: Token }) {
-  return token.dbcPool ? <DbcTradeTicket characterId={token.characterId} ticker={token.ticker} network={token.network} mint={token.mint ?? undefined} /> : <PaperTradeTicket token={token} />;
+  return token.dbcPool ? (
+    <>
+      <PositionCard mint={token.mint ?? undefined} ticker={token.ticker} network={token.network} />
+      <DbcTradeTicket characterId={token.characterId} ticker={token.ticker} network={token.network} mint={token.mint ?? undefined} />
+    </>
+  ) : <PaperTradeTicket token={token} />;
 }
 function PaperTradeTicket({ token }: { token: Token }) {
   const { profile, login, getFreshToken } = useSupabaseAuth();

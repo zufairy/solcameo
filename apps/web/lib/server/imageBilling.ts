@@ -1,4 +1,5 @@
-import { refreshAgentFunds } from "./agentWallet";
+import { refreshAgentFunds, settleSoon } from "./agentWallet";
+import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { imageRetailPriceUsd, type ImageEngine } from "@/lib/builder/imageEngines";
@@ -16,7 +17,8 @@ export async function chargeImage(mint: string, runId: string, engine: Pick<Imag
   const qty = Math.max(1, Math.round(imagePriceUsd(engine) * 1000));
   try {
     await refreshAgentFunds(mint);
-    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, authSecret: secret() });
+    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    if (r.ok) settleSoon(mint);
     return r.ok ? { ok: true, costUsdc: r.costUsdc } : { ok: false, reason: r.reason ?? "needs_funding" };
   } catch {
     return { ok: false, reason: "billing_unavailable" };

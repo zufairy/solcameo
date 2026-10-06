@@ -170,7 +170,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <span className="text-[13px] font-bold text-white">Platform Admin</span>
           </div>
-          <span className="text-[10px] text-zinc-700 border border-[#1e1e24] rounded-md px-1.5 py-0.5 font-mono">vello · devnet</span>
+          <span className="text-[10px] text-zinc-700 border border-[#1e1e24] rounded-md px-1.5 py-0.5 font-mono">vello · {process.env.NEXT_PUBLIC_SOLANA_NETWORK?.toLowerCase().startsWith("mainnet") ? "mainnet" : "devnet"}</span>
         </div>
         {/* flex-wrap (not overflow-x-auto): an x-scroll container clips vertical
             overflow, which would cut off the dropdown menus below the bar. */}

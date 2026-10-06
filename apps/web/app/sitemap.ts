@@ -16,7 +16,7 @@ async function liveCharacters(): Promise<string[]> {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!url) return [];
   const convex = new ConvexHttpClient(url);
-  const results = await Promise.all((["mainnet", "devnet"] as const).map(network =>
+  const results = await Promise.all(((process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "").toLowerCase().startsWith("mainnet") ? ["mainnet"] as const : ["mainnet", "devnet"] as const).map(network =>
     convex.query(api.solstarMarket.listMarket, { sort: "new", network, liveOnly: true }).catch(() => [])));
   return results.flat().map(r => `/market/${r.characterId}`);
 }

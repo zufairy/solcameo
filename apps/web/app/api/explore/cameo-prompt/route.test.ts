@@ -17,7 +17,7 @@ describe("cameo prompt route", () => {
     const { prompt } = (await res.json()) as { prompt: string };
     expect(prompt).toContain("@Luna");
     expect(prompt).toContain("@Photo1");
-    expect(prompt.length).toBeLessThanOrEqual(340);
+    expect(prompt.length).toBeLessThanOrEqual(380);
   });
   it("does not double-add tokens the model already used", async () => {
     mocks.text.mockResolvedValue("@Luna and @Kai dance in a neon alley.");

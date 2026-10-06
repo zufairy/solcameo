@@ -181,6 +181,21 @@ export const getAgentAccountsDue = internalQuery({
   },
 });
 
+/** Weekly: freeze the SOLCAMEO reward epoch that just closed (idempotent; the route refuses an unfinished week). */
+export const planPlatformEpoch = internalAction({
+  args: {},
+  handler: async (): Promise<{ ok: boolean }> => {
+    const secret = process.env.INTERNAL_CRON_SECRET;
+    if (!secret) return { ok: false };
+    const res = await appFetch(`/api/tokenomics/epoch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ action: "plan" }),
+    }).catch(() => null);
+    return { ok: !!res?.ok };
+  },
+});
+
 export const settleDueTabs = internalAction({
   args: {},
   handler: async (ctx): Promise<{ triggered: number }> => {
@@ -703,6 +718,8 @@ crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.re
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});
 
 crons.cron("community character replies", "1 * * * *", internal.communityChat.hourly, {});
+// Monday 00:10 UTC: the week that just ended becomes a published SOLCAMEO epoch.
+crons.cron("plan SOLCAMEO reward epoch", "10 0 * * 1", internal.crons.planPlatformEpoch, {});
 crons.interval("DBC fee collection and content flywheel", { minutes: 2 }, internal.solstarFlywheel.sweep, {});
 
 export default crons;

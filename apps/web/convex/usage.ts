@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { spendableUsdc } from "../lib/economy/nav";
 import { priceForWithOverride } from "../lib/economy/servicePrices";
+import { discountedCost } from "../lib/tokenomics/platformToken";
 import { getSkillPriceOverride } from "./adminPricing";
 import { ensureAgentAccount } from "./agentAccount";
 import { buildInflight, isClaimable, isInflight, isPaidSig, parseInflight } from "../lib/economy/settlementSentinel";
@@ -277,15 +278,17 @@ export async function todaysSpend(ctx: MutationCtx, mintAddress: string): Promis
 }
 
 export const recordUsage = mutation({
-  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), walletOnly: v.optional(v.boolean()), authSecret: v.string() },
-  handler: async (ctx, { mintAddress, service, qty, idemKey, walletOnly, authSecret }) => {
+  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), walletOnly: v.optional(v.boolean()), holderDiscountPct: v.optional(v.number()), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, service, qty, idemKey, walletOnly, holderDiscountPct, authSecret }) => {
     if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
     // Consult the admin price override (skillPriceOverrides) at charge time — this
     // is THE money chokepoint every charge path routes through, so an admin-set
     // price flows to canvas clip-precheck, cloud clipJobs, and the autoClip scout
     // fee alike. Absent/invalid override → the static default (priceFor semantics).
     const override = await getSkillPriceOverride(ctx, service);
-    const cost = priceForWithOverride(service, qty, override);
+    // SOLCAMEO holder discount: supplied by the server after it read the owner wallet's on-chain balance, and clamped here so a
+    // bad caller can never push the price below the top tier's discount.
+    const cost = discountedCost(priceForWithOverride(service, qty, override), holderDiscountPct ?? 0);
     // Idempotency check happens once, up front, so it's shared by both the
     // credits path and the agentAccount fallback below — a retried step must
     // not be billed twice regardless of which balance paid for it originally.

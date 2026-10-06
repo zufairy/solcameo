@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { estimateGenerationUsd, formatGenerationUsd, GENJUTSU_RESOLUTIONS, type GenjutsuResolution } from "@/lib/explore/generationPrice";
 import type { ReferenceVideo } from "@/lib/explore/feed";
 import { AgentOption } from "./AgentOption";
+import { castToken } from "@/lib/explore/castKey";
 import { CameoPrompt, type CameoMember } from "./CameoPrompt";
 
 export type GenMode = "motion-transfer" | "object-swap";
@@ -110,7 +111,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
     try {
       const res = await fetch("/api/explore/schedule", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, autoPost: xConnected && autoPost, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
+        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, referencePage: item.page, castTokens: [castToken(agent?.name ?? "Character"), ...cast.map((c) => c.token)], autoPost: xConnected && autoPost, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Could not schedule this video.");

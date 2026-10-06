@@ -15,6 +15,8 @@ export interface ReferenceVideo {
   sourceUrl?: string;
   prompt?: string;
   preferredModel?: string;
+  /** Feed page this item came from, so the server can re-find it when it isn't in the bundled index. */
+  page?: number;
 }
 export const FEED = "https://cms.higgsfield.ai/higgsfield-multiplier/video-explore/v2";
 export const CATEGORIES = ["All", "Dance", "Performance", "Lifestyle", "Action", "Other"];

@@ -3,7 +3,8 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { authorizeCharacterOwner } from "@/lib/server/characterAuth";
-import { getReference } from "@/lib/server/exploreReferences";
+import { resolveReference } from "@/lib/server/exploreReferences";
+import { withCastKey } from "@/lib/explore/castKey";
 import { priceUsd } from "@/lib/server/exploreBilling";
 
 export const runtime = "nodejs";
@@ -40,8 +41,8 @@ export async function POST(req: NextRequest) {
   const c = client();
   if (!c) return NextResponse.json({ error: "Scheduling is not configured." }, { status: 503 });
 
-  const ref = typeof body.referenceId === "string" ? getReference(body.referenceId) : null;
-  if (!ref) return NextResponse.json({ error: "Unknown reference video" }, { status: 400 });
+  const ref = typeof body.referenceId === "string" ? await resolveReference(body.referenceId, body.referencePage) : null;
+  if (!ref) return NextResponse.json({ error: "This reference video is no longer available. Pick another one." }, { status: 400 });
   const imageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
   if (!imageUrls.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
   const runAt = Number(body.runAt);
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     const id = await c.convex.mutation(api.scheduledRecreations.create, {
       authSecret: c.secret, mintAddress: a.mint, referenceId: ref.id, referenceTitle: ref.title,
-      referencePoster: ref.thumbUrl, videoUrl: ref.videoUrl, durationSec: ref.duration, autoPost, imageUrls, prompt: text(body.prompt, 4000), mode, resolution, runAt, repeat,
+      referencePoster: ref.thumbUrl, videoUrl: ref.videoUrl, durationSec: ref.duration, autoPost, imageUrls, prompt: withCastKey(text(body.prompt, 4000), body.castTokens, imageUrls.length, mode), mode, resolution, runAt, repeat,
       repeatCount: typeof body.repeatCount === "number" ? body.repeatCount : undefined,
     });
     return NextResponse.json({ id });

@@ -1,4 +1,5 @@
 "use client";
+import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { getTxExplorerUrl } from "@/lib/solana/network";
 import { useCalloutTrades } from "./useCalloutTrades";
 import { formatTradeSol, tradeCallText, type CalloutTrade } from "@/lib/solstar/calloutTrade";
@@ -86,7 +87,7 @@ export function HomeCallouts() {
   const [target, setTarget] = useState<"agent" | "trader">("agent");
   const trader = target === "trader";
   const traderName = profile?.name || (wallet ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : "Your profile");
-  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
+  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: LIVE_NETWORK, liveOnly: true });
   const agents = useQuery(api.influencers.listSearchable, {});
   const earnings = useQuery(api.submissions.earningsByAgent, {});
   const callouts = useQuery(api.solstarFeed.listCallouts, {});

@@ -60,6 +60,7 @@ export function DbcTradeTicket({
   const [quote, setQuote] = useState<{
     key: string;
     minimumOut: string;
+    jupiter?: { betterByPct: number; route: string };
   } | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [quoteRevision, setQuoteRevision] = useState(0);
@@ -233,7 +234,7 @@ export function DbcTradeTicket({
           AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
         );
         if (!controller.signal.aborted) {
-          setQuote({ key: quoteKey, minimumOut: result.minimumOut });
+          setQuote({ key: quoteKey, minimumOut: result.minimumOut, jupiter: result.jupiter });
           setQuoteError("");
         }
       } catch {
@@ -251,6 +252,18 @@ export function DbcTradeTicket({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteKey, quoteRevision, wallet, compatible, busy, pending, characterId, getFreshToken]);
 
+  // The position card's "Sell 25% / Close position" buttons fill this ticket; the wallet still approves the swap.
+  useEffect(() => {
+    const onPrefill = (event: Event) => {
+      const { side: s, percent } = (event as CustomEvent<{ side: "sell"; percent: number }>).detail;
+      if (s !== "sell" || !balance) return;
+      setSide("sell");
+      setAmount(human((balance.tokens * BigInt(Math.min(100, Math.max(1, Math.round(percent))))) / 100n, balance.decimals));
+      setMessage("");
+    };
+    window.addEventListener("solcameo:trade-prefill", onPrefill);
+    return () => window.removeEventListener("solcameo:trade-prefill", onPrefill);
+  }, [balance]);
   function allocate(value: number) {
     setAmount(human((available * BigInt(value)) / 100n, decimals));
     setMessage("");
@@ -299,7 +312,7 @@ export function DbcTradeTicket({
           auth,
           siws,
         );
-        setQuote({ key: quoteKey, minimumOut: prepared.minimumOut });
+        setQuote({ key: quoteKey, minimumOut: prepared.minimumOut, jupiter: prepared.jupiter });
         setMessage(`Approve ${side} in your wallet…`);
         const tx = VersionedTransaction.deserialize(
           Uint8Array.from(atob(prepared.transaction), (c) => c.charCodeAt(0)),
@@ -524,6 +537,17 @@ export function DbcTradeTicket({
               : "—"}
           </span>
         </div>
+        {quote?.key === quoteKey && quote.jupiter && quote.jupiter.betterByPct >= 0.5 && mint && (
+          <a
+            href={`https://jup.ag/swap/${side === "buy" ? `SOL-${mint}` : `${mint}-SOL`}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 flex items-center justify-between rounded-lg border border-sky-300/25 bg-sky-300/[0.07] px-2.5 py-1.5 text-[11px] text-sky-200 hover:bg-sky-300/[0.12]"
+          >
+            <span>Jupiter ({quote.jupiter.route}) quotes {quote.jupiter.betterByPct.toFixed(1)}% more</span>
+            <span aria-hidden>Open ↗</span>
+          </a>
+        )}
         <button
           type="button"
           disabled={ctaDisabled}

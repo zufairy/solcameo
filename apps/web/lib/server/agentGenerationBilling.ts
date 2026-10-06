@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { refreshAgentFunds } from "./agentWallet";
+import { refreshAgentFunds, settleSoon } from "./agentWallet";
+import { holderDiscountForMint } from "./holderTier";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeCharacterOwner } from "./characterAuth";
@@ -11,10 +12,12 @@ export async function chargeAgentGeneration(mintAddress: string, runId: string, 
   try {
     await refreshAgentFunds(mintAddress);
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-    return await convex.mutation(api.usage.recordUsage, {
-      mintAddress, service, qty, walletOnly: true, idemKey: `${runId}:skill:${service}`,
+    const charged = await convex.mutation(api.usage.recordUsage, {
+      mintAddress, service, qty, walletOnly: true, idemKey: `${runId}:skill:${service}`, holderDiscountPct: await holderDiscountForMint(mintAddress),
       authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     });
+    if (charged.ok) settleSoon(mintAddress);
+    return charged;
   } catch { return { ok: false as const, reason: "billing_unavailable" }; }
 }
 

@@ -25,7 +25,7 @@ import {
   unsignedPumpTransaction,
 } from "@/lib/server/pumpLaunch";
 import { signOperation, readOperation } from "@/lib/server/dbcOperation";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertConfiguredChain } from "@/lib/server/devnetGuard";
 export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("characterId");
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     if (data.token.network !== dbcReadiness().network)
       throw new Error("Network mismatch");
     const conn = dbcConnection();
-    if (data.token.network === "devnet") await assertDevnet(conn);
+    await assertConfiguredChain(conn, data.token.network === "mainnet" ? "mainnet" : "devnet");
     const client = new DynamicBondingCurveClient(conn, "confirmed");
     const [pool, config, fees] = await Promise.all([
       client.state.getPool(new PublicKey(data.token.dbcPool)),
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       network = dbcReadiness().network,
       payer = new PublicKey(wallet),
       client = new DynamicBondingCurveClient(conn, "confirmed");
-    if (network === "devnet") await assertDevnet(conn);
+    await assertConfiguredChain(conn, network === "mainnet" ? "mainnet" : "devnet");
     if (body.action === "toggle") {
       if (
         !isConvexIdString(body.characterId) ||
