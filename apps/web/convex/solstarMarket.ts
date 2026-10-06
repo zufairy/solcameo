@@ -127,9 +127,12 @@ export const listMarket = query({
         solReserve: token.solReserve,
         tokenReserve: token.tokenReserve,
       };
-      const price = priceLamportsPerToken(pool);
-      const mcap = marketCapLamports(pool, PAPER_VIRTUAL_TOKENS);
-      const change = changeSinceLaunchBps(launchPrice, price);
+      // A coin created straight on-chain (e.g. the platform token) has no simulated reserves. The price math throws on a
+      // non-positive reserve, and one such row used to fail this whole query for every caller, so those report zeros.
+      const hasReserves = pool.tokenReserve > 0n && pool.solReserve >= 0n;
+      const price = hasReserves ? priceLamportsPerToken(pool) : 0n;
+      const mcap = hasReserves ? marketCapLamports(pool, PAPER_VIRTUAL_TOKENS) : 0n;
+      const change = hasReserves ? changeSinceLaunchBps(launchPrice, price) : 0n;
       rows.push({
         characterId: character._id,
         name: character.name,

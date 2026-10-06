@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { PAPER_VIRTUAL_SOL, PAPER_VIRTUAL_TOKENS } from "../lib/solstar/economics";
 import { mutation, query } from "./_generated/server";
 
 function guard(secret: string) {
@@ -89,7 +90,7 @@ export const linkListing = mutation({
     const tokenId = await ctx.db.insert("ssTokens", {
       characterId, network, name: row.name, ticker: "SOLCAMEO", description: row.description, economy: "creator-only",
       dbcConfig: row.config, dbcPool: row.pool, mint: row.mint, ...(row.signature ? { launchSignature: row.signature } : {}),
-      state: "live", solReserve: 0n, tokenReserve: 0n, createdAt: now,
+      state: "live", solReserve: PAPER_VIRTUAL_SOL, tokenReserve: PAPER_VIRTUAL_TOKENS, createdAt: now,
     });
     await ctx.db.insert("ssBudgets", { tokenId, network, fundedLamports: 0n, reservedLamports: 0n, spentLamports: 0n });
     return { characterId: characterId as string, created: true as const };

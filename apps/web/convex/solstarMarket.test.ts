@@ -28,6 +28,27 @@ async function seeded() {
 }
 
 describe("listMarket", () => {
+  it("does not fail for every caller when one coin has no simulated reserves (e.g. the platform token)", async () => {
+    const t = await seeded();
+    await t.run(async (ctx) => {
+      const base = (await ctx.db.query("ssTokens").first())!;
+      const character = await ctx.db.get(base.characterId);
+      const { _id, _creationTime, ...fields } = character!;
+      void _id; void _creationTime;
+      const characterId = await ctx.db.insert("ssCharacters", { ...fields, name: "Platform" });
+      await ctx.db.insert("ssTokens", {
+        characterId, network: "mainnet", name: "Platform", ticker: "PLAT", description: "", state: "live",
+        mint: "M".padEnd(44, "x"), dbcPool: "P".padEnd(44, "x"), dbcConfig: "C".padEnd(44, "x"),
+        solReserve: 0n, tokenReserve: 0n, createdAt: Date.now(),
+      });
+    });
+    const rows = await t.query(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].priceLamports).toBe("0");
+    // The rest of the market is unaffected.
+    expect(await t.query(api.solstarMarket.listMarket, { sort: "new" })).toHaveLength(6);
+  });
+
   it("returns seeded rows at launch price with no volume", async () => {
     const t = await seeded();
     const rows = await t.query(api.solstarMarket.listMarket, { sort: "new" });
