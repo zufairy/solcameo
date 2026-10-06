@@ -1,4 +1,5 @@
 "use client";
+import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -98,8 +99,8 @@ function Content() {
   const [selected, setSelected] = useState<Video | null>(null);
   const solUsd = useSolUsd();
   const mainnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "mainnet" });
-  const devnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "devnet" });
-  const paper = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "paper" });
+  const devnet = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? "skip" : { sort: "mcap", network: "devnet" });
+  const paper = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? "skip" : { sort: "mcap", network: "paper" });
   const markets = useMemo(() => new Map([...(mainnet ?? []), ...(devnet ?? []), ...(paper ?? [])].map(row => [String(row.characterId), row])), [mainnet, devnet, paper]);
   const [caps, setCaps] = useState<Record<string, number>>({});
   const episodes = useQuery(api.solstarDiscovery.latestVideos, {});

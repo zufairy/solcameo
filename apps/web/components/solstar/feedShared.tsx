@@ -1,5 +1,6 @@
 "use client";
 
+import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -19,7 +20,7 @@ export function useNow(intervalMs = 30_000): number {
 
 /** characterId -> market row, for avatars/names. Undefined while loading. */
 export function useCharacterMap(): Map<string, MarketRow> | undefined {
-  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new" }) as MarketRow[] | undefined;
+  const rows = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? { sort: "new", network: "mainnet" } : { sort: "new" }) as MarketRow[] | undefined;
   return useMemo(() => (rows ? new Map(rows.map((r) => [r.characterId, r])) : undefined), [rows]);
 }
 

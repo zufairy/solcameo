@@ -8,7 +8,6 @@ import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { motion } from "framer-motion";
 import { CONNECT_BUTTON_CLASS } from "./connectButton";
 import { PlatformBadge } from "@/components/social/platform-icons";
-import { PixelIcon, hasPixelIcon } from "@/components/builder/onboarding/pixel-icons";
 
 /** Authorization header for the auth-gated /api/social/* routes. */
 function authHeaders(token: string | null, json = false): HeadersInit {
@@ -271,7 +270,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
     const ids = only && only.length ? only : ["tiktok", "youtube"];
     const labelOf = (id: string) => platforms.find((p) => p.id === id)?.label ?? (id === "tiktok" ? "TikTok" : id === "youtube" ? "YouTube" : id);
     return (
-      <div className="flex flex-col gap-2.5" style={{ fontFamily: "var(--font-inter)" }}>
+      <div className="flex flex-col gap-2" style={{ fontFamily: "var(--font-inter)" }}>
         {ids.map((id, i) => {
           const acct = connected[id];
           const isConnected = Boolean(acct);
@@ -280,57 +279,51 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
             <motion.div
               key={id}
               layout
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 26, delay: 0.06 * i }}
-              className={`relative flex items-center gap-3.5 overflow-hidden rounded-2xl border px-4 py-3.5 backdrop-blur-xl transition-colors duration-300 ${
-                isConnected ? "border-lime-300/35 bg-lime-300/[0.07]" : "border-white/[0.09] bg-white/[0.035] hover:border-white/20 hover:bg-white/[0.06]"
+              transition={{ type: "spring", stiffness: 300, damping: 26, delay: 0.05 * i }}
+              className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-3 py-2.5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors duration-300 ${
+                isConnected ? "border-white/25 bg-white/[0.10]" : "border-white/[0.10] bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]"
               }`}
             >
-              <span className={`relative grid size-12 shrink-0 place-items-center rounded-xl border backdrop-blur transition-colors duration-300 ${isConnected ? "border-lime-300/40 bg-lime-300/15 text-lime-200" : "border-white/10 bg-white/[0.05] text-white/85"}`}>
-                {hasPixelIcon(id) ? <PixelIcon id={id} className="size-7" twinkle={isConnected} /> : <PlatformBadge id={id} label={labelOf(id)} />}
-              </span>
+              <PlatformBadge id={id} label={labelOf(id)} className="size-9 text-[12px] ring-1 ring-white/20 shadow-[0_4px_14px_rgba(0,0,0,0.35)]" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[14.5px] font-semibold leading-tight text-white">{labelOf(id)}</span>
-                <span className={`mt-0.5 block truncate text-[12px] ${isConnected ? "text-lime-200/80" : "text-white/40"}`}>
-                  {isConnected ? (acct?.displayName ? `@${acct.displayName.replace(/^@/, "")}` : "Connected") : "Not connected"}
+                <span className="block text-[13.5px] font-semibold leading-tight text-white">{labelOf(id)}</span>
+                <span className="mt-0.5 flex items-center gap-1.5 truncate text-[11.5px] text-white/45">
+                  {isConnected && <span className="size-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />}
+                  <span className="truncate">{isConnected ? (acct?.displayName ? `@${acct.displayName.replace(/^@/, "")}` : "Connected") : "Not connected"}</span>
                 </span>
               </span>
               {loading && !status ? (
-                <span className="h-9 w-24 animate-pulse rounded-full bg-white/[0.06]" />
+                <span className="h-8 w-20 animate-pulse rounded-full bg-white/[0.06]" />
               ) : isConnected ? (
-                <span className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void handleRefresh()}
-                    disabled={refreshing}
-                    aria-label="Refresh connection status"
-                    title="Refresh connection status"
-                    className="grid size-9 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-all hover:border-white/30 hover:bg-white/[0.12] hover:text-white active:scale-95 disabled:opacity-60"
-                  >
-                    <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
-                  </button>
-                  <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 18 }} className="grid size-9 place-items-center rounded-full bg-lime-300 text-[#11180d]">
-                    <Check className="size-4" strokeWidth={3} />
-                  </motion.span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleRefresh()}
+                  disabled={refreshing}
+                  aria-label="Refresh connection status"
+                  title="Refresh connection status"
+                  className="grid size-8 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/70 transition-all hover:border-white/30 hover:bg-white/[0.14] hover:text-white active:scale-95 disabled:opacity-60"
+                >
+                  <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
               ) : (
                 <button
                   type="button"
                   disabled={notConfigured || busy}
                   onClick={() => handleConnect(id)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-[12.5px] font-semibold text-[#0b0d0a] transition-all hover:bg-lime-200 active:scale-[0.96] disabled:opacity-60"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-gradient-to-b from-white/[0.22] to-white/[0.08] px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl transition-all hover:from-white/[0.3] hover:to-white/[0.12] active:scale-[0.96] disabled:opacity-60"
                 >
-                  {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                  {busy ? <Loader2 className="size-3 animate-spin" /> : null}
                   {busy && retrySeconds > 0 ? `Retry ${retrySeconds}s` : busy ? "Opening…" : "Connect"}
                 </button>
               )}
             </motion.div>
           );
         })}
-        {notConfigured && <p className="px-1 text-[12px] leading-snug text-amber-300/90">Social posting isn&apos;t configured on this server yet.</p>}
-        {limitReached && !notConfigured && <p className="px-1 text-[12px] leading-snug text-amber-300/90">Your upload-post plan&apos;s profile limit is reached. Upgrade it to connect this agent.</p>}
-        {error && <p role="alert" className="px-1 text-[12px] text-rose-300">{error}</p>}
+        {notConfigured && <p className="px-1 text-[11.5px] leading-snug text-amber-300/90">Social posting isn&apos;t configured on this server yet.</p>}
+        {limitReached && !notConfigured && <p className="px-1 text-[11.5px] leading-snug text-amber-300/90">Your upload-post plan&apos;s profile limit is reached. Upgrade it to connect this agent.</p>}
+        {error && <p role="alert" className="px-1 text-[11.5px] text-rose-300">{error}</p>}
       </div>
     );
   }

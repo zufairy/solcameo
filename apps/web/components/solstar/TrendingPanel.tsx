@@ -1,5 +1,6 @@
 "use client";
 
+import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -23,8 +24,8 @@ function changeTone(bps: string): string {
 function TrendingList() {
   // Volume ranking first; if nothing has traded yet, fall back to newest. Both subscriptions are cheap
   // and the "new" one is also what the feed/ticker share.
-  const byVolume = useQuery(api.solstarMarket.listMarket, { sort: "volume" }) as MarketRow[] | undefined;
-  const byNew = useQuery(api.solstarMarket.listMarket, { sort: "new" }) as MarketRow[] | undefined;
+  const byVolume = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? { sort: "volume", network: "mainnet" } : { sort: "volume" }) as MarketRow[] | undefined;
+  const byNew = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? { sort: "new", network: "mainnet" } : { sort: "new" }) as MarketRow[] | undefined;
   const loading = byVolume === undefined || byNew === undefined;
   const rows = loading ? [] : (hasVolume(byVolume) ? byVolume : byNew).slice(0, TOP);
 
