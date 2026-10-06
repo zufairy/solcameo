@@ -47,3 +47,16 @@ export function estimateModelUsd(model: ExploreModel, duration: number, quality:
   if (!Number.isFinite(duration) || duration <= 0 || !model.engine) return null;
   return Math.round(videoCostForLength(getVideoEngine(model.engine), engineSeconds(model, duration), q as VideoQuality) * 100) / 100;
 }
+
+/** Legacy motion clips keep their transfer flow; prompt references use their source model. */
+export const modelForReference = (item?: { preferredModel?: string } | null): ExploreModel => modelById(item?.preferredModel ?? "genjutsu-motion");
+
+export function cameoReferencePrompt(item: { prompt?: string }, name: string): string {
+  const token = name.replace(/\s+/g, "").replace(/[^\w-]/g, "") || "agent";
+  return (item.prompt ?? "").replace(/@cameo\b/g, `@${token}`);
+}
+
+export function referenceEstimate(item: { preferredModel?: string; duration: number }): number | null {
+  const model = modelForReference(item);
+  return estimateModelUsd(model, item.duration, model.defaultQuality);
+}

@@ -76,6 +76,9 @@ export function TerminalChart({
   mcap,
   supplyTokens = 1e9,
   symbol,
+  updatedAt,
+  connectionError = false,
+  source = "chain",
 }: {
   points: Array<{ time: number; price: number; volume?: number; side?: "buy" | "sell" }>;
   supplyTokens?: number;
@@ -83,10 +86,15 @@ export function TerminalChart({
   mcap: boolean;
   /** Shown in the chart legend, e.g. the coin ticker. */
   symbol?: string;
+  updatedAt?: number;
+  connectionError?: boolean;
+  source?: "chain" | "paper";
 }) {
   const [following, setFollowing] = useState(true);
   const [legend, setLegend] = useState<Candle | null>(null);
-  const [bucket, setBucket] = useState(() => Math.floor(Date.now() / (minutes * 60000)));
+  const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000));
+  const intervalSeconds = minutes * 60;
+  const bucket = Math.floor(nowSeconds / intervalSeconds);
   const previous = useRef<{ view: string; candles: Candle[] } | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
@@ -94,21 +102,18 @@ export function TerminalChart({
   const histogram = useRef<ISeriesApi<"Histogram"> | null>(null);
   const framed = useRef("");
   const mcapRef = useRef(mcap);
-  const lastRef = useRef<Candle | null>(null);
 
   // Roll the live candle forward as time passes even when nobody trades.
   useEffect(() => {
     const tick = () => {
       if (document.hidden) return;
-      setBucket((b) => {
-        const next = Math.floor(Date.now() / (minutes * 60000));
-        return next === b ? b : next;
-      });
+      setNowSeconds(Math.floor(Date.now() / 1000));
     };
     tick();
     const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [minutes]);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
+  }, []);
 
   const volumes = useMemo(() => {
     const grouped = new Map<number, { time: UTCTimestamp; value: number; color: string }>();
@@ -234,7 +239,6 @@ export function TerminalChart({
       histogram.current?.setData(volumes);
     }
     previous.current = { view, candles };
-    lastRef.current = candles[candles.length - 1] ?? null;
     if (candles.length && framed.current !== view) {
       // Frame a fixed window ending at the live edge, like a DEX, instead of fitting every bar.
       const n = candles.length;
@@ -243,7 +247,23 @@ export function TerminalChart({
     }
   }, [candles, mcap, volumes, minutes, supplyTokens]);
 
-  const shown = legend ?? lastRef.current ?? candles[candles.length - 1] ?? null;
+  // Move time continuously while following, retaining the current zoom width.
+  // Advancing time never changes the OHLC values of a confirmed price.
+  useEffect(() => {
+    const scale = chart.current?.timeScale();
+    if (!scale || !following || !candles.length) return;
+    const range = scale.getVisibleLogicalRange();
+    if (!range) return;
+    const fraction = (nowSeconds % intervalSeconds) / intervalSeconds;
+    const to = candles.length - 1 + RIGHT_PAD_BARS + fraction;
+    scale.setVisibleLogicalRange({ from: to - (range.to - range.from), to });
+  }, [nowSeconds, intervalSeconds, candles.length, following]);
+
+  const status = source === "paper" ? "Paper" : connectionError ? "Reconnecting" : !updatedAt ? "Connecting" : nowSeconds * 1000 - updatedAt > 20000 ? "Delayed" : "Live";
+  const fresh = status === "Live";
+  const remaining = Math.ceil(intervalSeconds - nowSeconds % intervalSeconds);
+  const countdown = `${Math.floor(remaining / 60).toString().padStart(2, "0")}:${(remaining % 60).toString().padStart(2, "0")}`;
+  const shown = legend ?? candles[candles.length - 1] ?? null;
   const delta = shown ? ((shown.close - shown.open) / (shown.open || 1)) * 100 : 0;
   const tone = delta >= 0 ? "text-[#26d98a]" : "text-[#f6525f]";
   const stat = (label: string, value: number) => (
@@ -260,7 +280,7 @@ export function TerminalChart({
         <div className="pointer-events-none absolute left-3 top-2.5 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums">
           <Badge variant="outline" className="h-5 rounded-[4px] border-white/10 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-zinc-200">
             {symbol ? `${symbol} · ` : ""}
-            {mcap ? "MCap" : "Price"} · {minutes < 60 ? `${minutes}m` : minutes < 1440 ? `${minutes / 60}h` : "1D"}
+            {mcap ? "MCap" : "Price"} · {minutes < 1 ? `${Math.round(minutes * 60)}s` : minutes < 60 ? `${minutes}m` : minutes < 1440 ? `${minutes / 60}h` : "1D"}
           </Badge>
           {stat("O", shown.open)}
           {stat("H", shown.high)}
@@ -273,12 +293,10 @@ export function TerminalChart({
         </div>
       )}
       <div className="absolute right-[88px] top-2 z-10 flex items-center gap-2">
-        <span className="flex items-center gap-1.5 rounded-[4px] bg-white/[0.04] px-1.5 py-1 text-[10px] font-medium text-zinc-300">
-          <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#26d98a] opacity-60 motion-reduce:animate-none" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-[#26d98a]" />
-          </span>
-          Live
+        <span className="rounded-[4px] bg-white/[0.04] px-1.5 py-1 text-[10px] tabular-nums text-zinc-400" aria-label="Time until next candle">{countdown}</span>
+        <span role="status" title={updatedAt ? `Last confirmed pool read: ${new Date(updatedAt).toLocaleTimeString()}` : "Waiting for a confirmed pool read"} className="flex items-center gap-1.5 rounded-[4px] bg-white/[0.04] px-1.5 py-1 text-[10px] font-medium text-zinc-300">
+          <span className={`size-1.5 rounded-full ${fresh ? "bg-[#26d98a]" : status === "Reconnecting" || status === "Delayed" ? "bg-amber-300" : "bg-zinc-500"}`} />
+          {status}
         </span>
         {!!candles.length && !following && (
           <Button

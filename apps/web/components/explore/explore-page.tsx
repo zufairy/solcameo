@@ -4,7 +4,7 @@ import { CameoPrompt, type CameoMember } from "./CameoPrompt";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
   Heart,
@@ -15,7 +15,6 @@ import {
   Play,
   Search,
   ChevronRight,
-  ChevronDown,
   CalendarClock,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -36,16 +35,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { CATEGORIES, type ReferenceVideo } from "@/lib/explore/feed";
+import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
-import { EXPLORE_MODELS, engineSeconds, estimateModelUsd, modelById, qualityFor, type ExploreModel } from "@/lib/explore/models";
+import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, type ExploreModel } from "@/lib/explore/models";
 import {
-  estimateGenerationUsd,
   formatGenerationUsd,
-  GENJUTSU_RESOLUTIONS,
   type GenjutsuResolution,
 } from "@/lib/explore/generationPrice";
 import { useMotionRuns } from "@/components/builder/character/motion";
@@ -58,6 +56,7 @@ type Feed = {
   total: number;
   refreshedAt?: string;
 };
+const PROMPT_REFERENCES: ReferenceVideo[] = promptReferences.items;
 const GREEN =
   "rounded-lg bg-[#d7ff00] text-black shadow-none hover:bg-[#e4ff59]";
 
@@ -77,6 +76,9 @@ function ReferenceCard({
   onSchedule?: () => void;
   estimate: number | null;
 }) {
+  const card = useRef<HTMLElement>(null);
+  const visible = useInView(card, { once: true, amount: 0.08 });
+  const [imageReady, setImageReady] = useState(!item.thumbUrl);
   const video = useRef<HTMLVideoElement>(null);
   const [preview, setPreview] = useState(false);
   const reduced = useReducedMotion();
@@ -85,7 +87,15 @@ function ReferenceCard({
     setPreview(false);
   };
   return (
-    <article className="group relative mb-3 break-inside-avoid overflow-hidden rounded-lg border border-white/10 bg-white/5">
+    <motion.article
+      ref={card}
+      initial={{ opacity: 0, y: reduced ? 0 : 24, filter: reduced ? "blur(0px)" : "blur(10px)" }}
+      animate={visible && imageReady
+        ? { opacity: 1, y: 0, filter: "blur(0px)" }
+        : { opacity: 0, y: reduced ? 0 : 24, filter: reduced ? "blur(0px)" : "blur(10px)" }}
+      transition={{ duration: reduced ? 0 : 0.65, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative mb-3 break-inside-avoid overflow-hidden rounded-lg border border-white/10 bg-white/5"
+    >
       <button
         onClick={onOpen}
         onMouseEnter={() => !reduced && setPreview(true)}
@@ -99,13 +109,17 @@ function ReferenceCard({
               : "9 / 16",
         }}
         className="relative block w-full overflow-hidden text-left focus-visible:outline-2 focus-visible:outline-[#d7ff00]"
-        aria-label={`Preview ${item.title}`}
+        aria-label={`Use ${item.title} as reference`}
       >
         {item.thumbUrl ? (
           <img
             src={item.thumbUrl}
             alt=""
             loading="lazy"
+            decoding="async"
+            onLoad={() => setImageReady(true)}
+            onError={() => setImageReady(true)}
+            ref={image => { if (image?.complete) setImageReady(true); }}
             className="size-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
           />
         ) : (
@@ -113,15 +127,16 @@ function ReferenceCard({
             <Film className="size-10 text-zinc-600" />
           </span>
         )}
-        {preview && (
+        {(preview || (visible && !item.thumbUrl)) && (
           <video
             ref={video}
             src={item.videoUrl}
-            autoPlay
+            autoPlay={preview}
             muted
             loop
             playsInline
-            preload="none"
+            preload={preview ? "none" : "metadata"}
+            onLoadedData={event => { if (!preview) event.currentTarget.currentTime = 0.01; }}
             onError={stop}
             className="absolute inset-0 size-full object-cover"
           />
@@ -129,6 +144,9 @@ function ReferenceCard({
         <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         <span className="absolute left-3 top-3 rounded-md border border-white/30 bg-white/20 px-2 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur-xl">
           {item.category}
+        </span>
+        <span aria-hidden className="absolute right-3 top-3 grid size-8 place-items-center rounded-full border border-white/25 bg-black/20 text-white backdrop-blur-xl transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:bg-white/20 motion-reduce:transform-none">
+          <ArrowUpRight className="size-4" />
         </span>
         <span className="absolute inset-x-3 bottom-3">
           <span className="mb-2 flex items-center gap-1 text-[11px] text-white/70">
@@ -138,11 +156,8 @@ function ReferenceCard({
           <span className="block text-sm font-semibold leading-snug text-white">
             {item.title}
           </span>
+          {item.sourceName && <span className="mt-1 block text-[10px] text-white/60">{item.sourceName}</span>}
           <span className="mt-3 flex items-center justify-between gap-2 text-xs font-medium text-[#d7ff00]">
-            <span className="flex items-center gap-1.5">
-              <VideoStackIcon className="size-4" /> Use reference{" "}
-              <ArrowUpRight className="size-3" />
-            </span>
             {estimate !== null && (
               <span className="shrink-0 text-[10px] tabular-nums text-white/70">
                 Est. {formatGenerationUsd(estimate)}
@@ -151,7 +166,7 @@ function ReferenceCard({
           </span>
         </span>
       </button>
-      <div className="absolute right-2 top-2 flex items-center gap-1.5">
+      <div className="absolute right-2 top-14 flex items-center gap-1.5">
       {onSchedule && (
       <Button
         variant="ghost"
@@ -181,7 +196,7 @@ function ReferenceCard({
         </Button>
       </motion.div>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -207,7 +222,7 @@ function Generator({
   const [portrait, setPortrait] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => cameoReferencePrompt(item, primaryName));
   const [cast, setCast] = useState<CameoMember[]>([]);
   const [autoPost, setAutoPost] = useState(false);
   const estimate = estimateModelUsd(model, item.duration, resolution);
@@ -295,7 +310,7 @@ function Generator({
           />
           <div>
             <p className="text-sm text-white">Your saved character</p>
-            <p className="text-xs text-zinc-500">Identity + reference motion</p>
+            <p className="text-xs text-zinc-500">{model.kind === "genjutsu" ? "Identity + reference motion" : "Identity + scene prompt"}</p>
           </div>
         </div>
       ) : (
@@ -355,8 +370,7 @@ function Generator({
       </Button>
       <p className="text-[11px] text-zinc-500">
         {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes a 10% Solcameo fee. ` : ""}
-        Keep this popup open while rendering. Finished videos are saved to this
-        agent&apos;s motion library.{autoPost && xConnected ? " It will be posted to X automatically." : ""}
+        Keep this popup open while rendering. {model.kind === "genjutsu" ? "Finished videos are saved to your agent’s motion library." : "Track the render in your agent’s activity."}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
       {failure && (
         <p role="alert" className="text-sm text-red-400">
@@ -388,9 +402,8 @@ function Generator({
 
 /** Short, popular references (4 to 6 seconds) indexed from the public feed, folded in ahead of the paged list. */
 function withShort(initial: Feed, short?: Short): ReferenceVideo[] {
-  if (!short?.items.length) return initial.items;
-  const seen = new Set(initial.items.map((i) => i.id));
-  return [...initial.items, ...short.items.filter((i) => !seen.has(i.id)).map(({ rank: _rank, ...item }) => (void _rank, item))];
+  const seen = new Set([...PROMPT_REFERENCES, ...initial.items].map((i) => i.id));
+  return [...PROMPT_REFERENCES, ...initial.items, ...(short?.items ?? []).filter((i) => !seen.has(i.id)).map(({ rank: _rank, ...item }) => (void _rank, item))];
 }
 
 const LENGTHS: ReadonlyArray<{ value: string; label: string }> = [
@@ -404,24 +417,6 @@ const REVEAL = 24; // cards added to the grid each time the end comes into view
 
 type Bounds = { min: number; max: number }; // seconds; max 0 = no upper bound
 const LENGTH_BOUNDS: Record<string, Bounds> = { any: { min: 0, max: 0 }, u5: { min: 0, max: 5 }, "5-10": { min: 5, max: 10 }, "10-20": { min: 10, max: 20 }, o20: { min: 20, max: 0 } };
-/** The clip lengths whose price for this model and quality falls in the chosen price band, as one bound. */
-function priceBounds(model: ExploreModel, quality: string, price: string): Bounds | null {
-  if (price === "any") return { min: 0, max: 0 };
-  const inBand = (p: number) => (price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20);
-  let lo = -1, hi = -1;
-  for (let d = 4; d <= 120; d += 0.5) {
-    const p = estimateModelUsd(model, d, quality);
-    if (p !== null && inBand(p)) { if (lo < 0) lo = d; hi = d; }
-  }
-  if (lo < 0) return null;
-  return { min: lo, max: price === "o20" || hi >= 120 ? 0 : hi + 0.5 };
-}
-const intersect = (a: Bounds, b: Bounds): Bounds | null => {
-  const min = Math.max(a.min, b.min);
-  const max = a.max && b.max ? Math.min(a.max, b.max) : a.max || b.max;
-  return max && max <= min ? null : { min, max };
-};
-
 const SORTS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "trending", label: "Trending" },
   { value: "shortest", label: "Shortest first" },
@@ -441,15 +436,13 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
   const [selected, setSelected] = useState<ReferenceVideo | null>(null);
   const [mint, setMint] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [quality, setQuality] = useState("720p");
-  const [modelId, setModelId] = useState<string>(EXPLORE_MODELS[0].id);
   const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
   const [length, setLength] = useState("any");
   const [sort, setSort] = useState("trending");
-  const model = modelById(modelId);
-  const resolution = qualityFor(model, quality);
-  // What the library is asked for: search, category, and the length implied by the length and price filters together.
-  const bounds = useMemo(() => intersect(LENGTH_BOUNDS[length] ?? LENGTH_BOUNDS.any, priceBounds(model, resolution, price) ?? { min: 999, max: 1000 }), [length, model, resolution, price]);
+  const model = modelForReference(selected);
+  const resolution = model.defaultQuality;
+  // Price is evaluated per card because each source uses its own generation model.
+  const bounds = LENGTH_BOUNDS[length] ?? LENGTH_BOUNDS.any;
   const remote = !!query.trim() || category !== "All" || (!!bounds && (bounds.min > 0 || bounds.max > 0) && length !== "u5");
   const filterKey = `${query.trim().toLowerCase()}|${category}|${bounds ? `${bounds.min}-${bounds.max}` : "none"}|${length === "u5"}`;
   const [limit, setLimit] = useState(REVEAL);
@@ -515,7 +508,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
   }, []);
   const inPrice = (i: ReferenceVideo) => {
     if (price === "any") return true;
-    const p = estimateModelUsd(model, i.duration, resolution);
+    const p = referenceEstimate(i);
     if (p === null) return false;
     return price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20;
   };
@@ -529,7 +522,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
         inPrice(i) &&
         inLength(i) &&
         (category === "All" || i.category === category) &&
-        `${i.title} ${i.description}`
+        `${i.title} ${i.description} ${i.sourceName ?? ""}`
           .toLowerCase()
           .includes(query.toLowerCase().trim()),
     )
@@ -538,7 +531,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
       sort === "shortest"
         ? a.duration - b.duration
         : sort === "cheapest"
-          ? (estimateModelUsd(model, a.duration, resolution) ?? Infinity) - (estimateModelUsd(model, b.duration, resolution) ?? Infinity)
+          ? (referenceEstimate(a) ?? Infinity) - (referenceEstimate(b) ?? Infinity)
           : 0,
     );
   const shown = visible.slice(0, limit);
@@ -615,7 +608,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
       if (!res.ok) throw new Error(d.error);
       if (id !== request.current) return; // a newer filter change superseded this request
       setItems((prev) => {
-        const base = reset ? [] : prev;
+        const base = reset ? PROMPT_REFERENCES : prev;
         const ids = new Set(base.map((i) => i.id));
         return [...base, ...d.items.filter((i) => !ids.has(i.id))];
       });
@@ -632,31 +625,31 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
   // Any filter change restarts the walk through the library: back to the built-in index when nothing needs the
   // server, otherwise a fresh scan from page one (search is debounced while typing).
   useEffect(() => {
-    setLimit(REVEAL);
-    if (!remote || !bounds) {
-      request.current++;
-      setItems(withShort(initial, short));
-      setNext(initial.next);
-      setError("");
-      setLoading(false);
-      return;
-    }
     request.current++;
-    setItems([]);
-    setNext(null);
-    setLoading(true);
-    const timer = setTimeout(() => void fetchBatch(1, true), query.trim() ? 350 : 0);
+    const timer = setTimeout(() => {
+      setLimit(REVEAL);
+      if (!remote || !bounds) {
+        setItems(withShort(initial, short));
+        setNext(initial.next);
+        setError("");
+        setLoading(false);
+      } else {
+        setItems(PROMPT_REFERENCES);
+        setNext(null);
+        void fetchBatch(1, true);
+      }
+    }, remote && query.trim() ? 350 : 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
   async function copy() {
     if (!selected) return;
     try {
-      await navigator.clipboard.writeText(selected.videoUrl);
+      await navigator.clipboard.writeText(selected.prompt ? cameoReferencePrompt(selected, agents?.find(a => a.mintAddress === mint)?.name ?? "cameo") : selected.videoUrl);
       setCopied(true);
       setCopyError("");
     } catch {
-      setCopyError("Copy unavailable. Select and copy the source URL below.");
+      setCopyError("Copy unavailable. Select and copy the text below.");
     }
   }
   const estimate = selected
@@ -696,7 +689,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
             </motion.span>
           </Button>
         </div>
-        <h1 className="sr-only">Explore motion references</h1>
+        <h1 className="sr-only">Explore video references</h1>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => (
@@ -715,14 +708,12 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ExploreSelect label="Model" value={modelId} onChange={setModelId} options={EXPLORE_MODELS.map((m) => ({ value: m.id, label: m.label }))} />
-            <ExploreSelect label="Quality" value={resolution} onChange={setQuality} options={model.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
             <ExploreSelect label="Length" value={length} onChange={setLength} options={LENGTHS} />
             <ExploreSelect label="Price" value={price} onChange={(v) => setPrice(v as typeof price)} options={[{ value: "any", label: "Any" }, { value: "u5", label: "Under $5" }, { value: "5-10", label: "$5 to $10" }, { value: "10-20", label: "$10 to $20" }, { value: "o20", label: "$20 and up" }]} />
             <ExploreSelect label="Sort" value={sort} onChange={setSort} options={SORTS} />
           <p className="text-sm font-medium tracking-tight text-white/50">
             <span className="tabular-nums text-white/80">
-              {initial.total.toLocaleString()}
+              {(initial.total + PROMPT_REFERENCES.length).toLocaleString()}
             </span>{" "}
             videos available
           </p>
@@ -736,8 +727,8 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
               saved={saved.includes(item.id)}
               onSave={() => toggleSave(item)}
               onOpen={() => openReference(item)}
-              onSchedule={model.kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
-              estimate={estimateModelUsd(model, item.duration, resolution)}
+              onSchedule={modelForReference(item).kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
+              estimate={referenceEstimate(item)}
             />
           ))}
         </div>
@@ -783,7 +774,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
             >
               Higgsfield
             </a>
-            .
+            , <a href="https://www.seedance2.tv/showcase" target="_blank" rel="noreferrer" className="underline">Seedance showcase</a>, <a href="https://replicate.com/xai/grok-imagine-video/examples" target="_blank" rel="noreferrer" className="underline">Grok</a> and <a href="https://deepmind.google/models/veo/" target="_blank" rel="noreferrer" className="underline">Veo</a>. Scene prompts are adapted for your Cameo character.
           </p>
         </div>
       </motion.div>
@@ -811,8 +802,8 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                 saved
                 onSave={() => toggleSave(item)}
                 onOpen={() => openReference(item)}
-                onSchedule={model.kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
-                estimate={estimateModelUsd(model, item.duration, resolution)}
+                onSchedule={modelForReference(item).kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
+                estimate={referenceEstimate(item)}
               />
             ))}
           </motion.div>
@@ -842,7 +833,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                 {selected.title}
               </DialogTitle>
               <DialogDescription className="text-xs text-zinc-400">
-                Use this motion with your influencer.
+                {model.kind === "genjutsu" ? "Use this motion with your influencer." : "Recreate this scene with your Cameo character."}
               </DialogDescription>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
@@ -868,7 +859,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                     </p>
                   )}
                   <p className="mt-3 text-[11px] text-zinc-500">
-                    Original reference · {Math.round(selected.duration)}s
+                    {selected.prompt ? "Showcase reference" : "Original reference"} · {Math.round(selected.duration)}s
                     {selected.width && selected.height
                       ? ` · ${selected.width} × ${selected.height}`
                       : ""}
@@ -876,6 +867,11 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                   <p className="mt-3 text-xs leading-relaxed text-zinc-400">
                     {selected.description}
                   </p>
+                  {selected.sourceUrl && (
+                    <a href={selected.sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-[#d7ff00]">
+                      {selected.sourceName} <ArrowUpRight className="size-3" />
+                    </a>
+                  )}
                   <div className="mt-3 flex gap-2">
                     <Button
                       variant="outline"
@@ -887,7 +883,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       ) : (
                         <Copy className="size-4" />
                       )}
-                      {copied ? "Copied source" : "Copy original URL"}
+                      {copied ? "Copied" : selected.prompt ? "Copy Cameo prompt" : "Copy original URL"}
                     </Button>
                     <a
                       href={selected.videoUrl}
@@ -906,9 +902,9 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       </p>
                       <Input
                         readOnly
-                        value={selected.videoUrl}
+                        value={selected.prompt ? cameoReferencePrompt(selected, agents?.find(a => a.mintAddress === mint)?.name ?? "cameo") : selected.videoUrl}
                         onFocus={(e) => e.target.select()}
-                        aria-label="Reference URL"
+                        aria-label="Reference text"
                       />
                     </>
                   )}
@@ -931,33 +927,15 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                     <span>Post to socials</span>
                   </div>
                   <div className="mb-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-zinc-400">Resolution</span>
-                      <div className="flex gap-1">
-                        {model.qualities.map((r) => (
-                          <Button
-                            key={r}
-                            size="sm"
-                            variant="outline"
-                            disabled={generating}
-                            aria-pressed={r === resolution}
-                            onClick={() => setQuality(r)}
-                            className={
-                              r === resolution
-                                ? `${GREEN} !border-[#d7ff00] !bg-[#d7ff00] !text-black font-semibold hover:!bg-[#e4ff59] aria-pressed:!bg-[#d7ff00] aria-pressed:!text-black`
-                                : "border-white/10 bg-transparent text-zinc-400"
-                            }
-                          >
-                            {r}
-                          </Button>
-                        ))}
-                      </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-zinc-400">{model.label}</span>
+                      <span className="text-zinc-500">{resolution}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 text-xs">
                       <span className="text-zinc-400">
                         Estimated generation{" "}
                         <span className="text-zinc-500">
-                          · {Math.ceil(selected.duration)}s
+                          · {model.kind === "engine" ? engineSeconds(model, selected.duration) : Math.ceil(selected.duration)}s
                         </span>
                       </span>
                       <span className="font-medium tabular-nums text-white">
@@ -1001,7 +979,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                   </label>
                   {mint && !mediaError ? (
                     <Generator
-                      key={mint}
+                      key={`${mint}:${selected.id}`}
                       mint={mint}
                       primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? "Character"}
                       item={selected}

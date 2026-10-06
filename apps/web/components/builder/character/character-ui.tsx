@@ -61,8 +61,8 @@ export function Section({ title, count, dot, icon, open, onToggle, children }: {
 }
 
 /** Image option tile: square, thick dark ring, lime ring when selected (Higgsfield style). */
-export function Card({ label, image, emoji, selected, onClick, soon, showLabel, order = 0 }: {
-  label: string; image?: string; emoji?: string; selected?: boolean; onClick?: () => void; soon?: boolean; showLabel?: boolean; order?: number;
+export function Card({ label, image, emoji, selected, onClick, soon, showLabel, characterType = false, order = 0 }: {
+  label: string; image?: string; emoji?: string; selected?: boolean; onClick?: () => void; soon?: boolean; showLabel?: boolean; characterType?: boolean; order?: number;
 }) {
   return (
     <motion.button
@@ -70,14 +70,14 @@ export function Card({ label, image, emoji, selected, onClick, soon, showLabel, 
       initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ ...SPRING, delay: Math.min(order, 12) * 0.022 }}
       whileHover={soon ? undefined : { y: -2, scale: 1.02 }} whileTap={soon ? undefined : { scale: 0.96 }}
-      className="group relative aspect-square overflow-hidden rounded-[14px] border-[2.5px] bg-white text-left outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-lime-300"
+      className={`group relative ${characterType ? "aspect-[176/208]" : "aspect-square"} overflow-hidden rounded-[14px] border-[2.5px] bg-white text-left outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-lime-300`}
       style={{ borderColor: selected ? LIME : SURFACE.ring, boxShadow: selected ? `0 0 0 1px ${LIME}55, 0 10px 28px -10px ${LIME}88` : undefined }}
     >
-      {image && <img src={image} alt="" loading="lazy" decoding="async" className={`size-full object-cover transition-transform duration-500 group-hover:scale-[1.05] ${soon ? "opacity-45 saturate-50" : ""}`} />}
+      {image && <img src={image} alt="" loading="lazy" decoding="async" className={`${characterType ? "h-[80%] w-full object-contain p-2" : "size-full object-cover"} transition-transform duration-500 group-hover:scale-[1.05] ${soon ? "opacity-45 saturate-50" : ""}`} />}
       {!image && emoji && <span aria-hidden className="grid size-full place-items-center bg-gradient-to-b from-zinc-800 to-zinc-900 text-[34px]">{emoji}</span>}
       {soon && <span className="absolute inset-0 bg-black/45" />}
       {(showLabel || soon) && (
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pb-1 pt-5 text-center text-[12.5px] font-semibold" style={{ color: selected ? LIME : "#fff" }}>{soon ? "Soon" : label}</span>
+        <span className={`pointer-events-none absolute inset-x-0 bottom-0 ${characterType ? "bg-white pb-2 pt-1 text-[14px]" : "bg-gradient-to-t from-black/70 to-transparent pb-1 pt-5 text-[12.5px]"} text-center font-semibold`} style={{ color: characterType ? "#202124" : selected ? LIME : "#fff" }}>{soon ? "Soon" : label}</span>
       )}
       {!showLabel && !soon && (
         <span className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1 pt-4 text-center text-[10.5px] font-semibold leading-tight text-white transition-transform duration-200 group-hover:translate-y-0">{label}</span>

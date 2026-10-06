@@ -1,3 +1,4 @@
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -23,6 +24,7 @@ type SeriesConfig = { enabled?: boolean; premise?: string; world?: string; theme
  * previewed exactly (see run-task's `inputScript` short-circuit).
  */
 export async function POST(req: NextRequest) {
+  let refund: (() => Promise<void>) | undefined;
   try {
     const auth = await requireInternalOrUserAuth(req);
     if (auth.error) return auth.error;
@@ -46,6 +48,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Series mode is off — turn it on first." }, { status: 400 });
     }
 
+    const billing = await beginAgentGeneration(req, mintAddress, "llm_message");
+    if (billing.error) return billing.error;
+    refund = billing.refund;
     const draft = await convex.query(api.nftAgents.getDraftByMint, { mintAddress });
     const sessionId = draft?.sessionId ?? "";
     const [knowledgeRaw, memoriesRaw] = await Promise.all([
@@ -111,6 +116,7 @@ export async function POST(req: NextRequest) {
       engine: { id: engine.id, label: engine.label },
     });
   } catch (err) {
+    await refund?.();
     console.error("[series/preview-episode]", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Episode ideation failed" }, { status: 500 });
   }

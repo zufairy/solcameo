@@ -19,7 +19,7 @@ import {
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
 } from "@solana/spl-token";
-import { getUsdcMint } from "./network";
+import { getNetwork, getUsdcMint } from "./network";
 import { rpcTry, rpcCandidates } from "./rpc";
 
 const USDC_DECIMALS = 6;
@@ -121,6 +121,7 @@ export async function sendFundingTransfer(params: {
   amount: number;
 }): Promise<{ sig: string; blockhash: string; lastValidBlockHeight: number }> {
   const { publicKey, signTransaction, agentWallet, token, amount } = params;
+  const mainnet = getNetwork() === "mainnet-beta";
   if (!(amount > 0)) throw new Error("Enter a positive amount");
 
   let recipient: PublicKey;
@@ -136,7 +137,7 @@ export async function sendFundingTransfer(params: {
   const solBal = await readSolBalanceOrNull(publicKey);
   const feeHeadroom = token === "USDC" ? 0.0025 : 0.001;
   if (shouldBlockForSol(solBal, feeHeadroom)) {
-    throw new Error(`You need a little devnet SOL to cover network fees (you have ${(solBal ?? 0).toFixed(4)} SOL). Get some free at faucet.solana.com, then try again.`);
+    throw new Error(mainnet ? "Your connected wallet needs SOL for network fees and the first USDC account. Deposit a little SOL, then retry." : `You need a little devnet SOL to cover network fees (you have ${(solBal ?? 0).toFixed(4)} SOL). Get some free at faucet.solana.com, then try again.`);
   }
 
   const instructions: TransactionInstruction[] = [];
@@ -151,6 +152,7 @@ export async function sendFundingTransfer(params: {
       await rpcTry(RPC_CANDIDATES, async (conn) => getAccount(conn, fromAta, "confirmed"));
     } catch (e) {
       if (e instanceof TokenAccountNotFoundError) {
+        if (mainnet) throw new Error("Your connected wallet has no Solana USDC. Add USDC, then retry.");
         throw new Error("Your wallet has no devnet USDC yet. Get some free at faucet.circle.com (Solana Devnet), then try again — or fund with SOL instead.");
       }
     }
@@ -182,7 +184,10 @@ export async function sendFundingTransfer(params: {
   // "confirmed" is the freshest blockhash with the full ~60-90s validity window.
   // "finalized" is ~30s stale and can EXPIRE while the user reads the wallet
   // prompt — the signed tx then silently fails to land (no deduction).
-  const { blockhash, lastValidBlockHeight } = await rpcTry(RPC_CANDIDATES, async (conn) => conn.getLatestBlockhash("confirmed"));
+  const { blockhash, lastValidBlockHeight } = await rpcTry(RPC_CANDIDATES, async (conn) => {
+    if (mainnet && await conn.getGenesisHash() !== "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d") throw new Error("RPC network mismatch. Deposit was not started.");
+    return conn.getLatestBlockhash("confirmed");
+  });
 
   // Build a LEGACY transaction — the SAME format the app's working invest flow
   // (InvestPanel / share-purchase-dialog) uses. A v0 VersionedTransaction here

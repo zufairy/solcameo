@@ -1,3 +1,4 @@
+import { refreshAgentFunds } from "@/lib/server/agentWallet";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -72,6 +73,12 @@ export async function POST(req: NextRequest) {
     if (ownershipError) return ownershipError;
   }
 
+  const walletOnly = agent?.generationFunding === "agent_wallet" || !!agent?.solstarCharacterId;
+  if (walletOnly) {
+    try { await refreshAgentFunds(mintAddress); }
+    catch { return NextResponse.json({ ok: false, reason: "precheck_unavailable" }, { status: 503 }); }
+  }
+
   // 1) Reconcile the mirror to the chain so the spendable math is real.
   try {
     if (agent === undefined) agent = await loadAgent();
@@ -122,7 +129,7 @@ export async function POST(req: NextRequest) {
       // The owner's prepaid credit balance is spent FIRST by recordUsage, so the
       // funding gate below must count it — gating on the agent's own USDC alone
       // denied every credit-funded user before a single charge could be attempted.
-      convex.query(api.userCredits.balanceForMint, { mintAddress }),
+      walletOnly ? Promise.resolve(0) : convex.query(api.userCredits.balanceForMint, { mintAddress }),
     ]);
     return { account, today, creditsBalance };
   };

@@ -29,3 +29,41 @@ it("updates live candles without rebuilding the chart or resetting the user's ti
   } finally { await act(async () => root.unmount()); vi.unstubAllGlobals(); }
   expect(m.remove).toHaveBeenCalledOnce();
 });
+
+it("advances quiet 15-second markets while preserving prices, zoom and manual history browsing", async () => {
+  vi.clearAllMocks(); vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-06T06:00:00Z"));
+  vi.stubGlobal("React", React); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  let range: { from: number; to: number } | null = null;
+  let onRange: (() => void) | undefined;
+  m.fit.mockImplementation((value: { from: number; to: number }) => { range = value; });
+  m.create.mockReturnValue({
+    addSeries: (kind: string) => ({ setData: kind === "candles" ? m.setData : vi.fn(), update: kind === "candles" ? m.update : vi.fn(), applyOptions: vi.fn() }),
+    priceScale: () => ({ applyOptions: vi.fn() }),
+    timeScale: () => ({ subscribeVisibleLogicalRangeChange: (fn: () => void) => { onRange = fn; }, getVisibleLogicalRange: () => range, setVisibleLogicalRange: m.fit, scrollToRealTime: vi.fn() }),
+    subscribeCrosshairMove: vi.fn(), remove: m.remove,
+  });
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const now = Date.now();
+  try {
+    await act(async () => root.render(<TerminalChart points={[{ time: now - 30000, price: 10 }, { time: now - 15000, price: 10 }]} minutes={0.25} mcap updatedAt={now} />));
+    const initial = range!;
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(range!.to).toBeCloseTo(initial.to + 1 / 15);
+    expect(range!.to - range!.from).toBe(initial.to - initial.from);
+    await act(async () => { vi.advanceTimersByTime(14000); });
+    expect(m.update).toHaveBeenCalledWith(expect.objectContaining({ time: now / 1000 + 15, open: 10, high: 10, low: 10, close: 10 }));
+    expect(host.textContent).toContain("15s");
+    expect(host.textContent).toContain("Live");
+    await act(async () => { range = { from: -100, to: -50 }; onRange?.(); });
+    const calls = m.fit.mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(6000); });
+    expect(m.fit).toHaveBeenCalledTimes(calls);
+    expect(host.textContent).toContain("Latest");
+    expect(host.textContent).toContain("Delayed");
+  } finally {
+    await act(async () => root.unmount()); vi.useRealTimers(); vi.unstubAllGlobals();
+    m.fit.mockReset();
+  }
+});

@@ -40,6 +40,7 @@ it("shows the builder for an agent without a character and enables Generate afte
   expect(female.getAttribute("aria-pressed")).toBe("true");
   expect(gen.disabled).toBe(false);
   const selector = host.querySelector<HTMLSelectElement>('select[aria-label="Higgsfield model"]')!;
+  expect(selector.value).toBe("soul2");
   expect([...selector.options].map(option => option.value)).toEqual(["soul", "soul2", "qwen"]);
   expect(selector.options[2].disabled).toBe(true);
   expect(host.querySelector<HTMLInputElement>('input[aria-label="Upload reference images"]')?.multiple).toBe(true);

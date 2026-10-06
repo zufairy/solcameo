@@ -10,6 +10,11 @@ export interface ReferenceVideo {
   videoUrl: string;
   duration: number;
   category: string;
+  /** Public showcase attribution and an editable scene adapted for Cameo. */
+  sourceName?: string;
+  sourceUrl?: string;
+  prompt?: string;
+  preferredModel?: string;
 }
 export const FEED = "https://cms.higgsfield.ai/higgsfield-multiplier/video-explore/v2";
 export const CATEGORIES = ["All", "Dance", "Performance", "Lifestyle", "Action", "Other"];

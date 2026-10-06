@@ -16,7 +16,7 @@ export async function ensureCharacterAgent(ctx: MutationCtx, character: Doc<"ssC
       mintAddress, solstarCharacterId: character._id, solstarTokenId: token._id,
       creatorWallet: character.ownerWallet, name: character.name, handle: handleLower, handleLower,
       avatarUrl: character.referenceImageUrl, avatarStills: [character.referenceImageUrl],
-      agentType: "influencer", installedSkills: ["kie.video.generate", "ai.reasoning"], updatedAt: Date.now(), niche: character.category, language: "English", archetype: "creator",
+      generationFunding: "agent_wallet", agentType: "influencer", installedSkills: ["kie.video.generate", "ai.reasoning"], updatedAt: Date.now(), niche: character.category, language: "English", archetype: "creator",
       description: character.bio, personality: { warmth: 70, humor: 60, authority: 65, boldness: 70 },
       tvl: 0, monthlyEarnings: 0, sharePrice: 0, totalShares: 0, availableShares: 0,
     });

@@ -28,6 +28,7 @@ const h = vi.hoisted(() => {
     authMock: vi.fn(),
     runGuardrailsMock: vi.fn(),
     prepareYouTubeShortMock: vi.fn(),
+    generatePostCaptionMock: vi.fn(),
   };
 });
 
@@ -54,6 +55,7 @@ vi.mock("@/lib/server/contentRewardSubmit", () => ({ submitContentRewardLink: h.
 vi.mock("@/lib/server/captionTransform", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/server/captionTransform")>()),
   generateYoutubeTitle: vi.fn(async () => "Short clip"),
+  generatePostCaption: h.generatePostCaptionMock,
 }));
 vi.mock("@/lib/server/verticalizeForShorts", () => ({
   prepareYouTubeShort: h.prepareYouTubeShortMock,
@@ -68,8 +70,9 @@ vi.mock("@/lib/server/uploadPost", () => ({
   UPLOAD_POST_PLATFORMS: [
     { id: "tiktok", video: true, photo: true, text: false },
     { id: "youtube", video: true, photo: false, text: false },
+    { id: "x", video: true, photo: true, text: true },
   ],
-  PLATFORM_IDS: ["tiktok", "youtube"],
+  PLATFORM_IDS: ["tiktok", "youtube", "x"],
   resolveUsername: (m: string) => `user_${m}`,
   // Return a permalink so the route skips the getLatestPostLink poll (fast test).
   extractPostUrlFromResult: () => "https://www.tiktok.com/@x/video/1",
@@ -318,5 +321,34 @@ describe("POST /api/social/post — Guardrails gate", () => {
     expect(res.status).toBe(200);
     const uploadCall = h.uploadVideoMock.mock.calls[0];
     expect(String(uploadCall?.[0]?.title ?? "")).toContain("shit");
+  });
+});
+
+
+describe("influencer X captions", () => {
+  beforeEach(() => {
+    h.queryMock.mockImplementation(async (ref: unknown) => getFunctionName(ref as Parameters<typeof getFunctionName>[0]) === GET_BY_MINT
+      ? { creatorWallet: "W", name: "Zed", agentType: "influencer", archetype: "witty", niche: "tech", language: "Malay", mintAddress: MINT }
+      : []);
+    h.generatePostCaptionMock.mockResolvedValue("A specific hook about the demo.");
+  });
+  it("generates persona copy without requiring the clipper captions skill", async () => {
+    const res = await POST(makeReq({ ...videoBody, platforms: ["x"], description: "A demo of the new camera" }));
+    expect(res.status).toBe(200);
+    expect(h.generatePostCaptionMock).toHaveBeenCalledWith(expect.objectContaining({
+      instruction: expect.stringMatching(/Zed.*witty.*tech.*Malay.*280/),
+      basis: "A demo of the new camera",
+    }));
+    expect(h.uploadVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: "A specific hook about the demo." }));
+  });
+  it("preserves operator approved copy", async () => {
+    await POST(makeReq({ ...videoBody, platforms: ["x"], title: "My approved caption", captionLocked: true }));
+    expect(h.generatePostCaptionMock).not.toHaveBeenCalled();
+    expect(h.uploadVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: "My approved caption" }));
+  });
+  it("keeps content copy when generation is unavailable", async () => {
+    h.generatePostCaptionMock.mockResolvedValue("");
+    await POST(makeReq({ ...videoBody, platforms: ["x"], title: "The camera demo" }));
+    expect(h.uploadVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: "The camera demo" }));
   });
 });

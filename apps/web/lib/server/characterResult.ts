@@ -1,3 +1,4 @@
+import { refundImage } from "./imageBilling";
 import { getStatus } from "./higgsfield";
 import { getObjectText, mirrorImageToR2, putImage } from "./imageStorage";
 import type { CharacterImage } from "@/lib/character/types";
@@ -12,7 +13,14 @@ export async function characterResult(scope: string, id: string) {
     return { status: "completed", urls: images.map(i => i.url), url: images[0]?.url };
   }
   const r = await getStatus(id);
-  if (r.status !== "completed") return { status: r.status, error: r.error };
+  if (r.status !== "completed") {
+    if (["failed", "nsfw", "canceled"].includes(r.status)) {
+      const raw = await getObjectText(`characters/${scope}/jobs/${id}.json`);
+      const job = raw ? JSON.parse(raw) : null;
+      if (job?.billingRunId) await refundImage(scope, job.billingRunId);
+    }
+    return { status: r.status, error: r.error };
+  }
   const rawJob = await getObjectText(`characters/${scope}/jobs/${id}.json`);
   const job = rawJob ? JSON.parse(rawJob) : null;
   const stored = await Promise.all(r.imageUrls.slice(0,4).map((url, index) => mirrorImageToR2(url, { key: `characters/${scope}/gen/${id}/${index}.webp`, optimize: true })));

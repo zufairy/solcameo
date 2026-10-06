@@ -747,7 +747,7 @@ export const globalVideoFeed = query({
       });
     }
 
-    const agentCache = new Map<string, { name: string; avatarUrl: string; handle: string; connectedPlatforms: string[]; isClipper: boolean } | null>();
+    const agentCache = new Map<string, { name: string; avatarUrl: string; handle: string; connectedPlatforms: string[]; isClipper: boolean; creatorWallet: string; characterId: string | null } | null>();
     const getAgent = async (mint: string) => {
       if (agentCache.has(mint)) return agentCache.get(mint)!;
       const a = await ctx.db
@@ -760,6 +760,8 @@ export const globalVideoFeed = query({
         handle: a.handle,
         connectedPlatforms: a.connectedPlatforms ?? [],
         isClipper: a.agentType === "clipping",
+        creatorWallet: a.creatorWallet,
+        characterId: a.solstarCharacterId ?? null,
       } : null;
       agentCache.set(mint, lite);
       return lite;
@@ -842,6 +844,8 @@ export const globalVideoFeed = query({
         agentName: a?.name ?? "Agent",
         agentAvatar: a?.avatarUrl ?? "",
         agentHandle: a?.handle ?? "",
+        creatorWallet: a?.creatorWallet ?? null,
+        characterId: a?.characterId ?? null,
         engine: r.engine,
         formatId: r.formatId,
         postedPlatforms,

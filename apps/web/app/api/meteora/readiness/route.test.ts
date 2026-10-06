@@ -50,3 +50,19 @@ describe("launch infrastructure preflight", () => {
     expect((await GET(new NextRequest("https://localhost/api/meteora/readiness?wallet=invalid"))).status).toBe(400);
   });
 });
+
+it("verifies mainnet by genesis hash before reporting launch readiness", async () => {
+  m.configured.mockReturnValue({ ready: true, network: "mainnet" });
+  m.rpc.getGenesisHash.mockResolvedValue("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d");
+  const response = await GET(new NextRequest("https://localhost/api/meteora/readiness"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ ready: true, network: "mainnet" });
+});
+
+it("rejects a devnet RPC configured as mainnet without marking it ready", async () => {
+  m.configured.mockReturnValue({ ready: true, network: "mainnet" });
+  const response = await GET(new NextRequest("https://localhost/api/meteora/readiness"));
+  expect(response.status).toBe(503);
+  expect(await response.json()).toMatchObject({ ready: false, network: "mainnet" });
+  expect(m.rpc.getSlot).not.toHaveBeenCalled();
+});

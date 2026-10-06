@@ -164,7 +164,6 @@ export function FlywheelPanel({
   if (!wheel) return null;
   const labels: Record<string, string> = {
     awaiting_fees: "Waiting for earned fees",
-    devnet_test_budget: "Devnet budget · test SOL only",
     fees_collected: "Fees collected",
     creating_content: "Creating the next chapter",
     paused: "Creation paused",
@@ -177,14 +176,14 @@ export function FlywheelPanel({
     graduated: "Graduated to DAMM v2",
   };
   return (
-    <section className="space-y-4 border-b border-white/10 p-4">
+    <section className="space-y-2 border-b border-white/10 p-3">
       <div className="flex items-center gap-2">
         <RefreshCw className="size-4 text-[#d7ff00]" />
         <h3 className="text-sm font-medium">Character flywheel</h3>
       </div>
-      <p className="text-xs leading-5 text-zinc-400">
+      {wheel.status !== "devnet_test_budget" && <p className="text-xs leading-5 text-zinc-400">
         {labels[wheel.status] ?? "Checking the flywheel"}
-      </p>
+      </p>}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <p className="text-[10px] text-zinc-500">
@@ -206,13 +205,6 @@ export function FlywheelPanel({
           </p>
         </div>
       </div>
-      {wheel.economy === "sustainable-v1" && (
-        <p className="text-[10px] leading-5 text-zinc-500">
-          Fee allocation: creator 40% · content 20% · platform 20% · Meteora
-          20%. Content budget is managed by Solcameo’s treasury. Devnet funds
-          cannot buy AI credits.
-        </p>
-      )}
       {owner && (
         <div className="space-y-2">
           <Button

@@ -1,3 +1,4 @@
+import { refreshAgentFunds } from "./agentWallet";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { imageRetailPriceUsd, type ImageEngine } from "@/lib/builder/imageEngines";
@@ -14,7 +15,8 @@ export type ImageCharge = { ok: true; costUsdc: number } | { ok: false; reason: 
 export async function chargeImage(mint: string, runId: string, engine: Pick<ImageEngine, "pricePerImageUsdc">): Promise<ImageCharge> {
   const qty = Math.max(1, Math.round(imagePriceUsd(engine) * 1000));
   try {
-    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, authSecret: secret() });
+    await refreshAgentFunds(mint);
+    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, authSecret: secret() });
     return r.ok ? { ok: true, costUsdc: r.costUsdc } : { ok: false, reason: r.reason ?? "needs_funding" };
   } catch {
     return { ok: false, reason: "billing_unavailable" };

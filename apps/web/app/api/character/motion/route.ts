@@ -1,3 +1,7 @@
+import { probeRemoteVideoDurationSeconds } from "@/lib/server/ffmpegBin";
+import { assertPublicHttpUrl } from "@/lib/server/downloader";
+import { getObjectText, putImage } from "@/lib/server/imageStorage";
+import { chargeExploreRun, refundExploreRun, priceUsd, CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { authorizeCharacterOwner } from "@/lib/server/characterAuth";
@@ -22,14 +26,26 @@ export async function POST(req: NextRequest) {
   const resolution = (["480p", "720p", "1080p"].includes(body.resolution as string) ? body.resolution : "720p") as "480p" | "720p" | "1080p";
   const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 4000) : "";
 
+  let duration: number | null;
+  try { await assertPublicHttpUrl(body.videoUrl); duration = await probeRemoteVideoDurationSeconds(body.videoUrl); }
+  catch { return NextResponse.json({ error: "Could not read this reference video." }, { status: 400 }); }
+  const price = duration ? priceUsd(duration, resolution) : null;
+  if (price === null) return NextResponse.json({ error: "Use a reference video between 4 and 30 seconds with a readable duration." }, { status: 400 });
+  const runId = `motion:${randomUUID()}`;
+  const charge = await chargeExploreRun(a.mint, runId, price);
+  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+  let accepted = false;
   try {
     const requestId = await submitVideo(
       mode,
       { video_url: body.videoUrl, image_urls: images, resolution, ...(prompt.trim() ? { prompt } : {}) },
       `${a.mint}:${randomUUID()}`.slice(0, 120),
     );
-    return NextResponse.json({ requestId });
+    accepted = true;
+    await putImage(Buffer.from(JSON.stringify({ runId, requestId })), "application/json", { key: `characters/${a.mint}/motion-jobs/${requestId}.json` });
+    return NextResponse.json({ requestId, costUsd: price });
   } catch (e) {
+    if (!accepted) await refundExploreRun(a.mint, runId);
     if (e instanceof HfError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
     return NextResponse.json({ error: "Generation failed to start" }, { status: 502 });
   }
@@ -42,6 +58,10 @@ export async function GET(req: NextRequest) {
   if (a.error) return a.error;
   try {
     const r = await getStatus(q.get("id") ?? "");
+    if (["failed", "nsfw", "canceled"].includes(r.status)) {
+      const raw = await getObjectText(`characters/${a.mint}/motion-jobs/${q.get("id")}.json`);
+      if (raw) await refundExploreRun(a.mint, JSON.parse(raw).runId);
+    }
     if (r.status !== "completed") return NextResponse.json({ status: r.status, error: r.error }, { headers: { "Cache-Control": "no-store" } });
     if (!r.videoUrl) return NextResponse.json({ status: "failed", error: "No video came back" });
     let url = r.videoUrl;

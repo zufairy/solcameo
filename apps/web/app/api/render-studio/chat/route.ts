@@ -1,3 +1,4 @@
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { cleanAssets, clampComposition, type Composition } from "@/lib/render-studio/compose";
 import { selfOrigins } from "@/lib/server/selfOrigin";
@@ -36,5 +37,9 @@ export async function POST(req: NextRequest) {
     avatarUrl: /^https:\/\//.test(String((body.agent as Record<string, unknown>).avatarUrl ?? "")) ? String((body.agent as Record<string, unknown>).avatarUrl).slice(0, 500) : undefined,
   } : undefined;
 
-  return ndjson((send, signal) => runStudioAgent({ comp, engine, aspect, prompt, history, model, review: body.review !== false, touched: body.touched === true, attached, origin, agent, signal }, send));
+  const billing = await beginAgentGeneration(req, body.mintAddress, "llm_message");
+  if (billing.error) return billing.error;
+  return ndjson(async (send, signal) => {
+    try { await runStudioAgent({ comp, engine, aspect, prompt, history, model, review: body.review !== false, touched: body.touched === true, attached, origin, agent, signal }, send); } catch (error) { await billing.refund(); throw error; }
+  });
 }

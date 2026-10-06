@@ -1,10 +1,13 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- remote episode media */
+import { MarketHolderIdentity } from "./MarketHolderIdentity";
+import { MarketInfluencerAbout } from "./MarketInfluencerAbout";
 import { SocialLinksForm } from "./SocialLinksForm";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
+import { MarketLiveCam } from "./MarketLiveCam";
 import { MarketInfoCarousel } from "./MarketInfoCarousel";
 import { MarketAboutCard } from "./MarketAboutCard";
 import { XFeedPanel } from "./XFeedPanel";
@@ -104,7 +107,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const [tab, setTab] = useState(
     params.get("tab") === "videos" ? "videos" : "holders",
   );
-  const [minutes, setMinutes] = useState(5);
+  const [minutes, setMinutes] = useState(0.25);
   const [mcap, setMcap] = useState(true);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
@@ -264,6 +267,13 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
       window.removeEventListener("focus", refresh);
     };
   }, [characterId, onChain]);
+  const holderWallets = useMemo(() => [...new Set([
+    ...(chain?.holders ?? []).map(holder => holder.wallet),
+    ...(data?.stats?.holders ?? []).map(holder => holder.wallet),
+  ])].sort().slice(0, 100), [chain?.holders, data?.stats?.holders]);
+  const holderProfiles = useQuery(api.users.leaderboardProfiles, holderWallets.length ? { wallets: holderWallets } : "skip");
+  const holderProfile = (wallet: string) => holderProfiles?.find(profile => profile.wallet === wallet);
+  const holderIdentity = (wallet: string) => <MarketHolderIdentity wallet={wallet} image={holderProfile(wallet)?.image} name={holderProfile(wallet)?.name} />;
   if (data === undefined)
     return (
       <div className="grid min-h-[65vh] place-items-center">
@@ -450,34 +460,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
 
             </div>
           )}
-              <div className="mt-auto shrink-0 border-t border-white/10 bg-[#181a1c] p-4">
-                <h2 className="mb-2 text-xs font-medium text-zinc-400">
-                  About the influencer
-                </h2>
-                <div className="mb-3 flex items-center gap-3">
-                  {character.referenceImageUrl && (
-                    <img
-                      src={character.referenceImageUrl}
-                      alt={character.name}
-                      className="size-12 rounded-[4px] object-cover"
-                    />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {character.name}
-                    </p>
-                    <p className="mt-1 text-[10px] text-zinc-500">
-                      ${token.ticker} · {character.category}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs leading-relaxed text-zinc-500">
-                  {character.bio}
-                </p>
-                <p className="mt-4 text-[10px] uppercase tracking-widest text-zinc-600">
-                  {character.category}
-                </p>
-              </div>
+          <MarketInfluencerAbout name={character.name} ticker={token.ticker} category={character.category} bio={character.bio} imageUrl={character.referenceImageUrl} />
         </aside>
         <section
           className={`${mobilePanel === "chart" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto overscroll-contain lg:block`}
@@ -588,9 +571,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
             <Tabs value={String(minutes)} onValueChange={(v) => setMinutes(Number(v))}>
               <TabsList aria-label="Chart interval" className="h-8 bg-white/[0.04]">
-                {[1, 5, 15, 60, 240, 1440].map((m) => (
+                {[0.25, 1, 5, 15, 60, 240, 1440].map((m) => (
                   <TabsTrigger key={m} value={String(m)} className="px-2.5 text-xs tabular-nums">
-                    {m < 60 ? `${m}m` : m < 1440 ? `${m / 60}h` : "1D"}
+                    {m < 1 ? `${Math.round(m * 60)}s` : m < 60 ? `${m}m` : m < 1440 ? `${m / 60}h` : "1D"}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -612,8 +595,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </p>
             )}
             <div className="px-4 pt-4 text-xs text-zinc-500">
-              {token.ticker}/USD · {mcap ? "Market cap" : "Price"} · {minutes}
-              min ·{" "}
+              {token.ticker}/USD · {mcap ? "Market cap" : "Price"} · {minutes < 1 ? `${Math.round(minutes * 60)}s` : `${minutes} min`} ·{" "}
               {token.network === "paper"
                 ? "Vello paper ledger"
                 : "Confirmed app trades · observed pool prices"}
@@ -635,6 +617,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               minutes={minutes}
               mcap={mcap}
               symbol={token.ticker}
+              updatedAt={poolCheckedAt}
+              connectionError={!!poolError}
+              source={token.network === "paper" ? "paper" : "chain"}
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4">
@@ -688,7 +673,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                             rel="noreferrer"
                             className="font-sans tabular-nums text-xs text-[#d7ff00]"
                           >
-                            {short(h.wallet)}
+                            {holderIdentity(h.wallet)}
                           </a>
                         </TableCell>
                         <TableCell>
@@ -730,7 +715,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                   {rows.map((h) => (
                     <TableRow key={h.wallet} className="border-white/10">
                       <TableCell className="font-sans tabular-nums text-xs">
-                        {short(h.wallet)}
+                        {holderIdentity(h.wallet)}
                       </TableCell>
                       <TableCell className="tabular-nums">
                         {(Number(h.units) / 1e6).toLocaleString(undefined, {
@@ -893,6 +878,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             bio={character.bio}
             xUrl={character.xUrl}
             websiteUrl={character.websiteUrl}
+            showLinks={false}
             trades={chain?.trades}
             points={dbc?.points?.map((p) => ({ time: p.time, price: p.price }))}
             formatLamports={formatCompactSol}
@@ -929,7 +915,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </p>
           )}
           </div>
-          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Graduation", "Creator fees"] : []), "Holders", "X feed"]}>
+          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Graduation", "Creator fees"] : []), "Holders", "X feed", "Live Cam"]}>
           {token.dbcPool && (
             <div className="space-y-3 p-4">
               <h2 className="text-[13px] font-semibold text-white">
@@ -972,10 +958,10 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               <p role="alert" className="text-xs text-amber-300">{chainError}</p>
             ) : chain?.available ? (
               <div className="divide-y divide-white/[0.06]">
-                {chain.accounts?.slice(0, 5).map((a, i) => (
-                  <a key={a.address} href={explorer(a.address)} target="_blank" rel="noreferrer" className="flex items-center justify-between py-2 text-[12px] transition-colors hover:text-white">
-                    <span className="flex items-center gap-2 font-sans tabular-nums text-zinc-400"><span className="w-4 text-zinc-600">{i + 1}</span>{short(a.address)}</span>
-                    <span className="font-sans tabular-nums text-zinc-200">{a.uiAmountString}</span>
+                {chain.holders?.slice(0, 5).map((holder, i) => (
+                  <a key={holder.wallet} href={explorer(holder.wallet)} target="_blank" rel="noreferrer" className="flex items-center justify-between py-2 text-[12px] transition-colors hover:text-white">
+                    <span className="flex items-center gap-2 font-sans tabular-nums text-zinc-400"><span className="w-4 text-zinc-600">{i + 1}</span>{holderIdentity(holder.wallet)}</span>
+                    <span className="font-sans tabular-nums text-zinc-200">{(Number(holder.units) / 10 ** (chain.supply?.decimals ?? 6)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </a>
                 ))}
               </div>
@@ -984,6 +970,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             )}
           </div>
           <XFeedPanel xUrl={character.xUrl} name={character.name} />
+          <MarketLiveCam characterId={characterId} name={character.name} imageUrl={character.referenceImageUrl} />
           </MarketInfoCarousel>
         </aside>
       </div>

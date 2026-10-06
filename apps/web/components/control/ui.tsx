@@ -78,9 +78,10 @@ export function TypingDots() {
   );
 }
 
+export const CONTROL_GLASS_ACTION = "rounded-[4px] border border-white/30 bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_14px_-8px_rgba(0,0,0,0.55)] backdrop-blur-xl backdrop-saturate-150 transition-colors hover:border-white/50 hover:bg-white/[0.24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40";
+
 export function StateBadge({ state }: { state: string }) {
-  const tone = state === "posted" ? "text-emerald-300 bg-emerald-500/15" : state === "scheduled" ? "text-sky-300 bg-sky-500/15" : "text-amber-300 bg-amber-500/15";
-  return <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}>{state === "generated" ? "ready" : state}</span>;
+  return <span className={`${CONTROL_GLASS_ACTION} px-2 py-1 text-[10px] font-semibold`}>{state === "generated" ? "ready" : state}</span>;
 }
 
 export function Stat({ label, value }: { label: string; value: string }) {

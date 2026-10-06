@@ -49,3 +49,12 @@ it("sends four single-image Soul jobs and registers each", async () => {
   const data = await (await POST(request({ count: 4, model: "soul2" }))).json();
   expect(data.jobs).toHaveLength(4); expect(mocks.soul).toHaveBeenCalledTimes(4); expect(mocks.put).toHaveBeenCalledTimes(4);
 });
+
+it.each(["insects", "frogs", "cats", "dogs", "capybaras", "birds"])("generates %s from its type alone with Soul 2 by default", async tier => {
+  mocks.soul.mockResolvedValue("animal-job");
+  const response = await POST(request({ tier, selection: {} }));
+  expect(response.status).toBe(200);
+  expect((await response.json()).jobs[0].model).toBe("soul2");
+  expect(mocks.soul.mock.calls[0][0]).toBe("higgsfield-ai/soul/v2/standard");
+  expect(mocks.soul.mock.calls[0][1].prompt).toContain("anthropomorphic");
+});

@@ -98,7 +98,7 @@ const STATUS: Record<string, number> = {
   insufficient_balance: 422, insufficient_position: 422,
   invalid_amount: 400, not_paper_token: 400, invalid_wallet: 400, invalid_key: 400,
   token_not_found: 404, character_not_found: 404,
-  rate_limited: 429, invalid_body: 400, duplicate_message: 409,
+  trade_not_verified: 422, invalid_trade_pnl: 400, invalid_attachment: 400, rate_limited: 429, invalid_body: 400, duplicate_message: 409,
   ticker_taken: 409, create_limit: 429, invalid_link: 400, not_owner: 403,
   invalid_name: 400, invalid_ticker: 400, invalid_bio: 400, invalid_category: 400, invalid_image: 400, rights_required: 400,
 };

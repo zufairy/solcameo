@@ -165,7 +165,7 @@ export function SeriesTab({ mintAddress }: { mintAddress?: string }) {
       const createRes = await fetch("/api/agents/character-design/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: charName.trim(), description: charDesc.trim(), medium }),
+        body: JSON.stringify({ mintAddress, name: charName.trim(), description: charDesc.trim(), medium }),
       });
       const created = (await createRes.json().catch(() => ({}))) as { tasks?: { taskId: string; view: string }[]; error?: string };
       if (!createRes.ok || !created.tasks?.length) throw new Error(created.error || "could not start the design sheet");

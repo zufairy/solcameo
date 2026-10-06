@@ -413,7 +413,7 @@ export async function POST(req: NextRequest) {
 
     // Init on-chain vault for this agent (best-effort, non-fatal — devnet only)
     try {
-      if (!process.env.PLATFORM_VAULT_AUTHORITY_SECRET) {
+      if (process.env.SOLCAMEO_AGENT_VAULT_ENABLED !== "true" || !process.env.PLATFORM_VAULT_AUTHORITY_SECRET) {
         console.warn("[nft/mint] PLATFORM_VAULT_AUTHORITY_SECRET not set — skipping vault init");
       } else {
         const vaultSigner = loadKeypair(process.env.PLATFORM_VAULT_AUTHORITY_SECRET);

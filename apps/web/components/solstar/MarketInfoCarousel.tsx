@@ -37,7 +37,7 @@ export function MarketInfoCarousel({
         if (!e.currentTarget.contains(e.relatedTarget)) setInteracting(false);
       }}
     >
-      <div className="flex items-center gap-1.5 px-4 pt-3">
+      <div className="flex items-center gap-1.5 px-3 pt-2">
         <h2 className="mr-auto text-[13px] font-semibold text-white">
           {labels[index]}
         </h2>
@@ -65,14 +65,14 @@ export function MarketInfoCarousel({
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${slides.length}: ${labels[i]}`}
-              className="h-[236px] w-full shrink-0 overflow-y-auto overscroll-contain"
+              className="h-[136px] w-full shrink-0 overflow-y-auto overscroll-contain"
             >
               {slide}
             </div>
           ))}
         </div>
       </div>
-      <div className="flex justify-center gap-1.5 py-2.5">
+      <div className="flex justify-center gap-1.5 py-2">
         {slides.map((_, i) => (
           <button
             key={labels[i]}

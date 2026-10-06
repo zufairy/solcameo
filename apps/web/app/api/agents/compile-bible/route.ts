@@ -1,3 +1,4 @@
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -17,6 +18,7 @@ const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
 export async function POST(req: NextRequest) {
   const auth = await requireInternalOrUserAuth(req);
   if (auth.error) return auth.error;
+  let refund: (() => Promise<void>) | undefined;
   try {
     if (!CONVEX_URL) return NextResponse.json({ error: "Convex not configured" }, { status: 500 });
     const { mintAddress, concept, save } = await req.json() as { mintAddress?: string; concept?: string; save?: boolean };
@@ -30,6 +32,9 @@ export async function POST(req: NextRequest) {
       const ownershipError = requireOwnerWithSiws(auth, agent);
       if (ownershipError) return ownershipError;
     }
+    const billing = await beginAgentGeneration(req, mintAddress, "llm_message");
+    if (billing.error) return billing.error;
+    refund = billing.refund;
     const bible = await compileShowBible({
       concept,
       existing: normalizeShowBible(agent.showBible),
@@ -41,7 +46,7 @@ export async function POST(req: NextRequest) {
         language: agent.language,
       },
     });
-    if (!bible) return NextResponse.json({ error: "Bible compilation failed — try rephrasing the concept" }, { status: 502 });
+    if (!bible) { await refund?.(); return NextResponse.json({ error: "Bible compilation failed — try rephrasing the concept" }, { status: 502 }); }
     if (save) {
       await convex.mutation(api.influencers.setShowBible, {
         mintAddress, showBible: bible, authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
@@ -49,6 +54,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ bible });
   } catch (err) {
+    await refund?.();
     console.error("[compile-bible]", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "compile failed" }, { status: 500 });
   }

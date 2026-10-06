@@ -112,8 +112,8 @@ function EmptyArt({ slot }: { slot: number }) {
     <span aria-hidden className="absolute bottom-1 right-1 grid size-4 place-items-center rounded-[3px] bg-black/60 text-white backdrop-blur-sm"><VideoIcon className="size-2.5" /></span>
   </div>;
 }
-type TrendItem = { id: string; videoUrl: string; posterUrl?: string | null; title: string; name: string; ticker?: string; characterId?: string; engine: string; at: number; views?: number | null };
-const ago = (t: number) => { const m = Math.max(1, Math.round((Date.now() - t) / 60000)); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
+type TrendItem = { imageUrl?: string; creatorWallet?: string | null; id: string; videoUrl: string; posterUrl?: string | null; title: string; name: string; ticker?: string; characterId?: string; engine: string; at: number; views?: number | null };
+
 
 /** One full-height card in the Trending feed: same stage and info card as the launches, with the engine badge on top. */
 function TrendingPost({ item }: { item: TrendItem }) {
@@ -139,13 +139,38 @@ function TrendingPost({ item }: { item: TrendItem }) {
     const sync = setInterval(() => { if (bg && Math.abs(bg.currentTime - el.currentTime) > 0.12) bg.currentTime = el.currentTime; if (bg && bg.paused !== el.paused) { if (el.paused) bg.pause(); else void bg.play().catch(() => {}); } }, 400);
     return () => { clearInterval(sync); el.pause(); bg?.pause(); };
   }, [active]);
+  const rate = useSolUsd();
+  const [pool, setPool] = useState<Pool | null>(null);
+  const identity = useQuery(api.users.leaderboardProfiles, item.creatorWallet ? { wallets: [item.creatorWallet] } : "skip");
+  const market = useQuery(api.solstarMarket.terminal, item.characterId && active ? { characterId: item.characterId as MarketRow["characterId"] } : "skip");
+  useEffect(() => {
+    if (!item.characterId || !active) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      try {
+        const response = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(item.characterId!)}`, { signal: controller.signal });
+        if (response.ok && !cancelled) setPool(await response.json());
+      } catch { /* Retain the last confirmed market cap. */ }
+    };
+    void refresh();
+    const timer = setInterval(refresh, 15000);
+    window.addEventListener("solcameo:trade-confirmed", refresh);
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); };
+  }, [item.characterId, active]);
+  const creator = identity?.[0]?.name || (item.creatorWallet ? `${item.creatorWallet.slice(0, 4)}…${item.creatorWallet.slice(-4)}` : "—");
+  const cap = pool?.available && pool.capSol != null ? formatUsdEstimate(String(Math.round(pool.capSol * 1e9)), rate) : "—";
+  const tokenName = market?.character.name || item.name;
+  const ticker = market?.token.ticker || item.ticker;
+  const image = market?.character.referenceImageUrl || item.imageUrl || "/brand/solcameo-mark.png";
   const body = <>
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-1.5"><span className="truncate text-[12px] font-semibold tracking-tight">{item.ticker ? `$${item.ticker}` : item.name}</span><span className="text-[10px] font-medium text-[#10130a]/50">{ago(item.at)}</span></div>
-      {item.views != null && item.views > 0 && <span className="rounded-[2px] bg-[#10130a] px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-[#d7ff00]">{item.views.toLocaleString("en-US")} views</span>}
+    <div className="flex min-w-0 items-center gap-2.5">
+      <img src={image} alt="" className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-black/10" />
+      <div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="truncate text-[12px] font-semibold tracking-tight">{tokenName}</span>{ticker && <span className="rounded bg-white px-1 py-0.5 text-[9px] font-semibold">${ticker}</span>}<span className="truncate text-[10px] font-medium text-[#10130a]/60">by {creator}</span></div></div>
     </div>
-    <div className="mt-2 line-clamp-2 text-[22px] font-semibold leading-[1.1] tracking-[-0.03em]">{item.title || item.name}</div>
-    <div className="mt-2 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-[#10130a]/55"><span>{item.name}</span><span>{item.characterId ? "Open market" : item.engine}</span></div>
+    <div className="mt-3 text-[9px] font-semibold uppercase tracking-[.14em] text-[#10130a]/55">Market cap</div>
+    <div className="mt-1 text-[32px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{cap}</div>
+    <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-2 text-[10px] font-medium text-[#10130a]/60"><span>Total video views <span className="ml-1 font-semibold tabular-nums text-[#10130a]">{item.views == null ? "—" : item.views.toLocaleString("en-US")}</span></span><span>{item.characterId ? "Open market ↗" : item.engine}</span></div>
   </>;
   const cardClass = "block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]";
   return <article ref={article} className="relative flex h-[calc(100dvh-164px)] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
@@ -173,10 +198,11 @@ function TrendingFeed() {
   const episodes = useQuery(api.solstarDiscovery.latestVideos, {});
   const created = useQuery(api.clipJobs.globalVideoFeed, { limit: 30, kind: "ugc" });
   if (episodes === undefined || created === undefined) return <div className="space-y-4 p-6">{[0, 1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div>;
+  const analytics = new Map((Array.isArray(created) ? [] : created.items).map(v => [v.videoUrl, v]));
   const seen = new Set<string>();
   const all: TrendItem[] = [
-    ...episodes.filter(e => !e.sample).map(e => ({ id: String(e.id), videoUrl: e.videoUrl, posterUrl: e.posterUrl, title: e.title, name: e.name, ticker: e.ticker, characterId: String(e.characterId), engine: engineLabel((e as { engine?: string | null }).engine), at: e.createdAt })),
-    ...(Array.isArray(created) ? [] : created.items).map(v => ({ id: v.id, videoUrl: v.videoUrl, posterUrl: v.posterUrl, title: v.caption, name: v.agentName || "AI creator", engine: engineLabel(v.engine), at: v.createdAt, views: v.viewCount })),
+    ...episodes.filter(e => !e.sample).map(e => ({ id: String(e.id), videoUrl: e.videoUrl, posterUrl: e.posterUrl, title: e.title, name: e.name, imageUrl: e.imageUrl, creatorWallet: e.creatorWallet, views: analytics.get(e.videoUrl)?.viewCount, ticker: e.ticker, characterId: String(e.characterId), engine: engineLabel((e as { engine?: string | null }).engine), at: e.createdAt })),
+    ...(Array.isArray(created) ? [] : created.items).map(v => ({ id: v.id, videoUrl: v.videoUrl, posterUrl: v.posterUrl, title: v.caption, name: v.agentName || "AI creator", imageUrl: v.agentAvatar, creatorWallet: v.creatorWallet, characterId: v.characterId ?? undefined, engine: engineLabel(v.engine), at: v.createdAt, views: v.viewCount })),
   ]
     .filter(v => v.videoUrl && !seen.has(v.videoUrl) && !!seen.add(v.videoUrl))
     .sort((a, b) => b.at - a.at)
@@ -186,12 +212,13 @@ function TrendingFeed() {
 }
 
 function Discovery() {
-  const [tab, setTab] = useState("launches");
+  const reduced = useReducedMotion();
+  const [tab, setTab] = useState("trending");
   const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
   const rows = tab === "episodes" ? live?.filter(r => r.videosPosted > 0) : live;
   return <>
-    <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-[#17191b] px-4 py-2" role="tablist" aria-label="Character discovery">
-      {[["launches", "New launches"], ["trending", "Trending"], ["episodes", "Episodes"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{label}</Button>)}
+    <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 feed-glass-header px-4 py-2" role="tablist" aria-label="Character discovery">
+      {[["trending", "Trending"], ["launches", "New launches"], ["episodes", "Episodes"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{value === "trending" && <motion.span aria-hidden="true" className="inline-block bg-transparent text-base leading-none" animate={reduced ? undefined : { rotate: [-7, 6, -7], scale: [1, 1.15, 1], y: [0, -1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>🔥</motion.span>}{label}</Button>)}
     </div>
     <div role="tabpanel" aria-label={tab} className="max-h-[calc(100dvh-164px)] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">
       {tab === "trending" ? <TrendingFeed /> : rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><EmptyArt slot={tab === "episodes" ? 0 : tab === "previews" ? 2 : 1} /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from confirmed devnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}

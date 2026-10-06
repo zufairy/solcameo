@@ -13,6 +13,7 @@
 //     opening authentication dialogs from background requests.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { notifyAgentFunding } from "@/lib/client/agentGenerationFetch";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { PrivyProvider, usePrivy, useLogin } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors, useWallets as usePrivySolanaWallets } from "@privy-io/react-auth/solana";
@@ -357,6 +358,9 @@ function AuthState({ children }: { children: React.ReactNode }) {
 
         // Background API failures must not open a modal or disconnect an account.
         // Sign-in remains available through the app's explicit sign-in buttons.
+        if ((init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase() === "POST") {
+          await notifyAgentFunding(res, input, init).catch(() => undefined);
+        }
         return res;
       } catch (error) {
         // Never replay a failed POST: it may already have reached the server.

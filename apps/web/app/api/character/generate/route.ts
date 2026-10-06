@@ -1,9 +1,13 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
+import { refundImage } from "@/lib/server/imageBilling";
+import { CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { authorizeCharacterScope, issueCharacterJobTicket } from "@/lib/server/characterDraft";
 import { HfError, submitImage, submitReferenceEdit } from "@/lib/server/higgsfield";
 import { imagePublicUrl, putImage } from "@/lib/server/imageStorage";
 import { POSES, buildPrompt, isBuildable, sanitizeSelection } from "@/lib/character/spec";
+import { isAnimalTier } from "@/lib/character/types";
 import type { Tier } from "@/lib/character/types";
 export const maxDuration = 60;
 const TIERS: Tier[] = ["normal", "freak", "total", "insects", "frogs", "cats", "dogs", "capybaras", "birds"];
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
   const selection = sanitizeSelection(body.selection, tier);
   // A preset brings its own full brief, so it can run without a trait selection.
   const brief = typeof body.brief === "string" ? body.brief.trim().slice(0, 3000) : "";
-  if (!brief && !isBuildable(selection)) return NextResponse.json({ error: "Pick at least one trait first" }, { status: 400 });
+  if (!brief && !isAnimalTier(tier) && !isBuildable(selection)) return NextResponse.json({ error: "Pick at least one trait first" }, { status: 400 });
   const chosenRatio = RATIOS.includes(body.aspectRatio as string) ? body.aspectRatio as string : "3:4";
   const ratio = chosenRatio === "4:5" ? "3:4" : chosenRatio;
   const count = body.count === 4 ? 4 : 1;
@@ -25,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(references) || references.length > 3 || references.some(url => typeof url !== "string" || !url.startsWith(imagePublicUrl(`characters/${a.mint}/`)))) return NextResponse.json({ error: "Upload up to three references while signed in to this account." }, { status: 400 });
   const photoUrls = references as string[];
   const hasReferences = photoUrls.length > 0;
-  const model = body.model === "soul2" ? "soul2" : "soul";
+  const model = body.model === "soul" ? "soul" : "soul2";
   if (body.model === "qwen" && !hasReferences) return NextResponse.json({ error: "Qwen requires a reference image. Choose Soul or Soul 2." }, { status: 400 });
   // Every candidate gets its own pose, starting from a random one, so a batch never repeats a stance.
   const poseStart = Math.floor(Math.random() * POSES.length);
@@ -37,16 +41,37 @@ export async function POST(req: NextRequest) {
   };
   const prompt = promptFor(0);
   const batch = randomUUID();
+  const walletFunded = body.draft !== true;
+  const billingRuns = Array.from({ length: count }, (_, index) => `character:${batch}:${index}`);
+  if (walletFunded) {
+    for (const [index, billingRunId] of billingRuns.entries()) {
+      const charge = await chargeAgentGeneration(a.mint, billingRunId, "image_gen");
+      if (!charge.ok) {
+        await Promise.all(billingRuns.slice(0, index).map(id => refundImage(a.mint, id)));
+        return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: count * 0.05 }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+      }
+    }
+  }
   try {
-    const jobs = await Promise.all(Array.from({ length: count }, async (_, index) => {
+    const results = await Promise.allSettled(Array.from({ length: count }, async (_, index) => {
+      const billingRunId = billingRuns[index];
+      let accepted = false;
+      try {
       const key = `${a.mint}:${batch}:${index}`.slice(0,120);
       const prompt = promptFor(index);
       const requestId = hasReferences ? await submitReferenceEdit(prompt, photoUrls, ratio, key) : await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
-      const job = { model: hasReferences ? "reference" as const : model, requestId, count: 1, ratio, createdAt: Date.now() };
+      accepted = true;
+      const job = { billingRunId: walletFunded ? billingRunId : undefined, model: hasReferences ? "reference" as const : model, requestId, count: 1, ratio, createdAt: Date.now() };
       // Register every accepted job before returning: refresh recovery does not depend on browser memory.
       await putImage(Buffer.from(JSON.stringify(job)), "application/json", { key: `characters/${a.mint}/jobs/${requestId}.json` });
       return { ...job, ticket: issueCharacterJobTicket(a.mint, requestId) };
+      } catch (error) {
+        if (walletFunded && !accepted) await refundImage(a.mint, billingRunId);
+        throw error;
+      }
     }));
+    const jobs = results.flatMap(result => result.status === "fulfilled" ? [result.value] : []);
+    if (!jobs.length) throw (results.find(result => result.status === "rejected") as PromiseRejectedResult).reason;
     return NextResponse.json({ jobs, prompt, ratio, count, referenceMode: hasReferences ? "edit" : undefined });
   } catch (e) {
     if (e instanceof HfError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });

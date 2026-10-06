@@ -1,3 +1,4 @@
+import { refreshAgentFunds } from "@/lib/server/agentWallet";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -81,6 +82,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (agent.generationFunding === "agent_wallet" || agent.solstarCharacterId) {
+    try { await refreshAgentFunds(mintAddress); }
+    catch { return NextResponse.json({ ok: false, error: "Could not verify the agent balance. Retry shortly." }, { status: 503 }); }
+  }
   // Obligations that must stay in the wallet.
   const spend = await convex.query(api.usage.serviceSpendQuery, { mintAddress });
   const unsettledTab = spend?.unsettledTabUsdc ?? 0;

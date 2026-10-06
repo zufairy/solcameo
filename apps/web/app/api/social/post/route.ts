@@ -140,7 +140,10 @@ export async function POST(req: NextRequest) {
       // not merely "a prompt was typed". An installed-but-unconfigured app used to
       // fall through silently, which is how a post went out titled "Clip 2".
       const captionStyleInstalled = !!captionStyleRow && captionStyleRow.wired !== false;
-      const instruction = captionLocked ? "" : resolveDescriptionInstruction(captionStyleRow?.config ?? {}, { installed: captionStyleInstalled });
+      const influencerX = requested.includes("x") && agent && (agent.agentType ?? "influencer") === "influencer";
+      const instruction = captionLocked ? "" : resolveDescriptionInstruction(captionStyleRow?.config ?? {}, { installed: captionStyleInstalled }) || (influencerX
+        ? `Write as ${agent.name}, a ${agent.archetype} influencer in ${agent.niche}, in ${agent.language || "English"}. ${agent.description ?? ""} Open with a specific hook grounded in the content, then one natural call to action when appropriate. No invented claims, hashtags, or preamble. Keep the complete X post under 280 characters.`
+        : "");
       if (instruction) {
         // A placeholder title is not a description of anything — never feed it to
         // the model as "what the clip says".

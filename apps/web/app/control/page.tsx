@@ -13,14 +13,15 @@ import {
 } from "lucide-react";
 import {
   type Agent, type ChatMessage, type FeedItem, type Team, type VideoFilter,
-  PLATFORM_LABEL, TAB_LABEL, agentKind, announceReadyVideos, configureSync, setTeamBrief, deleteTeam, getThread, hydrate, markSeen, sendToAgent, sendToTeam,
+  TAB_LABEL, agentKind, announceReadyVideos, configureSync, setTeamBrief, deleteTeam, getThread, hydrate, markSeen, sendToAgent, sendToTeam,
   teamKey, updateThread, useStoreVersion, useSyncState, useTeams, useThread,
 } from "@/components/control/store";
 import {
-  Avatar, ITEM, POP, SPRING, STAGGER, Stat, StateBadge, TeamAvatar, ThinkingLabel, TypedMarkdown, TypingDots,
+  Avatar, CONTROL_GLASS_ACTION, ITEM, POP, SPRING, STAGGER, Stat, StateBadge, TeamAvatar, ThinkingLabel, TypedMarkdown, TypingDots,
   formatWhen, previewOf, usd,
 } from "@/components/control/ui";
 import { VideoLightboxProvider, useVideoLightbox } from "@/components/control/VideoLightbox";
+import { AgentTaskActivity } from "@/components/control/AgentTaskActivity";
 import { CreateMenu } from "@/components/control/CreateMenu";
 import { Button } from "@/components/ui/button";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -28,6 +29,7 @@ import { DeleteAgentButton } from "@/components/agents/delete-agent-button";
 import { MyAgentsDashboard } from "@/components/studio/MyAgentsDashboard";
 import { PlanCard, ProposalCard } from "@/components/control/MissionCard";
 import { ShareOnX } from "@/components/control/ShareOnX";
+import { ConnectInfluencerX } from "@/components/control/ConnectInfluencerX";
 import { ConnectedPlatformStack } from "@/components/social/platform-icons";
 
 /* ════════ /control — the master control panel ════════
@@ -533,7 +535,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
               </AnimatePresence>
             </span>
           </button>
-          {!isTeam && <div className="lg:hidden"><ShareOnX mint={lead.mintAddress} name={lead.name} compact /></div>}
+          {!isTeam && <div className="flex flex-col gap-1 lg:hidden"><ConnectInfluencerX key={lead.mintAddress} mint={lead.mintAddress} name={lead.name} compact /><ShareOnX mint={lead.mintAddress} name={lead.name} compact /></div>}
           <IconButton label="New chat" onClick={newChat}><SquarePen className="size-4" /></IconButton>
           {!isTeam && (<>
             <Link href={`/builder?mint=${encodeURIComponent(lead.mintAddress)}`} title="Open in Builder" aria-label="Open in Builder" className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white"><Wand2 className="size-4" /></Link>
@@ -716,6 +718,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
             className="hidden shrink-0 overflow-hidden border-l border-white/[0.06] bg-card/50 lg:block"
           >
             <div className="h-full w-[340px] overflow-y-auto p-4">
+              {!isTeam && <ConnectInfluencerX key={lead.mintAddress} mint={lead.mintAddress} name={lead.name} />}
               <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-background/60">
                 <AnimatePresence mode="wait" initial={false}>
                   {screenVideo ? (
@@ -799,7 +802,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
                   <p className="mt-2 text-[12px] leading-relaxed text-zinc-500">Mention a name (&ldquo;{members[0].name}, …&rdquo;) to ask one agent; otherwise the whole team answers in turn.</p>
                 </div>
               ) : (
-                <Routines agent={lead} />
+                <AgentTaskActivity key={lead.mintAddress} mintAddress={lead.mintAddress} />
               )}
             </div>
           </motion.aside>
@@ -920,29 +923,6 @@ function MiniSchedule({ rows, members, month, onMonth }: {
   );
 }
 
-function Routines({ agent }: { agent: Agent }) {
-  const postsPerDay = (agent.showBible as { cadence?: { postsPerDay?: number } } | undefined)?.cadence?.postsPerDay;
-  const connected = agent.connectedPlatforms ?? [];
-  return (
-    <div className="mt-5 rounded-2xl border border-white/[0.07] p-3">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-white"><CalendarClock className="size-3.5" /> Routines</p>
-      <ul className="mt-2 space-y-1.5 text-[12.5px] text-zinc-400">
-        <li>
-          Heartbeat: {agent.heartbeatEnabled ? <span className="text-[#d7ff00]">on</span> : "off"}
-          {agent.heartbeatEnabled && agent.heartbeatNextFireAt ? ` · next ${formatWhen(agent.heartbeatNextFireAt)}` : ""}
-        </li>
-        {postsPerDay ? <li>Posts per day: {postsPerDay}</li> : null}
-        <li>Auto-clip: {agent.autoClipEnabled ? <span className="text-[#d7ff00]">on</span> : "off"}</li>
-        <li>Connected: {connected.length ? connected.map((p) => PLATFORM_LABEL[p] ?? p).join(", ") : "none"}</li>
-      </ul>
-      <p className="mt-3 text-[12px] leading-relaxed text-zinc-500">
-        Routines are recurring tasks this agent runs on a schedule. Ask it in chat (&ldquo;post 2 a day from now on&rdquo;) or tune it in the{" "}
-        <Link href={`/builder?mint=${encodeURIComponent(agent.mintAddress)}&tab=schedule`} className="text-sky-400 hover:underline">Builder</Link>.
-      </p>
-    </div>
-  );
-}
-
 function filterVideos(videos: FeedItem[], f: VideoFilter, sort: "recent" | "views" | "viral" = "recent"): FeedItem[] {
   const list = f === "posted" ? videos.filter((v) => v.state === "posted")
     : f === "ready" ? videos.filter((v) => v.state !== "posted")
@@ -957,29 +937,30 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
     <motion.div
       whileHover={{ y: -3 }}
       transition={SPRING}
-      className="group w-[196px] shrink-0 overflow-hidden rounded-xl border border-white/[0.07] bg-background/60 transition-colors hover:border-white/15"
+      className="group grid w-full grid-cols-[minmax(100px,0.75fr)_minmax(0,1.25fr)] overflow-hidden rounded-[4px] border border-white/20 bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-xl sm:grid-cols-[160px_minmax(0,1fr)]"
     >
-      <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full bg-black" aria-label="Open video player">
-        <video src={v.videoUrl} poster={v.posterUrl ?? undefined} ref={v.posterUrl ? undefined : paintFirstFrameIfNoPoster} preload="metadata" muted playsInline className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+      <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full self-start overflow-hidden bg-black" aria-label="Open video player">
+        <video src={v.videoUrl} poster={v.posterUrl ?? undefined} ref={v.posterUrl ? undefined : paintFirstFrameIfNoPoster} preload="metadata" muted playsInline className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
         <span className="absolute inset-0 grid place-items-center bg-gradient-to-t from-black/50 via-transparent to-transparent">
-          <span className="grid size-11 place-items-center rounded-full bg-white/20 backdrop-blur-md transition-transform duration-200 group-hover:scale-110">
+          <span className="grid size-11 place-items-center rounded-[4px] border border-white/35 bg-white/20 backdrop-blur-xl transition-transform duration-200 group-hover:scale-110">
             <Play className="ml-0.5 size-5 fill-white text-white" />
           </span>
         </span>
       </button>
-      <div className="space-y-1 p-2.5">
+      <div className="flex min-w-0 flex-col gap-2 p-3 sm:p-4">
         {/* Title → full caption/script context → what it was made from. */}
-        <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-white" title={v.title || undefined}>{v.title || v.caption || "Untitled"}</p>
+        <p className="text-[13px] font-semibold leading-snug text-white" title={v.title || undefined}>{v.title || v.caption || "Untitled"}</p>
+        {v.caption && v.caption !== v.title && v.caption !== v.description && <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300">{v.caption}</p>}
         {v.description && v.description !== v.title && (
-          <p className="line-clamp-3 text-[11.5px] leading-snug text-zinc-400" title={v.description}>{v.description}</p>
+          <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300" title={v.description}>{v.description}</p>
         )}
         {v.prompt && v.prompt !== v.title && (
-          <p className="line-clamp-2 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] leading-snug text-zinc-500" title={v.prompt}>
+          <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words rounded-[4px] border border-white/10 bg-white/[0.05] px-2 py-1.5 text-[11px] leading-relaxed text-zinc-400" title={v.prompt}>
             <span className="font-semibold uppercase tracking-wider text-zinc-600">Prompt </span>{v.prompt}
           </p>
         )}
         <p className="truncate text-[10.5px] text-zinc-500">{v.agentName}</p>
-        <div className="flex items-center justify-between gap-1">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
           <span className="text-[10.5px] text-zinc-500">{formatWhen(v.createdAt)}</span>
           <StateBadge state={v.state} />
         </div>
@@ -991,7 +972,7 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
             </span>
           )}
           {v.postUrl && (
-            <a href={v.postUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-0.5 text-sky-400 hover:underline">
+            <a href={v.postUrl} target="_blank" rel="noopener noreferrer" className={`${CONTROL_GLASS_ACTION} ml-auto inline-flex items-center gap-1 px-2 py-1`}>
               Open <ExternalLink className="size-2.5" />
             </a>
           )}
@@ -1064,7 +1045,7 @@ function MessageView({ m, speaker, showAvatar, showName, videos, onOpenVideo, on
         <AnimatePresence>
           {typed && m.showVideos && (
             shown.length ? (
-              <motion.div key="videos" className="flex max-w-full gap-2 overflow-x-auto pb-1" variants={STAGGER} initial="hidden" animate="show">
+              <motion.div key="videos" className="flex w-full max-w-[640px] flex-col gap-3 pb-1" variants={STAGGER} initial="hidden" animate="show">
                 {shown.map((v, i) => (
                   <motion.div key={v.id} variants={{ hidden: { opacity: 0, y: 14, scale: 0.95, filter: "blur(6px)" }, show: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", transition: SPRING } }}>
                     <VideoCard v={v} onOpen={() => onOpenVideo(shown, i)} />

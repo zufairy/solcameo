@@ -11,6 +11,7 @@ import { buildPrompt, categoriesFor, isBuildable, sanitizeSelection, TIERS } fro
 import { generationError } from "@/lib/character/generationError";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { PRESETS, type CharacterPreset } from "@/lib/character/presets";
+import { isAnimalTier } from "@/lib/character/types";
 import type { CharacterImage, CharModel, ModelChoice, SavedCharacter, Selection, Tier } from "@/lib/character/types";
 import { Card, CountToggle, DISPLAY_FONT, LIME, Pill, RatioSelect, Section, SPRING, SURFACE, Swatch } from "./character-ui";
 import { Gallery, MODEL_LABEL, type Tile } from "./Gallery";
@@ -51,13 +52,13 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   const [selection, setSelection] = useState<Selection>(initialCharacter?.selection ?? {});
   // A preset carries the exact brief it was made with. Editing any trait afterwards drops it.
   const [preset, setPreset] = useState<CharacterPreset | null>(null);
-  const [model, setModel] = useState<ModelChoice>(initialCharacter?.model === "soul2" ? "soul2" : "soul");
+  const [model, setModel] = useState<ModelChoice>(initialCharacter?.model === "soul" ? "soul" : "soul2");
   const [ratio, setRatio] = useState("3:4");
   const [count, setCount] = useState<1 | 4>(1);
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialCharacter?.photoUrls ?? (initialCharacter?.photoUrl ? [initialCharacter.photoUrl] : []));
   const photoUrl = photoUrls[0];
   const [uploading, setUploading] = useState(false);
-  const [open, setOpen] = useState<Set<string>>(() => new Set(["gender"]));
+  const [open, setOpen] = useState<Set<string>>(() => new Set(["tier", "gender"]));
 
   const [tiles, setTiles] = useState<Tile[]>(() => (initialCharacter?.candidates ?? []).map(c => ({ id: tileId(), model: c.model, ratio: c.ratio ?? "3:4", status: "done", url: c.url, startedAt: 0 })));
   const [generating, setGenerating] = useState(false);
@@ -72,7 +73,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   const categories = useMemo(() => categoriesFor(tier), [tier]);
   const prompt = useMemo(() => buildPrompt(selection, tier, { photo: !!photoUrl }), [selection, tier, photoUrl]);
-  const ready = isBuildable(selection) || !!preset?.brief;
+  const ready = isAnimalTier(tier) || isBuildable(selection) || !!preset?.brief;
   const images = count;
   const picks = Object.values(selection).reduce((n, v) => n + v.length, 0);
 
@@ -344,8 +345,8 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
                   {preset && <p className="px-1 pt-2 text-[11px] text-zinc-400"><span className="font-semibold text-white">{preset.name}</span> loaded. Changing any trait switches back to your own selection.</p>}
                 </Section>
                 <Section title="Character type" count={TIERS.length} icon={<Sparkles className="size-4" />} open={open.has("tier")} onToggle={() => setOpen(flip(open, "tier"))}>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {TIERS.map((t, i) => <Card key={t.id} showLabel order={i} label={t.label} image={t.image} emoji={t.emoji} selected={tier === t.id} onClick={() => changeTier(t.id)} />)}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {TIERS.map((t, i) => <Card key={t.id} showLabel order={i} label={t.label} image={t.image} characterType selected={tier === t.id} onClick={() => changeTier(t.id)} />)}
                   </div>
                 </Section>
 

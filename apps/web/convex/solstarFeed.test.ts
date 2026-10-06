@@ -19,6 +19,7 @@ afterEach(() => {
 });
 
 const chat = (wallet: string, body: string, authSecret = SECRET) => ({ wallet, body, authSecret });
+const verifiedTrade = (pnlSol = 0) => ({ wallet: W1, mint: "M".repeat(40), name: "Disco Ant", ticker: "DISCO", imageUrl: "/x", signature: "1".repeat(88), side: "sell" as const, amountSol: 1, time: 1700000000000, pnlSol, realizedSol: pnlSol, unrealizedSol: 0, network: "devnet" as const });
 
 async function seedToken(t: ReturnType<typeof convexTest>) {
   return t.run(async (ctx) => {
@@ -265,5 +266,74 @@ describe("agent callouts", () => {
     const t = convexTest(schema, modules);
     await t.mutation(api.solstarFeed.postChat, chat(W1, "hello"));
     expect(await t.query(api.solstarFeed.listCallouts, {})).toEqual([]);
+  });
+});
+
+describe("callout metrics", () => {
+  it("persists the selected metric, theme and server-verified on-chain position P&L", async () => {
+    const t = convexTest(schema, modules);
+    const { characterId } = await seedToken(t);
+    await t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Closed my trade"), characterId, theme: "solana", calloutMetric: "trade", onchainTrade: verifiedTrade(-0.0255) });
+    const rows = await t.query(api.solstarFeed.listCallouts, {});
+    expect(rows[0]).toMatchObject({ theme: "solana", calloutMetric: "trade", onchainTrade: verifiedTrade(-0.0255) });
+  });
+  it("rejects missing or invalid P&L and P&L attached to a views callout", async () => {
+    const t = convexTest(schema, modules);
+    const { characterId } = await seedToken(t);
+    for (const tradePnlUsd of [undefined, NaN, Infinity, 1e13]) {
+      await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Trade"), characterId, calloutMetric: "trade", ...(tradePnlUsd === undefined ? {} : { tradePnlUsd }) })).rejects.toThrow(tradePnlUsd === undefined ? "trade_not_verified" : "invalid_trade_pnl");
+    }
+    await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Views"), characterId, calloutMetric: "views", tradePnlUsd: 100 })).rejects.toThrow("invalid_trade_pnl");
+  });
+  it("rejects a trade snapshot belonging to a different wallet or inconsistent P&L", async () => {
+    const t = convexTest(schema, modules);
+    for (const onchainTrade of [{ ...verifiedTrade(), wallet: W2 }, { ...verifiedTrade(), pnlSol: 100 }]) {
+      await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Trade"), calloutMetric: "trade", onchainTrade })).rejects.toThrow("trade_not_verified");
+    }
+  });
+  it("keeps earnings and views separate and accepts break-even trades", async () => {
+    const t = convexTest(schema, modules);
+    const { characterId } = await seedToken(t);
+    for (const calloutMetric of ["earnings", "views", "trade"] as const) {
+      await t.mutation(api.solstarFeed.postChat, { ...chat(W1, calloutMetric), characterId, calloutMetric, ...(calloutMetric === "trade" ? { onchainTrade: verifiedTrade(0) } : {}) });
+    }
+    const rows = await t.query(api.solstarFeed.listCallouts, {});
+    expect(rows.map(r => r.calloutMetric).sort()).toEqual(["earnings", "trade", "views"]);
+    expect(rows.find(r => r.calloutMetric === "trade")?.onchainTrade?.pnlSol).toBe(0);
+    expect(rows.find(r => r.calloutMetric === "earnings")?.tradePnlUsd).toBeUndefined();
+  });
+});
+
+ describe("standalone trader callouts", () => {
+  it("posts and lists a signed wallet trade without an agent, retaining theme and negative P&L", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.solstarFeed.postChat, { ...chat(W1, "My trade after fees"), calloutMetric: "trade", onchainTrade: verifiedTrade(-0.0255), theme: "aurora" });
+    const rows = await t.query(api.solstarFeed.listCallouts, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ trader: true, ticker: "DISCO", calloutMetric: "trade", onchainTrade: verifiedTrade(-0.0255), theme: "aurora" });
+    expect(rows[0].characterId).toBeUndefined();
+  });
+  it("still requires an agent for tracked earnings and views", async () => {
+    const t = convexTest(schema, modules);
+    for (const calloutMetric of ["earnings", "views"] as const) {
+      await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Tracked metric"), calloutMetric })).rejects.toThrow("character_required");
+    }
+  });
+ });
+
+describe("callout media", () => {
+  it("persists GIFs and images for a trader, including an attachment-only post", async () => {
+    const t = convexTest(schema, modules);
+    const attachments = [{ url: "https://media.giphy.com/media/test/giphy.gif", type: "gif" as const, alt: "Cheers" }, { url: "https://example.com/callouts/photo.png", type: "image" as const, alt: "My trade" }];
+    await t.mutation(api.solstarFeed.postChat, { ...chat(W1, ""), calloutMetric: "trade", onchainTrade: verifiedTrade(0.1), attachments });
+    expect((await t.query(api.solstarFeed.listCallouts, {}))[0].attachments).toEqual(attachments);
+  });
+  it("rejects too many attachments and unsafe URLs", async () => {
+    const t = convexTest(schema, modules);
+    const image = { url: "https://example.com/photo.png", type: "image" as const, alt: "Photo" };
+    await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Photo"), attachments: Array(5).fill(image) })).rejects.toThrow("invalid_attachment");
+    for (const url of ["javascript:alert(1)", "data:image/svg+xml,test", "http://example.com/image.png", "https://user:password@example.com/photo.png"]) {
+      await expect(t.mutation(api.solstarFeed.postChat, { ...chat(W1, "Photo"), attachments: [{ ...image, url }] })).rejects.toThrow("invalid_attachment");
+    }
   });
 });

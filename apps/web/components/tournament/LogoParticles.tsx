@@ -83,9 +83,13 @@ export default function LogoParticles({ className }: { className?: string }) {
     if (!el) return;
     let disposed = false;
     let raf = 0;
+    const decorations: { geometry: THREE.BufferGeometry; material: THREE.Material }[] = [];
+    let logoTexture: THREE.Texture | null = null;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    let renderer: THREE.WebGLRenderer;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); }
+    catch { return; }
     renderer.setClearColor(0x000000, 0);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(dpr);
@@ -97,12 +101,31 @@ export default function LogoParticles({ className }: { className?: string }) {
     camera.position.z = 4.2;
     const group = new THREE.Group();
     scene.add(group);
+    const loader = new THREE.TextureLoader();
+    logoTexture = loader.load("/brand/solcameo-mark.png", () => { if (!disposed) { el.dataset.ready = "true"; if (reduced) draw(); } });
+    logoTexture.colorSpace = THREE.SRGBColorSpace;
+    const logoGeometry = new THREE.PlaneGeometry(2.25, 2.25);
+    const logoMaterial = new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, depthWrite: false });
+    const logo = new THREE.Mesh(logoGeometry, logoMaterial);
+    logo.position.z = 0.06;
+    group.add(logo);
+    decorations.push({ geometry: logoGeometry, material: logoMaterial });
+
+    // Fine, tilted orbital paths make the logo read as a floating object.
+    const orbits: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const geometry = new THREE.TorusGeometry(1.55 + i * 0.16, 0.004, 6, 150);
+      const material = new THREE.MeshBasicMaterial({ color: i === 1 ? 0xd7ff00 : 0xa3e635, transparent: true, opacity: 0.14 + i * 0.035, depthWrite: false });
+      const orbit = new THREE.Mesh(geometry, material);
+      orbit.rotation.set(0.75 + i * 0.42, i * 0.65, i * 0.4);
+      scene.add(orbit); orbits.push(orbit); decorations.push({ geometry, material });
+    }
 
     const uniforms = {
       uTime: { value: 0 },
       uForm: { value: reduced ? 1 : 0 },
       uMouse: { value: new THREE.Vector2(9, 9) },
-      uPx: { value: dpr * 40 },
+      uPx: { value: dpr },
     };
     let mat: THREE.ShaderMaterial | null = null;
     let geo: THREE.BufferGeometry | null = null;
@@ -114,7 +137,7 @@ export default function LogoParticles({ className }: { className?: string }) {
     const ringSeed = new Float32Array(ringN);
     for (let i = 0; i < ringN; i++) { ringSeed[i] = Math.random(); }
     ringGeo.setAttribute("position", new THREE.BufferAttribute(ringPos, 3));
-    const ringMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.018, transparent: true, opacity: 0.55, depthWrite: false });
+    const ringMat = new THREE.PointsMaterial({ color: 0xd7ff00, size: 0.012, transparent: true, opacity: 0.55, depthWrite: false });
     const ring = new THREE.Points(ringGeo, ringMat);
     group.add(ring);
     const updateRing = (t: number) => {
@@ -170,6 +193,9 @@ export default function LogoParticles({ className }: { className?: string }) {
       uniforms.uMouse.value.copy(mouse);
       group.rotation.y += ((tilt.x * 0.35 + Math.sin(t * 0.35) * 0.18) - group.rotation.y) * 0.05;
       group.rotation.x += ((-tilt.y * 0.2) - group.rotation.x) * 0.05;
+      logo.position.y = reduced ? 0 : Math.sin(t * 0.7) * 0.055;
+      logoMaterial.opacity = reduced ? 1 : Math.min(1, t / 1.5);
+      orbits.forEach((orbit, i) => { if (!reduced) orbit.rotation.z = t * (0.07 + i * 0.025) + i; });
       updateRing(t);
       renderer.render(scene, camera);
     };
@@ -208,10 +234,19 @@ export default function LogoParticles({ className }: { className?: string }) {
       ro.disconnect();
       io.disconnect();
       geo?.dispose(); mat?.dispose(); ringGeo.dispose(); ringMat.dispose();
+      logoTexture?.dispose();
+      decorations.forEach(({ geometry, material }) => { geometry.dispose(); material.dispose(); });
+      delete el.dataset.ready;
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, []);
 
-  return <div ref={host} aria-hidden className={className} />;
+  return <div aria-hidden className={`${className ?? "relative"} overflow-hidden`}>
+    <div className="pointer-events-none absolute inset-[18%] rounded-full bg-lime-300/10 blur-3xl" />
+    <div ref={host} className="group absolute inset-0">
+      {/* eslint-disable-next-line @next/next/no-img-element -- local fallback for unavailable WebGL */}
+      <img src="/brand/solcameo-mark.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 w-[55%] -translate-x-1/2 -translate-y-1/2 object-contain transition-opacity duration-700 group-data-[ready=true]:opacity-0" />
+    </div>
+  </div>;
 }

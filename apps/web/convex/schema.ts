@@ -1,3 +1,4 @@
+import { calloutTradeV } from "./lib/calloutTrade";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { launchOptionsValidator } from "./lib/launchOptions";
@@ -77,6 +78,10 @@ export default defineSchema({
     amountLamports: v.optional(v.string()), side: v.optional(v.union(v.literal("buy"), v.literal("sell"))),
     /** Callout share-card template and the market cap (SOL) when the call was made. */
     theme: v.optional(v.string()), callCapSol: v.optional(v.number()),
+    calloutMetric: v.optional(v.union(v.literal("earnings"), v.literal("views"), v.literal("trade"))),
+    tradePnlUsd: v.optional(v.number()),
+    onchainTrade: v.optional(calloutTradeV),
+    attachments: v.optional(v.array(v.object({ url: v.string(), type: v.union(v.literal("image"), v.literal("gif")), alt: v.string() }))),
     network: v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet")), createdAt: v.number(),
   }).index("by_created", ["createdAt"]).index("by_wallet_kind_created", ["wallet", "kind", "createdAt"]).index("by_kind_created", ["kind", "createdAt"]),
   contentControlSettings: defineTable({
@@ -258,6 +263,7 @@ export default defineSchema({
       authority: v.number(),
       boldness: v.number(),
     }),
+    generationFunding: v.optional(v.literal("agent_wallet")),
     agentWallet: v.optional(v.string()),       // dedicated Solana keypair public key
     agentWalletSecret: v.optional(v.string()), // base64-encoded 64-byte secret key (devnet only)
     tvl: v.number(),
@@ -958,6 +964,7 @@ export default defineSchema({
      *  fail/cancel/timeout. Without it credits were only charged AFTER a render
      *  finished, so a free account could start many videos at once on 300
      *  credits and the extras rendered unpaid. */
+    walletHold: v.optional(v.object({ amountUsdc: v.number(), settled: v.boolean() })),
     creditHold: v.optional(v.object({ wallet: v.string(), credits: v.number(), settled: v.boolean() })),
   })
     .index("by_mint", ["mintAddress"])
@@ -1347,6 +1354,7 @@ export default defineSchema({
     sharesOutstanding: v.number(),
     escrowUsdc: v.number(),
     liquidUsdc: v.number(),          // escrow not deployed in open positions
+    generationReservedUsdc: v.optional(v.number()),
     unsettledTabUsdc: v.number(),    // accrued, not-yet-settled service fees
     status: v.union(v.literal("active"), v.literal("needs_funding"), v.literal("suspended")),
     seedSharePrice: v.number(),

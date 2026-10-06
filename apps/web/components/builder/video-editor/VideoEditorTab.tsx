@@ -2476,7 +2476,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ prompt: promptText, content, language: hookLanguage }),
+        body: JSON.stringify({ mintAddress, prompt: promptText, content, language: hookLanguage }),
       });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; hook?: string; error?: string };
       if (!res.ok || !j.ok || !j.hook) {
@@ -2621,7 +2621,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ prompt, mood: postCaptionMood, language: postCaptionLanguage, basis: selectedContent }),
+        body: JSON.stringify({ mintAddress, prompt, mood: postCaptionMood, language: postCaptionLanguage, basis: selectedContent }),
       });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; caption?: string; error?: string };
       if (!res.ok || !j.ok || !j.caption) {

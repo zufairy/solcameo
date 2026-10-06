@@ -1,3 +1,4 @@
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { requireInternalOrUserAuth } from "@/lib/server/requireAuth";
 import { createNftTask } from "@/lib/server/nftKie";
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (auth.error) return auth.error;
   if (!KIE_KEY) return NextResponse.json({ error: "KIE_API_KEY is not set" }, { status: 500 });
 
-  let body: { name?: string; description?: string; medium?: string };
+  let body: { mintAddress?: string; name?: string; description?: string; medium?: string };
   try {
     body = await req.json();
   } catch {
@@ -36,12 +37,15 @@ export async function POST(req: NextRequest) {
   }
 
   const prompts = buildDesignSheetPrompts({ name, description, medium: body.medium });
+  const billing = await beginAgentGeneration(req, body.mintAddress, "image_gen", prompts.length);
+  if (billing.error) return billing.error;
   try {
     const tasks = await Promise.all(
       prompts.map(async ({ view, prompt }) => ({ view, taskId: await createNftTask(prompt) })),
     );
     return NextResponse.json({ ok: true, tasks });
   } catch (e) {
+    await billing.refund();
     return NextResponse.json({ error: e instanceof Error ? e.message : "could not start the design sheet" }, { status: 502 });
   }
 }

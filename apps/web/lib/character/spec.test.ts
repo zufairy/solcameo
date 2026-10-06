@@ -81,3 +81,12 @@ describe("higgsfield credentials", () => {
     expect(await run({ HIGGSFIELD_API_KEY: "justakey" })).toBe(false);
   });
 });
+
+describe("animal reference edits", () => {
+  it.each(["insects", "frogs", "cats", "dogs", "capybaras", "birds"] as const)("honors %s anatomy and traits", tier => {
+    expect(buildPrompt({ gender: ["female"] }, tier)).toContain("female animal");
+    const edit = buildPrompt({}, tier, { photo: true });
+    expect(edit).toContain("species-appropriate anatomy");
+    expect(edit).not.toContain("same person");
+  });
+});

@@ -13,6 +13,7 @@ it("sorts public episodes newest first and hides unapproved characters", async (
     const initial = await t.query(api.solstarDiscovery.latestVideos, {});
     expect(initial.length).toBeGreaterThan(0);
     expect(initial.every(e => e.sample)).toBe(true);
+    expect(initial.every(e => typeof e.imageUrl === "string" && typeof e.creatorWallet === "string")).toBe(true);
     const hidden = initial[0].characterId;
     await t.run(async ctx => { await ctx.db.patch(hidden, {status:"draft"}); });
     const visible = await t.query(api.solstarDiscovery.latestVideos, {});

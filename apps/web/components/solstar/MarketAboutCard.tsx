@@ -41,8 +41,8 @@ function Pair({ left, right, leftValue, rightValue }: { left: string; right: str
 }
 
 /** Phantom-style "About" card: bio, price change per timeframe, buys vs sells, and social links. */
-export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, points, formatLamports }: {
-  name: string; ticker: string; bio: string; xUrl?: string; websiteUrl?: string;
+export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, points, formatLamports, showLinks = true }: {
+  name: string; ticker: string; bio: string; xUrl?: string; websiteUrl?: string; showLinks?: boolean;
   trades: Trade[] | undefined; points: Point[] | undefined; formatLamports: (lamports: string) => string;
 }) {
   const [frame, setFrame] = useState<(typeof FRAMES)[number]["id"]>("1h");
@@ -95,7 +95,7 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
       </div>
       <p className="mt-2 text-[10px] text-zinc-600">From recent confirmed pool transactions. Price change needs recorded price history.</p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      {showLinks && <div className="mt-4 flex flex-wrap gap-2">
         {site && <a href={site} target="_blank" rel="noopener noreferrer" className={chipCls}><Globe className="size-3.5" />Website</a>}
         {x && (
           <a href={x} target="_blank" rel="noopener noreferrer" className={chipCls}>
@@ -106,7 +106,7 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
           Search on
           <svg viewBox="0 0 24 24" className="size-3.5 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
         </a>
-      </div>
+      </div>}
       {(bio?.length ?? 0) > 90 && (
         <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-3 block rounded-lg bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-semibold text-zinc-300 transition-colors hover:text-white">
           {expanded ? "View less" : "View more"}

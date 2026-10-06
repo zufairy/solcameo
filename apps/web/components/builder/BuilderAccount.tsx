@@ -9,6 +9,7 @@ import { useFullSignOut } from "@/providers/wallet-provider";
 import { useSolBalance } from "@/components/layout/wallet-button";
 import { getAccountExplorerUrl } from "@/lib/solana/network";
 import { useAgentWallet } from "./useAgentWallet";
+import { AGENT_FUNDING_EVENT, type AgentFundingRequest } from "@/lib/client/agentGenerationFetch";
 import { FundAgentDialog } from "./FundAgentDialog";
 import { CONNECT_BUTTON_CLASS } from "./connectButton";
 import flashAvatar from "@/assets/flash.jpeg";
@@ -31,6 +32,16 @@ export function BuilderAccount({ agentWalletAddress, mintAddress, agentName, rea
   const [mode, setMode] = useState<Mode>("main");
   const [copied, setCopied] = useState(false);
   const [fundOpen, setFundOpen] = useState(false);
+  const [required, setRequired] = useState<number>();
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const request = (event as CustomEvent<AgentFundingRequest>).detail;
+      if (request.mintAddress !== mintAddress) return;
+      setRequired(request.required); setFundOpen(true); void agent.refresh();
+    };
+    window.addEventListener(AGENT_FUNDING_EVENT, listener);
+    return () => window.removeEventListener(AGENT_FUNDING_EVENT, listener);
+  }, [mintAddress, agent.refresh]);
   useEffect(() => {
     try { if (localStorage.getItem(MODE_KEY) === "agent") setMode("agent"); } catch { /* storage blocked */ }
   }, []);
@@ -112,7 +123,7 @@ export function BuilderAccount({ agentWalletAddress, mintAddress, agentName, rea
         {spinning ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
       </button>
     </div>
-    <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} agentWallet={agent.wallet} agentName={agentName} />
+    <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} agentWallet={agent.wallet} agentName={agentName} suggestedUsdc={required} />
     </div>
   );
 }

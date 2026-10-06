@@ -444,3 +444,16 @@ export const skipOnboarding = action({
     return await ctx.runMutation(internal.users.skipOnboardingInternal, { userId: user._id });
   },
 });
+
+/** Public display identity for on-chain leaderboard wallets. No account/contact fields. */
+export const leaderboardProfiles = query({
+  args: { wallets: v.array(v.string()) },
+  handler: async (ctx, { wallets }) => {
+    if (wallets.length > 100) return [];
+    return Promise.all([...new Set(wallets)].map(async wallet => {
+      const link = await ctx.db.query("walletLinks").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
+      const user = link ? await ctx.db.get(link.userId) : await ctx.db.query("users").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
+      return { wallet, name: user?.name, image: user?.image };
+    }));
+  },
+});

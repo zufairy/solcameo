@@ -14,8 +14,8 @@ export function navPerShare(a: { escrowUsdc: number; unsettledTabUsdc: number; s
 }
 
 /** USDC available to spend on services = escrow − tab, floored at 0. */
-export function spendableUsdc(a: { escrowUsdc: number; unsettledTabUsdc: number }): number {
-  return Math.max(0, a.escrowUsdc - a.unsettledTabUsdc);
+export function spendableUsdc(a: { escrowUsdc: number; unsettledTabUsdc: number; generationReservedUsdc?: number }): number {
+  return Math.max(0, a.escrowUsdc - a.unsettledTabUsdc - (a.generationReservedUsdc ?? 0));
 }
 
 /** TOTAL funds a run may draw on = the agent's own spendable USDC PLUS the

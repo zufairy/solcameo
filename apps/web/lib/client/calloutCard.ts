@@ -1,5 +1,17 @@
+import type { CalloutTrade } from "@/lib/solstar/calloutTrade";
+import type { CalloutMetric } from "@/lib/solstar/callout";
 /** What a callout card shows. Drawn by components/solstar/calloutScene.ts (three.js). */
 export type CalloutCardData = {
+  /** Only the unselected composer preview uses bare floating brand logos. */
+  unselectedPreview?: boolean;
+  trader?: boolean;
+  onchainTrade?: CalloutTrade;
+  metric?: CalloutMetric;
+  theme?: string;
+  earningsUsd?: number;
+  monthlyEarningsUsd?: number;
+  /** Net USD profit or loss supplied by the caller; never presented as verified. */
+  tradePnlUsd?: number;
   name: string;
   ticker: string;
   imageUrl?: string;

@@ -1,3 +1,4 @@
+import { spendableUsdc } from "../lib/economy/nav";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { GRACE_MS } from "../lib/economy/constants";
@@ -92,6 +93,11 @@ export const begin = mutation({
       .first();
     if (pendingRedemption) throw new Error("a share redemption is settling for this agent; retry shortly");
 
+    const influencer = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
+    if (influencer?.generationFunding === "agent_wallet" || influencer?.solstarCharacterId) {
+      const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).unique();
+      if (!account || spendableUsdc(account) < amountUsdc) throw new Error("funds are reserved for agent generations; withdraw a smaller amount");
+    }
     const now = Date.now();
     const id = await ctx.db.insert("agentWithdrawals", {
       mintAddress,

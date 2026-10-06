@@ -1,3 +1,4 @@
+import { refreshAgentFunds } from "./agentWallet";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { estimateGenerationUsd, type GenjutsuResolution } from "@/lib/explore/generationPrice";
@@ -18,7 +19,8 @@ export type ChargeResult = { ok: true; costUsdc: number; duplicate?: boolean } |
 export async function chargeExploreRun(mint: string, runId: string, priceUsdc: number): Promise<ChargeResult> {
   const qty = Math.max(1, Math.round(priceUsdc * 100));
   try {
-    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, authSecret: secret() });
+    await refreshAgentFunds(mint);
+    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, authSecret: secret() });
     if (r.ok) return { ok: true, costUsdc: r.costUsdc, ...("duplicate" in r && r.duplicate ? { duplicate: true } : {}) };
     return { ok: false, reason: r.reason ?? "needs_funding" };
   } catch {
@@ -33,6 +35,7 @@ export async function refundExploreRun(mint: string, runId: string): Promise<voi
 
 export const CHARGE_MESSAGES: Record<string, string> = {
   needs_funding: "Not enough funds in this agent's wallet. Add USDC to the agent wallet and try again.",
+  wallet_busy: "A withdrawal is settling for this agent. Try again shortly.",
   daily_cap: "This agent hit its daily spend cap. Raise the cap or try again tomorrow.",
   suspended: "This agent is suspended.",
   billing_unavailable: "Billing is temporarily unavailable. Please try again.",

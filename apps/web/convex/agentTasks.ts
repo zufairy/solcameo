@@ -1,8 +1,9 @@
+import { spendableUsdc } from "../lib/economy/nav";
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { accrueTaskCost, CREDITS_SETTLED_SENTINEL } from "./usage";
+import { accrueTaskCost, todaysSpend, CREDITS_SETTLED_SENTINEL } from "./usage";
 import { getOwnerWalletForMint } from "./userCredits";
 import { getSkillPriceOverride } from "./adminPricing";
 import { effectivePostCostUsdc } from "../lib/economy/servicePrices";
@@ -146,6 +147,7 @@ export const failStaleTasks = mutation({
         completedAt: now,
       });
       await releaseHold(ctx, t, 0);
+      await releaseWalletHold(ctx, t);
       failed++;
     }
     return { failed };
@@ -185,6 +187,35 @@ async function releaseHold(ctx: MutationCtx, task: Doc<"agentTasks">, usedCredit
     });
   }
 }
+
+/** Wallet reservations stay out of the settlement tab until work completes. */
+async function releaseWalletHold(ctx: MutationCtx, task: Doc<"agentTasks">) {
+  if (!task.walletHold || task.walletHold.settled) return;
+  const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", task.mintAddress)).unique();
+  if (account) await ctx.db.patch(account._id, { generationReservedUsdc: Math.max(0, (account.generationReservedUsdc ?? 0) - task.walletHold.amountUsdc), updatedAt: Date.now() });
+  await ctx.db.patch(task._id, { walletHold: { ...task.walletHold, settled: true } });
+}
+
+export const holdWallet = mutation({
+  args: { id: v.id("agentTasks"), amountUsdc: v.number(), authSecret: v.string() },
+  handler: async (ctx, { id, amountUsdc, authSecret }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    if (!Number.isFinite(amountUsdc) || amountUsdc <= 0) throw new Error("invalid amount");
+    const task = await ctx.db.get(id);
+    if (!task || !["pending", "running"].includes(task.status)) throw new Error("task is not active");
+    if (task.walletHold) return { ok: !task.walletHold.settled, available: 0 };
+    const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", task.mintAddress)).unique();
+    const withdrawal = await ctx.db.query("agentWithdrawals").withIndex("by_mint_status", q => q.eq("mintAddress", task.mintAddress).eq("status", "pending")).first();
+    if (withdrawal) return { ok: false, available: 0, reason: "wallet_busy" };
+    const cap = account?.dailyCapUsdc ?? Number(process.env.VELLO_DAILY_SPEND_CAP_USDC ?? "10");
+    if (Number.isFinite(cap) && cap > 0 && await todaysSpend(ctx, task.mintAddress) + (account?.generationReservedUsdc ?? 0) + amountUsdc > cap) return { ok: false, available: 0, reason: "daily_cap" };
+    const available = account ? spendableUsdc(account) : 0;
+    if (!account || account.status === "suspended" || available < amountUsdc) return { ok: false, available };
+    await ctx.db.patch(account._id, { generationReservedUsdc: +( (account.generationReservedUsdc ?? 0) + amountUsdc).toFixed(6), updatedAt: Date.now() });
+    await ctx.db.patch(id, { walletHold: { amountUsdc, settled: false } });
+    return { ok: true, available: available - amountUsdc };
+  },
+});
 
 export const holdCredits = mutation({
   args: { id: v.id("agentTasks"), credits: v.number(), authSecret: v.string() },
@@ -226,6 +257,8 @@ export const succeed = mutation({
     // agent's tab. Ungated, anyone could poison the economy. Server callers only.
     if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
     const task = await ctx.db.get(id);
+    if (!task || task.status === "succeeded" || task.status === "failed" || task.status === "cancelled") return;
+    await releaseWalletHold(ctx, task);
     // The auto-post fee (social_post) is admin-overridable via skillPriceOverrides.
     // The run-task post executor emits the STATIC social_post fee on a real publish;
     // re-price it HERE — the Convex charge mutation is THE place the override is
@@ -350,7 +383,7 @@ export const fail = mutation({
     });
     // A failed task never keeps the credits it reserved.
     const task = await ctx.db.get(id);
-    if (task) await releaseHold(ctx, task, 0);
+    if (task) { await releaseHold(ctx, task, 0); await releaseWalletHold(ctx, task); }
   },
 });
 
@@ -373,6 +406,7 @@ export const cancel = mutation({
       completedAt: Date.now(),
     });
     await releaseHold(ctx, task, 0);
+    await releaseWalletHold(ctx, task);
   },
 });
 
@@ -565,7 +599,7 @@ export const walletLedger = query({
           engage_comment:  0.006,
           self_reflect:    0.01,
         };
-        const estimate = cost > 0 ? cost : (ESTIMATED_BY_TYPE[t.type] ?? 0.01);
+        const estimate = t.walletHold && !t.walletHold.settled ? t.walletHold.amountUsdc : cost > 0 ? cost : (ESTIMATED_BY_TYPE[t.type] ?? 0.01);
         reserved += estimate;
         inFlightCount++;
       } else if (t.status === "succeeded") {

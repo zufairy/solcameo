@@ -42,7 +42,9 @@ interface HighlightClip {
 }
 interface Proof { wallet: string | null; walletUsdc: number | null; verified: number; checked: number }
 
-export function TournamentBoard() {
+export { TraderTournamentBoard as TournamentBoard } from "./TraderTournamentBoard";
+
+export function AgentLeaderboard() {
   const [win, setWin] = useState<WindowKey>("all");
   const [sort, setSort] = useState<SortKey>("earnings");
   const [now] = useState(() => Date.now());

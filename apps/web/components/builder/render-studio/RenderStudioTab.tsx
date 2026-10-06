@@ -324,7 +324,7 @@ export default function RenderStudioTab({ mintAddress, agentName, avatarUrl }: {
     try {
       const res = await fetch("/api/render-studio/chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal,
-        body: JSON.stringify({ prompt, engine: e, model, comp: p0.comp, touched: p0.touched, attached, aspect: ASPECTS[aspect], history, agent: { agentName, avatarUrl }, review: true }),
+        body: JSON.stringify({ mintAddress, prompt, engine: e, model, comp: p0.comp, touched: p0.touched, attached, aspect: ASPECTS[aspect], history, agent: { agentName, avatarUrl }, review: true }),
       });
       if (!res.ok || !res.body) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -373,7 +373,7 @@ export default function RenderStudioTab({ mintAddress, agentName, avatarUrl }: {
     const total = Math.round(comp.duration * comp.fps);
     setJob({ done: 0, total, started: Date.now(), quality });
     try {
-      const res = await fetch("/api/render-studio/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comp, quality }) });
+      const res = await fetch("/api/render-studio/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mintAddress, comp, quality }) });
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || `Render failed (${res.status})`);
       const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
       for (;;) {

@@ -88,14 +88,16 @@ async function reconcileImpl(ctx: MutationCtx, mintAddress: string, onchainUsdc:
     // counterpart — reconcile always re-adds the FULL cumulative offset on
     // top of the live on-chain balance (fees consumed mid-cycle re-converge
     // once the keeper sweep moves real funds). See adminEconomy.adjustEscrowData.
-    const adminOffset = account.adminAdjustmentUsdc ?? 0;
+    const influencer = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
+    const walletOnly = influencer?.generationFunding === "agent_wallet" || !!influencer?.solstarCharacterId;
+    const adminOffset = walletOnly ? 0 : account.adminAdjustmentUsdc ?? 0;
     // Off-chain earnings credits (v1 creditEarnings/creditAndRecord) raise NAV as
     // pure ledger bookkeeping — no USDC ever lands in the wallet, so a chain read
     // can't see them. Like adminOffset, RE-ADD the full cumulative amount on top of
     // the on-chain balance; otherwise reconcile would ERASE legitimately-credited
     // off-chain NAV (H5) the moment the chain is read (e.g. a vault-enabled agent
     // whose on-chain read is 0). Absent → 0 (agents with no off-chain earnings).
-    const offchainCredited = account.offchainCreditedUsdc ?? 0;
+    const offchainCredited = walletOnly ? 0 : account.offchainCreditedUsdc ?? 0;
     // RE-CREDIT GUARD: a settled-but-UNPAID feeSettlements row (settleTab already
     // zeroed the tab + debited the books, but the on-chain transfer hasn't landed
     // — txSignature undefined OR an INFLIGHT lease) still represents USDC the

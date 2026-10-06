@@ -1,16 +1,16 @@
 import { CATALOG } from "./catalog";
 import { isAnimalTier, type AnimalTier, type CharCategory, type CharModel, type Selection, type Tier } from "./types";
 
-export const TIERS: { id: Tier; label: string; image?: string; emoji?: string }[] = [
+export const TIERS: { id: Tier; label: string; image: string }[] = [
   { id: "normal", label: "Average", image: "/character/opt/tier-normal.webp" },
   { id: "freak", label: "Bold", image: "/character/opt/tier-freak.webp" },
   { id: "total", label: "Extreme", image: "/character/opt/tier-total.webp" },
-  { id: "insects", label: "Insects", image: "/character/opt/type-mantis.webp" },
-  { id: "frogs", label: "Frogs", emoji: "🐸" },
-  { id: "cats", label: "Cats", emoji: "🐱" },
-  { id: "dogs", label: "Dogs", image: "/character/opt/type-dog.webp" },
-  { id: "capybaras", label: "Capybaras", emoji: "🦫" },
-  { id: "birds", label: "Birds", emoji: "🦜" },
+  { id: "insects", label: "Insect", image: "/character/opt/tier-insects.webp" },
+  { id: "frogs", label: "Frog", image: "/character/opt/tier-frogs.webp" },
+  { id: "cats", label: "Cat", image: "/character/opt/tier-cats.webp" },
+  { id: "dogs", label: "Dog", image: "/character/opt/tier-dogs.webp" },
+  { id: "capybaras", label: "Capybara", image: "/character/opt/tier-capybaras.webp" },
+  { id: "birds", label: "Bird", image: "/character/opt/tier-birds.webp" },
 ];
 
 /** Higgsfield's animal tiers share these groups with the human tiers, limited to the options that exist in "freak". */
@@ -144,6 +144,7 @@ export function referencePlan(sel: Selection): ReferencePlan {
 const ANIMAL_NOUN: Record<AnimalTier, string> = { insects: "insect", frogs: "frog", cats: "cat", dogs: "dog", capybaras: "capybara", birds: "bird" };
 /** How trait groups read on an animal: hair becomes head styling, hair color becomes fur or feather color. */
 const ANIMAL_PHRASE: Record<string, (label: string) => string> = {
+  gender: (l) => `${l.toLowerCase()} animal`,
   hair: (l) => `${l.toLowerCase()} head styling`,
   hair_colour: (l) => `${l.toLowerCase()} fur or feather color`,
   facial_hair: (l) => (l.toLowerCase() === "clean" ? "" : `${l.toLowerCase()} whisker styling`),
@@ -169,6 +170,7 @@ export function buildPrompt(sel: Selection, tier: Tier, opts: { sheet?: boolean;
   }
   const tone = animal ? "expressive, characterful, rich fur, feather or shell texture" : tier === "normal" ? "natural, realistic features" : tier === "freak" ? "bold, striking, exaggerated features" : "extreme, otherworldly, highly exaggerated features";
   const subject = parts.length ? parts.join("; ") : animal ? "" : "a person";
+  if (opts.photo && animal) return `Edit the supplied reference image into one anthropomorphic ${(species ?? ANIMAL_NOUN[tier]).toLowerCase()} character. The selected animal type overrides the reference subject's species: use an animal head and species-appropriate anatomy, never a human wearing an animal costume. Retain recognizable styling, clothing, colors, pose, framing, background, lighting, and visual medium from the reference unless a selected trait changes it. Apply these selected traits: ${subject || "the selected animal type"}. ${tone}. Create one coherent character, no collage or text.`;
   if (opts.photo) return `Edit the supplied reference image in place. Keep the face and identity of the person in the reference photo. Apply ONLY these selected changes: ${subject}. Selected intensity: ${tier === "normal" ? "natural, realistic" : tier === "freak" ? "bold, exaggerated for the selected traits only" : "extreme for the selected traits only"}. Preserve every unselected feature, the same person, facial identity, pose, expression, framing, camera angle, background, clothing, lighting, and visual medium. A selected trait overrides only its corresponding feature; leave everything else unchanged. Do not invent extra traits, replace the subject, restyle the image, create a collage, or add text. Preserve original composition; extend edges only if needed for the requested aspect ratio.`;
   const pose = opts.pose ?? "Front-facing, standing";
   let prompt = animal

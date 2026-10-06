@@ -1,3 +1,4 @@
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -117,6 +118,8 @@ export async function POST(req: NextRequest) {
 
   const system = `You are a social media carousel strategist. Given an idea, generate exactly ${IDEAS_COUNT} distinct carousel concepts in the requested style. Each concept has a short punchy title, a one-sentence hook (why someone stops scrolling), and exactly ${SLIDES_PER_IDEA} slides. Slide 1 is always the cover (must hook attention visually), the last slide is always a CTA or payoff. Each slide's "prompt" is a literal, concrete AI-image-generation prompt (composition, subject, setting, mood, text overlay if any) — not a description of the idea. Respond with ONLY this JSON shape, no prose: {"ideas":[{"title":string,"hook":string,"slides":[{"prompt":string}, ...]}]}`;
 
+  const billing = await beginAgentGeneration(req, mintAddress, "llm_message");
+  if (billing.error) return billing.error;
   let ideas: Idea[];
   try {
     const result = await callClaudeJSON<{ ideas?: Idea[] }>({
@@ -136,6 +139,7 @@ export async function POST(req: NextRequest) {
       .slice(0, IDEAS_COUNT);
     if (ideas.length === 0) throw new Error("model returned no usable ideas");
   } catch (e) {
+    await billing.refund();
     return NextResponse.json(
       { ok: false, error: `Idea generation failed: ${e instanceof Error ? e.message : "internal error"}` },
       { status: 502 },

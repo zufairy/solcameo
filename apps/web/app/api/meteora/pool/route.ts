@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convexClient, isConvexIdString } from "@/lib/server/solstarRoute";
 import { getObjectText, listImageObjects } from "@/lib/server/imageStorage";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertSolanaChain } from "@/lib/server/solanaChainGuard";
 import { getNetwork, getRpcUrl } from "@/lib/solana/network";
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("characterId");
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       client.state.getPool(new PublicKey(data.token.dbcPool)),
       client.state.getPoolConfig(new PublicKey(data.token.dbcConfig)),
       connection.getTokenSupply(new PublicKey(data.token.mint), "confirmed"),
-      network === "devnet" ? assertDevnet(connection) : Promise.resolve(),
+      assertSolanaChain(connection, network === "devnet" ? "devnet" : "mainnet"),
     ]);
     if (!pool || !config || !data.token.mint || pool.poolState.baseMint.toBase58() !== data.token.mint) throw new Error("Pool state unavailable");
     const supplyTokens = Number(supply.value.amount) / 10 ** supply.value.decimals;

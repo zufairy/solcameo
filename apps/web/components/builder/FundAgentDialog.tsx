@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { ArrowRight, Check, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { getNetwork } from "@/lib/solana/network";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { confirmSignature, fetchWalletBalances, sendFundingTransfer, type FundToken } from "@/lib/solana/fundWallet";
@@ -35,6 +37,9 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
   const [step, setStep] = useState<"idle" | "approving" | "confirming" | "done" | "error">("idle");
   const [error, setError] = useState("");
   const [sig, setSig] = useState("");
+  const [copied, setCopied] = useState(false);
+  const network = getNetwork();
+  const scan = agentWallet ? `https://solscan.io/account/${agentWallet}${network === "mainnet-beta" ? "" : `?cluster=${network}`}` : "";
   const busy = step === "approving" || step === "confirming";
   const num = Number.parseFloat(amount);
 
@@ -84,11 +89,26 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
   const faucet = token === "USDC" ? getUsdcFaucetUrl() : null;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
-      <DialogContent className="max-w-md rounded-2xl border border-white/10 bg-[#141619] text-zinc-200">
+      <DialogContent className="!max-w-md rounded-3xl border border-white/20 bg-[linear-gradient(145deg,rgba(40,43,48,0.92),rgba(15,18,22,0.9))] p-6 text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-3xl">
         <DialogHeader>
-          <DialogTitle className="text-lg text-white">Add money to {agentName || "your agent"}</DialogTitle>
-          <DialogDescription className="text-zinc-500">The agent pays for its videos from its own wallet. Send it funds from yours, signed once in your wallet.</DialogDescription>
+          <DialogTitle className="text-lg text-white">Deposit to {agentName || "your agent"}</DialogTitle>
+          <DialogDescription className="text-zinc-500">Generations are paid from this agent’s USDC balance. Deposit from your connected wallet or send directly to its address.</DialogDescription>
         </DialogHeader>
+
+        {suggestedUsdc != null && suggestedUsdc > 0 && <p className="rounded-xl border border-[#d7ff00]/20 bg-[#d7ff00]/[0.06] px-3 py-2 text-xs text-[#e5f7a3]">This generation needs ${suggestedUsdc.toFixed(2)} USDC. Fund the agent, then try again.</p>}
+        <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+          {agentWallet && <div className="shrink-0 rounded-xl bg-white p-2"><QRCodeSVG value={agentWallet} size={76} /></div>}
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-white/50">Solana · {network === "mainnet-beta" ? "Mainnet" : network}</p>
+            <p className="mt-1 break-all text-xs leading-5 text-white/80">{agentWallet || "Preparing your agent wallet…"}</p>
+            <div className="mt-2 flex items-center gap-3 text-[11px] text-white/60">
+              <button type="button" disabled={!agentWallet} onClick={() => { if (agentWallet) void navigator.clipboard.writeText(agentWallet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }} className="inline-flex items-center gap-1 hover:text-white">{copied ? <Check className="size-3" /> : <Copy className="size-3" />}{copied ? "Copied" : "Copy"}</button>
+              {scan && <a href={scan} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white">Solscan <ExternalLink className="size-3" /></a>}
+              <button type="button" onClick={() => { void loadBalances(); window.dispatchEvent(new Event("solcameo:trade-confirmed")); }} className="inline-flex items-center gap-1 hover:text-white"><RefreshCw className="size-3" />Refresh</button>
+            </div>
+          </div>
+        </div>
+        <p className="text-[11px] leading-5 text-zinc-400">USDC funds generation. SOL funds network transactions; depositing SOL does not automatically convert it to USDC.</p>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">

@@ -1,3 +1,5 @@
+import { refreshAgentFunds } from "@/lib/server/agentWallet";
+import { spendableUsdc } from "@/lib/economy/nav";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { buyAgentResearch } from "@/lib/server/x402/agentResearch";
@@ -3403,7 +3405,8 @@ export async function POST(req: NextRequest) {
 
     const estimatedCost = await estimateTaskCost();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const agentWallet = (agent as any).agentWallet as string | undefined;
+    let agentWallet = (agent as any).agentWallet as string | undefined;
+    const walletBilling = taskType === "create_video" || agent.generationFunding === "agent_wallet" || !!agent.solstarCharacterId;
     // The hire flow has the CLIENT pay the agent on-chain up-front, so the
     // agent's own metered balance must not gate the render — skip the precheck.
     // Only a server-to-server caller (the hire flow, where the CLIENT already
@@ -3411,8 +3414,20 @@ export async function POST(req: NextRequest) {
     const skipBalanceCheck = input.skipBalanceCheck === true && auth.internal === true;
     // Set when the agent's OWN on-chain wallet can cover this task — lets a
     // wallet-funded (non-credits) operator run without a credit hold below.
-    let walletCoversTask = false;
-    if (agentWallet && !skipBalanceCheck) {
+    if (walletBilling && !skipBalanceCheck) {
+      try {
+        agentWallet = await refreshAgentFunds(mintAddress);
+        const account = await convex.query(api.agentAccount.get, { mintAddress });
+        const available = account ? spendableUsdc(account) : 0;
+        if (!account || account.status === "suspended" || available < estimatedCost) {
+          return failPreflight("Deposit USDC to this agent to continue.", NextResponse.json({ ok: false, error: "insufficient_funds", code: "needs_funding", mintAddress, agentWallet, available, required: estimatedCost, message: "Deposit USDC to this agent wallet to generate." }, { status: 402 }));
+        }
+        (input as Record<string, unknown>).fundingSource = "agent_wallet";
+      } catch {
+        return failPreflight("Could not verify the agent balance.", NextResponse.json({ ok: false, error: "billing_unavailable", message: "Could not verify the agent balance. Please retry." }, { status: 503 }));
+      }
+    }
+    if (!walletBilling && agentWallet && !skipBalanceCheck) {
       try {
         // Fetch on-chain USDC balance + Convex ledger + the OWNER'S PREPAID
         // CREDIT balance in parallel. Credits are the primary way most
@@ -3462,10 +3477,8 @@ export async function POST(req: NextRequest) {
           // the agent wallet exists to RECEIVE money (campaign payouts), never
           // to veto a credit-funded render.
           const walletAvail = Math.max(0, balOk ? onChainUsdc - spent - reserved : 0);
-          walletCoversTask = balOk && walletAvail >= estimatedCost;
           // The agent pays for its own generations when its wallet covers the run (Higgsfield and Kie alike). Prepaid
           // credits are only the fallback. Set before the task document is written so metering sees it.
-          if (walletCoversTask && taskType === "create_video") (input as Record<string, unknown>).fundingSource = "agent_wallet";
           const available = walletAvail + creditsUsdc;
           if (available < estimatedCost) {
             const message = `The agent wallet is short. It has $${available.toFixed(2)} available and this task needs about $${estimatedCost.toFixed(2)}. Add funds to the agent wallet to continue.`;
@@ -3686,15 +3699,16 @@ export async function POST(req: NextRequest) {
       }
       const walletFunded = (input as Record<string, unknown>).fundingSource === "agent_wallet";
       const holdCredits = Math.max(1, Math.ceil(estimatedCost * 100));
-      const hold = walletFunded ? { ok: true as const, balanceCredits: 0 } : await convex.mutation(api.agentTasks.holdCredits, { id: taskId, credits: holdCredits, authSecret: secret })
+      const walletHold = walletFunded ? await convex.mutation(api.agentTasks.holdWallet, { id: taskId, amountUsdc: estimatedCost, authSecret: secret }).catch(() => null) : null;
+      const hold = walletFunded ? { ok: walletHold?.ok ?? false, balanceCredits: Math.round((walletHold?.available ?? 0) * 100) } : await convex.mutation(api.agentTasks.holdCredits, { id: taskId, credits: holdCredits, authSecret: secret })
         .catch((e) => { console.error("[run-task] credit hold failed:", e instanceof Error ? e.message : e); return null; });
-      if (!hold?.ok && !walletCoversTask) {
+      if (!hold?.ok) {
         const have = Math.max(0, hold?.balanceCredits ?? 0);
         const message = hold
           ? `Not enough credits: this video needs ${holdCredits} credits and you have ${have}. Add credits to keep creating.`
           : "Couldn't reserve credits for this video right now. Please try again.";
         await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: secret }).catch(() => {});
-        return NextResponse.json({ ok: false, error: "insufficient_credits", message, required: holdCredits, balanceCredits: have, taskId }, { status: 402 });
+        return NextResponse.json({ ok: false, error: walletFunded ? "insufficient_funds" : "insufficient_credits", code: walletFunded ? "needs_funding" : "insufficient_credits", message: walletFunded ? "Deposit USDC to this agent wallet to generate." : message, mintAddress, agentWallet, required: walletFunded ? estimatedCost : holdCredits, balanceCredits: have, taskId }, { status: 402 });
       }
     }
 

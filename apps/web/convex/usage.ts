@@ -77,7 +77,8 @@ export async function accrueTaskCost(
   const costCredits = Math.round(cost * 100);
   // `agent_wallet`: the run was funded from the agent's own wallet (run-task checked it covers the cost), so the
   // cost rides the agent tab and is swept from that wallet, and prepaid credits are left alone.
-  if (costCredits > 0 && fundingSource !== "agent_wallet") {
+  const influencer = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
+  if (costCredits > 0 && fundingSource !== "agent_wallet" && influencer?.generationFunding !== "agent_wallet" && !influencer?.solstarCharacterId) {
     for (const candidate of payerCandidates) {
       const ledgerId = await ctx.db.insert("usageLedger", {
         mintAddress,
@@ -266,7 +267,7 @@ export const setDailyCap = mutation({
 });
 
 /** Sum of today's (UTC) usage for the mint — backs the daily spend cap. */
-async function todaysSpend(ctx: MutationCtx, mintAddress: string): Promise<number> {
+export async function todaysSpend(ctx: MutationCtx, mintAddress: string): Promise<number> {
   const dayStart = new Date().setUTCHours(0, 0, 0, 0);
   const rows = await ctx.db
     .query("usageLedger")
@@ -276,8 +277,8 @@ async function todaysSpend(ctx: MutationCtx, mintAddress: string): Promise<numbe
 }
 
 export const recordUsage = mutation({
-  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), authSecret: v.string() },
-  handler: async (ctx, { mintAddress, service, qty, idemKey, authSecret }) => {
+  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), walletOnly: v.optional(v.boolean()), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, service, qty, idemKey, walletOnly, authSecret }) => {
     if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
     // Consult the admin price override (skillPriceOverrides) at charge time — this
     // is THE money chokepoint every charge path routes through, so an admin-set
@@ -340,7 +341,8 @@ export const recordUsage = mutation({
     // (investor-funded) or an exhausted balance fall through to agentAccount
     // exactly as before.
     const ownerWallet = await getOwnerWalletForMint(ctx, mintAddress);
-    if (ownerWallet) {
+    const influencer = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
+    if (ownerWallet && !walletOnly && influencer?.generationFunding !== "agent_wallet" && !influencer?.solstarCharacterId) {
       const costCredits = Math.round(cost * 100);
       // A cost under $0.005 rounds to 0 credits — userCredits.debit throws on a
       // non-positive delta, and an uncaught throw here would abort the whole
@@ -389,6 +391,10 @@ export const recordUsage = mutation({
       }
     }
 
+    if (walletOnly || influencer?.generationFunding === "agent_wallet" || influencer?.solstarCharacterId) {
+      const withdrawal = await ctx.db.query("agentWithdrawals").withIndex("by_mint_status", q => q.eq("mintAddress", mintAddress).eq("status", "pending")).first();
+      if (withdrawal) return { ok: false as const, reason: "wallet_busy" as const, costUsdc: cost };
+    }
     if (!account) throw new Error("no agentAccount for mint");
     // Gate: insufficient funds is a DENIAL (not an error) — flag needs_funding so
     // autonomy pauses + the builder/investors are notified. Returned, not thrown,

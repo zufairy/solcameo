@@ -16,7 +16,7 @@ import {
   PLATFORM_LABEL, advancePlan, agentKind, approvePlan, approveProposal, approveResult, cancelPlan,
   rejectProposal, rejectResult, reportClipJobs, reportVideoTask, retryStep, toggleStep,
 } from "./store";
-import { Avatar, ITEM, SPRING, STAGGER } from "./ui";
+import { Avatar, CONTROL_GLASS_ACTION, ITEM, SPRING, STAGGER } from "./ui";
 import { useVideoLightbox } from "./VideoLightbox";
 
 /* ════════ Mission card ════════
@@ -314,14 +314,14 @@ export function ReviewCard({ item, mint, index, all, connected, onApprove, onRej
     <motion.div
       layout
       initial={{ opacity: 0, y: 8, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={SPRING}
-      className={`flex gap-3 rounded-xl border p-2.5 transition-colors ${item.status === "posted" ? "border-emerald-500/25 bg-emerald-500/[0.04]" : item.status === "rejected" ? "border-white/[0.05] opacity-50" : "border-white/[0.08] bg-white/[0.02]"}`}
+      className={`flex gap-3 rounded-[4px] border p-3 transition-colors ${item.status === "posted" ? "border-emerald-500/25 bg-emerald-500/[0.04]" : item.status === "rejected" ? "border-white/[0.05] opacity-50" : "border-white/[0.08] bg-white/[0.02]"}`}
     >
       <button
         onClick={() => openVideo(all.map((r, i) => asFeedItem(r, mint, i)), index)}
-        className="group relative aspect-[9/16] w-[78px] shrink-0 overflow-hidden rounded-lg bg-black"
+        className="group relative aspect-[9/16] w-[100px] shrink-0 self-start overflow-hidden rounded-[4px] sm:w-[140px] bg-black"
         aria-label="Play video"
       >
-        <video src={item.videoUrl} preload="metadata" muted playsInline className="h-full w-full object-cover" />
+        <video src={item.videoUrl} preload="metadata" muted playsInline className="h-full w-full object-contain" />
         <span className="absolute inset-0 grid place-items-center bg-black/20 transition-colors group-hover:bg-black/40">
           <Play className="size-5 fill-white text-white" />
         </span>
@@ -329,7 +329,7 @@ export function ReviewCard({ item, mint, index, all, connected, onApprove, onRej
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {decided ? (
           <>
-            <p className="line-clamp-3 text-[12.5px] leading-snug text-zinc-300">{item.caption || item.title}</p>
+            <p className="whitespace-pre-wrap break-words text-[12.5px] leading-snug text-zinc-300">{item.caption || item.title}</p>
             <p className={`flex items-center gap-1 text-[12px] ${item.status === "posted" ? "text-emerald-400" : "text-zinc-500"}`}>
               {item.status === "posted"
                 ? <><CheckCircle2 className="size-3.5" /> Scheduled to {(item.platforms ?? []).map((p) => PLATFORM_LABEL[p] ?? p).join(", ")}. Posts within ~5 min</>
@@ -341,10 +341,10 @@ export function ReviewCard({ item, mint, index, all, connected, onApprove, onRej
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              rows={3}
+              rows={5}
               disabled={busy}
               aria-label="Caption"
-              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/20 px-2 py-1.5 text-[12.5px] leading-snug text-zinc-200 outline-none focus:border-white/25"
+              className="w-full resize-y rounded-[4px] border border-white/20 bg-white/[0.08] backdrop-blur-xl px-2 py-1.5 text-[12.5px] leading-snug text-zinc-200 outline-none focus:border-white/25"
             />
             {connected.length ? (
               <div className="flex flex-wrap gap-1">
@@ -354,7 +354,7 @@ export function ReviewCard({ item, mint, index, all, connected, onApprove, onRej
                     onClick={() => toggle(p)}
                     disabled={busy}
                     aria-pressed={platforms.includes(p)}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${platforms.includes(p) ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-zinc-500 hover:text-zinc-300"}`}
+                    className={`${CONTROL_GLASS_ACTION} px-2 py-1 text-[11px] ${platforms.includes(p) ? "!border-white/60 !bg-white/25" : "text-white/60"}`}
                   >
                     {PLATFORM_LABEL[p] ?? p}
                   </button>
@@ -366,16 +366,16 @@ export function ReviewCard({ item, mint, index, all, connected, onApprove, onRej
               </p>
             )}
             {item.error && <p className="text-[11.5px] text-rose-300">{item.error}</p>}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 disabled={busy || !platforms.length || !caption.trim()}
                 onClick={() => onApprove({ caption: caption.trim(), platforms })}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-black transition-opacity hover:bg-zinc-200 disabled:opacity-30"
+                className={`${CONTROL_GLASS_ACTION} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold`}
               >
                 {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Approve &amp; post
               </motion.button>
-              <button onClick={onReject} disabled={busy} className="rounded-lg px-2 py-1.5 text-[12px] text-zinc-400 hover:bg-white/5 hover:text-white">
+              <button onClick={onReject} disabled={busy} className={`${CONTROL_GLASS_ACTION} px-2 py-1.5 text-[12px]`}>
                 Skip
               </button>
             </div>
@@ -396,7 +396,7 @@ export function ProposalCard({ threadKey, msgId, proposal, agent }: {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, filter: "blur(6px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={SPRING}
-      className="w-full max-w-[560px] rounded-2xl border border-white/[0.08] bg-[#131316] p-3"
+      className="w-full max-w-[640px] rounded-[4px] border border-white/[0.08] bg-[#131316] p-3"
     >
       <p className="mb-2 flex items-center gap-1.5 text-[12.5px] text-zinc-400">
         <Send className="size-3.5 text-lime-300" /> Ready to post{agent ? ` from ${agent.name} (${agentKind(agent)})` : ""}. Approve each one:

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { DYNAMIC_BONDING_CURVE_PROGRAM_ID } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { dbcConnection, dbcReadiness } from "@/lib/server/meteoraLaunch";
-import { assertDevnet } from "@/lib/server/devnetGuard";
+import { assertSolanaChain } from "@/lib/server/solanaChainGuard";
 import { r2ImageConfigured } from "@/lib/server/imageStorage";
 export const maxDuration = 30;
 export async function GET(req: NextRequest) {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
   try {
     const connection = dbcConnection();
-    if (configured.network === "devnet") await assertDevnet(connection);
+    await assertSolanaChain(connection, configured.network);
     const [slot, program, balance] = await Promise.all([
       connection.getSlot("confirmed"), connection.getAccountInfo(DYNAMIC_BONDING_CURVE_PROGRAM_ID, "confirmed"),
       wallet ? connection.getBalance(wallet, "confirmed") : Promise.resolve(null),

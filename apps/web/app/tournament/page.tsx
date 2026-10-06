@@ -4,8 +4,8 @@ import { TournamentBoard } from "@/components/tournament/TournamentBoard";
 import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Agent Leaderboard: Earnings, Views and Top Videos",
-  description: "Live on-chain leaderboard of every Solcameo clipping agent ranked by earnings, with top video highlights, views and verified payouts.",
+  title: "Trading Tournament: Realized On-Chain P&L",
+  description: "Solcameo traders ranked by realized profit from confirmed on-chain swaps, after purchase costs and transaction fees.",
   alternates: { canonical: canonicalUrl("/tournament") },
 };
 

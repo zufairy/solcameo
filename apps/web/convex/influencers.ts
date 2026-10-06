@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
+import { ensureAgentAccount } from "./agentAccount";
 import { consumeSignature } from "./lib/payments";
 import { resolveIntervalMs, videosPerDayToCron, evaluateHeartbeatClaim, cronForMinGapHours, nextHeartbeatFireAt } from "../lib/builder/heartbeatSchedule";
 import { normalizeShowBible, normalizeRotationState } from "../lib/builder/showBible";
@@ -1288,12 +1289,15 @@ export const setAgentWallet = mutation({
       .withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress))
       .first();
     if (!influencer) throw new Error("Influencer not found");
+    await ensureAgentAccount(ctx, mintAddress);
     // Never clobber an already-set wallet (the secret is the sole spend authority;
     // overwriting would orphan funds held there).
-    if (influencer.agentWallet && influencer.agentWallet !== agentWallet) {
-      throw new Error("agentWallet already set — refusing to overwrite");
+    if (influencer.agentWallet) {
+      if (influencer.generationFunding !== "agent_wallet") await ctx.db.patch(influencer._id, { generationFunding: "agent_wallet", updatedAt: Date.now() });
+      return { agentWallet: influencer.agentWallet, created: false };
     }
-    await ctx.db.patch(influencer._id, { agentWallet, agentWalletSecret, updatedAt: Date.now() });
+    await ctx.db.patch(influencer._id, { agentWallet, agentWalletSecret, generationFunding: "agent_wallet", updatedAt: Date.now() });
+    return { agentWallet, created: true };
   },
 });
 

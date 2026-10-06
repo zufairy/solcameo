@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Keypair } from "@solana/web3.js";
+import { ensureInfluencerWallet } from "@/lib/server/agentWallet";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { requireInternalOrUserAuth, requireOwnerWithSiws } from "@/lib/server/requireAuth";
-import { encryptWalletSecret } from "@/lib/server/walletCrypto";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
 
@@ -28,18 +27,7 @@ export async function POST(req: NextRequest) {
       if (ownershipError) return ownershipError;
     }
 
-    // Already has a wallet — return it
-    if (doc.agentWallet) {
-      return NextResponse.json({ ok: true, agentWallet: doc.agentWallet, created: false });
-    }
-
-    const keypair = Keypair.generate();
-    const agentWallet = keypair.publicKey.toBase58();
-    const agentWalletSecret = Buffer.from(keypair.secretKey).toString("base64");
-
-    await convex.mutation(api.influencers.setAgentWallet, { mintAddress, agentWallet, agentWalletSecret: encryptWalletSecret(agentWalletSecret), authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
-
-    return NextResponse.json({ ok: true, agentWallet, created: true });
+    return NextResponse.json({ ok: true, ...await ensureInfluencerWallet(mintAddress) });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
   }

@@ -3,7 +3,7 @@
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { unionWalletAddresses } from "@/lib/solana/activeWallet";
@@ -341,14 +341,14 @@ function WeeklyScheduleStrip({ mintAddresses, agentsByMint }: { mintAddresses: s
 
   const [selected, setSelected] = useState(0);
   const selectedRows = (rows ?? []).filter(row => dayKey(row.scheduledFor) === days[selected].key).sort((a,b) => a.scheduledFor-b.scheduledFor);
-  return <motion.section {...blurIn(0.04)} aria-label="Weekly schedule" className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+  return <section aria-label="Weekly schedule" className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
     <div className="mb-3 flex items-center justify-between"><p className="flex items-center gap-2 text-xs font-medium text-white"><CalendarClock className="size-3.5 text-[#d7ff00]"/> This week</p><span className="text-[10px] text-zinc-500">{rows?.length ?? 0} scheduled</span></div>
     <div className="grid grid-cols-7 gap-1" role="group" aria-label="Choose schedule day">{days.map((day,index)=>{
       const count=(rows ?? []).filter(row=>dayKey(row.scheduledFor)===day.key).length;
       return <button key={day.key} onClick={()=>setSelected(index)} aria-pressed={selected===index} className={`relative flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${selected===index ? "bg-[#d7ff00]/10 text-[#d7ff00] ring-1 ring-[#d7ff00]/20" : "text-zinc-500 hover:bg-white/5"}`}><span>{day.weekday}</span><span className="text-sm font-medium tabular-nums">{day.date}</span><span className={`size-1 rounded-full ${count ? "bg-[#d7ff00]" : "bg-white/10"}`}/></button>;
     })}</div>
     <div className="mt-3 flex min-h-7 flex-wrap items-center gap-2 border-t border-white/5 pt-2">{rows===undefined && mintAddresses.length>0 ? <Loader2 className="size-3 animate-spin text-zinc-500"/> : selectedRows.length ? selectedRows.slice(0,8).map(row=><Link key={row._id} href={`/builder?mint=${encodeURIComponent(row.mintAddress)}&tab=schedule`} className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><ScheduleChip row={row} agent={agentsByMint.get(row.mintAddress)}/><span className="text-[10px] text-zinc-400">{new Date(row.scheduledFor).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span></Link>) : <span className="text-[11px] text-zinc-500">No posts scheduled for {days[selected].isToday ? "today" : days[selected].weekday.toLowerCase()}.</span>}{selectedRows.length>8 && <span className="text-[10px] text-zinc-500">+{selectedRows.length-8} more</span>}</div>
-  </motion.section>;
+  </section>;
 }
 
 /** A quiet identity mark and one clear creation action. */
@@ -381,6 +381,8 @@ function Embedded({ children }: { children: ReactNode }) {
  *  as the /control panel's home view (no header, "Chat" on every card). */
 export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boolean; onChat?: (mint: string) => void } = {}) {
   const Shell = embedded ? Embedded : AppHeaderShell;
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   // Privy-aware: resolves the active address whether the user logged in with an
   // external wallet OR a Google login that minted an embedded Privy wallet.
   // Plain useWallet() misses the embedded case, so those owners' agents never
@@ -493,7 +495,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
 
   return (
     <Shell>
-      <div className="min-h-full bg-[#090a0b] text-white">
+      <div className={`min-h-full text-white ${embedded ? "bg-[#202326]" : "bg-[#090a0b]"}`}>
         <div className="mx-auto flex max-w-7xl items-start gap-6 px-6 pt-4 pb-12">
         <div className="min-w-0 flex-1">
           {/* ── Header ── the Create Agent + Leaderboards buttons now live at
@@ -525,14 +527,6 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
             </div>
           </motion.div>
 
-          {/* ── Weekly schedule strip — sits above search, one query shared
-                 across all of this operator's agents. ── */}
-          {hasAccount && docs.length > 0 && (
-            <div className="mt-5">
-              <WeeklyScheduleStrip mintAddresses={mintAddresses} agentsByMint={agentsByMint} />
-            </div>
-          )}
-
           {/* ── Search + type filter ── */}
           {hasAccount && docs.length > 0 && (
             <motion.div {...blurIn(0.08)} className="mt-5 flex flex-wrap items-center gap-2.5">
@@ -559,8 +553,37 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
               </div>
+              <button
+                type="button"
+                aria-expanded={scheduleOpen}
+                aria-controls="influencer-dashboard-schedule"
+                onClick={() => setScheduleOpen(open => !open)}
+                className={`inline-flex h-9 items-center gap-2 rounded-full border px-4 text-[13px] font-medium backdrop-blur-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${scheduleOpen ? "border-white/25 bg-white/10 text-white" : "border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08]"}`}
+              >
+                <CalendarClock className="size-3.5" />
+                Schedule
+                <ChevronDown className={`size-3 transition-transform motion-reduce:transition-none ${scheduleOpen ? "rotate-180" : ""}`} />
+              </button>
             </motion.div>
           )}
+
+          <AnimatePresence initial={false}>
+            {hasAccount && docs.length > 0 && scheduleOpen && (
+              <motion.div
+                key="dashboard-schedule"
+                id="influencer-dashboard-schedule"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="pt-4">
+                  <WeeklyScheduleStrip mintAddresses={mintAddresses} agentsByMint={agentsByMint} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* ── Body ── */}
           <div className="mt-5">

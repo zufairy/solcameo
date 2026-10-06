@@ -222,7 +222,7 @@ function Market() {
           : `${Math.floor(minutes / 1440)}d`;
   };
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#141618] px-4 py-4 text-zinc-200 lg:px-10">
+    <main className="relative min-h-screen overflow-hidden bg-[#181a1c] px-4 py-4 text-zinc-200 lg:px-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute -left-32 top-40 size-[520px] rounded-full bg-[#d7ff00]/[0.06] blur-[130px]" />
         <div className="absolute right-0 top-[420px] size-[560px] rounded-full bg-[#7C4DFF]/[0.10] blur-[140px]" />
