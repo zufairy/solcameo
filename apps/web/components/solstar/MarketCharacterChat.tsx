@@ -290,9 +290,17 @@ export function MarketCharacterChat({
           </div>
         ) : !rows.length ? (
           <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 text-center">
-            <span className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-300">
-              <MessageSquare className="size-5" />
-            </span>
+            <div className="relative">
+              <span aria-hidden className="absolute -inset-5 rounded-[2rem] bg-[#d7ff00]/[0.07] blur-2xl" />
+              <div className="relative grid size-16 place-items-center overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.14),rgba(255,255,255,0.03))] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_18px_40px_-16px_rgba(0,0,0,0.9)]">
+                {/* eslint-disable-next-line @next/next/no-img-element -- saved character portrait */}
+                {agentImageUrl ? <img src={agentImageUrl} alt="" className="size-full object-cover" /> : <MessageSquare className="size-6 text-zinc-200" />}
+                <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-t from-black/45 via-transparent to-white/10" />
+              </div>
+              <span className="absolute -bottom-2 -right-2 grid size-7 place-items-center rounded-[10px] border border-white/20 bg-[#d7ff00] text-black shadow-[0_8px_20px_-6px_rgba(215,255,0,0.6)] motion-safe:animate-[float_3.2s_ease-in-out_infinite]">
+                <MessageSquare className="size-3.5" strokeWidth={2.4} />
+              </span>
+            </div>
             <p className="mt-4 text-sm font-medium text-white">Start the conversation</p>
             <p className="mt-1.5 max-w-[240px] text-xs leading-5 text-zinc-500">
               Share questions and ideas for the next video. {agentName} reviews messages at the top of each hour.

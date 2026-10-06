@@ -218,7 +218,7 @@ function Discovery() {
   const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: LIVE_NETWORK, liveOnly: true });
   const rows = tab === "episodes" ? live?.filter(r => r.videosPosted > 0) : live;
   return <>
-    <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 feed-glass-header px-4 py-2" role="tablist" aria-label="Character discovery">
+    <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">
       {[["trending", "Trending"], ["launches", "New launches"], ["episodes", "Episodes"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{value === "trending" && <motion.span aria-hidden="true" className="inline-block bg-transparent text-base leading-none" animate={reduced ? undefined : { rotate: [-7, 6, -7], scale: [1, 1.15, 1], y: [0, -1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>🔥</motion.span>}{label}</Button>)}
     </div>
     <div role="tabpanel" aria-label={tab} className="max-h-[calc(100dvh-164px)] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">

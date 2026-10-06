@@ -15,6 +15,7 @@ import { isAnimalTier } from "@/lib/character/types";
 import type { CharacterImage, CharModel, ModelChoice, SavedCharacter, Selection, Tier } from "@/lib/character/types";
 import { Card, CountToggle, DISPLAY_FONT, LIME, Pill, RatioSelect, Section, SPRING, SURFACE, Swatch } from "./character-ui";
 import { Gallery, MODEL_LABEL, type Tile } from "./Gallery";
+import { ShirtStudio } from "./ShirtStudio";
 import { MotionLibrary, ReplicatePanel, RunsGrid, useMotionRuns, type MotionItem, type MotionRun } from "./motion";
 
 const GLASS_BG: React.CSSProperties = {
@@ -66,6 +67,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [shirtTile, setShirtTile] = useState<Tile | null>(null);
   const runId = useRef(0);
   const motion$ = useMotionRuns(mintAddress ?? "");
   const [mode, setMode] = useState<"builder" | "replicate">("builder");
@@ -397,6 +399,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
             tiles={tiles} generating={generating} pickedUrl={effectivePicked}
             onPick={(t) => setPickedUrl(t.url ?? null)}
             onDismiss={(tid) => setTiles((prev) => prev.filter((t) => t.id !== tid))}
+            onShirt={canGenerate && (mintAddress || onboarding) ? setShirtTile : undefined}
             onSave={() => void save()} saving={saving} error={error} historyLoading={historyLoading} prompt={ready ? prompt : null} saveLabel={onboarding ? "Continue to coin details" : undefined} fill={onboarding}
           />
         ) : (
@@ -407,6 +410,14 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
           />
         )}
       </div>
+      <ShirtStudio
+        tile={shirtTile} mintAddress={mintAddress} draft={onboarding} onClose={() => setShirtTile(null)}
+        onResult={(url, ratio) => {
+          // The edited portrait joins the feed as a normal candidate and becomes the selected look.
+          setTiles((prev) => [{ id: tileId(), model: "reference", ratio, status: "done", url, startedAt: 0 }, ...prev]);
+          setPickedUrl(url);
+        }}
+      />
     </div>
   );
 }

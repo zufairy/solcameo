@@ -9,13 +9,13 @@ import { compact } from "@/lib/client/calloutCard";
 import { calloutTheme, formatCalloutMoney } from "@/lib/solstar/callout";
 
 /** A dedicated 500 × 100 feed face. The social export keeps its full 16:9 scene. */
-export function CalloutFeedCard({ data }: { data: CalloutCardData }) {
+export function CalloutFeedCard({ data, bare = false }: { data: CalloutCardData; bare?: boolean }) {
   const [ready, setReady] = useState(false);
   const theme = calloutTheme(data.theme), metric = data.metric ?? "earnings";
   const value = metric === "views" ? data.views == null ? "—" : compact(data.views) : data.onchainTrade ? formatTradeSol(data.onchainTrade.pnlSol) : formatCalloutMoney(metric === "trade" ? data.tradePnlUsd : data.earningsUsd);
   const style = calloutStyle(data.theme);
   const negative = metric === "trade" && (data.onchainTrade?.pnlSol ?? data.tradePnlUsd ?? 0) < 0;
-  return <div aria-label={`${data.name}, ${data.ticker}, ${value}, ${metric}`} className="relative isolate flex h-[100px] w-[500px] max-w-full items-center gap-2.5 overflow-hidden rounded-lg border border-white/10 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_18px_-12px_rgba(0,0,0,0.6)]" style={{ borderRadius: style.radius / 2, background: `radial-gradient(ellipse at 100% 0%, ${theme.accent}20, transparent 65%), ${theme.background}` }}>
+  return <div aria-label={`${data.name}, ${data.ticker}, ${value}, ${metric}`} className={`relative isolate flex h-[100px] w-[500px] items-center gap-2.5 overflow-hidden px-3 text-white ${bare ? "" : "max-w-full rounded-lg border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_18px_-12px_rgba(0,0,0,0.6)]"}`} style={{ borderRadius: bare ? 0 : style.radius / 2, background: `radial-gradient(ellipse at 100% 0%, ${theme.accent}20, transparent 65%), ${theme.background}` }}>
     <CalloutVisual compact data={data} onReady={setReady} />
     <img src={data.imageUrl || "/brand/solcameo-mark.png"} alt="" loading="lazy" className={`relative z-10 h-12 w-10 shrink-0 ${data.unselectedPreview ? "object-contain" : "rounded-lg bg-white/[0.035] object-contain ring-1 ring-white/10"}`} />
     <div className="relative z-10 min-w-0 flex-1">

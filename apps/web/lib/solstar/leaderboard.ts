@@ -4,12 +4,14 @@ export function periodStart(period: LeaderboardPeriod, now = Date.now()) {
   return period === "all" ? 0 : now - (period === "24h" ? 1 : period === "7d" ? 7 : 30) * 86400000;
 }
 export type RpcTrade = { signature: string; wallet: string; mint: string; side: "buy" | "sell"; units: number; sol: number; networkFeeSol: number; time: number; slot?: number };
-export type TraderRank = { wallet: string; profileName?: string; profileImage?: string; pnlSol: number | null; realizedSol: number; closedTrades?: number; unrealizedSol: number; trades: number; complete: boolean };
+/** Realized result on one Solcameo coin, for sales booked inside the period. */
+export type TraderCoin = { mint: string; realizedSol: number; closedTrades: number; ticker?: string; name?: string; imageUrl?: string; marketUrl?: string };
+export type TraderRank = { wallet: string; profileName?: string; profileImage?: string; pnlSol: number | null; realizedSol: number; closedTrades?: number; coins?: TraderCoin[]; unrealizedSol: number; trades: number; complete: boolean };
 /** FIFO cost basis across the full available history. Periods include realised
  * profits booked during the period + open lots bought during the period.
  * Prices mark unsold tokens to the current pool price; these are not cash earnings. */
 export function rankTraders(trades: RpcTrade[], prices: Map<string, number>, since: number, historyComplete: boolean, realizedOnly = false): TraderRank[] {
-  const wallets = new Map<string, { lots: Map<string, { units: number; cost: number; time: number }[]>; realized: number; closedTrades: number; trades: number; complete: boolean }>();
+  const wallets = new Map<string, { lots: Map<string, { units: number; cost: number; time: number }[]>; coins: Map<string, TraderCoin>; realized: number; closedTrades: number; trades: number; complete: boolean }>();
   const seen = new Set<string>();
   const chargedFees = new Set<string>();
   for (const t of [...trades].sort((a, b) => a.time - b.time || (a.slot ?? 0) - (b.slot ?? 0))) {
@@ -20,7 +22,7 @@ export function rankTraders(trades: RpcTrade[], prices: Map<string, number>, sin
     const networkFee = chargedFees.has(feeKey) ? 0 : t.networkFeeSol;
     chargedFees.add(feeKey);
     let w = wallets.get(t.wallet);
-    if (!w) { w = { lots: new Map(), realized: 0, closedTrades: 0, trades: 0, complete: historyComplete }; wallets.set(t.wallet, w); }
+    if (!w) { w = { lots: new Map(), coins: new Map(), realized: 0, closedTrades: 0, trades: 0, complete: historyComplete }; wallets.set(t.wallet, w); }
     if (t.time >= since) w.trades++;
     const lots = w.lots.get(t.mint) ?? [];
     w.lots.set(t.mint, lots);
@@ -33,7 +35,13 @@ export function rankTraders(trades: RpcTrade[], prices: Map<string, number>, sin
         if (lot.units <= 1e-6) lots.shift();
       }
       if (remaining > 1e-6) w.complete = false; // transfer-in or missing purchase: cost basis unknown
-      if (t.time >= since) { w.realized += t.sol - networkFee - cost; w.closedTrades++; }
+      if (t.time >= since) {
+        const result = t.sol - networkFee - cost;
+        w.realized += result; w.closedTrades++;
+        const coin = w.coins.get(t.mint) ?? { mint: t.mint, realizedSol: 0, closedTrades: 0 };
+        coin.realizedSol += result; coin.closedTrades++;
+        w.coins.set(t.mint, coin);
+      }
     }
   }
   return [...wallets].map(([wallet, w]) => {
@@ -44,7 +52,7 @@ export function rankTraders(trades: RpcTrade[], prices: Map<string, number>, sin
       if (price == null || !Number.isFinite(price)) w.complete = false;
       else unrealized += lot.units * price - lot.cost;
     }
-    return { wallet, pnlSol: w.complete ? (realizedOnly ? w.realized : w.realized + unrealized) : null, realizedSol: w.realized, closedTrades: w.closedTrades, unrealizedSol: unrealized, trades: w.trades, complete: w.complete };
+    return { wallet, pnlSol: w.complete ? (realizedOnly ? w.realized : w.realized + unrealized) : null, realizedSol: w.realized, closedTrades: w.closedTrades, coins: [...w.coins.values()].sort((a, b) => b.realizedSol - a.realizedSol), unrealizedSol: unrealized, trades: w.trades, complete: w.complete };
   }).filter(w => realizedOnly ? (w.closedTrades ?? 0) > 0 : w.trades > 0).sort((a, b) => (b.pnlSol ?? -Infinity) - (a.pnlSol ?? -Infinity));
 }
 export type EarnerRank = { marketUrl?: string; creatorName?: string; creatorImage?: string; wallet: string; name: string; ticker: string; imageUrl: string; characterId: string; feesSol: number | null; claimableSol: number | null };

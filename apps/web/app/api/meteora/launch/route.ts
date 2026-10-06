@@ -214,7 +214,20 @@ export async function POST(req: NextRequest) {
             treasuryWallet: receipt.options.economy === "sustainable-v1" ? dbcTreasury().publicKey.toBase58() : undefined,
             authSecret: secret,
           });
-          return NextResponse.json({ complete: true, mint: receipt.mint, pool: pool.toBase58(), supply: supply.value.amount, network: receipt.network, signature: body.signature, networkFeeLamports: confirmed.meta.fee });
+          // Off-chain switch: turn the agent's heartbeat on so it makes and posts content by itself.
+          // Failing here must never undo or hide a confirmed launch, so the result is reported, not thrown.
+          let autopilot = false;
+          if (receipt.options.autopilot) {
+            try {
+              const convex = convexClient();
+              const saved = await convex.mutation(api.influencers.saveAgentConfig, { mintAddress: receipt.characterId, heartbeatEnabled: true, heartbeatCron: receipt.options.autopilotCadence, authSecret: secret });
+              if (saved) {
+                await convex.mutation(api.influencers.setAutonomyMode, { mintAddress: receipt.characterId, mode: "full-auto", authSecret: secret });
+                autopilot = true;
+              }
+            } catch { /* The owner can still switch it on from the agent page. */ }
+          }
+          return NextResponse.json({ complete: true, autopilot, mint: receipt.mint, pool: pool.toBase58(), supply: supply.value.amount, network: receipt.network, signature: body.signature, networkFeeLamports: confirmed.meta.fee });
         }
         receipt = { ...receipt, stage: "pool" };
       }

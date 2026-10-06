@@ -8,6 +8,14 @@ export const dbcOptionsSchema = z
     feeBps: z
       .union([z.literal(25), z.literal(100), z.literal(200)])
       .default(100),
+    /** On-chain: Meteora fee scheduler. Fees start high and decay to `feeBps`, so snipers pay for speed. */
+    antiSniper: z.boolean().default(true),
+    antiSniperLevel: z.enum(["light", "standard", "strict"]).default("standard"),
+    /** On-chain: Meteora volatility fee on the bonding curve and the graduated pool. */
+    dynamicFee: z.boolean().default(false),
+    /** Off-chain: after launch, switch the agent's heartbeat on so it makes and posts content by itself. */
+    autopilot: z.boolean().default(true),
+    autopilotCadence: z.enum(["every_4h", "every_12h", "daily"]).default("every_12h"),
   })
   .refine(
     (v) => v.graduationCapSol >= v.initialCapSol * 2,
@@ -17,3 +25,10 @@ export type DbcOptions = z.infer<typeof dbcOptionsSchema>;
 export const DEFAULT_DBC = dbcOptionsSchema.parse({
   economy: "sustainable-v1",
 });
+
+/** Launch-time fee schedule per strength. Periods divide the duration evenly (seconds) as the SDK requires. */
+export const ANTI_SNIPER_LEVELS = {
+  light: { startingFeeBps: 1500, numberOfPeriod: 6, totalDuration: 60 },
+  standard: { startingFeeBps: 3000, numberOfPeriod: 18, totalDuration: 180 },
+  strict: { startingFeeBps: 5000, numberOfPeriod: 30, totalDuration: 300 },
+} as const;

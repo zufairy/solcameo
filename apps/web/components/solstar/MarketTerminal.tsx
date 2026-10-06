@@ -870,8 +870,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
         <aside
           className={`${mobilePanel === "trade" ? "flex" : "hidden"} market-sidebar-text min-h-0 flex-col overflow-hidden border-l border-white/10 lg:flex`}
         >
+          {/* The ticket stays pinned so amount, presets and the trade button never scroll away. */}
+          <div className="shrink-0"><TradeTicket token={token} /></div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <TradeTicket token={token} />
           <MarketAboutCard
             name={character.name}
             ticker={token.ticker}

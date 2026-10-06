@@ -128,14 +128,109 @@ export const listCallouts = query({
         const wallet = r.wallet!;
         const link = await ctx.db.query("walletLinks").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
         const user = link ? await ctx.db.get(link.userId) : await ctx.db.query("users").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
-        return { ...publicRow(r), name: user?.name || `${wallet.slice(0, 4)}…${wallet.slice(-4)}`, imageUrl: user?.image || "/brand/solcameo-mark.png", ticker: r.onchainTrade?.ticker || "", trader: true };
+        const name = user?.name || `${wallet.slice(0, 4)}…${wallet.slice(-4)}`, imageUrl = user?.image || "/brand/solcameo-mark.png";
+        return { ...publicRow(r), name, imageUrl, authorName: name, authorImage: imageUrl, ticker: r.onchainTrade?.ticker || "", trader: true, mint: r.onchainTrade?.mint };
       }
       const character = await ctx.db.get(r.characterId);
       if (!character || character.status !== "approved") return null;
       const token = r.tokenId ? await ctx.db.get(r.tokenId) : null;
       if (!token) return null;
-      return { ...publicRow(r), name: character.name, imageUrl: character.referenceImageUrl, ticker: token.ticker, trader: false };
+      const author = r.wallet ? await profileFor(ctx, r.wallet) : null;
+      return { ...publicRow(r), name: character.name, imageUrl: character.referenceImageUrl, authorName: author?.name ?? publicRow(r).wallet ?? "Trader", authorImage: author?.imageUrl ?? "/brand/solcameo-mark.png", ticker: token.ticker, trader: false, mint: token.mint };
     }));
     return joined.filter(r => r !== null).slice(0, 30);
+  },
+});
+
+
+const REPLY_MAX = 280;
+const REPLY_LIMIT = 6;
+
+/** Add a reply to a callout thread. */
+export const postReply = mutation({
+  args: { wallet: v.string(), calloutId: v.id("ssFeed"), body: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    if (a.wallet.length < 32 || a.wallet.length > 44) throw new Error("invalid_wallet");
+    const body = normalizeChat(a.body);
+    if (!body.length || body.length > REPLY_MAX) throw new Error("invalid_body");
+    const post = await ctx.db.get(a.calloutId);
+    if (!post || post.kind !== "chat") throw new Error("callout_not_found");
+    const now = Date.now();
+    const recent = await ctx.db.query("ssCalloutReplies").withIndex("by_wallet_created", q => q.eq("wallet", a.wallet).gte("createdAt", now - RATE_WINDOW_MS)).take(REPLY_LIMIT);
+    if (recent.length >= REPLY_LIMIT) throw new Error("rate_limited");
+    if (recent.some(r => r.calloutId === a.calloutId && r.body.toLowerCase() === body.toLowerCase())) throw new Error("duplicate_message");
+    await ctx.db.insert("ssCalloutReplies", { calloutId: a.calloutId, wallet: a.wallet, body, createdAt: now });
+    return { ok: true as const };
+  },
+});
+
+async function profileFor(ctx: { db: any }, wallet: string) { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const link = await ctx.db.query("walletLinks").withIndex("by_wallet", (q: any) => q.eq("walletAddress", wallet)).first(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const user = link ? await ctx.db.get(link.userId) : await ctx.db.query("users").withIndex("by_wallet", (q: any) => q.eq("walletAddress", wallet)).first(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  return { name: (user?.name as string | undefined) || `${wallet.slice(0, 4)}…${wallet.slice(-4)}`, imageUrl: (user?.image as string | undefined) || "/brand/solcameo-mark.png" };
+}
+
+/** Oldest-first replies for one callout thread (reactive). */
+export const listReplies = query({
+  args: { calloutId: v.id("ssFeed") },
+  handler: async (ctx, { calloutId }) => {
+    const rows = await ctx.db.query("ssCalloutReplies").withIndex("by_callout_created", q => q.eq("calloutId", calloutId)).order("asc").take(100);
+    const cache = new Map<string, { name: string; imageUrl: string }>();
+    return Promise.all(rows.map(async r => {
+      let p = cache.get(r.wallet);
+      if (!p) { p = await profileFor(ctx, r.wallet); cache.set(r.wallet, p); }
+      return { id: r._id as string, wallet: shortWallet(r.wallet), body: r.body, createdAt: r.createdAt, name: p.name, imageUrl: p.imageUrl };
+    }));
+  },
+});
+
+/** Reply counts per callout, for the feed rows. */
+export const replyCounts = query({
+  args: { calloutIds: v.array(v.id("ssFeed")) },
+  handler: async (ctx, { calloutIds }) => {
+    const out: Record<string, number> = {};
+    for (const id of calloutIds.slice(0, 40)) out[id as string] = (await ctx.db.query("ssCalloutReplies").withIndex("by_callout_created", q => q.eq("calloutId", id)).take(100)).length;
+    return out;
+  },
+});
+
+/** The coin behind a callout plus the influencer's latest videos, newest first, for the thread's vertical feed. */
+export const creatorFeed = query({
+  args: { characterId: v.optional(v.id("ssCharacters")), mint: v.optional(v.string()) },
+  handler: async (ctx, { characterId, mint }) => {
+    let token = characterId ? await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", characterId)).first() : null;
+    if (!token && mint) {
+      for (const network of ["mainnet", "devnet"] as const) {
+        const rows = await ctx.db.query("ssTokens").withIndex("by_network", q => q.eq("network", network)).take(400);
+        token = rows.find(t => t.mint === mint) ?? null;
+        if (token) break;
+      }
+    }
+    if (!token) return null;
+    const character = await ctx.db.get(token.characterId);
+    if (!character || character.status !== "approved") return null;
+    type Video = { id: string; url: string; poster: string | null; caption: string; at: number; views: number | null };
+    const videos: Video[] = [];
+    const seen = new Set<string>();
+    const add = (v: Video) => { if (v.url && !seen.has(v.url)) { seen.add(v.url); videos.push(v); } };
+    const episodes = await ctx.db.query("ssEpisodes").withIndex("by_token", q => q.eq("tokenId", token!._id)).order("desc").take(20);
+    for (const e of episodes) if (e.source !== "sample") add({ id: `ep:${e._id}`, url: e.videoUrl, poster: e.posterUrl, caption: e.title, at: e.createdAt, views: null });
+    if (token.mint) {
+      const m = token.mint;
+      const [clips, sched, renders] = await Promise.all([
+        ctx.db.query("clips").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
+        ctx.db.query("scheduledContent").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
+        ctx.db.query("videoRenderJobs").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
+      ]);
+      for (const c of clips) if (c.clipUrl) add({ id: `clip:${c._id}`, url: c.clipUrl, poster: null, caption: c.captionText || c.title || "", at: c.createdAt, views: c.viewCount ?? null });
+      for (const s of sched) if (s.videoUrl && s.status !== "cancelled") add({ id: `gen:${s._id}`, url: s.videoUrl, poster: s.storyboardImageUrl ?? null, caption: s.caption || s.topic || "", at: s.createdAt, views: null });
+      for (const r of renders) if (r.videoUrl && r.phase !== "failed") add({ id: `render:${r._id}`, url: r.videoUrl, poster: r.storyboardImageUrl ?? null, caption: r.autoPost?.caption || r.videoNote || "", at: r._creationTime, views: null });
+    }
+    videos.sort((a, b) => b.at - a.at);
+    return {
+      token: { characterId: token.characterId as string, mint: token.mint ?? null, ticker: token.ticker, network: token.network, name: character.name, imageUrl: character.referenceImageUrl, tradable: !!token.dbcPool },
+      videos: videos.slice(0, 12),
+    };
   },
 });

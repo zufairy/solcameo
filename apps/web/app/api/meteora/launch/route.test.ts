@@ -229,7 +229,8 @@ describe("Meteora wallet launch", () => {
     m.pool.mockResolvedValue({ poolState: { creator: owner.publicKey, baseMint: new PublicKey(r.mint) } });
     m.rpc.getTokenSupply.mockResolvedValue({ value: { amount: "1000000000000000", decimals: 6 } });
     const res = await request({ action: "confirm", receipt: signDbcReceipt(r), signature: "1".repeat(88) });
-    expect(res.status).toBe(200); expect((await res.json()).complete).toBe(true); expect(m.mutation).toHaveBeenCalledOnce();
+    expect(res.status).toBe(200); expect((await res.json()).complete).toBe(true); expect(m.mutation).toHaveBeenCalledTimes(2); // finalize, then the autopilot (heartbeat) switch that defaults on
+    expect(m.mutation.mock.calls[1][1]).toMatchObject({ heartbeatEnabled: true, heartbeatCron: "every_12h" });
     m.mutation.mockClear();
     m.rpc.getTokenSupply.mockResolvedValue({ value: { amount: "0", decimals: 6 } });
     expect((await request({ action: "confirm", receipt: signDbcReceipt(r), signature: "1".repeat(88) })).status).toBe(400);

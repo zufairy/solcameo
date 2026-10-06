@@ -65,7 +65,7 @@ export function MarketInfoCarousel({
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${slides.length}: ${labels[i]}`}
-              className="h-[136px] w-full shrink-0 overflow-y-auto overscroll-contain"
+              className="h-[150px] w-full shrink-0 overflow-y-auto overscroll-contain"
             >
               {slide}
             </div>
