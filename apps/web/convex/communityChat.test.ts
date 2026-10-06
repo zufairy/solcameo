@@ -16,3 +16,24 @@ it("runs KIE once for an hourly window and publishes its reply and plot",async()
  const fetchMock=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({reply:"Love the space idea. Let's make it funny!",summary:"Space comedy",plot:"Hook: lost in space. Three scenes: launch, wrong planet, comic escape. End with a fan poll."})}}]})));vi.stubGlobal("fetch",fetchMock);
  try{await t.action(internal.communityChat.respond,{characterId:id,window:0});await t.action(internal.communityChat.respond,{characterId:id,window:0});expect(fetchMock).toHaveBeenCalledTimes(1);const live=await t.query(api.communityChat.list,{characterId:id});expect(live.messages.filter(m=>m.role==="agent")).toHaveLength(1);expect(live.plot).toContain("fan poll");}finally{vi.unstubAllGlobals();}
 });
+
+it("replies, reacts and drops a next-video hint for a 15 minute round, and stays silent when nobody wrote",async()=>{
+ const {t,id}=await setup();vi.stubEnv("KIE_API_KEY","test-key");
+ const {ensureCharacterAgent}=await import("./lib/characterAgent");
+ const ROUND=15*60000;
+ await t.run(async ctx=>{const c=(await ctx.db.get(id))!;const token=(await ctx.db.query("ssTokens").withIndex("by_character",q=>q.eq("characterId",id)).first())!;await ensureCharacterAgent(ctx,c,token);await ctx.db.insert("ssCommunityMessages",{characterId:id,author:"Fan a1",role:"fan",body:"Do a rooftop chase",authorImage:"https://img.test/a.png",createdAt:ROUND+1000});await ctx.db.insert("ssCommunityMessages",{characterId:id,author:"Fan b2",role:"fan",body:"Add a dancing robot",createdAt:ROUND+2000});});
+ const fetchMock=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({reply:"A rooftop chase with a dancing robot, yes.",hint:"Expect neon rooftops and a robot who cannot stop dancing.",summary:"Chase + robot",plot:"Hook: chase.",reactions:[{n:1,emoji:"🔥"},{n:2,emoji:"🧨"},{n:9,emoji:"🔥"}]})}}]})));vi.stubGlobal("fetch",fetchMock);
+ try{
+  // The round BEFORE any fan wrote has nothing to answer.
+  await t.action(internal.communityChat.respond,{characterId:id,window:0});expect(fetchMock).not.toHaveBeenCalled();
+  await t.action(internal.communityChat.respond,{characterId:id,window:ROUND});expect(fetchMock).toHaveBeenCalledTimes(1);
+  const live=await t.query(api.communityChat.list,{characterId:id});
+  const agent=live.messages.find(m=>m.role==="agent")!;
+  expect(agent.hint).toContain("neon rooftops");
+  const fans=live.messages.filter(m=>m.role==="fan");
+  expect(fans.find(m=>m.author==="Fan a1")!.agentReaction).toBe("🔥");
+  expect(fans.find(m=>m.author==="Fan b2")!.agentReaction).toBeUndefined(); // 🧨 is not an allowed reaction
+  expect(fans.find(m=>m.author==="Fan a1")!.authorImage).toBe("https://img.test/a.png");
+ }finally{vi.unstubAllGlobals();}
+});
+it("only accepts https profile pictures on a fan message",async()=>{const {t,id}=await setup();await t.mutation(api.communityChat.post,{characterId:id,author:"Fan x",body:"hi",authorImage:"javascript:alert(1)",authSecret:"secret"});expect((await t.query(api.communityChat.list,{characterId:id})).messages[0].authorImage).toBeUndefined();});

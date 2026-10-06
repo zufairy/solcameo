@@ -88,6 +88,7 @@ import type * as shareRedemptions from "../shareRedemptions.js";
 import type * as shares from "../shares.js";
 import type * as solstarBudget from "../solstarBudget.js";
 import type * as solstarCatalog from "../solstarCatalog.js";
+import type * as solstarChain from "../solstarChain.js";
 import type * as solstarCreate from "../solstarCreate.js";
 import type * as solstarDiscovery from "../solstarDiscovery.js";
 import type * as solstarFeed from "../solstarFeed.js";
@@ -202,6 +203,7 @@ declare const fullApi: ApiFromModules<{
   shares: typeof shares;
   solstarBudget: typeof solstarBudget;
   solstarCatalog: typeof solstarCatalog;
+  solstarChain: typeof solstarChain;
   solstarCreate: typeof solstarCreate;
   solstarDiscovery: typeof solstarDiscovery;
   solstarFeed: typeof solstarFeed;

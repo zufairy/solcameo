@@ -42,10 +42,12 @@ import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { DEFAULT_DBC } from "@/lib/meteora/options";
 import { PAPER_VIRTUAL_TOKENS } from "@/lib/solstar/economics";
 import { marketCapLamports, priceLamportsPerToken } from "@/lib/solstar/market";
-import { getReadRpcUrl, getAccountExplorerUrl } from "@/lib/solana/network";
+import { getReadRpcUrl, getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
 import { TerminalChart } from "./TerminalChart";
 import { FlywheelPanel } from "@/components/solcameo/FlywheelPanel";
 import { TradeTicket } from "./TradeTicket";
+import { OpenTrades, countOpen } from "./OpenTrades";
+import { useChainMarket } from "./useChainMarket";
 import { useMarketWatchlist } from "./market-watchlist";
 
 type ChainData = {
@@ -111,7 +113,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const [mcap, setMcap] = useState(true);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
-  const [chain, setChain] = useState<ChainData | null>(null);
   const [dbc, setDbc] = useState<{
     available: boolean;
     capSol: number | null;
@@ -128,7 +129,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     }>;
     appVolume24hLamports?: string;
   } | null>(null);
-  const [chainError, setChainError] = useState("");
   const feed = useQuery(api.solstarFeed.listFeed, { limit: 50 });
   const poolConnection = useMemo(
     () =>
@@ -227,50 +227,28 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     };
   }, [characterId, data?.token.dbcPool, poolConnection]);
   const onChain = !!data?.token.mint && data.token.network !== "paper";
-  useEffect(() => {
-    if (!onChain) return;
-    const controller = new AbortController();
-    let refreshing = false;
-    async function refresh() {
-      if (document.hidden || refreshing || controller.signal.aborted) return;
-      refreshing = true;
-      try {
-        const res = await fetch(
-          `/api/solstar/token-chain?characterId=${encodeURIComponent(characterId)}`,
-          {
-            cache: "no-store",
-            signal: AbortSignal.any([
-              controller.signal,
-              AbortSignal.timeout(15000),
-            ]),
-          },
-        );
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        setChain(result);
-        setChainError("");
-      } catch (e) {
-        if (!controller.signal.aborted)
-          setChainError(e instanceof Error ? e.message : "RPC unavailable");
-      } finally {
-        refreshing = false;
-      }
-    }
-    void refresh();
-    const timer = setInterval(() => void refresh(), 5000);
-    window.addEventListener("solcameo:trade-confirmed", refresh);
-    window.addEventListener("focus", refresh);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-      window.removeEventListener("solcameo:trade-confirmed", refresh);
-      window.removeEventListener("focus", refresh);
+  // Holders, open positions and swaps are Convex live queries: no RPC polling in the browser.
+  const { market: chainMarket, swaps: chainSwaps } = useChainMarket(characterId, onChain);
+  const chainError = chainMarket?.state?.error ?? "";
+  const chain = useMemo<ChainData | null>(() => {
+    const state = chainMarket?.state;
+    if (!state) return null;
+    const scale = 10 ** state.decimals;
+    return {
+      available: true,
+      supply: { amount: state.supplyRaw, decimals: state.decimals, uiAmountString: String(Number(state.supplyRaw) / scale) },
+      holders: chainMarket.holders.map((h) => ({ wallet: h.wallet, units: h.units, supplyPct: h.supplyPct })),
+      trades: (chainSwaps ?? []).map((t) => ({
+        signature: t.signature, wallet: t.wallet, side: t.side,
+        units: Math.round(t.units * scale).toString(), lamports: Math.round(t.sol * 1e9).toString(), createdAt: t.time,
+      })),
     };
-  }, [characterId, onChain]);
+  }, [chainMarket, chainSwaps]);
   const holderWallets = useMemo(() => [...new Set([
     ...(chain?.holders ?? []).map(holder => holder.wallet),
+    ...(chainMarket?.positions ?? []).filter(p => p.openTokens > 0).map(p => p.wallet),
     ...(data?.stats?.holders ?? []).map(holder => holder.wallet),
-  ])].sort().slice(0, 100), [chain?.holders, data?.stats?.holders]);
+  ])].sort().slice(0, 100), [chain?.holders, chainMarket?.positions, data?.stats?.holders]);
   const holderProfiles = useQuery(api.users.leaderboardProfiles, holderWallets.length ? { wallets: holderWallets } : "skip");
   const holderProfile = (wallet: string) => holderProfiles?.find(profile => profile.wallet === wallet);
   const holderIdentity = (wallet: string) => <MarketHolderIdentity wallet={wallet} image={holderProfile(wallet)?.image} name={holderProfile(wallet)?.name} />;
@@ -630,8 +608,12 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                   onClick={() => setTab(t)}
                   className={`border-b-2 py-4 text-sm capitalize ${tab === t ? "border-emerald-300 text-white" : "border-transparent text-zinc-500"}`}
                 >
-                  {t}
-                  {t === "holders" && stats ? (
+                  {t === "holders" && onChain ? "Open trades" : t}
+                  {t === "holders" && onChain && chainMarket?.state ? (
+                    <span className="ml-2 rounded bg-white/5 px-1.5 text-xs tabular-nums text-zinc-400">
+                      {countOpen(chainMarket)}
+                    </span>
+                  ) : t === "holders" && stats ? (
                     <span className="ml-2 rounded bg-white/5 px-1.5 text-xs text-zinc-500">
                       {stats.holders.length}
                     </span>
@@ -650,48 +632,16 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             )}
           </div>
           {tab === "holders" && onChain ? (
-            <div className="overflow-auto">
-              <Table className="[&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
-                <TableHeader>
-                  <TableRow>
-                    {["Holder wallet", "Tokens", "% supply"].map((label) => (
-                      <TableHead key={label}>{label}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {chain?.holders
-                    ?.filter((h) =>
-                      h.wallet.toLowerCase().includes(search.toLowerCase()),
-                    )
-                    .map((h) => (
-                      <TableRow key={h.wallet}>
-                        <TableCell>
-                          <a
-                            href={explorer(h.wallet)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-sans tabular-nums text-xs text-[#d7ff00]"
-                          >
-                            {holderIdentity(h.wallet)}
-                          </a>
-                        </TableCell>
-                        <TableCell>
-                          {(
-                            Number(h.units) /
-                            10 ** (chain.supply?.decimals ?? 6)
-                          ).toLocaleString()}
-                        </TableCell>
-                        <TableCell>{h.supplyPct.toFixed(3)}%</TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-              <p className="p-4 text-[10px] text-zinc-500">
-                Confirmed owners of the largest 20 token accounts, including
-                pool vaults. {chainError || chain?.historyError}
-              </p>
-            </div>
+            <OpenTrades
+              market={chainMarket}
+              you={publicKey?.toBase58()}
+              dev={character.ownerWallet}
+              usd={usd}
+              search={search}
+              ticker={token.ticker}
+              identity={holderIdentity}
+              explorer={explorer}
+            />
           ) : tab === "holders" ? (
             <div className="overflow-auto">
               <Table className="min-w-[530px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
@@ -812,7 +762,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                           <a
                             href={
                               onChain
-                                ? `https://solscan.io/tx/${t._id}?cluster=devnet`
+                                ? getTxExplorerUrl(t._id, token.network === "mainnet" ? "mainnet-beta" : "devnet")
                                 : explorer(t.wallet)
                             }
                             target="_blank"

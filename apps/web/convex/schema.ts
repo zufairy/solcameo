@@ -66,6 +66,12 @@ export default defineSchema({
   }).index("by_idem", ["idempotencyKey"]).index("by_wallet_token", ["wallet", "tokenId"]).index("by_token", ["tokenId"]),
   ssCommunityMessages: defineTable({
     characterId: v.id("ssCharacters"), author: v.string(), role: v.union(v.literal("fan"), v.literal("agent")), body: v.string(), imageUrl: v.optional(v.string()), createdAt: v.number(),
+    /** Fan's public profile picture at the time of posting (https only). Chat falls back to the Solcameo mark. */
+    authorImage: v.optional(v.string()),
+    /** An emoji the agent reacted with while reviewing this fan message. */
+    agentReaction: v.optional(v.string()),
+    /** On an agent reply: a one-line teaser of what the next video could look like. */
+    hint: v.optional(v.string()),
   }).index("by_character_created", ["characterId", "createdAt"]).index("by_created", ["createdAt"]).index("by_author_created", ["author", "createdAt"]),
   ssCommunityRounds: defineTable({
     characterId: v.id("ssCharacters"), window: v.number(), status: v.union(v.literal("running"), v.literal("complete"), v.literal("failed")), leaseUntil: v.number(), plot: v.optional(v.string()), summary: v.optional(v.string()), referenceImageUrl: v.optional(v.string()), createdAt: v.number(),
@@ -2571,4 +2577,27 @@ export default defineSchema({
     burnSig: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_epoch", ["epochStart"]),
+
+  /** Server-synced mirror of a coin's on-chain market, so the terminal reads it reactively from Convex instead of polling RPC.
+   *  Written only by internal-secret mutations in convex/solstarChain.ts. */
+  ssChainState: defineTable({
+    characterId: v.id("ssCharacters"), mint: v.string(), network: v.string(),
+    priceSol: v.number(), supplyRaw: v.string(), decimals: v.number(), slot: v.number(),
+    lastTime: v.number(), syncedAt: v.number(), error: v.optional(v.string()),
+  }).index("by_character", ["characterId"]),
+  ssChainSwaps: defineTable({
+    characterId: v.id("ssCharacters"), signature: v.string(), wallet: v.string(),
+    side: v.union(v.literal("buy"), v.literal("sell")),
+    units: v.number(), sol: v.number(), priceSol: v.number(), time: v.number(),
+  }).index("by_signature", ["signature"]).index("by_character_time", ["characterId", "time"]),
+  /** Average-cost position per wallet, maintained as swaps are ingested in time order. */
+  ssChainPositions: defineTable({
+    characterId: v.id("ssCharacters"), wallet: v.string(),
+    boughtTokens: v.number(), soldTokens: v.number(), spentSol: v.number(), receivedSol: v.number(),
+    openTokens: v.number(), costBasisSol: v.number(), realizedSol: v.number(),
+    trades: v.number(), firstAt: v.number(), lastAt: v.number(),
+  }).index("by_character_wallet", ["characterId", "wallet"]),
+  ssChainHolders: defineTable({
+    characterId: v.id("ssCharacters"), wallet: v.string(), units: v.string(), supplyPct: v.number(), isPool: v.boolean(),
+  }).index("by_character", ["characterId"]),
 });

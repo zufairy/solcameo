@@ -29,7 +29,7 @@ it("shows loading, empty, and live task completion for the selected agent", asyn
   query.tasks = [{ ...query.tasks[0], status: "succeeded", completedAt: Date.now() }];
   await render();
   expect(host.textContent).toContain("Done");
-  expect(host.textContent).toContain("1 completed recently");
+  expect(host.textContent).toContain("1 done");
   expect(host.textContent).not.toContain("Working");
   expect(host.textContent).not.toContain("Heartbeat");
 });

@@ -717,7 +717,8 @@ crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.re
 
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});
 
-crons.cron("community character replies", "1 * * * *", internal.communityChat.hourly, {});
+// Every 15 minutes (a minute past the quarter, so the round has closed): agents reply to and react to fan chat when there is any.
+crons.cron("community character replies", "1,16,31,46 * * * *", internal.communityChat.quarterHourly, {});
 // Monday 00:10 UTC: the week that just ended becomes a published SOLCAMEO epoch.
 crons.cron("plan SOLCAMEO reward epoch", "10 0 * * 1", internal.crons.planPlatformEpoch, {});
 crons.interval("DBC fee collection and content flywheel", { minutes: 2 }, internal.solstarFlywheel.sweep, {});

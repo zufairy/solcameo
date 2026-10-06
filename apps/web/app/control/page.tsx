@@ -22,6 +22,7 @@ import {
 } from "@/components/control/ui";
 import { VideoLightboxProvider, useVideoLightbox } from "@/components/control/VideoLightbox";
 import { AgentTaskActivity } from "@/components/control/AgentTaskActivity";
+import { AgentMarketCard } from "@/components/control/AgentMarketCard";
 import { CreateMenu } from "@/components/control/CreateMenu";
 import { Button } from "@/components/ui/button";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -779,6 +780,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
                     <div className="grid aspect-video place-items-center text-zinc-600"><Monitor className="size-6" /></div>
                   )}
                 </AnimatePresence>
+                {!isTeam && <AgentMarketCard key={lead.mintAddress} mint={lead.mintAddress} />}
               </div>
               <p className="mt-2 truncate text-center text-[12.5px] text-zinc-500">
                 {screenVideo ? `${screenVideo.caption ? screenVideo.caption.slice(0, 60) : "Untitled"} · ${formatWhen(screenVideo.createdAt)}` : `${title}'s screen`}

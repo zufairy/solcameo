@@ -39,7 +39,14 @@ export async function POST(req: NextRequest) {
       { status: 503 },
     );
   try {
+    // Show the fan's public profile picture in chat when they have one; the client falls back to the Solcameo mark.
+    let authorImage: string | undefined;
+    const wallets = [...new Set([...(auth.user.walletAddresses ?? []), auth.user.walletAddress].filter((w): w is string => !!w))].slice(0, 5);
+    if (wallets.length) {
+      try { authorImage = (await convexClient().query(api.users.leaderboardProfiles, { wallets })).find((p) => p.image && /^https:\/\//.test(p.image))?.image; } catch { /* a missing picture never blocks a message */ }
+    }
     const id = await convexClient().mutation(api.communityChat.post, {
+      ...(authorImage ? { authorImage } : {}),
       characterId: body.characterId as Id<"ssCharacters">,
       body: body.message,
       ...(body.imageStorageId

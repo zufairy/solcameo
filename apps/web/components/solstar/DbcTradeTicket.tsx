@@ -12,8 +12,9 @@ import {
   getCurrentSiwsWallet,
 } from "@/lib/client/siwsIdentity";
 import { parseUnits } from "@/lib/solstar/terminal";
-import { Settings2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AlertTriangle, ArrowUpRight, Check, Loader2, Settings2 } from "lucide-react";
+import { SolLogo } from "./SolLogo";
+import { AnimatePresence, motion } from "framer-motion";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { Input } from "@/components/ui/input";
 import type { MarketRow } from "./MarketTable";
@@ -65,6 +66,9 @@ export function DbcTradeTicket({
   const [quoteError, setQuoteError] = useState("");
   const [quoteRevision, setQuoteRevision] = useState(0);
   const [toast, setToast] = useState<{ text: string; signature: string } | null>(null);
+  // Buy amounts can be typed in dollars; the SOL amount below stays the single source of truth for quotes and swaps.
+  const [usdMode, setUsdMode] = useState(false);
+  const [usdTyped, setUsdTyped] = useState<{ text: string; sol: string } | null>(null);
   const locked = useRef(false);
   const wallet = publicKey?.toBase58();
   const storage = `solcameo-dbc-trade-${network}-${characterId}-${wallet}`;
@@ -160,6 +164,12 @@ export function DbcTradeTicket({
     const timer = setTimeout(() => setToast(null), 8000);
     return () => clearTimeout(timer);
   }, [toast]);
+  // The "Swap confirmed" notice (and its link, which the toast also carries) fades away on its own.
+  useEffect(() => {
+    if (!message || error || busy || !/^Swap confirmed/.test(message)) return;
+    const timer = setTimeout(() => { setMessage(""); if (!pending) setSignature(""); }, 5000);
+    return () => clearTimeout(timer);
+  }, [message, error, busy, pending]);
   const clearSaved = () => {
     sessionStorage.removeItem(storage);
     sessionStorage.removeItem(`solcameo-dbc-trade-${characterId}-${wallet}`);
@@ -409,6 +419,22 @@ export function DbcTradeTicket({
   const solAmount = side === "buy" ? Number(amount) : quote?.key === quoteKey ? Number(quote.minimumOut) / 1e9 : NaN;
   const usdValue = solUsd && Number.isFinite(solAmount) && solAmount > 0 ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(solAmount * solUsd) : null;
   const idle = busy || !!pending;
+  const usdActive = usdMode && side === "buy" && !!solUsd;
+  const trimSol = (n: number) => (Number.isFinite(n) && n > 0 ? n.toFixed(9).replace(/\.?0+$/, "") : "");
+  const inputValue = usdActive
+    ? usdTyped && usdTyped.sol === amount ? usdTyped.text : Number(amount) > 0 ? String(+(Number(amount) * solUsd!).toFixed(2)) : ""
+    : amount;
+  const onAmountInput = (raw: string) => {
+    setQuoteError("");
+    if (!usdActive) { setAmount(raw); return; }
+    const clean = raw.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    const sol = clean ? trimSol(Number(clean) / solUsd!) : "";
+    setUsdTyped({ text: clean, sol });
+    setAmount(sol);
+  };
+  const pickCurrency = (usd: boolean) => { setUsdMode(usd); setUsdTyped(null); };
+  const usdPresets = [10, 25, 100];
+  const usd2 = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n);
   const buyPresets = [0.1, 0.5, 1];
   const ctaLabel = busy
     ? "Processing swap…"
@@ -426,30 +452,45 @@ export function DbcTradeTicket({
   const ctaDisabled = busy || connecting || !compatible || (!!wallet && !pending && (!units || !validSlip));
   const ctaReady = !ctaDisabled && (!wallet || !!pending || !!units);
   const chip = (on: boolean) =>
-    `h-8 rounded-lg border font-sans text-[12px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${on ? (side === "buy" ? "border-[#d7ff00]/40 bg-[#d7ff00]/10 text-[#d7ff00]" : "border-rose-400/40 bg-rose-400/10 text-rose-300") : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white"}`;
+    `h-8 rounded-[8px] border font-sans text-[12px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${on ? (side === "buy" ? "border-[#d7ff00]/40 bg-[#d7ff00]/10 text-[#d7ff00]" : "border-rose-400/40 bg-rose-400/10 text-rose-300") : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white"}`;
   return (
     <div className="p-3">
-      {toast && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-emerald-300/30 bg-[#12201a] p-4 text-sm text-emerald-100 shadow-2xl"
-        >
-          <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-bold text-zinc-950">✓</span>
-          <div className="min-w-0">
-            <p className="font-medium">{toast.text}</p>
-            <a
-              href={getTxExplorerUrl(toast.signature, network === "mainnet" ? "mainnet-beta" : "devnet")}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-emerald-300 underline underline-offset-4"
-            >
-              View on Solscan
-            </a>
-          </div>
-          <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="text-emerald-300/60 hover:text-white">×</button>
-        </div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key={toast.signature}
+            role="status"
+            aria-live="assertive"
+            initial={{ opacity: 0, y: 18, scale: 0.96, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, scale: 0.97, filter: "blur(4px)" }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            className="fixed inset-x-4 bottom-4 z-50 overflow-hidden rounded-[20px] border border-white/[0.18] bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.04)_55%,rgba(215,255,0,0.07))] bg-[#0b0d0f]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(255,255,255,0.04),0_28px_70px_-24px_rgba(0,0,0,0.9)] backdrop-blur-2xl backdrop-saturate-150 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[340px]"
+          >
+            <div aria-hidden className="pointer-events-none absolute -left-10 -top-12 size-32 rounded-full bg-[#d7ff00]/20 blur-3xl" />
+            <div className="relative flex items-center gap-3 p-3.5 pr-3">
+              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border border-white/25 bg-gradient-to-b from-white/[0.28] to-white/[0.06] text-[#d7ff00] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_6px_16px_-6px_rgba(215,255,0,0.45)]">
+                <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-semibold leading-tight tracking-tight">{toast.text}</p>
+                <a
+                  href={getTxExplorerUrl(toast.signature, network === "mainnet" ? "mainnet-beta" : "devnet")}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-0.5 inline-flex items-center gap-1 text-[11.5px] text-white/55 transition-colors hover:text-white"
+                >
+                  View on Solscan <span aria-hidden>↗</span>
+                </a>
+              </div>
+              <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="grid size-7 shrink-0 place-items-center rounded-full text-white/45 transition-colors hover:bg-white/10 hover:text-white">
+                <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+              </button>
+            </div>
+            <motion.div aria-hidden className="h-[2px] origin-left bg-[#d7ff00]/70" initial={{ scaleX: 1 }} animate={{ scaleX: 0 }} transition={{ duration: 8, ease: "linear" }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
         <div aria-hidden className={`pointer-events-none absolute -top-16 left-1/2 h-32 w-3/4 -translate-x-1/2 rounded-full blur-3xl transition-colors duration-500 ${side === "buy" ? "bg-[#d7ff00]/[0.08]" : "bg-rose-500/[0.10]"}`} />
         <div className="relative flex items-center gap-2">
@@ -494,12 +535,12 @@ export function DbcTradeTicket({
             />
           </label>
         )}
-        <div className="relative mt-2 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3.5 pb-2.5 pt-2 transition-colors focus-within:border-white/20">
+        <div className="relative mt-2 rounded-[10px] border border-white/[0.07] bg-white/[0.035] px-3.5 pb-2.5 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus-within:border-white/25 focus-within:bg-white/[0.05]">
           <div className="flex items-center justify-between text-[11px] text-zinc-500">
             <span>{side === "buy" ? "You pay" : "You sell"}</span>
             {balance ? (
               <button type="button" disabled={idle} onClick={() => allocate(100)} className="font-sans tabular-nums transition-colors hover:text-zinc-200">
-                {`${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`}
+                <span className="inline-flex items-center gap-1">{side === "buy" && <SolLogo className="size-3" />}{`${human(side === "buy" ? balance.sol : balance.tokens, decimals)} ${side === "buy" ? "SOL" : ticker}`}</span>
               </button>
             ) : (
               <span className="font-sans tabular-nums">{wallet ? "Loading balance…" : "No wallet"}</span>
@@ -507,23 +548,38 @@ export function DbcTradeTicket({
           </div>
           <div className="flex items-center gap-2">
             <Input
-              aria-label={`Amount in ${side === "buy" ? "SOL" : ticker}`}
-              value={amount}
-              onChange={(e) => { setAmount(e.target.value); setQuoteError(""); }}
+              aria-label={`Amount in ${usdActive ? "USD" : side === "buy" ? "SOL" : ticker}`}
+              value={inputValue}
+              onChange={(e) => onAmountInput(e.target.value)}
               disabled={idle}
               placeholder="0"
               inputMode="decimal"
-              className="h-11 flex-1 border-0 bg-transparent px-0 font-sans text-[30px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
+              className="h-11 min-w-0 flex-1 border-0 bg-transparent px-0 font-sans text-[30px] font-semibold tabular-nums shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
             />
-            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-zinc-300">{side === "buy" ? "SOL" : ticker}</span>
+            {side === "buy" ? (
+              <div role="group" aria-label="Amount currency" className="flex shrink-0 rounded-full border border-white/10 bg-black/40 p-0.5 text-[11px] font-semibold">
+                <button type="button" disabled={idle} aria-pressed={!usdActive} onClick={() => pickCurrency(false)} className={`relative flex h-7 items-center gap-1.5 rounded-full px-2.5 transition-colors ${!usdActive ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" : "text-zinc-500 hover:text-zinc-200"}`}><SolLogo className="size-3.5" />SOL</button>
+                <button type="button" disabled={idle || !solUsd} title={solUsd ? undefined : "USD rate unavailable"} aria-pressed={usdActive} onClick={() => pickCurrency(true)} className={`flex h-7 items-center gap-1 rounded-full px-2.5 transition-colors disabled:opacity-40 ${usdActive ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" : "text-zinc-500 hover:text-zinc-200"}`}><span aria-hidden className="text-[12px] leading-none">$</span>USD</button>
+              </div>
+            ) : (
+              <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-zinc-300">{ticker}</span>
+            )}
           </div>
-          <p className="h-4 font-sans text-[11px] tabular-nums text-zinc-500">{usdValue != null ? `≈ ${usdValue}` : ""}</p>
+          <p className="flex h-4 items-center gap-1 font-sans text-[11px] tabular-nums text-zinc-500">
+            {usdActive
+              ? Number(amount) > 0 ? <>≈ <SolLogo className="size-3" />{Number(amount).toLocaleString("en-US", { maximumFractionDigits: 4 })} SOL</> : null
+              : usdValue != null ? (side === "sell" ? <>You receive ≈ <SolLogo className="size-3" />{solAmount.toLocaleString("en-US", { maximumFractionDigits: 4 })} · {usdValue}</> : `≈ ${usdValue}`) : ""}
+          </p>
         </div>
         <div className="relative mt-2 grid grid-cols-4 gap-1.5">
           {side === "buy"
-            ? buyPresets.map((n) => (
-                <button key={n} type="button" disabled={idle} onClick={() => { setAmount(String(n)); setQuoteError(""); }} className={chip(amount === String(n))}>{n} SOL</button>
-              ))
+            ? usdActive
+              ? usdPresets.map((n) => (
+                  <button key={n} type="button" disabled={idle} onClick={() => { const sol = trimSol(n / solUsd!); setUsdTyped({ text: String(n), sol }); setAmount(sol); setQuoteError(""); }} className={chip(usdTyped?.text === String(n) && usdTyped.sol === amount)}>{usd2(n)}</button>
+                ))
+              : buyPresets.map((n) => (
+                  <button key={n} type="button" disabled={idle} onClick={() => { setAmount(String(n)); setQuoteError(""); }} className={chip(amount === String(n))}>{n} SOL</button>
+                ))
             : [25, 50, 75].map((n) => (
                 <button key={n} type="button" disabled={idle || !balance} onClick={() => allocate(n)} className={chip(percent === n)}>{n}%</button>
               ))}
@@ -552,9 +608,12 @@ export function DbcTradeTicket({
           type="button"
           disabled={ctaDisabled}
           onClick={() => void trade()}
-          className={`relative mt-2 h-12 w-full rounded-xl text-[15px] font-semibold transition-all active:scale-[.985] disabled:cursor-not-allowed ${ctaReady ? (side === "buy" ? "bg-[#d7ff00] text-black shadow-[0_10px_28px_-10px_rgba(215,255,0,0.6)] hover:bg-[#e4ff59]" : "bg-rose-500 text-white shadow-[0_10px_28px_-10px_rgba(244,63,94,0.6)] hover:bg-rose-400") : "border border-white/[0.08] bg-white/[0.04] text-zinc-500"}`}
+          className={`group relative mt-2.5 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-[8px] text-[14px] font-bold tracking-[-0.01em] transition-[transform,filter,box-shadow] duration-200 active:scale-[.985] disabled:cursor-not-allowed ${ctaReady ? (side === "buy" ? "bg-[linear-gradient(180deg,#e6ff55_0%,#d7ff00_100%)] text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.65),inset_0_-1px_0_rgba(0,0,0,0.14),0_10px_26px_-12px_rgba(215,255,0,0.65)] hover:brightness-105" : "bg-[linear-gradient(180deg,#fb5b78_0%,#f43f5e_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.18),0_10px_26px_-12px_rgba(244,63,94,0.7)] hover:brightness-105") : "border border-white/[0.08] bg-white/[0.04] text-zinc-500"}`}
         >
-          {ctaLabel}
+          {ctaReady && <span aria-hidden className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/40 opacity-0 blur-md transition-all duration-700 group-hover:left-[110%] group-hover:opacity-70" />}
+          {busy && <Loader2 className="relative size-4 animate-spin" />}
+          <span className="relative">{ctaLabel}</span>
+          {ctaReady && !busy && !!units && <ArrowUpRight className="relative size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2.6} />}
         </button>
         {!compatible && (
           <p role="alert" className="mt-2 text-xs text-amber-300">
@@ -562,15 +621,33 @@ export function DbcTradeTicket({
           </p>
         )}
         {(balanceError || quoteError) && <p className="mt-2 text-[11px] text-amber-200">{balanceError || quoteError}</p>}
-        {message && (
-          <p
-            role={error ? "alert" : "status"}
-            aria-live="polite"
-            className={`mt-2 rounded-md p-2.5 text-xs leading-5 ${error ? "bg-rose-400/10 text-rose-300" : "bg-emerald-300/5 text-emerald-200"}`}
-          >
-            {message}
-          </p>
-        )}
+        <AnimatePresence initial={false}>
+          {message && (
+            <motion.div
+              key={error ? "error" : busy ? "progress" : "done"}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div
+                role={error ? "alert" : "status"}
+                aria-live="polite"
+                className={`mt-2.5 flex items-start gap-2.5 rounded-[10px] border px-3 py-2.5 text-[12px] leading-[18px] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl ${error ? "border-rose-400/25 bg-rose-500/[0.09] text-rose-100" : busy ? "border-white/[0.12] bg-white/[0.05] text-zinc-200" : "border-[#d7ff00]/25 bg-[linear-gradient(135deg,rgba(215,255,0,0.12),rgba(255,255,255,0.03))] text-white"}`}
+              >
+                <span aria-hidden className={`mt-px grid size-[18px] shrink-0 place-items-center rounded-full ${error ? "bg-rose-400/20 text-rose-300" : busy ? "text-zinc-300" : "bg-[#d7ff00] text-black"}`}>
+                  {error ? <AlertTriangle className="size-3" /> : busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3" strokeWidth={3.2} />}
+                </span>
+                <p className="min-w-0 flex-1">
+                  {/^Swap confirmed/.test(message)
+                    ? <><b className="font-semibold">Swap confirmed</b><span className="text-white/60">{message.replace(/^Swap confirmed\.?/, "")}</span></>
+                    : message}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {signature && (
           <a
             href={getTxExplorerUrl(signature, network === "mainnet" ? "mainnet-beta" : "devnet")}

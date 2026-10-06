@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { BrandAvatar } from "@/components/brand/BrandAvatar";
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -70,8 +71,6 @@ const dayLabel = (t: number) => {
   const diff = Math.round((start(today) - start(d)) / 86400000);
   return diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString([], { month: "short", day: "numeric" });
 };
-const TINTS = ["bg-sky-500/20 text-sky-300", "bg-violet-500/20 text-violet-300", "bg-amber-500/20 text-amber-300", "bg-rose-500/20 text-rose-300", "bg-teal-500/20 text-teal-300", "bg-fuchsia-500/20 text-fuchsia-300"];
-const tintFor = (name: string) => TINTS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % TINTS.length];
 
 export function MarketCharacterChat({
   characterId,
@@ -294,7 +293,7 @@ export function MarketCharacterChat({
               <span aria-hidden className="absolute -inset-5 rounded-[2rem] bg-[#d7ff00]/[0.07] blur-2xl" />
               <div className="relative grid size-16 place-items-center overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.14),rgba(255,255,255,0.03))] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_18px_40px_-16px_rgba(0,0,0,0.9)]">
                 {/* eslint-disable-next-line @next/next/no-img-element -- saved character portrait */}
-                {agentImageUrl ? <img src={agentImageUrl} alt="" className="size-full object-cover" /> : <MessageSquare className="size-6 text-zinc-200" />}
+                {agentImageUrl ? <img src={agentImageUrl} alt="" className="size-full object-cover" /> : <BrandAvatar seed="agent" look={0} />}
                 <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-t from-black/45 via-transparent to-white/10" />
               </div>
               <span className="absolute -bottom-2 -right-2 grid size-7 place-items-center rounded-[10px] border border-white/20 bg-[#d7ff00] text-black shadow-[0_8px_20px_-6px_rgba(215,255,0,0.6)] motion-safe:animate-[float_3.2s_ease-in-out_infinite]">
@@ -303,7 +302,7 @@ export function MarketCharacterChat({
             </div>
             <p className="mt-4 text-sm font-medium text-white">Start the conversation</p>
             <p className="mt-1.5 max-w-[240px] text-xs leading-5 text-zinc-500">
-              Share questions and ideas for the next video. {agentName} reviews messages at the top of each hour.
+              Share questions and ideas for the next video. {agentName} reads new messages every 15 minutes, replies and gives a hint about the next video.
             </p>
           </div>
         ) : (
@@ -329,14 +328,10 @@ export function MarketCharacterChat({
                 >
                   <div className="w-8 shrink-0">
                     {!grouped && (
-                      <Avatar size="default" className="size-8">
-                        {agent && agentImageUrl && <AvatarImage src={agentImageUrl} alt={agentName} className="object-cover" />}
-                        <AvatarFallback className={`text-[11px] font-semibold ${agent ? "bg-white/[0.06] p-1.5" : tintFor(m.author)}`}>
-                          {agent
-                            // eslint-disable-next-line @next/next/no-img-element -- bundled brand mark
-                            ? <img src="/brand/solcameo-mark.png" alt={agentName ?? "Solcameo"} className="size-full object-contain" />
-                            : m.author.replace(/^Fan\s*/, "").slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
+                      <Avatar size="default" className="size-8 ring-1 ring-white/10">
+                        {(agent ? agentImageUrl : m.authorImage) && <AvatarImage src={(agent ? agentImageUrl : m.authorImage)!} alt={agent ? agentName : m.author} className="object-cover" />}
+                        {/* No picture, or it failed to load: the Solcameo star in one of several looks, steady per person. */}
+                        <AvatarFallback className="bg-transparent p-0"><BrandAvatar seed={agent ? "agent" : m.author} look={agent ? 0 : undefined} /></AvatarFallback>
                       </Avatar>
                     )}
                   </div>
@@ -377,6 +372,25 @@ export function MarketCharacterChat({
                         <p className="whitespace-pre-wrap break-words text-[13px] leading-[1.45] text-zinc-200">{m.body}</p>
                       )}
                     </div>
+                    {m.agentReaction && (
+                      <motion.span
+                        initial={reduced ? false : { scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                        title={`${agentName} reacted`} aria-label={`${agentName} reacted with ${m.agentReaction}`}
+                        className="relative z-10 -mt-1.5 ml-2 inline-flex h-[22px] items-center gap-1 rounded-full border border-white/15 bg-white/[0.08] py-0.5 pl-0.5 pr-2 text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-md"
+                      >
+                        <span className="size-[18px] overflow-hidden rounded-full">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- saved character portrait */}
+                          {agentImageUrl ? <img src={agentImageUrl} alt="" className="size-full object-cover" /> : <BrandAvatar seed="agent" look={0} />}
+                        </span>
+                        <span aria-hidden="true">{m.agentReaction}</span>
+                      </motion.span>
+                    )}
+                    {agent && m.hint && (
+                      <div className="mt-1.5 flex w-fit max-w-full items-start gap-2 rounded-[10px] border border-[#d7ff00]/25 bg-[linear-gradient(135deg,rgba(215,255,0,0.12),rgba(215,255,0,0.03))] px-2.5 py-2">
+                        <Clapperboard className="mt-0.5 size-3.5 shrink-0 text-[#d7ff00]" />
+                        <p className="text-[12px] leading-[1.4] text-zinc-100"><span className="mr-1.5 text-[9.5px] font-semibold uppercase tracking-wider text-[#d7ff00]">Next video hint</span>{m.hint}</p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

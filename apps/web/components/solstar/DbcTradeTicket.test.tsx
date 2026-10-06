@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   fetch: vi.fn(),
   balance: vi.fn(),
   tokens: vi.fn(),
+  rate: null as number | null,
 }));
 vi.mock("@/hooks/use-solana-wallet", () => ({
   useUnifiedSolanaWallet: () => ({
@@ -27,7 +28,7 @@ vi.mock("@/hooks/use-solana-wallet", () => ({
 vi.mock("@/providers/supabase-auth-provider", () => ({
   useSupabaseAuth: () => ({ login: m.login, getFreshToken: m.auth }),
 }));
-vi.mock("@/lib/client/useSolUsd", () => ({ useSolUsd: () => null }));
+vi.mock("@/lib/client/useSolUsd", () => ({ useSolUsd: () => m.rate }));
 vi.mock("@solana/wallet-adapter-react", () => {
   const connection = {
     getBalance: m.balance,
@@ -83,6 +84,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", m.fetch);
   vi.stubEnv("NEXT_PUBLIC_SOLANA_NETWORK", "devnet");
   sessionStorage.clear();
+  m.rate = null;
   m.wallet = owner.publicKey.toBase58();
   m.auth.mockResolvedValue("auth");
   m.ensure.mockResolvedValue("proof");
@@ -236,4 +238,47 @@ it("uses the token balance for the sell slider and reserves SOL when choosing bu
       ) as HTMLInputElement
     ).value,
   ).toBe("4");
+});
+
+const clickEnding = async (text: string) => {
+  const button = [...host.querySelectorAll("button")].find((b) => b.textContent?.endsWith(text))!;
+  expect(button).toBeTruthy();
+  await act(async () => button.click());
+};
+const typeInto = async (input: HTMLInputElement, value: string) => {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+it("lets a buy amount be typed in USD and keeps the SOL amount in step", async () => {
+  m.rate = 100;
+  await render();
+  const input = () => host.querySelector("input") as HTMLInputElement;
+  await clickEnding("USD");
+  await typeInto(input(), "25");
+  expect(input().value).toBe("25");
+  expect(host.textContent).toContain("0.25 SOL");
+  await clickEnding("SOL");
+  expect(input().value).toBe("0.25");
+  expect(host.textContent).toContain("$25.00");
+});
+it("keeps USD disabled until a SOL price is known", async () => {
+  await render();
+  expect([...host.querySelectorAll("button")].find((b) => b.textContent?.endsWith("USD"))?.disabled).toBe(true);
+});
+it("fades the confirmation notice away after a few seconds", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
+  try {
+    const packet = { receipt: "reviewed", signature: "1".repeat(88), transaction: "signed-packet" };
+    sessionStorage.setItem(`solcameo-dbc-trade-devnet-coin-${m.wallet}`, JSON.stringify(packet));
+    m.fetch.mockImplementation(async () => ({ ok: true, json: async () => ({ confirmed: true }) }));
+    await render();
+    await click("Resume pending swap");
+    expect(host.textContent).toContain("Swap confirmed");
+    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    vi.useRealTimers();
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)); }); // let the exit animation finish
+    expect(host.textContent).not.toContain("Balances and market data are updating");
+  } finally { vi.useRealTimers(); }
 });

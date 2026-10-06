@@ -166,14 +166,14 @@ function TrendingPost({ item }: { item: TrendItem }) {
   const image = market?.character.referenceImageUrl || item.imageUrl || "/brand/solcameo-mark.png";
   const body = <>
     <div className="flex min-w-0 items-center gap-2.5">
-      <img src={image} alt="" className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-black/10" />
-      <div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="truncate text-[12px] font-semibold tracking-tight">{tokenName}</span>{ticker && <span className="rounded bg-white px-1 py-0.5 text-[9px] font-semibold">${ticker}</span>}<span className="truncate text-[10px] font-medium text-[#10130a]/60">by {creator}</span></div></div>
+      <img src={image} alt="" className="size-7 shrink-0 rounded-md object-cover ring-1 ring-black/10" />
+      <div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="truncate text-[12px] font-semibold tracking-tight">{ticker ? `$${ticker}` : tokenName}</span><span className="truncate text-[10px] font-medium text-[#10130a]/60">by {creator}</span></div></div>
     </div>
-    <div className="mt-3 text-[9px] font-semibold uppercase tracking-[.14em] text-[#10130a]/55">Market cap</div>
-    <div className="mt-1 text-[32px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{cap}</div>
-    <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-2 text-[10px] font-medium text-[#10130a]/60"><span>Total video views <span className="ml-1 font-semibold tabular-nums text-[#10130a]">{item.views == null ? "—" : item.views.toLocaleString("en-US")}</span></span><span>{item.characterId ? "Open market ↗" : item.engine}</span></div>
+    <div className="mt-2 text-[8.5px] font-semibold uppercase tracking-[.14em] text-[#10130a]/55">Market cap</div>
+    <div className="mt-0.5 text-[26px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{cap}</div>
+    <div className="mt-2 flex items-center justify-between border-t border-black/10 pt-1.5 text-[9.5px] font-medium text-[#10130a]/60"><span>Total video views <span className="ml-1 font-semibold tabular-nums text-[#10130a]">{item.views == null ? "—" : item.views.toLocaleString("en-US")}</span></span><span>{item.characterId ? "Open market ↗" : item.engine}</span></div>
   </>;
-  const cardClass = "block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]";
+  const cardClass = "block origin-bottom scale-[0.94] rounded-[3px] bg-[#d7ff00] px-3 py-2.5 text-[#10130a] shadow-[0_10px_32px_rgba(215,255,0,0.16)] transition-transform active:scale-[0.92]";
   return <article ref={article} className="relative flex h-[var(--feed-h,calc(100cqh-52px))] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
     <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
       <video ref={mirror} muted loop playsInline preload="metadata" src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" />
@@ -186,7 +186,7 @@ function TrendingPost({ item }: { item: TrendItem }) {
         <span />
         <Button size="icon-sm" variant="ghost" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute video" : "Mute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{muted ? <SpeakerOffIcon /> : <SpeakerLoudIcon />}</Button>
       </div>
-      <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-14">
+      <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-12">
         {item.characterId ? <Link href={`/market/${item.characterId}`} aria-label={`Open ${item.name} market`} className={cardClass}>{body}</Link> : <div className={cardClass}>{body}</div>}
       </motion.div>
     </div>

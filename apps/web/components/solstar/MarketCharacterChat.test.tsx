@@ -10,6 +10,9 @@ const m = vi.hoisted(() => ({
       role: string;
       author: string;
       body: string;
+      authorImage?: string;
+      agentReaction?: string;
+      hint?: string;
     }[],
     plot: null,
   },
@@ -94,4 +97,25 @@ it("keeps history and live updates in one conversation without the removed heade
   expect(host.textContent).toContain("latest message");
   expect(host.textContent).toContain("incoming message");
   expect(host.textContent).not.toContain("Load earlier messages");
+});
+
+it("shows profile pictures, falls back to the Solcameo star, and renders the agent's reaction and next-video hint", async () => {
+  m.live = {
+    messages: [
+      { ...message("with picture", 100), author: "Fan 1", authorImage: "https://img.test/p.png", agentReaction: "🔥" },
+      { ...message("without picture", 200), author: "Fan 2" },
+      { ...message("agent reply", 300), role: "agent", author: "agent", hint: "Expect neon rooftops." },
+    ],
+    plot: null,
+  };
+  host.id = "root"; document.body.append(host);
+  await act(async () => root.render(<MarketCharacterChat characterId="coin" agentName="Nova" agentImageUrl="https://img.test/nova.png" />));
+  const text = host.textContent ?? "";
+  expect(text).toContain("Next video hint");
+  expect(text).toContain("Expect neon rooftops.");
+  expect(host.querySelector('[aria-label="Nova reacted with 🔥"]')).toBeTruthy();
+  // The star mark stands in wherever a picture is missing (the fan without one, and every avatar until images load).
+  expect(host.querySelectorAll('img[src="/brand/solcameo-mark.png"]').length).toBeGreaterThanOrEqual(1);
+  expect(text).not.toContain("top of each hour");
+  host.remove();
 });

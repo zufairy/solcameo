@@ -60,61 +60,50 @@ function timeAgo(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Minimal, premium agent card — identity + how much it's made, no
- *  tokenomics (TVL/APR/share price) and no on-chain chrome. */
+/** Agent card: the portrait on top, the details underneath. Whole card opens the agent; chat and delete float over the image. */
 function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; lastPostAt: number | null; onDelete: (mint: string, name: string) => void; onChat?: (mint: string) => void }) {
   const operateHref = `/builder?type=${doc.agentType || "influencer"}&mint=${doc.mintAddress}`;
 
   return (
-    <div className="group relative flex items-stretch overflow-hidden rounded-lg border border-white/10 bg-[#121416] transition-colors hover:bg-[#191c1e]">
-      <Link href={operateHref} aria-label={`Open ${doc.name}`} className="absolute inset-0 z-[1] rounded-lg focus-visible:outline-2 focus-visible:outline-[#d7ff00]" />
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-[10px] border border-white/10 bg-[#121416] transition-[border-color,background-color,transform] duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#171a1c]">
+      <Link href={operateHref} aria-label={`Open ${doc.name}`} className="absolute inset-0 z-[1] rounded-[10px] focus-visible:outline-2 focus-visible:outline-[#d7ff00]" />
+
+      <div className="pointer-events-none relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-white/5">
+        <AgentAvatar url={doc.avatarUrl} name={doc.name} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" initialClassName="text-5xl" />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#121416] via-[#121416]/40 to-transparent" />
+        {doc.coinTicker && <span className="absolute left-2.5 top-2.5 rounded-[4px] border border-[#d7ff00]/30 bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-[#d7ff00] backdrop-blur-md">${doc.coinTicker}</span>}
+        {doc.heartbeatEnabled && (
+          <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/80 backdrop-blur-md" title="Heartbeat on">
+            <Heart className="size-3 shrink-0 animate-pulse fill-pink-500 text-pink-500" aria-hidden /> Live
+          </span>
+        )}
+      </div>
+
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(doc.mintAddress, doc.name); }}
         title="Delete agent"
-        className="absolute right-2 top-2 z-10 grid size-6 place-items-center bg-black/50 text-white/50 opacity-0 backdrop-blur-sm transition hover:bg-red-500/80 hover:text-white group-hover:opacity-100"
+        className="absolute right-2.5 top-2.5 z-10 grid size-7 place-items-center rounded-[6px] bg-black/55 text-white/60 opacity-0 backdrop-blur-md transition hover:bg-red-500/85 hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Trash2 className="size-3.5" />
       </button>
-
       {onChat && (
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChat(doc.mintAddress); }}
           title={`Chat with ${doc.name}`}
-          className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-xl transition hover:bg-white/20"
+          className="absolute right-2.5 top-[calc(75%-2.5rem)] z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-xl transition hover:bg-white/20"
         >
           <MessagesSquare className="size-3" /> Chat
         </button>
       )}
 
-      <div className="pointer-events-none relative size-20 shrink-0 overflow-hidden bg-white/5 sm:size-24">
-        <AgentAvatar url={doc.avatarUrl} name={doc.name} className="size-full object-cover" initialClassName="text-3xl" />
-      </div>
-
-      <div className="pointer-events-none relative z-[2] flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-4">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-[15px] font-medium text-white">{doc.name}</p>
-          {doc.coinTicker && <span className="rounded bg-[#d7ff00]/10 px-1.5 py-0.5 text-[9px] text-[#d7ff00]">${doc.coinTicker}</span>}
-          {doc.heartbeatEnabled && (
-            <Heart className="size-3 shrink-0 animate-pulse fill-pink-500 text-pink-500" aria-label="Heartbeat on" role="img">
-              <title>Heartbeat on</title>
-            </Heart>
-          )}
-
-        </div>
-        {doc.description && (
-          <p className="line-clamp-2 text-[11.5px] leading-snug text-white/45">{doc.description}</p>
-        )}
-        <div className="mt-1 flex items-center gap-2.5 text-[11.5px] text-white/45">
-          {lastPostAt != null && (
-            <span>Last post <b className="font-semibold text-white/80">{timeAgo(lastPostAt)}</b></span>
-          )}
-          <ConnectedPlatformStack
-            platforms={doc.connectedPlatforms}
-            badgeClassName="size-5"
-            ringClassName="ring-[#131316]"
-          />
+      <div className="pointer-events-none relative z-[2] -mt-1 flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 pb-3.5 pt-1">
+        <p className="truncate text-[15px] font-semibold tracking-tight text-white">{doc.name}</p>
+        {doc.description && <p className="line-clamp-2 text-[11.5px] leading-snug text-white/45">{doc.description}</p>}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5 text-[11.5px] text-white/45">
+          <span className="min-w-0 truncate">{lastPostAt != null ? <>Last post <b className="font-semibold text-white/80">{timeAgo(lastPostAt)}</b></> : "No posts yet"}</span>
+          <ConnectedPlatformStack platforms={doc.connectedPlatforms} badgeClassName="size-5" ringClassName="ring-[#131316]" />
         </div>
       </div>
     </div>
@@ -649,7 +638,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
 
 
             {hasAccount && !loading && filtered.length > 0 && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 2xl:grid-cols-3">
                 {filtered.map((doc, i) => {
                   const stats = agentStats.get(doc.mintAddress);
                   return (
