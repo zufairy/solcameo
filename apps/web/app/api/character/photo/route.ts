@@ -17,8 +17,11 @@ export async function POST(req: NextRequest) {
   }
   try {
     const sharp = (await import("sharp")).default;
-    const jpg = await sharp(Buffer.from(await file.arrayBuffer())).rotate().resize(1536, 1536, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
-    const stored = await putImage(jpg, "image/jpeg", { keyPrefix: `characters/${a.mint}/photo` });
+    // A logo is flattened onto white (not black) so a transparent dark mark stays readable.
+    const logo = form?.get("kind") === "logo";
+    const base = sharp(Buffer.from(await file.arrayBuffer())).rotate().resize(1536, 1536, { fit: "inside", withoutEnlargement: true });
+    const jpg = await (logo ? base.flatten({ background: "#ffffff" }) : base).jpeg({ quality: 90 }).toBuffer();
+    const stored = await putImage(jpg, "image/jpeg", { keyPrefix: `characters/${a.mint}/${logo ? "logo" : "photo"}` });
     return NextResponse.json({ url: stored.url });
   } catch {
     return NextResponse.json({ error: "That image could not be read" }, { status: 400 });

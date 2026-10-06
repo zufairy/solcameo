@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Check, Compass, Download, History, Loader2, Maximize2, Sparkles, Star, X } from "lucide-react";
+import { AlertTriangle, Check, Compass, Download, History, Loader2, Maximize2, Shirt, Sparkles, Star, X } from "lucide-react";
 import type { CharModel } from "@/lib/character/types";
 import { DISPLAY_FONT, LIME, SPRING, SURFACE } from "./character-ui";
 
@@ -58,9 +58,9 @@ function PendingCard({ tile, now }: { tile: Tile; now: number }) {
   );
 }
 
-function TileCard({ tile, now, picked, index, onPick, onOpen, onDismiss }: {
+function TileCard({ tile, now, picked, index, onPick, onOpen, onDismiss, onShirt }: {
   tile: Tile; now: number; picked: boolean; index: number;
-  onPick: () => void; onOpen: () => void; onDismiss: () => void;
+  onPick: () => void; onOpen: () => void; onDismiss: () => void; onShirt?: () => void;
 }) {
   return (
     <motion.div
@@ -104,9 +104,10 @@ function TileCard({ tile, now, picked, index, onPick, onOpen, onDismiss }: {
               <button type="button" aria-label="Expand" onClick={onOpen} className="grid size-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/80"><Maximize2 className="size-3.5" /></button>
             </span>
           </div>
+          {onShirt && <button type="button" onClick={onShirt} aria-label="Change shirt" title="Change shirt" className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-full border border-white/25 bg-gradient-to-b from-white/[0.28] to-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_6px_18px_-6px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-transform hover:scale-110 active:scale-95"><Shirt className="size-4" /></button>}
           <AnimatePresence>
             {picked && (
-              <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={SPRING} className="absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full bg-lime-400 text-black shadow-lg">
+              <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={SPRING} className={`absolute top-2.5 grid size-7 place-items-center rounded-full bg-lime-400 text-black shadow-lg ${onShirt ? "right-12" : "right-2.5"}`}>
                 <Star className="size-3.5 fill-black" />
               </motion.span>
             )}
@@ -185,9 +186,9 @@ function Lightbox({ tile, picked, onClose, onPick }: { tile: Tile; picked: boole
   );
 }
 
-export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onSave, saving, error, prompt, historyLoading = false, saveLabel = "Save character", fill = false }: {
+export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onShirt, onSave, saving, error, prompt, historyLoading = false, saveLabel = "Save character", fill = false }: {
   tiles: Tile[]; generating: boolean; pickedUrl: string | null;
-  saveLabel?: string; /** Stretch to the parent height instead of a capped, sticky panel (onboarding). */ fill?: boolean; onPick: (t: Tile) => void; onDismiss: (id: string) => void; onSave: () => void; saving: boolean;
+  saveLabel?: string; /** Stretch to the parent height instead of a capped, sticky panel (onboarding). */ fill?: boolean; onPick: (t: Tile) => void; onDismiss: (id: string) => void; onShirt?: (t: Tile) => void; onSave: () => void; saving: boolean;
   error: string | null; prompt: string | null; historyLoading?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -251,7 +252,7 @@ export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onSav
                 <AnimatePresence initial={false}>
                   {col.map(({ tile, index }) => (
                     <TileCard key={tile.id} tile={tile} now={now} index={index} picked={!!tile.url && tile.url === pickedUrl}
-                      onPick={() => onPick(tile)} onOpen={() => setOpen(tile.id)} onDismiss={() => onDismiss(tile.id)} />
+                      onPick={() => onPick(tile)} onOpen={() => setOpen(tile.id)} onDismiss={() => onDismiss(tile.id)} onShirt={onShirt ? () => onShirt(tile) : undefined} />
                   ))}
                 </AnimatePresence>
               </div>
