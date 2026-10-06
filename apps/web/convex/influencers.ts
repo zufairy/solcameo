@@ -69,7 +69,8 @@ export const listAll = query({
 export const listSearchable = query({
   args: {},
   handler: async (ctx) => {
-    const docs = await ctx.db.query("influencers").order("desc").collect();
+    // Bounded: an unbounded collect() of whole influencer documents eventually exceeds Convex's per-query read limits.
+    const docs = await ctx.db.query("influencers").order("desc").take(500);
     const tickers = await Promise.all(docs.map(async (d) => (d.solstarTokenId ? (await ctx.db.get(d.solstarTokenId))?.ticker : undefined)));
     return docs.map((d, i) => ({
       _id: d._id,

@@ -45,6 +45,9 @@ export const getById = internalQuery({
  *  to emails listed in ADMIN_SEED_EMAILS. There is deliberately NO first-user
  *  auto-grant: on a fresh deploy that would let the first stranger to hit the URL
  *  (e.g. an attacker probing it) become admin. */
+/** How often an unchanged signed-in user may rewrite their presence rows. */
+const PRESENCE_WRITE_MS = 2 * 60_000;
+
 export const upsertFromSupabase = internalMutation({
   args: {
     supabaseId: v.string(),
@@ -67,6 +70,12 @@ export const upsertFromSupabase = internalMutation({
       // account too — still gated on the trusted allowlist, never an auto-grant.
       const shouldBeAdmin = existing.isAdmin === true
         || (nextEmail ? seedEmailsExisting.has(nextEmail.toLowerCase()) : false);
+      // whoami runs on every page load, tab focus and 3-minute heartbeat. Writing the same user and activity rows each
+      // time made concurrent calls collide ("retried due to write conflicts"). Only write when something changed or
+      // the last write is stale; an unchanged read-only call commits nothing and cannot conflict.
+      const changed = (email ?? existing.email) !== existing.email || (name ?? existing.name) !== existing.name
+        || (image ?? existing.image) !== existing.image || shouldBeAdmin !== (existing.isAdmin === true);
+      if (!changed && now - (existing.lastSeenAt ?? 0) < PRESENCE_WRITE_MS) return existing._id;
       await ctx.db.patch(existing._id, {
         email: email ?? existing.email,
         name: name ?? existing.name,
@@ -142,6 +151,11 @@ export const linkWalletInternal = internalMutation({
       throw new Error("This wallet is already linked to another account.");
     }
 
+    // Already linked and already the primary wallet: nothing to write (this runs on every whoami).
+    if (owner && owner.userId === userId) {
+      const current = await ctx.db.get(userId);
+      if (current?.walletAddress === walletAddress && current.signupCreditsGrantedAt) return { ok: true };
+    }
     if (!owner) {
       await ctx.db.insert("walletLinks", {
         userId,

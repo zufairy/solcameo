@@ -19,8 +19,8 @@ describe("analytics DAU + login tracking", () => {
 
     // First open of the day for a brand-new user → DAU +1, newUsers +1.
     await t.run(async (ctx) => recordDailyActivity(ctx, userId, now, true));
-    // Second open same day → must NOT add a new DAU, just bump opens.
-    await t.run(async (ctx) => recordDailyActivity(ctx, userId, now + 1000, false));
+    // Second open same day (after the 1-minute write throttle) → must NOT add a new DAU, just bump opens.
+    await t.run(async (ctx) => recordDailyActivity(ctx, userId, now + 61_000, false));
 
     const stats1 = await t.run(async (ctx) =>
       ctx.db.query("dailyStats").withIndex("by_day", (q) => q.eq("day", day)).unique(),

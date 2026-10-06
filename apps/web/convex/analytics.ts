@@ -114,6 +114,8 @@ export async function recordDailyActivity(
     await bumpDailyStats(ctx, day, { activeUsers: 1, newUsers: isNewUser ? 1 : 0 });
     return;
   }
+  // Presence is already throttled by the caller; skip near-simultaneous opens so one hot row is not rewritten per call.
+  if (now - existing.lastSeenAt < 60_000) return;
   await ctx.db.patch(existing._id, { lastSeenAt: now, opens: existing.opens + 1 });
 }
 
@@ -141,6 +143,8 @@ async function recordDailyLogin(
     await bumpDailyStats(ctx, day, { activeUsers: 1, logins: 1 });
     return;
   }
+  // The client reports each login more than once (Privy complete + profile refresh); count one per minute per user.
+  if (existing.loggedIn && now - existing.lastSeenAt < 60_000) return;
   if (!existing.loggedIn) {
     await ctx.db.patch(existing._id, { loggedIn: true, lastSeenAt: now });
   } else {

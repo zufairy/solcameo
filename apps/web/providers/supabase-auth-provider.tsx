@@ -178,6 +178,19 @@ function AuthState({ children }: { children: React.ReactNode }) {
   });
   const { wallets: privySolanaWallets } = usePrivySolanaWallets();
   const whoami = useAction(api.users.whoami);
+  // Auth change, wallet provisioning, the heartbeat and tab focus often ask for the same profile at once. Calls made
+  // with the same token while one is in flight share its result instead of each hitting (and writing to) the backend.
+  const whoamiInFlight = useRef<{ token: string; promise: ReturnType<typeof whoami> } | null>(null);
+  const whoamiShared = useCallback((token: string) => {
+    const current = whoamiInFlight.current;
+    if (current && current.token === token) return current.promise;
+    const promise = whoami({ accessToken: token });
+    const entry = { token, promise };
+    whoamiInFlight.current = entry;
+    const clear = () => { if (whoamiInFlight.current === entry) whoamiInFlight.current = null; };
+    promise.then(clear, clear);
+    return promise;
+  }, [whoami]);
   const passwordSignUpAction = useAction(api.auth.passwordSignUp);
   const passwordSignInAction = useAction(api.auth.passwordSignIn);
 
@@ -376,7 +389,7 @@ function AuthState({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (pwToken) {
       try {
-        setProfile(await whoami({ accessToken: pwToken }));
+        setProfile(await whoamiShared(pwToken));
       } catch {
         setProfile(null);
       }
@@ -399,11 +412,11 @@ function AuthState({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      setProfile(await whoami({ accessToken: tok }));
+      setProfile(await whoamiShared(tok));
     } catch {
       setProfile(null);
     }
-  }, [pwToken, authenticated, getAccessToken, whoami]);
+  }, [pwToken, authenticated, getAccessToken, whoamiShared]);
 
   useEffect(() => {
     if (ready) void refreshProfile();

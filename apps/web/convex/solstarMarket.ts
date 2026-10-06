@@ -76,6 +76,10 @@ export const listMarket = query({
       .withIndex("by_network", (q) => q.eq("network", network))
       .take(MAX_LIST);
 
+    // Convex aborts a query that reads more than ~16k documents, and this one runs on every page (the ticker).
+    // Counting followers and episodes per token used to read up to 2,002 documents each, so a few popular coins
+    // were enough to break every page. Share a fixed read budget across the listed coins instead.
+    const countCap = Math.max(20, Math.min(1000, Math.floor(8000 / Math.max(1, tokens.length) / 2)));
     const rows: Array<Row & { volume: bigint; mcap: bigint; change: bigint }> =
       [];
     for (const token of tokens) {
@@ -102,12 +106,12 @@ export const listMarket = query({
       const episodes = await ctx.db
         .query("ssEpisodes")
         .withIndex("by_token", (q) => q.eq("tokenId", token._id))
-        .take(1001);
+        .take(countCap + 1);
       const following = await ctx.db
         .query("ssFollows")
         .withIndex("by_character", (q) => q.eq("characterId", character._id))
-        .take(1001);
-      const followers = Math.min(following.length, 1000);
+        .take(countCap + 1);
+      const followers = Math.min(following.length, countCap);
       // Full stats come from the bounded ledger replay. Incomplete history is marked
       // explicitly; the UI shows unavailable rather than claiming zero activity.
       const volume = stats
@@ -137,13 +141,13 @@ export const listMarket = query({
         volume24hLamports: volume.toString(),
         trades24h,
         followers,
-        followersCountCapped: following.length > 1000,
+        followersCountCapped: following.length > countCap,
         historyComplete: stats !== null,
         createdAt: token.createdAt,
         ...(character.xUrl ? { xUrl: character.xUrl } : {}),
         ...(character.websiteUrl ? { websiteUrl: character.websiteUrl } : {}),
-        videosPosted: Math.min(episodes.length, 1000),
-        videosCountCapped: episodes.length > 1000,
+        videosPosted: Math.min(episodes.length, countCap),
+        videosCountCapped: episodes.length > countCap,
         holders: stats?.holders.length ?? null,
         changes: stats?.changes ?? null,
         sparkline: stats?.points.slice(-32).map((p) => p.price) ?? [],
