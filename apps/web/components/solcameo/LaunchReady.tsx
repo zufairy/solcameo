@@ -112,11 +112,11 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
             </div>
 
             {funded ? (
-              <button type="button" onClick={() => onNavigate(`/control?agent=${characterId}`)} className="relative mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#d7ff00] text-[15px] font-semibold text-black shadow-[0_12px_30px_-10px_rgba(215,255,0,0.65)] transition hover:bg-[#e4ff59] active:scale-[0.98]">
+              <button type="button" onClick={() => onNavigate(`/control?agent=${characterId}`)} className="relative mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#d7ff00] text-[15px] font-semibold text-black shadow-[0_12px_30px_-10px_rgba(215,255,0,0.65)] transition hover:bg-[#e4ff59] active:scale-[0.98]">
                 <Rocket className="size-4" /> Generate first video <ArrowRight className="size-4" />
               </button>
             ) : (
-              <button type="button" onClick={() => setDepositOpen(true)} disabled={!wallet} className="group relative mt-4 flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.06)_55%,rgba(255,255,255,0.12))] text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-1px_0_rgba(0,0,0,0.25),0_14px_30px_-14px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/[0.2] before:to-transparent hover:border-white/40 hover:bg-white/[0.14] active:scale-[0.98] disabled:opacity-50">
+              <button type="button" onClick={() => setDepositOpen(true)} disabled={!wallet} className="group relative mt-4 flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-md border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.06)_55%,rgba(255,255,255,0.12))] text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-1px_0_rgba(0,0,0,0.25),0_14px_30px_-14px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/[0.2] before:to-transparent hover:border-white/40 hover:bg-white/[0.14] active:scale-[0.98] disabled:opacity-50">
                 <span className="grid size-6 place-items-center rounded-full bg-[#d7ff00] text-black shadow-[0_0_18px_rgba(215,255,0,0.55)] transition-transform duration-200 group-hover:rotate-90"><Plus className="size-4" strokeWidth={3} /></span>
                 Add funds
               </button>
@@ -129,9 +129,14 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
             ))}
           </ul>
 
-          <button type="button" onClick={() => onNavigate(`/market/${characterId}`)} className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-400 transition-colors hover:text-white">
-            {funded ? "View your market" : "Skip for now, view your market"} <ArrowRight className="size-3.5" />
-          </button>
+          <div className="mt-5 grid grid-cols-2 gap-2.5">
+            <button type="button" onClick={() => onNavigate(`/market/${characterId}`)} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border border-white/[0.14] bg-white/[0.04] text-[13.5px] font-semibold text-zinc-200 backdrop-blur-xl transition-colors hover:bg-white/[0.09] hover:text-white active:scale-[0.98]">
+              View market
+            </button>
+            <button type="button" onClick={() => onNavigate(`/control?agent=${characterId}`)} className="relative inline-flex h-11 items-center justify-center gap-1.5 overflow-hidden rounded-md border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.7)_55%,rgba(255,255,255,0.84))] text-[13.5px] font-semibold text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_24px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/70 before:to-transparent hover:bg-white active:scale-[0.98]">
+              Open your agent <ArrowRight className="size-3.5" />
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

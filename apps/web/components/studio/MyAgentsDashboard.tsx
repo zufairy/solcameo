@@ -46,7 +46,7 @@ type CreatorDoc = FunctionReturnType<typeof api.influencers.listByCreators>[numb
 
 /** Relative time — "4hr ago", "5mins ago" — falls back to a date past 7d. */
 /** Boxy glass button with a gloss sheen: translucent gradient, bright top edge, soft blur. */
-const LEADERBOARD_BUTTON = "group relative h-9 gap-1.5 overflow-hidden rounded-md border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.03)_55%,rgba(255,255,255,0.08))] text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.25),0_8px_20px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-[background-color,border-color,transform] duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/[0.18] before:to-transparent hover:border-white/30 hover:bg-white/[0.1] active:scale-[0.98]";
+const LEADERBOARD_BUTTON = "group relative h-9 gap-1.5 overflow-hidden rounded-md border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.72)_55%,rgba(255,255,255,0.84))] text-[13px] font-semibold text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(0,0,0,0.08),0_8px_20px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-[background-color,border-color,transform] duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/70 before:to-transparent hover:bg-white active:scale-[0.98]";
 
 function timeAgo(ts: number): string {
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -559,7 +559,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 nativeButton={false}
                 render={<Link href="/tournament" />}
               >
-                <Medal className="size-4 text-[#d7ff00]" strokeWidth={1.75} />
+                <Medal className="size-4 text-black" strokeWidth={1.9} />
                 Leaderboards
               </Button>
             </div>
@@ -688,7 +688,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
                 nativeButton={false}
                 render={<Link href="/tournament" />}
               >
-                <Medal className="size-4 text-[#d7ff00]" strokeWidth={1.75} />
+                <Medal className="size-4 text-black" strokeWidth={1.9} />
                 Leaderboards
               </Button>
             </div>
