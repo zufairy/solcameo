@@ -2591,11 +2591,20 @@ export default defineSchema({
     characterId: v.id("ssCharacters"), mint: v.string(), network: v.string(),
     priceSol: v.number(), supplyRaw: v.string(), decimals: v.number(), slot: v.number(),
     lastTime: v.number(), syncedAt: v.number(), error: v.optional(v.string()),
+    /** Creator economics read from the pool, so the leaderboard needs no RPC. */
+    creator: v.optional(v.string()), creatorSharePct: v.optional(v.number()),
+    feesSol: v.optional(v.number()), claimableSol: v.optional(v.number()), migrated: v.optional(v.boolean()),
+    /** Swaps at or after this time carry fee data; 0 when the whole history was captured. */
+    feeTrackedSince: v.optional(v.number()),
+    /** False when the chain history could not be read in full, so cost bases cannot be trusted. */
+    historyComplete: v.optional(v.boolean()),
   }).index("by_character", ["characterId"]),
   ssChainSwaps: defineTable({
     characterId: v.id("ssCharacters"), signature: v.string(), wallet: v.string(),
     side: v.union(v.literal("buy"), v.literal("sell")),
     units: v.number(), sol: v.number(), priceSol: v.number(), time: v.number(),
+    /** Trading fee of this swap in SOL (before the creator share) and the network fee the trader paid. */
+    feeSol: v.optional(v.number()), networkFeeSol: v.optional(v.number()),
   }).index("by_signature", ["signature"]).index("by_character_time", ["characterId", "time"]).index("by_character_wallet_time", ["characterId", "wallet", "time"]),
   /** Average-cost position per wallet, maintained as swaps are ingested in time order. */
   ssChainPositions: defineTable({

@@ -390,6 +390,18 @@ export const runAnalyticsSync = internalAction({
   },
 });
 
+/** Keeps the market tables (prices, swaps, creator fees) current so the leaderboard answers from Convex alone. */
+export const syncLiveMarkets = internalAction({
+  args: {},
+  handler: async (): Promise<{ ok: boolean }> => {
+    const res = await appFetch(`/api/solstar/market-sync/all`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(process.env.INTERNAL_CRON_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_CRON_SECRET } : {}) },
+    }).catch(() => null);
+    return { ok: !!res?.ok };
+  },
+});
+
 /** Per-minute driver for explore "Schedule": submits due renders and finishes completed ones. */
 export const runScheduledRecreations = internalAction({
   args: {},
@@ -644,6 +656,7 @@ crons.interval(
 );
 
 crons.interval("settle due agent service tabs", { hours: 1 }, internal.crons.settleDueTabs, {});
+crons.interval("sync live markets into convex", { minutes: 2 }, internal.crons.syncLiveMarkets, {});
 crons.interval("refresh explore reference library", { hours: 3 }, internal.crons.refreshExploreLibrary, {});
 
 // Recovery keeper — re-drive stranded fee settlements (booked but unpaid). Runs

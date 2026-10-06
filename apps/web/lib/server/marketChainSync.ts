@@ -2,6 +2,7 @@ import { marketRpcFetch } from "./marketRpcFetch";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
+import { getUnClaimLpFee } from "@meteora-ag/cp-amm-sdk";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convexClient, internalSecret } from "./solstarRoute";
@@ -15,7 +16,7 @@ import type { RpcTrade } from "@/lib/solstar/leaderboard";
  * holders and the pool price. The terminal subscribes to those Convex tables, so the browser never polls RPC for them.
  * Safe to call as often as you like: calls are coalesced per coin and Convex ignores swaps it already has.
  */
-const MIN_GAP_MS = 10_000, OVERLAP_MS = 5 * 60_000, FIRST_SYNC_TRADES = 500, CHUNK = 100;
+const MIN_GAP_MS = 10_000, OVERLAP_MS = 5 * 60_000, CHUNK = 100;
 const lastRun = new Map<string, number>();
 const inflight = new Map<string, Promise<SyncResult>>();
 export type SyncResult = { ok: boolean; ingested: number; skipped?: string };
@@ -82,23 +83,49 @@ async function run(characterId: string): Promise<SyncResult> {
       }));
 
       const common = { authSecret: secret, characterId: id, mint, network };
-      const market = { priceSol: price, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders };
+      // `price` is SOL per raw base unit (what the pool stores); the tables hold SOL per whole token.
+      const priceSol = price * 10 ** decimals;
+      const market = { priceSol, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders };
       // Push holder data immediately; historical transaction scanning must not delay the first view.
       await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market });
       const history = await readPoolHistory(connection, poolAddress, network);
-      const trades: RpcTrade[] = history.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, dbcPool); return p?.trade ? [p.trade] : []; });
+      type Decoded = { trade: RpcTrade; fee: number };
+      const decode = (source: typeof history, pool: string, quoteIsB?: boolean): Decoded[] => source.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, pool, quoteIsB); return p?.trade ? [{ trade: p.trade, fee: p.fee }] : []; });
+      const decoded: Decoded[] = decode(history, dbcPool);
+      let historyComplete = history.complete;
+      // Creator economics, the same figures the leaderboard used to read live: lifetime and claimable fees.
+      const share = BigInt(config.creatorTradingFeePercentage);
+      const creatorTotal = (value: { toString(): string }) => Number(BigInt(value.toString()) * share / 100n);
+      let feesSol = creatorTotal(pool.poolState.metrics.totalTradingQuoteFee) / 1e9 + creatorTotal(pool.poolState.metrics.totalTradingBaseFee) * price;
+      let claimableSol = Number(pool.poolState.creatorQuoteFee.toString()) / 1e9 + Number(pool.poolState.creatorBaseFee.toString()) * price;
       if (pool.poolState.isMigrated) {
         const migrated = await migratedPool(connection, poolAddress);
         if (migrated) {
           const quoteIsB = migrated.state.tokenBMint.equals(NATIVE_MINT);
           const h = await readPoolHistory(connection, migrated.address, network);
-          trades.push(...h.transactions.flatMap(({ signature, tx }) => { const p = readMarketSwap(tx, signature, mint, migrated.address.toBase58(), quoteIsB); return p?.trade ? [p.trade] : []; }));
+          decoded.push(...decode(h, migrated.address.toBase58(), quoteIsB));
+          historyComplete &&= h.complete;
+          const positions = (await migrated.cp.getPositionsByUserAndTokenMint(pool.poolState.creator, pool.poolState.baseMint)).filter((p) => p.pool.equals(migrated.address));
+          for (const p of positions) {
+            const pending = getUnClaimLpFee(migrated.state, p.positionState);
+            const pendingQuote = quoteIsB ? pending.feeTokenB : pending.feeTokenA, pendingBase = quoteIsB ? pending.feeTokenA : pending.feeTokenB;
+            const claimedQuote = quoteIsB ? p.positionState.metrics.totalClaimedBFee : p.positionState.metrics.totalClaimedAFee;
+            const claimedBase = quoteIsB ? p.positionState.metrics.totalClaimedAFee : p.positionState.metrics.totalClaimedBFee;
+            claimableSol += Number(pendingQuote.toString()) / 1e9 + Number(pendingBase.toString()) * price;
+            feesSol += (Number(pendingQuote.toString()) + Number(claimedQuote.toString())) / 1e9 + (Number(pendingBase.toString()) + Number(claimedBase.toString())) * price;
+          }
         }
       }
-      const fresh = trades.filter((t) => t.time > since).sort((a, b) => a.time - b.time).slice(state ? 0 : -FIRST_SYNC_TRADES);
-      const swaps = fresh.map((t) => { const units = t.units / 10 ** decimals; return { signature: t.signature, wallet: t.wallet, side: t.side, units, sol: t.sol, priceSol: units > 0 ? t.sol / units : price, time: t.time }; });
+      const fresh = decoded.filter((d) => d.trade.time > since).sort((a, b) => a.trade.time - b.trade.time);
+      const swaps = fresh.map(({ trade: t, fee }) => {
+        const units = t.units / 10 ** decimals;
+        // Fees are charged in the quote token (lamports) unless the pool collects them in the base token.
+        const feeSol = fee * (config.collectFeeMode !== 0 && t.side === "buy" ? price : 1e-9);
+        return { signature: t.signature, wallet: t.wallet, side: t.side, units, sol: t.sol, priceSol: units > 0 ? t.sol / units : priceSol, time: t.time, feeSol, networkFeeSol: t.networkFeeSol };
+      });
       let ingested = 0;
       for (let i = 0; i < swaps.length; i += CHUNK) ingested += (await convex.mutation(api.solstarChain.ingest, { ...common, swaps: swaps.slice(i, i + CHUNK) })).applied;
+      await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market: { ...market, creator: pool.poolState.creator.toBase58(), creatorSharePct: config.creatorTradingFeePercentage, feesSol, claimableSol, migrated: !!pool.poolState.isMigrated, historyComplete } });
       return { ok: true, ingested };
     } catch (e) { lastError = e; }
   }
@@ -107,4 +134,18 @@ async function run(characterId: string): Promise<SyncResult> {
   const message = limited ? "Market updates are temporarily delayed. Retrying shortly." : "Market updates temporarily unavailable. Retrying shortly.";
   try { await convex.mutation(api.solstarChain.ingest, { authSecret: secret, characterId: id, mint, network, swaps: [], error: message.slice(0, 120) }); } catch { /* Convex keeps the last good data */ }
   return { ok: false, ingested: 0, skipped: message };
+}
+
+/** Keep every live coin's tables current, a few at a time, so the leaderboard and tabs always read fresh Convex data. */
+export async function syncAllMarkets(network: "mainnet" | "devnet"): Promise<{ ok: boolean; coins: number; synced: number }> {
+  const targets = await convexClient().query(api.solstarMarket.tokenomicsTargets, { network });
+  let next = 0, synced = 0;
+  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, async () => {
+    while (next < targets.length) {
+      const target = targets[next++];
+      const result = await syncMarket(target.characterId).catch(() => ({ ok: false }));
+      if (result.ok) synced++;
+    }
+  }));
+  return { ok: true, coins: targets.length, synced };
 }
