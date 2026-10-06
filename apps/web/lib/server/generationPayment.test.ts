@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ settle: vi.fn(), mutation: vi.fn(), refresh: vi.fn(), pay: vi.fn() }));
+const m = vi.hoisted(() => ({ after: vi.fn(), settle: vi.fn(), mutation: vi.fn(), refresh: vi.fn(), pay: vi.fn(), topUp: vi.fn() }));
 vi.mock("@/lib/economy/settleAgent", () => ({ settleAgentEconomics: m.settle }));
-import { payForCharge } from "./generationPayment";
+vi.mock("next/server", () => ({ after: (fn: () => unknown) => { m.after(); void fn(); } }));
+import { payForCharge, payOrBatch, BATCH_SETTLE_USDC } from "./generationPayment";
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -33,7 +34,8 @@ describe("generation billing pays on-chain before work starts", () => {
     vi.doMock("convex/browser", () => ({ ConvexHttpClient: class { mutation = m.mutation; } }));
     vi.doMock("./agentWallet", () => ({ refreshAgentFunds: m.refresh }));
     vi.doMock("./holderTier", () => ({ holderDiscountForMint: async () => 0 }));
-    vi.doMock("./generationPayment", () => ({ payForCharge: m.pay }));
+    vi.doMock("./generationPayment", () => ({ payOrBatch: m.pay }));
+    vi.doMock("./solSwap", () => ({ topUpAgentFromSol: m.topUp }));
     vi.doMock("@/convex/_generated/api", () => ({ api: { usage: { recordUsage: "recordUsage", refundRunFees: "refundRunFees" } } }));
     return import("./exploreBilling");
   };
@@ -44,7 +46,7 @@ describe("generation billing pays on-chain before work starts", () => {
     m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55 });
     m.pay.mockResolvedValue({ ok: true, txSignature: "SIG" });
     expect(await chargeExploreRun("mint", "run1", 0.5)).toEqual({ ok: true, costUsdc: 0.55 });
-    expect(m.pay).toHaveBeenCalledWith("mint");
+    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
   });
   it("refunds and refuses when the on-chain payment fails, so nothing is generated", async () => {
     const { chargeExploreRun } = await load();
@@ -62,7 +64,40 @@ describe("generation billing pays on-chain before work starts", () => {
   it("never reaches the chain when the agent cannot cover the charge", async () => {
     const { chargeExploreRun } = await load();
     m.mutation.mockResolvedValue({ ok: false, reason: "needs_funding" });
+    m.topUp.mockResolvedValue({ ok: false, reason: "no_sol" });
     expect(await chargeExploreRun("mint", "run4", 0.5)).toEqual({ ok: false, reason: "needs_funding" });
     expect(m.pay).not.toHaveBeenCalled();
+  });
+  it("swaps SOL for the shortfall when USDC is short, then charges and pays as normal", async () => {
+    const { chargeExploreRun } = await load();
+    m.mutation.mockResolvedValueOnce({ ok: false, reason: "needs_funding" }).mockResolvedValueOnce({ ok: true, costUsdc: 0.55 });
+    m.topUp.mockResolvedValue({ ok: true, swapped: true, signature: "SWAP" });
+    m.pay.mockResolvedValue({ ok: true, txSignature: "SIG" });
+    expect(await chargeExploreRun("mint", "run5", 0.5)).toEqual({ ok: true, costUsdc: 0.55 });
+    expect(m.topUp).toHaveBeenCalledWith("mint", expect.closeTo(0.575, 3));
+    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
+  });
+  it("still says needs_funding when neither USDC nor SOL can cover it", async () => {
+    const { chargeExploreRun } = await load();
+    m.mutation.mockResolvedValue({ ok: false, reason: "needs_funding" });
+    m.topUp.mockResolvedValue({ ok: false, reason: "no_sol" });
+    expect(await chargeExploreRun("mint", "run6", 0.5)).toEqual({ ok: false, reason: "needs_funding" });
+    expect(m.pay).not.toHaveBeenCalled();
+  });
+});
+
+describe("payOrBatch (pay first, or batch the tiny charges)", () => {
+  beforeEach(() => m.settle.mockResolvedValue({ status: "settled", amountUsdc: 0.3, txSignature: "SIG", tabUsdc: 0 }));
+  it("pays real spend on-chain first and reports a failed payment", async () => {
+    expect(await payOrBatch("a", 0.5)).toEqual({ ok: true, txSignature: "SIG" });
+    expect(m.settle).toHaveBeenCalledWith("a", { immediate: true });
+    m.settle.mockResolvedValue({ status: "skipped", reason: "no wallet" });
+    expect((await payOrBatch("a", 0.044)).ok).toBe(false);
+  });
+  it("leaves a tiny charge on the tab and sweeps it only once the tab reaches the batch size", async () => {
+    expect(await payOrBatch("a", 0.003)).toEqual({ ok: true, batched: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(m.settle).toHaveBeenCalledWith("a", { threshold: BATCH_SETTLE_USDC });
+    expect(m.settle).not.toHaveBeenCalledWith("a", { immediate: true });
   });
 });

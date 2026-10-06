@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentWalletPanel } from "./AgentWalletPanel";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -819,7 +820,7 @@ function RedeemPanel({ influencer }: { influencer: AIInfluencer }) {
 
 // ─── Page tabs ────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "earnings" | "campaigns" | "activity" | "tasks" | "knowledge" | "generations" | "creations" | "photos" | "chat";
+type Tab = "overview" | "wallet" | "earnings" | "campaigns" | "activity" | "tasks" | "knowledge" | "generations" | "creations" | "photos" | "chat";
 
 // Row types derived from the Convex query return shapes
 type SubmissionRow = FunctionReturnType<typeof api.submissions.listByInfluencer>[number];
@@ -1516,6 +1517,7 @@ export function InfluencerProfile({ influencer }: { influencer: AIInfluencer }) 
     { id: "tasks",     label: "Tasks", badge: liveCount },
     { id: "creations", label: "Videos", icon: <Sparkles className="size-3" /> },
     { id: "knowledge", label: "Knowledge" },
+    { id: "wallet",    label: "Wallet" },
     // Activity / Generations / Chat tabs hidden per request — their render
     // blocks stay below, just unreachable from the tab bar.
   ];
@@ -2096,6 +2098,16 @@ export function InfluencerProfile({ influencer }: { influencer: AIInfluencer }) 
                       </p>
                     </div>
                   </section>
+                </motion.div>
+              )}
+
+              {/* Wallet */}
+              {tab === "wallet" && (
+                <motion.div key="wallet"
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.22, ease: EASE }}>
+                  <AgentWalletPanel agentWallet={influencer.agentWallet} agentName={influencer.name}
+                    usdc={vault.usdc} sol={vault.sol} unsettled={unsettledTab} loading={vault.loading} onRefresh={vault.refresh} />
                 </motion.div>
               )}
 

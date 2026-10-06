@@ -25,6 +25,8 @@ const h = vi.hoisted(() => {
     getTokenAccountBalanceMock: vi.fn(),
     transferUsdcMock: vi.fn(),
     sendAlertMock: vi.fn(),
+    feePayerReadyMock: vi.fn(),
+    ensureGasMock: vi.fn(),
   };
 });
 
@@ -40,6 +42,7 @@ vi.mock("@/lib/trader/usdcTransfer", () => ({
 }));
 vi.mock("@/lib/economy/walletSecretAccess", () => ({ readAgentSecret: (s: string) => `decrypted:${s}` }));
 vi.mock("@/lib/server/alert", () => ({ sendAlert: h.sendAlertMock }));
+vi.mock("@/lib/server/solSwap", () => ({ feePayerReady: h.feePayerReadyMock, ensureAgentGas: h.ensureGasMock }));
 vi.mock("@solana/spl-token", () => ({
   getAssociatedTokenAddress: vi.fn(async () => ({ toBase58: () => "TREASURY_ATA" })),
 }));
@@ -83,6 +86,8 @@ beforeEach(() => {
   h.getTokenAccountBalanceMock.mockResolvedValue({ value: { amount: "100000000" } });
   h.debitFeeTxMock.mockImplementation(async ({ runId }: { runId: string }) => `sig-${runId}`);
   h.transferUsdcMock.mockResolvedValue({ ok: true, txSignature: "CUSTODIAL_SIG", lastValidBlockHeight: 999 });
+  h.feePayerReadyMock.mockResolvedValue(true);
+  h.ensureGasMock.mockResolvedValue({ ok: true, swapped: false });
 });
 
 describe("planFeeChunks (HIGH-1 cap-aware split)", () => {
@@ -263,6 +268,24 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
     expect(res).toEqual({ ok: true, txSignature: "CUSTODIAL_SIG" });
     expect(h.debitFeeTxMock).not.toHaveBeenCalled();
     expect(h.transferUsdcMock.mock.calls[0][0].toPubkey).toBe("EhXTsbTMTgkGhBdUGAWx5JL78Jmu1dZgDCVUFWJp3pSa");
+  });
+
+  it("with no usable fee payer the agent pays its own network fee, after topping up SOL from its USDC if needed", async () => {
+    h.queryMock.mockImplementation(custodialQueryDispatch());
+    h.feePayerReadyMock.mockResolvedValue(false);
+    h.ensureGasMock.mockResolvedValue({ ok: true, swapped: true, signature: "GAS_SWAP" });
+    const res = await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g1", amountUsdc: 2 });
+    expect(res.ok).toBe(true);
+    expect(h.ensureGasMock).toHaveBeenCalledWith("M", 2); // the 2 USDC owed is never spent on gas
+    expect(h.transferUsdcMock.mock.calls[0][0].feePayerSecretBase64).toBeUndefined();
+  });
+
+  it("releases the settlement for a retry, moving nothing, when the agent cannot get network-fee SOL", async () => {
+    h.queryMock.mockImplementation(custodialQueryDispatch());
+    h.feePayerReadyMock.mockResolvedValue(false);
+    h.ensureGasMock.mockResolvedValue({ ok: false, reason: "usdc_too_low" });
+    expect(await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g2", amountUsdc: 2 })).toEqual({ ok: false });
+    expect(h.transferUsdcMock).not.toHaveBeenCalled();
   });
 
   it("(b) the custodial sweep targets the generation collection wallet from the agent wallet with sponsored gas", async () => {

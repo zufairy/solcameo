@@ -1,5 +1,6 @@
 import { refreshAgentFunds } from "./agentWallet";
-import { payForCharge } from "./generationPayment";
+import { payOrBatch } from "./generationPayment";
+import { topUpAgentFromSol } from "./solSwap";
 import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -21,13 +22,16 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
   const qty = Math.max(1, Math.round(priceUsdc * 100));
   try {
     await refreshAgentFunds(mint);
-    const r = await convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    let r = await book();
+    // Short on USDC but holding SOL: swap just the shortfall at the live best price, then charge as normal.
+    if (!r.ok && r.reason === "needs_funding" && (await topUpAgentFromSol(mint, priceUsdc * 1.15)).ok) { await refreshAgentFunds(mint); r = await book(); }
     if (!r.ok) return { ok: false, reason: r.reason ?? "needs_funding" };
     const duplicate = "duplicate" in r && r.duplicate;
     // Pay first: the USDC reaches the generation wallet on-chain before any provider is called. A retry of a run that
     // was already booked has already paid, so it is not charged again.
     if (!duplicate) {
-      const paid = await payForCharge(mint);
+      const paid = await payOrBatch(mint, r.costUsdc);
       if (!paid.ok) { await refundExploreRun(mint, runId); return { ok: false, reason: "payment_failed" }; }
     }
     return { ok: true, costUsdc: r.costUsdc, ...(duplicate ? { duplicate: true } : {}) };
@@ -42,7 +46,7 @@ export async function refundExploreRun(mint: string, runId: string): Promise<voi
 }
 
 export const CHARGE_MESSAGES: Record<string, string> = {
-  needs_funding: "Not enough funds in this agent's wallet. Add USDC to the agent wallet and try again.",
+  needs_funding: "Not enough funds in this agent's wallet. Add USDC (or SOL, which is swapped to USDC for you) and try again.",
   wallet_busy: "A withdrawal is settling for this agent. Try again shortly.",
   daily_cap: "This agent hit its daily spend cap. Raise the cap or try again tomorrow.",
   suspended: "This agent is suspended.",

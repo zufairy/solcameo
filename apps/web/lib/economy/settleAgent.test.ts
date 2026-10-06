@@ -32,6 +32,11 @@ describe("settleAgentEconomics", () => {
     expect(await settleAgentEconomics("mint", { immediate: true })).toMatchObject({ status: "settled", amountUsdc: 0.03, txSignature: "SIG" });
     expect(h.sweep).toHaveBeenCalledWith({ mintAddress: "mint", settlementId: "s1", amountUsdc: 0.03 });
   });
+  it("waits for a custom batch threshold, then pays the whole tab in one transfer", async () => {
+    expect(await settleAgentEconomics("mint", { threshold: 0.25 })).toMatchObject({ status: "accruing", reason: "below threshold" });
+    h.mutation.mockImplementation(async (name: string) => (name === "reconcile" ? { ok: true, unsettledTabUsdc: 0.3 } : name === "settleTab" ? { settled: true, settlementId: "s2", amountUsdc: 0.3 } : name === "claim" ? { claimed: true, amountUsdc: 0.3 } : {}));
+    expect(await settleAgentEconomics("mint", { threshold: 0.25 })).toMatchObject({ status: "settled", amountUsdc: 0.3 });
+  });
   it("has nothing to pay when the tab is empty", async () => {
     h.mutation.mockImplementation(async (name: string) => (name === "reconcile" ? { ok: true, unsettledTabUsdc: 0 } : {}));
     expect((await settleAgentEconomics("mint", { immediate: true })).status).toBe("accruing");

@@ -26,7 +26,7 @@ export type SettleResult =
  * (the UI already reflects it as spent via `available = on-chain − tab`). NEVER
  * throws — settlement is best-effort and must not break task execution.
  */
-export async function settleAgentEconomics(mintAddress: string, opts: { immediate?: boolean } = {}): Promise<SettleResult> {
+export async function settleAgentEconomics(mintAddress: string, opts: { immediate?: boolean; threshold?: number } = {}): Promise<SettleResult> {
   try {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
     const agent = await convex.query(api.influencers.getByMintServer, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
@@ -44,7 +44,7 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
 
     // 2) Decide whether to sweep on-chain now.
     // `immediate` is the pay-before-generate path: whatever is on the tab moves on-chain now, however small.
-    if (tabUsdc <= 0 || (!opts.immediate && tabUsdc < SETTLE_THRESHOLD_USDC)) return { status: "accruing", tabUsdc, reason: "below threshold" };
+    if (tabUsdc <= 0 || (!opts.immediate && tabUsdc < (opts.threshold ?? SETTLE_THRESHOLD_USDC))) return { status: "accruing", tabUsdc, reason: "below threshold" };
     if (!TREASURY) return { status: "accruing", tabUsdc, reason: "no treasury configured" };
 
     // 3) Book the settlement in Convex (collapses unsettled rows into a

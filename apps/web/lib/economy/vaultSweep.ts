@@ -25,6 +25,7 @@
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
+import { ensureAgentGas, feePayerReady } from "@/lib/server/solSwap";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -441,13 +442,22 @@ async function sweepAgentTabCustodial(opts: {
     );
   }
 
-  // Sponsored gas so the agent wallet needs zero SOL (mirrors the withdraw route).
+  // Sponsored gas so the agent wallet needs zero SOL (mirrors the withdraw route). If the shared fee payer is missing
+  // or out of SOL, the agent pays its own network fee instead, topping up a little SOL from its USDC when it has none.
+  const sponsored = await feePayerReady();
+  if (!sponsored) {
+    const gas = await ensureAgentGas(mintAddress, amountUsdc);
+    if (!gas.ok) {
+      console.warn(`[vaultSweep] fee payer unavailable and the agent could not get network-fee SOL for ${mintAddress}: ${gas.reason} — releasing for retry`);
+      return { ok: false };
+    }
+  }
   const transfer = await transferUsdc({
     fromSecretBase64: readAgentSecret(agent.agentWalletSecret),
     fromPubkey: agent.agentWallet,
     toPubkey: TREASURY, // treasury WALLET; transferUsdc derives its USDC ATA
     amountUsdc,
-    feePayerSecretBase64: process.env.PLATFORM_FEE_PAYER_SECRET || undefined,
+    feePayerSecretBase64: sponsored ? process.env.PLATFORM_FEE_PAYER_SECRET : undefined,
   });
 
   if (transfer.ok) {

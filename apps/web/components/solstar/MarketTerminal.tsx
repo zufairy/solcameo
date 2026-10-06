@@ -9,6 +9,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
 import { MarketLiveCam } from "./MarketLiveCam";
 import { MarketInfoCarousel } from "./MarketInfoCarousel";
+import { AgentFundSlide } from "./AgentFundSlide";
 import { MarketAboutCard } from "./MarketAboutCard";
 import { XFeedPanel } from "./XFeedPanel";
 import { useSearchParams } from "next/navigation";
@@ -887,7 +888,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </p>
           )}
           </div>
-          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Graduation", "Creator fees"] : []), "Holders", "X feed", "Live Cam"]}>
+          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Graduation", "Creator fees"] : []), "Agent wallet", "Holders", "X feed", "Live Cam"]}>
           {token.dbcPool && (
             <div className="space-y-3 p-4">
               <h2 className="text-[13px] font-semibold text-white">
@@ -917,6 +918,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           )}
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
+          <AgentFundSlide characterId={characterId} name={character.name} />
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[13px] font-semibold text-white">Top holders</h2>

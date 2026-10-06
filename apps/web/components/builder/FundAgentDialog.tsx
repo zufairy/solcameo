@@ -127,7 +127,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
         {step === "done" ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
             <span className="mx-auto grid size-9 place-items-center rounded-full bg-white text-black"><Check className="size-5" strokeWidth={3} /></span>
-            <p className="mt-3 text-sm font-semibold text-white">Sent {amount} {token} to the agent wallet</p>
+            <p className="mt-3 text-sm font-semibold text-white">Sent {amount} {token} (3% platform fee, 97% to the agent wallet)</p>
             {sig && <a href={getTxExplorerUrl(sig)} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs text-zinc-400 underline underline-offset-2 hover:text-white">View transaction <ExternalLink className="size-3" /></a>}
             <button type="button" onClick={() => onOpenChange(false)} className={`${CONNECT_BUTTON_CLASS} mt-4 w-full justify-center !py-2`}>Done</button>
           </div>

@@ -95,3 +95,31 @@ export const spend = mutation({
   args: { tokenId: v.id("ssTokens"), reservationKey: v.string(), authSecret: v.string() },
   handler: async (ctx, a) => { assertSecret(a.authSecret); return settle(ctx, a.tokenId, a.reservationKey, "spend"); },
 });
+
+/**
+ * Credit a verified on-chain SOL top-up (the treasury leg only) to a token's content budget. Idempotent per
+ * transaction signature, so replaying the same signature can never credit twice.
+ */
+export const creditTopUp = mutation({
+  args: { characterId: v.id("ssCharacters"), wallet: v.string(), signature: v.string(), lamports: v.int64(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    if (a.lamports <= 0n || a.lamports > MAX_AMOUNT) throw new Error("invalid_amount");
+    if (a.signature.length < 64 || a.signature.length > 100) throw new Error("invalid_key");
+    const token = await ctx.db.query("ssTokens").withIndex("by_character", (q) => q.eq("characterId", a.characterId)).unique();
+    if (!token || token.network === "paper") throw new Error("token_not_found");
+    const key = `topup:${a.signature}`;
+    const existing = await byKey(ctx, key);
+    if (existing) {
+      if (existing.tokenId !== token._id || existing.amountLamports !== a.lamports) throw new Error("idempotency_conflict");
+      return { ok: true as const, reused: true };
+    }
+    const b = await budgetFor(ctx, token._id);
+    await ctx.db.patch(b._id, { fundedLamports: b.fundedLamports + a.lamports });
+    await ctx.db.insert("ssLedger", {
+      tokenId: token._id, network: token.network, kind: "content_funding", amountLamports: a.lamports,
+      idempotencyKey: key, source: `topup:${a.wallet}`, createdAt: Date.now(),
+    });
+    return { ok: true as const, reused: false };
+  },
+});

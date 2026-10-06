@@ -21,6 +21,7 @@ import {
 } from "@solana/spl-token";
 import { getNetwork, getUsdcMint } from "./network";
 import { rpcTry, rpcCandidates } from "./rpc";
+import { splitFundingAmount } from "./fundingFee";
 
 const USDC_DECIMALS = 6;
 // Failover over public devnet → Helius. The devnet Helius key is suspended
@@ -103,6 +104,13 @@ function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> 
   });
 }
 
+/** Platform fee recipient. Fails closed: a deposit never goes out without its 3% fee leg. */
+function platformFeeRecipient(): PublicKey {
+  const raw = process.env.NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET?.trim();
+  try { if (raw) return new PublicKey(raw); } catch { /* fall through */ }
+  throw new Error("Platform fee wallet is not configured, so deposits are paused. Please try again later.");
+}
+
 /**
  * Build + send a funding transfer from the operator's wallet to the agent wallet.
  * Returns the signature + the blockhash window so the caller can confirm it.
@@ -123,6 +131,9 @@ export async function sendFundingTransfer(params: {
   const { publicKey, signTransaction, agentWallet, token, amount } = params;
   const mainnet = getNetwork() === "mainnet-beta";
   if (!(amount > 0)) throw new Error("Enter a positive amount");
+  // 3% platform fee: one transaction, two transfers (agent gets 97%, treasury 3%), so both succeed or neither does.
+  const feeRecipient = platformFeeRecipient();
+  const baseUnits = (decimals: number) => BigInt(Math.floor(amount * Math.pow(10, decimals)));
 
   let recipient: PublicKey;
   try { recipient = new PublicKey(agentWallet); }
@@ -148,7 +159,7 @@ export async function sendFundingTransfer(params: {
   });
   blockhashP.catch(() => undefined); // surfaced when awaited below; never an unhandled rejection
   const solBal = await solBalP;
-  const feeHeadroom = token === "USDC" ? 0.0025 : 0.001;
+  const feeHeadroom = token === "USDC" ? 0.005 : 0.001; // USDC: network fee + two token-account rents (agent, platform fee)
   if (shouldBlockForSol(solBal, feeHeadroom)) {
     throw new Error(mainnet ? "Your connected wallet needs SOL for network fees and the first USDC account. Deposit a little SOL, then retry." : `You need a little devnet SOL to cover network fees (you have ${(solBal ?? 0).toFixed(4)} SOL). Get some free at faucet.solana.com, then try again.`);
   }
@@ -172,25 +183,18 @@ export async function sendFundingTransfer(params: {
     // Ensure the recipient's USDC token account exists. The IDEMPOTENT variant is
     // a no-op if the account already exists and creates it otherwise — so it can
     // never fail with "account already in use" on a first-time USDC transfer.
+    const feeAta = await getAssociatedTokenAddress(usdcMint, feeRecipient, true);
+    const { fee, net } = splitFundingAmount(baseUnits(USDC_DECIMALS));
     instructions.push(createAssociatedTokenAccountIdempotentInstruction(publicKey, toAta, recipient, usdcMint));
-    instructions.push(
-      createTransferInstruction(
-        fromAta,
-        toAta,
-        publicKey,
-        Math.floor(amount * Math.pow(10, USDC_DECIMALS)),
-        [],
-        TOKEN_PROGRAM_ID,
-      ),
-    );
+    instructions.push(createTransferInstruction(fromAta, toAta, publicKey, net, [], TOKEN_PROGRAM_ID));
+    if (fee > 0n) {
+      instructions.push(createAssociatedTokenAccountIdempotentInstruction(publicKey, feeAta, feeRecipient, usdcMint));
+      instructions.push(createTransferInstruction(fromAta, feeAta, publicKey, fee, [], TOKEN_PROGRAM_ID));
+    }
   } else {
-    instructions.push(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: recipient,
-        lamports: Math.floor(amount * LAMPORTS_PER_SOL),
-      }),
-    );
+    const { fee, net } = splitFundingAmount(baseUnits(9));
+    instructions.push(SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: recipient, lamports: net }));
+    if (fee > 0n) instructions.push(SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: feeRecipient, lamports: fee }));
   }
 
   // "confirmed" is the freshest blockhash with the full ~60-90s validity window.
