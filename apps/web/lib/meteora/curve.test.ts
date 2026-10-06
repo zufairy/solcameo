@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_DBC, dbcOptionsSchema } from "./options";
 import * as sdk from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { buildDbcCurve, previewDbc } from "./curve";
+import { CREATOR_TRADING_FEE_PERCENTAGE, FEE_SPLIT_PERCENT } from "./feePolicy";
 describe("Meteora DBC economics", () => {
   it.each(["classic", "steady", "rocket", "whale"] as const)(
     "constructs %s with accurate graduation and buy quotes",
@@ -21,17 +22,24 @@ describe("Meteora DBC economics", () => {
       expect(p.examples[1].tokens).toBeGreaterThan(p.examples[0].tokens);
       expect(config.migrationOption).toBe(1);
       expect(config.migrationFeeOption).toBe(6);
-      expect(config.migratedPoolFee?.poolFeeBps).toBe(options.feeBps);
+      expect(config.migratedPoolFee?.poolFeeBps).toBe(150);
       expect(config.migratedPoolFee?.dynamicFee).toBe(0);
       expect(config.creatorPermanentLockedLiquidityPercentage).toBe(50);
       expect(config.tokenUpdateAuthority).toBe(1);
       expect(config.creatorTradingFeePercentage).toBe(50);
     },
   );
-  it("charges the selected fee in simulated buys", () => {
-    const lower = previewDbc({ ...DEFAULT_DBC, feeBps: 25 }),
-      higher = previewDbc({ ...DEFAULT_DBC, feeBps: 200 });
-    expect(lower.examples[1].tokens).toBeGreaterThan(higher.examples[1].tokens);
+  it("charges the flat 1.5% fee whatever an older stored option says", () => {
+    expect(DEFAULT_DBC.feeBps).toBe(150);
+    const stored = previewDbc({ ...DEFAULT_DBC, feeBps: 25 }), flat = previewDbc(DEFAULT_DBC);
+    expect(stored.feeBps).toBe(150);
+    expect(stored.examples[1].tokens).toBeCloseTo(flat.examples[1].tokens, 6);
+    expect(buildDbcCurve({ ...DEFAULT_DBC, feeBps: 200 }).migratedPoolFee?.poolFeeBps).toBe(150);
+  });
+  it("sets the on-chain creator share so creator 40 / platform+content 40 / Meteora 20 holds", () => {
+    expect(CREATOR_TRADING_FEE_PERCENTAGE).toBe(50);
+    expect(FEE_SPLIT_PERCENT.meteora + FEE_SPLIT_PERCENT.creator + FEE_SPLIT_PERCENT.platform + FEE_SPLIT_PERCENT.content).toBe(100);
+    expect(FEE_SPLIT_PERCENT.platform).toBe(30);
   });
   it("rejects inverted caps, nonfinite values, and unsupported fee rates", () => {
     expect(
@@ -59,7 +67,7 @@ describe("launch switches", () => {
   it("keeps a flat fee when anti-sniper is off", () => {
     const config = buildDbcCurve({ ...DEFAULT_DBC, antiSniper: false }) as unknown as { poolFees: { baseFee: { cliffFeeNumerator: { toString(): string }; firstFactor: number } } };
     expect(config.poolFees.baseFee.firstFactor).toBe(0);
-    expect(Number(config.poolFees.baseFee.cliffFeeNumerator.toString())).toBe(DEFAULT_DBC.feeBps * 100_000);
+    expect(Number(config.poolFees.baseFee.cliffFeeNumerator.toString())).toBe(150 * 100_000);
   });
   it("switches dynamic fees on both the curve and the graduated pool", () => {
     const on = buildDbcCurve({ ...DEFAULT_DBC, dynamicFee: true }) as unknown as { poolFees: { dynamicFee?: unknown }; migratedPoolFee?: { dynamicFee: number } };
@@ -69,12 +77,12 @@ describe("launch switches", () => {
     expect(on.poolFees.dynamicFee).toBeTruthy();
   });
   it("previews steady-state pricing and still builds for every fee tier with anti-sniper on", () => {
-    for (const feeBps of [25, 100, 200] as const) expect(() => buildDbcCurve({ ...DEFAULT_DBC, feeBps, antiSniper: true, dynamicFee: true })).not.toThrow();
+    expect(() => buildDbcCurve({ ...DEFAULT_DBC, antiSniper: true, dynamicFee: true })).not.toThrow();
     expect(previewDbc({ ...DEFAULT_DBC, antiSniper: true }).examples[1].tokens).toBeCloseTo(previewDbc({ ...DEFAULT_DBC, antiSniper: false }).examples[1].tokens, 6);
   });
   it("passes the SDK's own on-chain fee validation for every switch combination", () => {
-    for (const antiSniperLevel of ["light", "standard", "strict"] as const) for (const feeBps of [25, 100, 200] as const) for (const dynamicFee of [false, true]) {
-      const c = buildDbcCurve({ ...DEFAULT_DBC, antiSniper: true, antiSniperLevel, feeBps, dynamicFee });
+    for (const antiSniperLevel of ["light", "standard", "strict"] as const) for (const dynamicFee of [false, true]) {
+      const c = buildDbcCurve({ ...DEFAULT_DBC, antiSniper: true, antiSniperLevel, dynamicFee });
       expect(sdk.validatePoolFees(c.poolFees as never, c.collectFeeMode, c.activationType)).toBe(true);
     }
   });

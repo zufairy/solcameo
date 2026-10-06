@@ -17,6 +17,7 @@ import {
 import { putImage } from "@/lib/server/imageStorage";
 import { buildDbcCurve } from "@/lib/meteora/curve";
 import { dbcOptionsSchema } from "@/lib/meteora/options";
+import { TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 import {
   dbcConnection,
   dbcReadiness,
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
         throw new Error("This character has a saved launch. Resume it first.");
       publicWallet(body.mint);
       publicWallet(body.config);
-      const options = dbcOptionsSchema.parse(body.options);
+      const options = { ...dbcOptionsSchema.parse(body.options), feeBps: TRADING_FEE_BPS as 25 | 100 | 150 | 200 }; // flat fee for every coin
       if (options.economy === "sustainable-v1") dbcTreasury();
       buildDbcCurve(options); // Validate construction before metadata upload or wallet costs.
       const metadata = await putImage(

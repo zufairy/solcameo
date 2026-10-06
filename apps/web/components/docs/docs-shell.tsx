@@ -560,8 +560,8 @@ export function DocVisual({ kind, caption }: { kind: "hero" | "start" | "create"
                 <text x="324" y="14" fill="#e4e4e7" fontSize="10" fontWeight="600">Graduates</text>
               </svg>
               <div>
-                <div className="flex h-2.5 overflow-hidden rounded-full"><span style={{ width: "40%", background: LIME }} /><span style={{ width: "20%", background: "#7C4DFF" }} /><span style={{ width: "20%", background: "#52525b" }} /><span style={{ width: "20%", background: "#00FFD1" }} /></div>
-                <div className="mt-2 flex justify-between text-[10px] text-zinc-400 sm:text-xs"><span>Creator 40%</span><span>Content 20%</span><span>Platform 20%</span><span>Meteora 20%</span></div>
+                <div className="flex h-2.5 overflow-hidden rounded-full"><span style={{ width: "40%", background: LIME }} /><span style={{ width: "10%", background: "#7C4DFF" }} /><span style={{ width: "30%", background: "#52525b" }} /><span style={{ width: "20%", background: "#00FFD1" }} /></div>
+                <div className="mt-2 flex justify-between text-[10px] text-zinc-400 sm:text-xs"><span>Creator 40%</span><span>Content 10%</span><span>Platform 30%</span><span>Meteora 20%</span></div>
               </div>
             </div>
           )}

@@ -18,15 +18,15 @@ it("credits confirmed claim proceeds once and rejects unauthorized credits",asyn
   const {t,tokenId,characterId}=await setup();const a={tokenId,signature:"signature",amountLamports:101n,authSecret:"test"};
   await expect(t.mutation(api.solstarFlywheel.recordClaim,{...a,authSecret:"bad"})).rejects.toThrow();
   expect(await t.mutation(api.solstarFlywheel.recordClaim,a)).toBe(true);expect(await t.mutation(api.solstarFlywheel.recordClaim,a)).toBe(false);
-  expect((await t.query(api.solstarFlywheel.status,{characterId}))?.available).toBe("50");
+  expect((await t.query(api.solstarFlywheel.status,{characterId}))?.available).toBe("25");
 });
 it("concurrent workers cannot overspend or launch duplicate content",async()=>{
-  const {t,tokenId,characterId}=await setup();await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:200n,authSecret:"test"});
+  const {t,tokenId,characterId}=await setup();await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:400n,authSecret:"test"});
   const jobs=await Promise.all([1,2].map(()=>t.mutation(api.solstarFlywheel.reserveVideo,{tokenId,costLamports:80n,authSecret:"test"})));expect(jobs.filter(Boolean)).toHaveLength(1);
   const status=await t.query(api.solstarFlywheel.status,{characterId});expect(status?.available).toBe("20");expect(status?.reserved).toBe("80");
 });
 it("only verified completion publishes an episode and settles once",async()=>{
-  const {t,tokenId,characterId}=await setup();await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:200n,authSecret:"test"});const j=await t.mutation(api.solstarFlywheel.reserveVideo,{tokenId,costLamports:80n,authSecret:"test"});
+  const {t,tokenId,characterId}=await setup();await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:400n,authSecret:"test"});const j=await t.mutation(api.solstarFlywheel.reserveVideo,{tokenId,costLamports:80n,authSecret:"test"});
   const a={id:j!.id,authSecret:"test"};await t.mutation(api.solstarFlywheel.updateJob,{...a,status:"submitting"});await t.mutation(api.solstarFlywheel.updateJob,{...a,status:"unknown"});
   expect((await t.query(api.solstarFlywheel.status,{characterId}))?.reserved).toBe("80");
   await expect(t.mutation(api.solstarFlywheel.updateJob,{...a,status:"complete",videoUrl:"https://example.com/video.mp4"})).rejects.toThrow("result_required");
@@ -35,6 +35,6 @@ it("only verified completion publishes an episode and settles once",async()=>{
   expect((await t.query(api.solstarFlywheel.status,{characterId}))?.spent).toBe("80");const episodes=await t.run(ctx=>ctx.db.query("ssEpisodes").collect());expect(episodes).toHaveLength(1);
 });
 it("does not convert devnet test fees into paid video tasks",async()=>{
-  const {t,tokenId}=await setup("devnet");await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:200n,authSecret:"test"});expect(await t.mutation(api.solstarFlywheel.reserveVideo,{tokenId,costLamports:80n,authSecret:"test"})).toBeNull();
+  const {t,tokenId}=await setup("devnet");await t.mutation(api.solstarFlywheel.recordClaim,{tokenId,signature:"s",amountLamports:400n,authSecret:"test"});expect(await t.mutation(api.solstarFlywheel.reserveVideo,{tokenId,costLamports:80n,authSecret:"test"})).toBeNull();
 });
 it("only the character owner may pause creation",async()=>{const {t,characterId}=await setup();await expect(t.mutation(api.solstarFlywheel.setEnabled,{characterId,wallet:"other",enabled:false,authSecret:"test"})).rejects.toThrow();await t.mutation(api.solstarFlywheel.setEnabled,{characterId,wallet:"owner",enabled:false,authSecret:"test"});expect((await t.query(api.solstarFlywheel.status,{characterId}))?.enabled).toBe(false);});

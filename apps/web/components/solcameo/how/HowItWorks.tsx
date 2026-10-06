@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ArrowUpRight, Check, Flame, Gauge, Lock, MessageCircle, PauseCircle, ReceiptText, ShieldCheck, Sparkles } from "lucide-react";
 import { feeExample } from "@/lib/meteora/flywheel";
+import { FEE_SPLIT_PERCENT, TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 import { displayFont } from "./fonts";
 import { FeaturedPlayer, VideoCarousel } from "./LiveVideos";
 import { useLiveData, type LiveVideo } from "./useLiveData";
@@ -103,10 +104,10 @@ function Roster({ characters, loading }: { characters: Char[]; loading: boolean 
 }
 
 const SPLIT = [
-  { key: "creator", label: "Creator", pct: 40, color: "#d7ff00", note: "Paid to the character’s creator." },
-  { key: "content", label: "Content budget", pct: 20, color: "#7C4DFF", note: "Funds the next videos." },
-  { key: "platform", label: "Platform", pct: 20, color: "#52525b", note: "Runs Solcameo operations." },
-  { key: "protocol", label: "Meteora", pct: 20, color: "#00FFD1", note: "Protocol share on the curve." },
+  { key: "creator", label: "Creator", pct: FEE_SPLIT_PERCENT.creator, color: "#d7ff00", note: "Paid to the character’s creator." },
+  { key: "content", label: "Content budget", pct: FEE_SPLIT_PERCENT.content, color: "#7C4DFF", note: "Funds the next videos." },
+  { key: "platform", label: "Platform", pct: FEE_SPLIT_PERCENT.platform, color: "#52525b", note: "Runs Solcameo operations." },
+  { key: "protocol", label: "Meteora", pct: FEE_SPLIT_PERCENT.meteora, color: "#00FFD1", note: "Protocol share on the curve." },
 ] as const;
 
 function Wall({ tall, total }: { tall: ExploreRef[]; total: number }) {
@@ -119,15 +120,14 @@ function Wall({ tall, total }: { tall: ExploreRef[]; total: number }) {
 
 function Tokenomics({ count, chapters }: { count: number; chapters: number }) {
   const [volume, setVolume] = useState(100);
-  const [bps, setBps] = useState<25 | 100 | 200>(100);
-  const f = feeExample(volume, bps, true);
+  const f = feeExample(volume, TRADING_FEE_BPS, true);
   const money = (n: number) => `${n.toLocaleString(undefined, { maximumFractionDigits: n < 1 ? 3 : 2 })} SOL`;
   return <section className="mx-auto max-w-[1480px] px-6 py-24 md:px-12 lg:px-20">
     <Reveal><h2 className={`${heading} text-5xl md:text-7xl`}>Every trade<br />funds the story.</h2><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">Each character’s coin trades on its own Meteora bonding curve. A small fee on every trade is split four ways, and a share of it pays for the next video.</p></Reveal>
     <div className="mt-12 grid grid-cols-1 divide-y divide-white/[0.08] border-y border-white/[0.08] sm:grid-cols-3 sm:divide-x sm:divide-y-0">{[["Characters live", String(count), "on devnet right now"], ["Chapters published", String(chapters), "latest from live agents"], ["Fixed supply", "1B", "per coin, mint authority revoked"]].map(([k, v, n]) => <div key={k} className="relative px-0 py-8 sm:px-8 sm:first:pl-0"><p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">{k}</p><p className="mt-3 font-[family-name:var(--font-how-display)] text-7xl font-bold leading-none tabular-nums bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">{v}</p><p className="mt-3 text-xs text-zinc-600">{n}</p></div>)}</div>
     <Reveal className="mt-4"><div className={`rounded-[3px] ${glass} p-5 md:p-7`}>
-      <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-sm font-bold uppercase tracking-wider">Where trading fees go</h3><div className="flex gap-1.5" role="group" aria-label="Trading fee">{([25, 100, 200] as const).map(b => <button key={b} aria-pressed={bps === b} onClick={() => setBps(b)} className={`rounded-full border px-3 py-1 text-xs tabular-nums ${bps === b ? "border-[#d7ff00] text-[#d7ff00]" : "border-white/10 text-zinc-400 hover:text-white"}`}>{b / 100}% fee</button>)}</div></div>
-      <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-white/5" role="img" aria-label="Fee split: creator 40%, content 20%, platform 20%, Meteora 20%">{SPLIT.map(s => <div key={s.key} style={{ width: `${s.pct}%`, background: s.color }} />)}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-sm font-bold uppercase tracking-wider">Where trading fees go</h3><span className="rounded-full border border-[#d7ff00] px-3 py-1 text-xs tabular-nums text-[#d7ff00]">{TRADING_FEE_BPS / 100}% fee on every trade</span></div>
+      <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-white/5" role="img" aria-label={`Fee split: creator ${FEE_SPLIT_PERCENT.creator}%, content ${FEE_SPLIT_PERCENT.content}%, platform ${FEE_SPLIT_PERCENT.platform}%, Meteora ${FEE_SPLIT_PERCENT.meteora}%`}>{SPLIT.map(s => <div key={s.key} style={{ width: `${s.pct}%`, background: s.color }} />)}</div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{SPLIT.map(s => <div key={s.key}><p className="flex items-center gap-2 text-xs text-zinc-400"><span className="size-2 rounded-full" style={{ background: s.color }} />{s.label} · {s.pct}%</p><p className="mt-1 text-xl font-semibold tabular-nums">{money(f[s.key])}</p><p className="mt-1 text-[11px] text-zinc-600">{s.note}</p></div>)}</div>
       <label className="mt-6 block text-xs text-zinc-500">If a coin trades <span className="font-semibold tabular-nums text-zinc-200">{volume.toLocaleString()} SOL</span> in volume<input type="range" min={10} max={5000} step={10} value={volume} onChange={e => setVolume(Number(e.target.value))} className="mt-3 w-full accent-[#d7ff00]" aria-label="Trading volume in SOL" /></label>
       <p className="mt-4 text-[11px] leading-5 text-zinc-600">Illustration of the launch policy, not a forecast. Fees depend on real trading, and tokens carry risk and no promise of returns.</p>

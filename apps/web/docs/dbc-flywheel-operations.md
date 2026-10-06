@@ -1,6 +1,6 @@
 # DBC content flywheel operations
 
-New sustainable-v1 launches use a fixed trading fee (default 1%). Meteora receives 20% of the fee. Creator receives 50% of the remaining fee (40% total). The partner treasury receives the other 40%; the application records half as content budget and half as platform revenue. Creator and partner each receive 50% permanently locked DAMM v2 liquidity after graduation. Existing creator-only launches keep their original configuration.
+New sustainable-v1 launches use a flat 1.5% trading fee (150 bps, `lib/meteora/feePolicy.ts`). Meteora receives 20% of the fee. Creator receives 50% of the remaining fee (40% total). The partner treasury receives the other 40%; the application records a quarter of it as content budget (10% of the fee) and three quarters as platform revenue (30% of the fee). Creator and partner each receive 50% permanently locked DAMM v2 liquidity after graduation. Existing creator-only launches keep their original configuration.
 
 Required web environment:
 - SOLCAMEO_DBC_TREASURY_SECRET: dedicated treasury keypair, JSON byte array or base58. Never NEXT_PUBLIC.

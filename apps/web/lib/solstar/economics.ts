@@ -1,5 +1,7 @@
+import { FEE_SPLIT_PERCENT, TRADING_FEE_BPS } from "../meteora/feePolicy";
 export const BPS_DENOM = 10_000n;
-export const TOTAL_FEE_BPS = 125n;
+/** Flat 1.5% trading fee, the same as every live coin (see lib/meteora/feePolicy.ts). */
+export const TOTAL_FEE_BPS = BigInt(TRADING_FEE_BPS);
 /** Largest amount any single operation may carry (stays inside Convex int64). */
 export const MAX_AMOUNT = 1n << 62n;
 /** Every paper wallet starts with 10 simulated SOL. Never spendable on real jobs. */
@@ -29,15 +31,13 @@ export function feeOf(volume: bigint): bigint {
   return (volume * TOTAL_FEE_BPS) / BPS_DENOM;
 }
 
-/** Protocol 20% of fee; rest 30% creator / 70% partner; partner 2/7 content, 5/7 ops (remainder to ops). */
+/** Meteora 20%, creator 40%, content 10%, platform (ops) 30% of the fee; ops takes any rounding remainder. */
 export function splitFee(total: bigint): FeeSplit {
   if (total < 0n) throw new Error("fee must not be negative");
-  const protocol = (total * 20n) / 100n;
-  const rest = total - protocol;
-  const creator = (rest * 30n) / 100n;
-  const partner = rest - creator;
-  const content = (partner * 2n) / 7n;
-  const ops = partner - content;
+  const protocol = (total * BigInt(FEE_SPLIT_PERCENT.meteora)) / 100n;
+  const creator = (total * BigInt(FEE_SPLIT_PERCENT.creator)) / 100n;
+  const content = (total * BigInt(FEE_SPLIT_PERCENT.content)) / 100n;
+  const ops = total - protocol - creator - content;
   return { total, protocol, creator, ops, content };
 }
 

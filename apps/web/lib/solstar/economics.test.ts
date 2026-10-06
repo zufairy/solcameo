@@ -4,13 +4,13 @@ import { feeOf, splitFee, quoteBuy, quoteSell, PAPER_VIRTUAL_SOL, PAPER_VIRTUAL_
 const pool = { solReserve: PAPER_VIRTUAL_SOL, tokenReserve: PAPER_VIRTUAL_TOKENS };
 
 describe("feeOf / splitFee", () => {
-  it("125 bps of 1,000,000 lamports splits 2500/3000/5000/2000", () => {
+  it("150 bps of 1,000,000 lamports splits Meteora 20 / creator 40 / platform 30 / content 10", () => {
     const fee = feeOf(1_000_000n);
-    expect(fee).toBe(12_500n);
-    expect(splitFee(fee)).toEqual({ total: 12_500n, protocol: 2_500n, creator: 3_000n, ops: 5_000n, content: 2_000n });
+    expect(fee).toBe(15_000n);
+    expect(splitFee(fee)).toEqual({ total: 15_000n, protocol: 3_000n, creator: 6_000n, ops: 4_500n, content: 1_500n });
   });
   it("shares always sum to the total, for awkward values", () => {
-    for (const f of [0n, 1n, 2n, 3n, 6n, 7n, 13n, 99n, 12_501n, 999_999_999_999n]) {
+    for (const f of [0n, 1n, 2n, 3n, 6n, 7n, 13n, 99n, 15_001n, 999_999_999_999n]) {
       const s = splitFee(f);
       expect(s.protocol + s.creator + s.ops + s.content).toBe(f);
       expect(s.total).toBe(f);

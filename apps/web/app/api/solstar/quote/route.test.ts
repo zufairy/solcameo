@@ -31,7 +31,7 @@ describe("GET /api/solstar/quote", () => {
     expect(typeof body.amountOut).toBe("string");
     expect(typeof body.fee).toBe("string");
     expect(Object.values(body.feeSplit).every((v) => typeof v === "string")).toBe(true);
-    expect(body.fee).toBe("12500000");
+    expect(body.fee).toBe("15000000");
     expect(mocks.query).toHaveBeenCalledWith("getTokenPool", { tokenId: "abc123" });
   });
   it("supports sell", async () => {

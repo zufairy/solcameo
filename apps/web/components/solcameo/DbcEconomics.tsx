@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { ANTI_SNIPER_LEVELS, type DbcOptions } from "@/lib/meteora/options";
 import type { previewDbc } from "@/lib/meteora/curve";
 import { feeExample } from "@/lib/meteora/flywheel";
+import { FEE_SPLIT_PERCENT, TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 type Preview = ReturnType<typeof previewDbc>;
 const fmt = (n: number) =>
   n.toLocaleString(undefined, { maximumFractionDigits: 3 });
@@ -77,7 +78,7 @@ export function DbcEconomics({
           `${40 + (p.inputSol / preview.points.at(-1)!.inputSol) * 660},${260 - ((p.capSol - value.initialCapSol) / (value.graduationCapSol - value.initialCapSol)) * 210}`,
       )
       .join(" ") ?? "";
-  const fees = feeExample(100, value.feeBps, sustainable);
+  const fees = feeExample(100, TRADING_FEE_BPS, sustainable);
   const example = preview?.examples.find((q) => q.inputSol === buy);
   return (
     <section className="space-y-6">
@@ -240,14 +241,14 @@ export function DbcEconomics({
       </Card>
       <div>
         <h3 className="text-base font-medium">
-          Where the {value.feeBps / 100}% trading fee goes
+          Where the {TRADING_FEE_BPS / 100}% trading fee goes
         </h3>
         <p className="mt-1 text-xs text-zinc-500">
           Example: a 100 SOL buy pays {fmt(fees.total)} SOL in trading fees.
           Network fees and rent are additional.
         </p>
         <div className="mt-4 flex h-2 overflow-hidden rounded-full">
-          {(sustainable ? [40, 20, 20, 20] : [80, 20]).map((p, i) => (
+          {(sustainable ? [FEE_SPLIT_PERCENT.creator, FEE_SPLIT_PERCENT.content, FEE_SPLIT_PERCENT.platform, FEE_SPLIT_PERCENT.meteora] : [80, 20]).map((p, i) => (
             <motion.div
               key={i}
               initial={{ width: 0 }}
@@ -266,10 +267,10 @@ export function DbcEconomics({
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {([
-            { label: "Creator", pct: sustainable ? 40 : 80, amount: fees.creator, kind: "creator" },
-            { label: "Content budget", pct: sustainable ? 20 : 0, amount: fees.content, kind: "content" },
-            { label: "Solcameo", pct: sustainable ? 20 : 0, amount: fees.platform, kind: "solcameo" },
-            { label: "Meteora", pct: 20, amount: fees.protocol, kind: "meteora" },
+            { label: "Creator", pct: sustainable ? FEE_SPLIT_PERCENT.creator : 80, amount: fees.creator, kind: "creator" },
+            { label: "Content budget", pct: sustainable ? FEE_SPLIT_PERCENT.content : 0, amount: fees.content, kind: "content" },
+            { label: "Solcameo", pct: sustainable ? FEE_SPLIT_PERCENT.platform : 0, amount: fees.platform, kind: "solcameo" },
+            { label: "Meteora", pct: FEE_SPLIT_PERCENT.meteora, amount: fees.protocol, kind: "meteora" },
           ] as const).map(({ label, pct, amount, kind }, i) => (
             <motion.div key={label} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
               <dt className="flex items-center gap-2 text-xs text-zinc-400">
@@ -290,7 +291,7 @@ export function DbcEconomics({
         <div className="mt-3 divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
           <SwitchRow
             icon={<ShieldCheck className="size-4" />} title="Anti-sniper fee" chain
-            description={value.antiSniper ? `Trading fee starts at ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].startingFeeBps / 100}% and decays to ${value.feeBps / 100}% over ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].totalDuration / 60} min, so bots that buy in the first seconds pay for it. Your first swap is charged the minimum fee.` : "Flat trading fee from the first second. Bots pay the same as everyone else."}
+            description={value.antiSniper ? `Trading fee starts at ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].startingFeeBps / 100}% and decays to ${TRADING_FEE_BPS / 100}% over ${ANTI_SNIPER_LEVELS[value.antiSniperLevel].totalDuration / 60} min, so bots that buy in the first seconds pay for it. Your first swap is charged the minimum fee.` : "Flat trading fee from the first second. Bots pay the same as everyone else."}
             checked={value.antiSniper} disabled={readOnly} onChange={(antiSniper) => patch({ antiSniper })}
           >
             <Segmented label="Strength" disabled={readOnly} value={value.antiSniperLevel} onChange={(antiSniperLevel) => patch({ antiSniperLevel })} options={[["light", "Light · 1 min"], ["standard", "Standard · 3 min"], ["strict", "Strict · 5 min"]]} />
@@ -365,24 +366,8 @@ export function DbcEconomics({
           </div>
           <div>
             <Label>Trading fee · DBC and graduated pool</Label>
-            <div className="mt-2 flex gap-2">
-              {([25, 100, 200] as const).map((fee) => (
-                <Button
-                  key={fee}
-                  disabled={readOnly}
-                  variant="outline"
-                  aria-pressed={value.feeBps === fee}
-                  onClick={() => patch({ feeBps: fee })}
-                  className={
-                    value.feeBps === fee
-                      ? "border-[#d7ff00] text-[#d7ff00]"
-                      : "border-white/10"
-                  }
-                >
-                  {fee / 100}%
-                </Button>
-              ))}
-            </div>
+            <p className="mt-2 inline-flex h-9 items-center rounded-md border border-[#d7ff00] px-3 text-sm tabular-nums text-[#d7ff00]">{TRADING_FEE_BPS / 100}% flat on every trade</p>
+            <p className="mt-1.5 text-[11px] text-zinc-500">Same for every coin. Creator {FEE_SPLIT_PERCENT.creator}%, Solcameo {FEE_SPLIT_PERCENT.platform}%, content {FEE_SPLIT_PERCENT.content}%, Meteora {FEE_SPLIT_PERCENT.meteora}%.</p>
           </div>
         </div>
       </details>

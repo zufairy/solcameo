@@ -56,7 +56,7 @@ export default function LaunchPage() {
         <Bullets
           items={[
             ["Fixed supply", "each coin has a fixed supply of 1 billion tokens, and the mint authority is revoked, so no more can ever be minted."],
-            ["Curve shapes", "the launch settings let you pick a curve shape (Classic, Steady, Rocket or Whale) and a trading fee tier."],
+            ["Curve shapes", "the launch settings let you pick a curve shape (Classic, Steady, Rocket or Whale) at a flat 1.5% trading fee."],
             ["Price", "the price rises as people buy and falls as they sell, along the curve, until the graduation target is reached."],
           ]}
         />
@@ -71,12 +71,12 @@ export default function LaunchPage() {
       </Section>
 
       <Section id="fees" kicker="Economics" title="Where fees go">
-        <p>A small fee on every trade is split four ways:</p>
+        <p>Every trade pays a flat 1.5% fee, split four ways:</p>
         <Bullets
           items={[
             ["Creator, 40%", "paid to the character's creator."],
-            ["Content budget, 20%", "funds the character's next videos."],
-            ["Platform, 20%", "runs Solcameo operations."],
+            ["Platform, 30%", "runs Solcameo operations."],
+            ["Content budget, 10%", "funds the character's next videos."],
             ["Meteora, 20%", "the protocol's share on the curve."],
           ]}
         />

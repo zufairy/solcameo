@@ -12,5 +12,6 @@ describe("versioned sustainable launch economics",()=>{
     for(const amount of [0n,1n,3n,10000001n,(1n<<62n)]){const x=splitCollectedPartner(amount);expect(x.content+x.ops).toBe(amount);expect(x.content<=x.ops).toBe(true);}
     expect(()=>splitCollectedPartner(-1n)).toThrow();
   });
-  it("discloses protocol fees as part of the selected fee",()=>{expect(feeExample(100,100,true)).toEqual({total:1,protocol:.2,creator:.4,content:.2,platform:.2});});
+  it("discloses protocol fees as part of the flat 1.5% fee",()=>{const f=feeExample(100,150,true);expect(f.total).toBeCloseTo(1.5);expect(f.protocol).toBeCloseTo(.3);expect(f.creator).toBeCloseTo(.6);expect(f.platform).toBeCloseTo(.45);expect(f.content).toBeCloseTo(.15);expect(f.protocol+f.creator+f.platform+f.content).toBeCloseTo(f.total);});
+  it("gives the platform 30% of every fee and content 10%, from the 40% partner share",()=>{const x=splitCollectedPartner(4000n);expect(x).toEqual({content:1000n,ops:3000n});});
 });

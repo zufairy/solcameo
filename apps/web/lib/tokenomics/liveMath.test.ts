@@ -31,7 +31,7 @@ describe("splitShares", () => {
   it("reads the live split and sums to one", () => {
     const { shares, live } = splitShares({ creatorEarnedSol: 0.4, platformEarnedSol: 0.4, protocolSol: 0.2 });
     expect(live).toBe(true);
-    expect(shares.creator).toBeCloseTo(0.4); expect(shares.content).toBeCloseTo(0.2); expect(shares.platform).toBeCloseTo(0.2); expect(shares.meteora).toBeCloseTo(0.2);
+    expect(shares.creator).toBeCloseTo(0.4); expect(shares.content).toBeCloseTo(0.1); expect(shares.platform).toBeCloseTo(0.3); expect(shares.meteora).toBeCloseTo(0.2);
     expect(Object.values(shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
   });
 });

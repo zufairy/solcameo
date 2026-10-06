@@ -1,13 +1,15 @@
 import { z } from "zod";
+import { TRADING_FEE_BPS } from "./feePolicy";
 export const dbcOptionsSchema = z
   .object({
     economy: z.enum(["creator-only", "sustainable-v1"]).default("creator-only"),
     shape: z.enum(["classic", "steady", "rocket", "whale"]).default("classic"),
     initialCapSol: z.number().min(0.1).max(1000).default(30),
     graduationCapSol: z.number().min(1).max(10000).default(250),
+    /** Every coin charges the flat TRADING_FEE_BPS. Older tiers still parse so stored launches load, but are not offered. */
     feeBps: z
-      .union([z.literal(25), z.literal(100), z.literal(200)])
-      .default(100),
+      .union([z.literal(25), z.literal(100), z.literal(150), z.literal(200)])
+      .default(TRADING_FEE_BPS as 150),
     /** On-chain: Meteora fee scheduler. Fees start high and decay to `feeBps`, so snipers pay for speed. */
     antiSniper: z.boolean().default(true),
     antiSniperLevel: z.enum(["light", "standard", "strict"]).default("standard"),

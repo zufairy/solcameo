@@ -17,8 +17,10 @@ import {
   type BuildCurveBaseParams,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { ANTI_SNIPER_LEVELS, dbcOptionsSchema, type DbcOptions } from "./options";
+import { CREATOR_TRADING_FEE_PERCENTAGE, TRADING_FEE_BPS } from "./feePolicy";
 export function buildDbcCurve(input: DbcOptions) {
-  const o = dbcOptionsSchema.parse(input);
+  // The trading fee is flat for every coin, whatever an older stored option says.
+  const o = { ...dbcOptionsSchema.parse(input), feeBps: TRADING_FEE_BPS as number };
   const sniper = o.antiSniper ? ANTI_SNIPER_LEVELS[o.antiSniperLevel] : null;
   const base: BuildCurveBaseParams = {
     token: {
@@ -40,7 +42,7 @@ export function buildDbcCurve(input: DbcOptions) {
       },
       dynamicFeeEnabled: o.dynamicFee,
       collectFeeMode: CollectFeeMode.QuoteToken,
-      creatorTradingFeePercentage: o.economy === "sustainable-v1" ? 50 : 100,
+      creatorTradingFeePercentage: o.economy === "sustainable-v1" ? CREATOR_TRADING_FEE_PERCENTAGE : 100,
       poolCreationFee: 0,
       // The creator's own first swap is not penalised by the anti-sniper fee.
       enableFirstSwapWithMinFee: !!sniper,
@@ -111,7 +113,7 @@ export function previewDbc(input: DbcOptions) {
       tokens: Number(result.outputAmount.toString()) / 1e6,
     };
   };
-  const grossSol = raisedSol / (1 - input.feeBps / 10000);
+  const grossSol = raisedSol / (1 - TRADING_FEE_BPS / 10000);
   const points = [
     { inputSol: 0, capSol: input.initialCapSol, tokens: 0 },
     ...Array.from({ length: 40 }, (_, i) => quote((grossSol * (i + 1)) / 40)),
@@ -122,6 +124,6 @@ export function previewDbc(input: DbcOptions) {
     examples: [0.1, 1, 5].map(quote),
     supply: 1_000_000_000,
     lockedLiquidityPercent: 100,
-    feeBps: input.feeBps,
+    feeBps: TRADING_FEE_BPS,
   };
 }

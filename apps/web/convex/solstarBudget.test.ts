@@ -91,13 +91,13 @@ describe("release / spend", () => {
 describe("applyFeeSplit", () => {
   it("credits only the content share and is keyed per trade", async () => {
     const { t, tokenId } = await setup("paper", 0n);
-    const split = splitFee(12_500n);
+    const split = splitFee(15_000n);
     const applied = await t.run(async (ctx) => [
       await applyFeeSplit(ctx, { tokenId, network: "paper", split, idempotencyKey: "trade1", source: "paper_simulated" }),
       await applyFeeSplit(ctx, { tokenId, network: "paper", split, idempotencyKey: "trade1", source: "paper_simulated" }),
     ]);
     expect(applied).toEqual([true, false]);
-    expect((await budget(t, tokenId))!.fundedLamports).toBe(2_000n);
+    expect((await budget(t, tokenId))!.fundedLamports).toBe(1_500n);
     expect(await t.run(async (ctx) => (await ctx.db.query("ssLedger").collect()).length)).toBe(4);
   });
 });
@@ -128,7 +128,7 @@ describe("hardening", () => {
   });
   it("applyFeeSplit rejects network mismatch with no writes", async () => {
     const { t, tokenId } = await setup("paper", 0n);
-    await expect(t.run(async (ctx) => applyFeeSplit(ctx, { tokenId, network: "devnet", split: splitFee(12_500n), idempotencyKey: "m", source: "x" }))).rejects.toThrow("network_mismatch");
+    await expect(t.run(async (ctx) => applyFeeSplit(ctx, { tokenId, network: "devnet", split: splitFee(15_000n), idempotencyKey: "m", source: "x" }))).rejects.toThrow("network_mismatch");
     expect(await t.run(async (ctx) => (await ctx.db.query("ssLedger").collect()).length)).toBe(0);
     expect((await budget(t, tokenId))!.fundedLamports).toBe(0n);
   });
@@ -152,7 +152,7 @@ describe("hardening", () => {
   });
   it("applyFeeSplit ledger rows sum to split.total", async () => {
     const { t, tokenId } = await setup("paper", 0n);
-    const split = splitFee(12_500n);
+    const split = splitFee(15_000n);
     await t.run(async (ctx) => applyFeeSplit(ctx, { tokenId, network: "paper", split, idempotencyKey: "s", source: "x" }));
     const sum = await t.run(async (ctx) => (await ctx.db.query("ssLedger").collect()).reduce((n, r) => n + r.amountLamports, 0n));
     expect(sum).toBe(split.total);

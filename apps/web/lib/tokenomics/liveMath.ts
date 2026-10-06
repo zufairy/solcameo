@@ -9,6 +9,7 @@
  *   pool.creatorQuoteFee / partnerQuoteFee  accrued but NOT yet claimed by each side
  * So claimed = earned − still-unclaimed.
  */
+import { CONTENT_PERCENT_OF_PARTNER, FEE_SPLIT } from "../meteora/feePolicy";
 export type RawLamports = unknown;
 const sol = (v: RawLamports) => Number(String(v ?? 0)) / 1e9;
 
@@ -31,8 +32,8 @@ export function feeBreakdown(args: { totalTradingQuoteFee: RawLamports; totalPro
   };
 }
 
-/** The published policy as fractions of every trading fee: Meteora 20%, creator 40%, content 20%, platform 20%. */
-export const POLICY_SPLIT = { creator: 0.4, content: 0.2, platform: 0.2, meteora: 0.2 } as const;
+/** The published policy as fractions of every trading fee: Meteora 20%, creator 40%, platform 30%, content 10%. */
+export const POLICY_SPLIT = FEE_SPLIT;
 export type SplitKey = keyof typeof POLICY_SPLIT;
 
 /**
@@ -44,5 +45,5 @@ export function splitShares(totals: { creatorEarnedSol: number; platformEarnedSo
   const total = totals.creatorEarnedSol + totals.platformEarnedSol + totals.protocolSol;
   if (!(total > 0)) return { shares: { ...POLICY_SPLIT }, live: false };
   const partner = totals.platformEarnedSol / total;
-  return { live: true, shares: { creator: totals.creatorEarnedSol / total, content: partner / 2, platform: partner / 2, meteora: totals.protocolSol / total } };
+  return { live: true, shares: { creator: totals.creatorEarnedSol / total, content: partner * (CONTENT_PERCENT_OF_PARTNER / 100), platform: partner * (1 - CONTENT_PERCENT_OF_PARTNER / 100), meteora: totals.protocolSol / total } };
 }

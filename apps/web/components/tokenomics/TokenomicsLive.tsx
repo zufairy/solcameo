@@ -10,13 +10,14 @@ import type { LiveTokenomics } from "@/app/api/tokenomics/live/route";
 import { splitShares, type SplitKey } from "@/lib/tokenomics/liveMath";
 import { CountUp } from "./CountUp";
 import { FLOW_NODES } from "./flowNodes";
+import { TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 
 // Three.js is heavy and browser-only: load it after first paint.
 const FeeFlowScene = dynamic(() => import("./FeeFlowScene").then((m) => m.FeeFlowScene), { ssr: false });
 
 const LIME = "#d7ff00";
 const POLL_MS = 4000;
-const FEE_RATE = 0.01; // the 1% trading fee every coin charges
+const FEE_RATE = TRADING_FEE_BPS / 10_000; // the flat trading fee every coin charges (1.5%)
 const panel = "rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
 const mono = { fontFamily: "var(--font-geist-mono)" } as const;
 const fmtSol = (n: number, d = 3) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -95,7 +96,7 @@ export function TokenomicsLive() {
           <FeeFlowScene shares={shares} activity={activity} highlight={highlight} onLabels={setLabels} className="absolute inset-0" />
           <div className="pointer-events-none absolute left-4 top-4 space-y-1 sm:left-6 sm:top-5">
             <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>1 · Buyers climb the curve</p>
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>2 · A {FEE_RATE * 100}% fee is taken</p>
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>2 · A {+(FEE_RATE * 100).toFixed(2)}% fee is taken</p>
             <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>3 · It fans out to four owners</p>
           </div>
           {labels && FLOW_NODES.map((n) => {
@@ -118,7 +119,7 @@ export function TokenomicsLive() {
             </button>
           ))}
         </div>
-        <p className="relative px-4 py-2.5 text-[11px] text-white/35 sm:px-5">{live ? "Shares are measured from every live pool." : "Showing the published policy until the first coin collects a fee."} Content and platform split the partner share evenly because the chain holds a single partner wallet.</p>
+        <p className="relative px-4 py-2.5 text-[11px] text-white/35 sm:px-5">{live ? "Shares are measured from every live pool." : "Showing the published policy until the first coin collects a fee."} Platform (30%) and content (10%) share the partner wallet&apos;s 40%, because the chain holds a single partner wallet.</p>
       </section>
 
       {/* ── Calculator ───────────────────────────────────────────────────────── */}
@@ -126,7 +127,7 @@ export function TokenomicsLive() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-[16px] font-semibold">If {fmtInt(volume)} SOL gets traded…</h2>
-            <p className="mt-1 text-[12.5px] text-white/45">An illustration at the {FEE_RATE * 100}% trading fee, using the split above. Not a forecast.</p>
+            <p className="mt-1 text-[12.5px] text-white/45">An illustration at the {+(FEE_RATE * 100).toFixed(2)}% trading fee, using the split above. Not a forecast.</p>
           </div>
           <p className="text-[13px] text-white/55">a fee of <b className="tabular-nums text-white">{fmtSol(fee, fee < 1 ? 3 : 2)} SOL</b> {usd(fee) && <span className="text-white/35">{usd(fee)}</span>}</p>
         </div>
