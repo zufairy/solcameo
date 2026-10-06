@@ -284,7 +284,7 @@ export async function POST(req: NextRequest) {
       await convex.mutation(api.agentTasks.succeed, { id: job.taskId, output: JSON.stringify(partial), cost: 0.04, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" }).catch(() => {});
       // Settle the storyboard floor on-chain too (same as finishAll) so a failed
       // render's partial spend reflects immediately rather than lingering unswept.
-      await settleAgentEconomics(job.mintAddress).catch(() => {});
+      await settleAgentEconomics(job.mintAddress, { immediate: true }).catch(() => {});
     }
   };
 
@@ -337,7 +337,7 @@ export async function POST(req: NextRequest) {
     // The deferred render is the one task path that returns `async` before that
     // settle runs, so without this a video-only operator accrues the tab but never
     // settles it on-chain after the first — the "only deducts the first time" bug.
-    await settleAgentEconomics(job.mintAddress).catch(() => {});
+    await settleAgentEconomics(job.mintAddress, { immediate: true }).catch(() => {});
   };
 
   // On any thrown error: retry the same phase up to MAX_PHASE_ATTEMPTS, else fail.

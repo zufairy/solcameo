@@ -3811,7 +3811,7 @@ export async function POST(req: NextRequest) {
       // The cost is already debited onto the realtime tab inside succeed(); now
       // reconcile the escrow mirror to chain and sweep the tab on-chain when it
       // crosses the threshold. Best-effort — never blocks or fails the task.
-      if (cost && cost > 0) await settleAgentEconomics(mintAddress).catch(() => {});
+      if (cost && cost > 0) await settleAgentEconomics(mintAddress, { immediate: true }).catch(() => {});
       return NextResponse.json({ ok: true, taskId, output, cost, revenue });
     } catch (execErr) {
       const errorMessage = execErr instanceof Error ? execErr.message : "Execution failed";
@@ -3828,7 +3828,7 @@ export async function POST(req: NextRequest) {
           authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
         }).catch(() => { /* best-effort */ });
       }
-      if (partialCost && partialCost > 0) await settleAgentEconomics(mintAddress).catch(() => {});
+      if (partialCost && partialCost > 0) await settleAgentEconomics(mintAddress, { immediate: true }).catch(() => {});
       return NextResponse.json({ ok: false, taskId, error: errorMessage }, { status: 500 });
     }
     };
