@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeCharacterScope, verifyCharacterJobTicket, invalidDraftJob } from "@/lib/server/characterDraft";
 import { getObjectText, mirrorImageToR2 } from "@/lib/server/imageStorage";
 import { refundImage } from "@/lib/server/imageBilling";
+import { refundStudioRun } from "@/lib/server/studioGenBilling";
 import { pollNftTaskOnce } from "@/lib/server/nftKie";
 
 export const runtime = "nodejs";
@@ -19,8 +20,9 @@ export async function GET(req: NextRequest) {
   if (poll.status === "pending") return NextResponse.json({ status: "pending" }, { headers });
   if (poll.status === "fail") {
     const raw = await getObjectText(`characters/${a.mint}/jobs/${id}.json`);
-    const job = raw ? JSON.parse(raw) as { billingRunId?: string } : null;
+    const job = raw ? JSON.parse(raw) as { billingRunId?: string; studioRunId?: string; lastEngine?: boolean } : null;
     if (job?.billingRunId) await refundImage(a.mint, job.billingRunId);
+    if (job?.studioRunId && job.lastEngine) await refundStudioRun(job.studioRunId);
     return NextResponse.json({ status: "failed", error: poll.error }, { headers });
   }
   const stored = await mirrorImageToR2(poll.url, { key: `characters/${a.mint}/gen/shirt-${id}/0.webp`, optimize: true });

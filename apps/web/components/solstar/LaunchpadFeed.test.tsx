@@ -17,7 +17,7 @@ async function mount() {
   await act(async () => root.render(<LaunchpadFeed />));
 }
 it("does not show paper characters as confirmed launches, and has no Previews tab", async () => {
-  mocks.query.mockImplementation((_ref, args) => args?.network === "devnet" ? [] : args?.network === "paper" ? [{characterId:"preview1",name:"Preview Person",ticker:"PRE",network:"paper",category:"Comedy",imageUrl:"https://example.com/image.jpg",marketCapLamports:"1000000000",videosPosted:0,followers:0}] : args?.kind === "ugc" ? { items: [] } : args && Object.keys(args).length === 0 ? [] : null);
+  mocks.query.mockImplementation((_ref, args) => args?.network === "mainnet" ? [] : args?.network === "paper" ? [{characterId:"preview1",name:"Preview Person",ticker:"PRE",network:"paper",category:"Comedy",imageUrl:"https://example.com/image.jpg",marketCapLamports:"1000000000",videosPosted:0,followers:0}] : args?.kind === "ugc" ? { items: [] } : args && Object.keys(args).length === 0 ? [] : null);
   await mount();
   expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toContain("Trending");
   await act(async () => { host.querySelectorAll<HTMLButtonElement>('[role="tab"]')[1].click(); });
@@ -26,17 +26,19 @@ it("does not show paper characters as confirmed launches, and has no Previews ta
   const tabs = Array.from(host.querySelectorAll('[role="tab"]')).map(b => b.textContent);
   expect(tabs).toEqual(["🔥Trending", "New launches", "Episodes"]);
 });
-it("shows the newest videos in the Trending tab with the engine that made each one", async () => {
-  mocks.query.mockImplementation((_ref, args) => args?.wallets ? [{ name: "Alice" }] : args?.network ? [] : args?.kind === "ugc" ? { items: [{ id: "v1", videoUrl: "https://example.com/v1.mp4", posterUrl: null, caption: "Cat takes over", agentName: "Mochi", agentAvatar: "https://example.com/mochi.png", creatorWallet: "creator-wallet", engine: "grok-imagine/image-to-video", createdAt: Date.now() - 60000, viewCount: 1200 }], total: 1, hasMore: false } : args && Object.keys(args).length === 0 ? [{ id: "e1", characterId: "c1", name: "Nova", ticker: "NOVA", title: "Neon run", videoUrl: "https://example.com/e1.mp4", posterUrl: "", createdAt: Date.now() - 600000, sample: false, engine: "Veo 3" }] : args?.kind === "ugc" ? { items: [] } : args && Object.keys(args).length === 0 ? [] : null);
+it("shows the newest videos in the Trending tab", async () => {
+  const created = { items: [{ id: "v1", videoUrl: "https://example.com/v1.mp4", posterUrl: null, caption: "Cat takes over", agentName: "Mochi", agentAvatar: "https://example.com/mochi.png", creatorWallet: "creator-wallet", characterId: "c2", engine: "grok-imagine/image-to-video", createdAt: Date.now() - 60000, viewCount: 1200 }, { id: "v2", videoUrl: "https://example.com/v2.mp4", posterUrl: null, caption: "Devnet only", agentName: "Ghost", characterId: "dev1", createdAt: Date.now() - 30000 }], total: 2, hasMore: false };
+  const episodes = [{ id: "e1", characterId: "c1", name: "Nova", ticker: "NOVA", title: "Neon run", videoUrl: "https://example.com/e1.mp4", posterUrl: "", createdAt: Date.now() - 600000, sample: false, engine: "Veo 3" }];
+  mocks.query.mockImplementation((_ref, args) => args?.wallets ? [{ name: "Alice" }] : args?.sort ? [{ characterId: "c1" }, { characterId: "c2" }] : args?.kind === "ugc" ? created : args?.network ? episodes : null);
   await mount();
 
-  expect(host.textContent).toContain("Grok Imagine");
   expect(host.textContent).not.toContain("Cat takes over");
   expect(host.textContent).toContain("Market cap");
   expect(host.textContent).toContain("by Alice");
   expect(host.textContent).toContain("Total video views 1,200");
   expect(host.querySelector('img[src="https://example.com/mochi.png"]')).not.toBeNull();
-  expect(host.textContent).toContain("Veo 3");
+  expect(host.textContent).not.toContain("Veo 3");
+  expect(host.textContent).not.toContain("Ghost");
   expect(host.textContent).toContain("$NOVA");
 });
 it("only shows characters with published episodes in the episode tab", async () => {

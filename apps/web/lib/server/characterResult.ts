@@ -1,4 +1,5 @@
 import { refundImage } from "./imageBilling";
+import { refundStudioRun } from "./studioGenBilling";
 import { getStatus } from "./higgsfield";
 import { getObjectText, mirrorImageToR2, putImage } from "./imageStorage";
 import type { CharacterImage } from "@/lib/character/types";
@@ -18,6 +19,7 @@ export async function characterResult(scope: string, id: string) {
       const raw = await getObjectText(`characters/${scope}/jobs/${id}.json`);
       const job = raw ? JSON.parse(raw) : null;
       if (job?.billingRunId) await refundImage(scope, job.billingRunId);
+      if (job?.studioRunId) await refundStudioRun(job.studioRunId);
     }
     return { status: r.status, error: r.error };
   }

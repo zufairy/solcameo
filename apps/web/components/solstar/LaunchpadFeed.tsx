@@ -67,7 +67,7 @@ function CharacterPost({ row }: { row: MarketRow }) {
   const change = pool?.available ? pool.changeSinceLaunchPct : null;
   const volume = pool?.appVolume24hLamports ? formatUsdEstimate(pool.appVolume24hLamports, rate) : "—";
   const progress = Math.min(100, Math.max(0, (pool?.progress ?? 0) * 100));
-  return <article ref={article} className="relative flex h-[calc(100dvh-164px)] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
+  return <article ref={article} className="relative flex h-[var(--feed-h,calc(100cqh-52px))] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
     <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
       {episode ? <video ref={mirror} muted loop playsInline preload="metadata" src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" /> : <img src={row.imageUrl} alt="" className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" />}
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
@@ -173,7 +173,7 @@ function TrendingPost({ item }: { item: TrendItem }) {
     <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-2 text-[10px] font-medium text-[#10130a]/60"><span>Total video views <span className="ml-1 font-semibold tabular-nums text-[#10130a]">{item.views == null ? "—" : item.views.toLocaleString("en-US")}</span></span><span>{item.characterId ? "Open market ↗" : item.engine}</span></div>
   </>;
   const cardClass = "block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]";
-  return <article ref={article} className="relative flex h-[calc(100dvh-164px)] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
+  return <article ref={article} className="relative flex h-[var(--feed-h,calc(100cqh-52px))] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black [container-type:size]">
     <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
       <video ref={mirror} muted loop playsInline preload="metadata" src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" />
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
@@ -182,8 +182,7 @@ function TrendingPost({ item }: { item: TrendItem }) {
       <video ref={video} controls muted={muted} preload="metadata" playsInline onEnded={advance} src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full object-contain" aria-label={`${item.name} video`} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 to-transparent" />
       <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2">
-        {/* The engine that rendered this video, as a frosted-glass badge. */}
-        <span className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/[0.14] py-1.5 pl-2.5 pr-3 text-[11.5px] font-semibold tracking-tight text-white shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.3)] backdrop-blur-2xl backdrop-saturate-150"><span className="size-1.5 rounded-full bg-[#d7ff00] shadow-[0_0_8px_#d7ff00]" />{item.engine}</span>
+        <span />
         <Button size="icon-sm" variant="ghost" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute video" : "Mute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{muted ? <SpeakerOffIcon /> : <SpeakerLoudIcon />}</Button>
       </div>
       <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-14">
@@ -195,14 +194,16 @@ function TrendingPost({ item }: { item: TrendItem }) {
 
 /** The latest videos across the network, newest first, one full-height card each and scrolling on by itself. */
 function TrendingFeed() {
-  const episodes = useQuery(api.solstarDiscovery.latestVideos, {});
+  const episodes = useQuery(api.solstarDiscovery.latestVideos, { network: "mainnet" });
   const created = useQuery(api.clipJobs.globalVideoFeed, { limit: 30, kind: "ugc" });
-  if (episodes === undefined || created === undefined) return <div className="space-y-4 p-6">{[0, 1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div>;
+  const market = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
+  if (episodes === undefined || created === undefined || market === undefined) return <div className="space-y-4 p-6">{[0, 1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div>;
   const analytics = new Map((Array.isArray(created) ? [] : created.items).map(v => [v.videoUrl, v]));
+  const mainnetIds = new Set(market.map(r => String(r.characterId)));
   const seen = new Set<string>();
   const all: TrendItem[] = [
     ...episodes.filter(e => !e.sample).map(e => ({ id: String(e.id), videoUrl: e.videoUrl, posterUrl: e.posterUrl, title: e.title, name: e.name, imageUrl: e.imageUrl, creatorWallet: e.creatorWallet, views: analytics.get(e.videoUrl)?.viewCount, ticker: e.ticker, characterId: String(e.characterId), engine: engineLabel((e as { engine?: string | null }).engine), at: e.createdAt })),
-    ...(Array.isArray(created) ? [] : created.items).map(v => ({ id: v.id, videoUrl: v.videoUrl, posterUrl: v.posterUrl, title: v.caption, name: v.agentName || "AI creator", imageUrl: v.agentAvatar, creatorWallet: v.creatorWallet, characterId: v.characterId ?? undefined, engine: engineLabel(v.engine), at: v.createdAt, views: v.viewCount })),
+    ...(Array.isArray(created) ? [] : created.items).filter(v => v.characterId && mainnetIds.has(String(v.characterId))).map(v => ({ id: v.id, videoUrl: v.videoUrl, posterUrl: v.posterUrl, title: v.caption, name: v.agentName || "AI creator", imageUrl: v.agentAvatar, creatorWallet: v.creatorWallet, characterId: v.characterId ?? undefined, engine: engineLabel(v.engine), at: v.createdAt, views: v.viewCount })),
   ]
     .filter(v => v.videoUrl && !seen.has(v.videoUrl) && !!seen.add(v.videoUrl))
     .sort((a, b) => b.at - a.at)
@@ -214,14 +215,14 @@ function TrendingFeed() {
 function Discovery() {
   const reduced = useReducedMotion();
   const [tab, setTab] = useState("trending");
-  const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
+  const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
   const rows = tab === "episodes" ? live?.filter(r => r.videosPosted > 0) : live;
   return <>
-    <div className="sticky top-0 z-10 flex gap-1 border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">
-      {[["trending", "Trending"], ["launches", "New launches"], ["episodes", "Episodes"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{value === "trending" && <motion.span aria-hidden="true" className="inline-block bg-transparent text-base leading-none" animate={reduced ? undefined : { rotate: [-7, 6, -7], scale: [1, 1.15, 1], y: [0, -1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>🔥</motion.span>}{label}</Button>)}
+    <div className="sticky top-0 z-10 flex items-stretch gap-5 border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">
+      {[["trending", "Trending"], ["launches", "New launches"], ["episodes", "Episodes"]].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`relative flex items-center gap-1.5 text-[13px] font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:text-white ${tab === value ? "text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{value === "trending" && <motion.span aria-hidden="true" className="inline-block bg-transparent text-sm leading-none" animate={reduced ? undefined : { rotate: [-7, 6, -7], scale: [1, 1.15, 1], y: [0, -1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>🔥</motion.span>}{label}{tab === value && <motion.span layoutId="discovery-tab" aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 bg-[#d7ff00]" transition={{ duration: reduced ? 0 : 0.2 }} />}</button>)}
     </div>
-    <div role="tabpanel" aria-label={tab} className="max-h-[calc(100dvh-164px)] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">
-      {tab === "trending" ? <TrendingFeed /> : rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><EmptyArt slot={tab === "episodes" ? 0 : tab === "previews" ? 2 : 1} /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from confirmed devnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}
+    <div role="tabpanel" aria-label={tab} className="max-h-[var(--feed-h,calc(100cqh-52px))] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">
+      {tab === "trending" ? <TrendingFeed /> : rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><EmptyArt slot={tab === "episodes" ? 0 : tab === "previews" ? 2 : 1} /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from live mainnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}
     </div>
     <p className="hidden px-6 py-4 text-[11px] text-zinc-500"><VideoIcon className="mr-1 inline" /> Watching is free. Devnet trades use test SOL; USD valuations are illustrative. Previews are unminted.</p>
   </>;

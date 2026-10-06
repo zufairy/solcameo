@@ -74,6 +74,7 @@ import type * as liveChat from "../liveChat.js";
 import type * as migrations_backfillHandleLower from "../migrations/backfillHandleLower.js";
 import type * as migrations_mergeClipforgeIntoFoundersClub from "../migrations/mergeClipforgeIntoFoundersClub.js";
 import type * as mintFee from "../mintFee.js";
+import type * as studioGen from "../studioGen.js";
 import type * as nftAgents from "../nftAgents.js";
 import type * as nodeApplications from "../nodeApplications.js";
 import type * as opsInterns from "../opsInterns.js";
@@ -186,6 +187,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/backfillHandleLower": typeof migrations_backfillHandleLower;
   "migrations/mergeClipforgeIntoFoundersClub": typeof migrations_mergeClipforgeIntoFoundersClub;
   mintFee: typeof mintFee;
+  studioGen: typeof studioGen;
   nftAgents: typeof nftAgents;
   nodeApplications: typeof nodeApplications;
   opsInterns: typeof opsInterns;

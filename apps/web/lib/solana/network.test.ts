@@ -12,11 +12,11 @@ describe("isMainnet", () => {
     process.env.NEXT_PUBLIC_SOLANA_NETWORK = "mainnet-beta";
     expect(isMainnet()).toBe(true);
   });
-  it("is false for devnet / unset", () => {
+  it("is false for devnet, true when unset", () => {
     process.env.NEXT_PUBLIC_SOLANA_NETWORK = "devnet";
     expect(isMainnet()).toBe(false);
     delete process.env.NEXT_PUBLIC_SOLANA_NETWORK;
-    expect(isMainnet()).toBe(false);
+    expect(isMainnet()).toBe(true);
   });
   it("respects an explicit network arg", () => {
     expect(isMainnet("mainnet-beta")).toBe(true);

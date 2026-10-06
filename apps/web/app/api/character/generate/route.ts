@@ -1,6 +1,7 @@
 import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { refundImage } from "@/lib/server/imageBilling";
 import { CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
+import { refundStudioRun, reserveStudioImages } from "@/lib/server/studioGenBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { authorizeCharacterScope, issueCharacterJobTicket } from "@/lib/server/characterDraft";
@@ -43,6 +44,11 @@ export async function POST(req: NextRequest) {
   const batch = randomUUID();
   const walletFunded = body.draft !== true;
   const billingRuns = Array.from({ length: count }, (_, index) => `character:${batch}:${index}`);
+  // Onboarding (draft) generations are paid by the signed-in account: free allowance first, then $0.50 per image.
+  if (!walletFunded) {
+    const studio = await reserveStudioImages(req, { runIds: billingRuns, fresh: true, useFree: body.useFree !== false, paymentSignature: body.paymentSignature, payer: body.payer });
+    if (studio.error) return studio.error;
+  }
   if (walletFunded) {
     for (const [index, billingRunId] of billingRuns.entries()) {
       const charge = await chargeAgentGeneration(a.mint, billingRunId, "image_gen");
@@ -61,12 +67,12 @@ export async function POST(req: NextRequest) {
       const prompt = promptFor(index);
       const requestId = hasReferences ? await submitReferenceEdit(prompt, photoUrls, ratio, key) : await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
       accepted = true;
-      const job = { billingRunId: walletFunded ? billingRunId : undefined, model: hasReferences ? "reference" as const : model, requestId, count: 1, ratio, createdAt: Date.now() };
+      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, model: hasReferences ? "reference" as const : model, requestId, count: 1, ratio, createdAt: Date.now() };
       // Register every accepted job before returning: refresh recovery does not depend on browser memory.
       await putImage(Buffer.from(JSON.stringify(job)), "application/json", { key: `characters/${a.mint}/jobs/${requestId}.json` });
       return { ...job, ticket: issueCharacterJobTicket(a.mint, requestId) };
       } catch (error) {
-        if (walletFunded && !accepted) await refundImage(a.mint, billingRunId);
+        if (!accepted) await (walletFunded ? refundImage(a.mint, billingRunId) : refundStudioRun(billingRunId));
         throw error;
       }
     }));

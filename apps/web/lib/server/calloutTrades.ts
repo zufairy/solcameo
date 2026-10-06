@@ -4,7 +4,7 @@ import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { convexClient } from "@/lib/server/solstarRoute";
-import { getNetwork, getRpcCandidates } from "@/lib/solana/network";
+import { getRpcCandidates } from "@/lib/solana/network";
 import { readPoolHistory, readMarketSwap } from "./marketLeaderboard";
 import { migratedPool } from "./dammLifecycle";
 import { rankTraders, type RpcTrade } from "@/lib/solstar/leaderboard";
@@ -23,7 +23,7 @@ type Result = { coins: CalloutTrade[]; errors: string[]; network: "mainnet" | "d
 const cache = new Map<string, { expires: number; promise: Promise<Result> }>();
 export function loadCalloutTrades(wallet: string, mint?: string, refresh = false) {
   new PublicKey(wallet);
-  const network = getNetwork() === "mainnet-beta" ? "mainnet" : "devnet";
+  const network = "mainnet" as const;
   const key = `${network}:${wallet}:${mint || "all"}`;
   const hit = cache.get(key); if (!refresh && hit && hit.expires > Date.now()) return hit.promise;
   const promise = scan(wallet, network, mint).catch(e => { cache.delete(key); throw e; });

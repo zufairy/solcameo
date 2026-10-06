@@ -98,11 +98,9 @@ function Content() {
   const [selected, setSelected] = useState<Video | null>(null);
   const solUsd = useSolUsd();
   const mainnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "mainnet" });
-  const devnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "devnet" });
-  const paper = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "paper" });
-  const markets = useMemo(() => new Map([...(mainnet ?? []), ...(devnet ?? []), ...(paper ?? [])].map(row => [String(row.characterId), row])), [mainnet, devnet, paper]);
+  const markets = useMemo(() => new Map((mainnet ?? []).map(row => [String(row.characterId), row])), [mainnet]);
   const [caps, setCaps] = useState<Record<string, number>>({});
-  const episodes = useQuery(api.solstarDiscovery.latestVideos, {});
+  const episodes = useQuery(api.solstarDiscovery.latestVideos, { network: "mainnet" });
   const created = useQuery(api.clipJobs.globalVideoFeed, { limit: 200, kind: "ugc" });
   const xPosts = new Map((created?.items ?? []).flatMap(item => {
     if (item.state !== "posted" || !item.postUrl) return [];
@@ -115,7 +113,7 @@ function Content() {
     ...(episodes ?? [])
       .filter((e) => !e.sample)
       .map((e) => ({ id: String(e.id), url: e.videoUrl, poster: e.posterUrl, name: e.name, ticker: e.ticker, characterId: String(e.characterId), at: e.createdAt })),
-    ...(created?.items ?? []).map((e) => ({ id: e.id, url: e.videoUrl, poster: e.posterUrl, name: e.agentName ?? "AI creator", characterId: null, at: e.createdAt })),
+    ...(created?.items ?? []).filter((e) => e.characterId && markets.has(String(e.characterId))).map((e) => ({ id: e.id, url: e.videoUrl, poster: e.posterUrl, name: e.agentName ?? "AI creator", characterId: String(e.characterId), at: e.createdAt })),
   ];
   const seen = new Set<string>();
   const videos = all.filter((v) => v.url && !seen.has(v.url) && !!seen.add(v.url)).sort((a, b) => b.at - a.at);

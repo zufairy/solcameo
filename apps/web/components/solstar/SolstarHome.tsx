@@ -18,14 +18,14 @@ export function SolstarHome() {
   const desktop = useIsDesktop();
   return <main className="w-full">
     <WelcomePopup />
-    {desktop ? <div className="grid min-h-[calc(100dvh-136px)] grid-cols-[minmax(0,calc((100dvh-164px)*0.5625))_minmax(0,1fr)]">
+    {desktop ? <div className="grid h-[100cqh] grid-cols-[minmax(0,calc((100cqh-52px)*0.5625))_minmax(0,1fr)]">
       <section aria-label="Character launchpad feed" className="flex min-w-0 flex-col border-r border-white/[0.09]">
         <LaunchpadFeed />
       </section>
       <section aria-label="Callouts" className="min-w-0 bg-[linear-gradient(110deg,transparent_25%,rgba(110,231,183,0.035))]">
         <HomeCallouts />
       </section>
-    </div> : <Tabs defaultValue="feed" className="gap-0">
+    </div> : <Tabs defaultValue="feed" className="gap-0 [--feed-h:calc(100cqh-100px)]">
       <TabsList className="h-12 w-full rounded-none border-b border-white/10 bg-transparent p-1">
         <TabsTrigger value="feed">Characters</TabsTrigger>
         <TabsTrigger value="trending">Callouts</TabsTrigger>

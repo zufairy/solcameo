@@ -441,7 +441,7 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
 
   const rawDocs = useQuery(
     api.influencers.listByCreators,
-    creatorWallets.length ? { creatorWallets } : "skip"
+    creatorWallets.length ? { creatorWallets, ...(embedded ? { liveNetwork: "mainnet" as const } : {}) } : "skip"
   ) as CreatorDoc[] | undefined;
   const docs = useMemo(() => rawDocs ?? [], [rawDocs]);
 

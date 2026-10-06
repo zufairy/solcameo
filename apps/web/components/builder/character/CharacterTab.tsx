@@ -16,6 +16,7 @@ import type { CharacterImage, CharModel, ModelChoice, SavedCharacter, Selection,
 import { Card, CountToggle, DISPLAY_FONT, LIME, Pill, RatioSelect, Section, SPRING, SURFACE, Swatch } from "./character-ui";
 import { Gallery, MODEL_LABEL, type Tile } from "./Gallery";
 import { ShirtStudio } from "./ShirtStudio";
+import { StudioWalletBox, TopUpDialog, priceLabel, useStudioBilling } from "./studioBilling";
 import { MotionLibrary, ReplicatePanel, RunsGrid, useMotionRuns, type MotionItem, type MotionRun } from "./motion";
 
 const GLASS_BG: React.CSSProperties = {
@@ -35,7 +36,7 @@ const DEFAULT_ICON = <Sparkles className="size-3.5" />;
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { data });
   return data;
 }
 
@@ -69,6 +70,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   const [historyLoading, setHistoryLoading] = useState(false);
   const [shirtTile, setShirtTile] = useState<Tile | null>(null);
   const runId = useRef(0);
+  const billing = useStudioBilling(onboarding);
   const motion$ = useMotionRuns(mintAddress ?? "");
   const [mode, setMode] = useState<"builder" | "replicate">("builder");
   const [pickedMotion, setPickedMotion] = useState<MotionItem | null>(null);
@@ -198,14 +200,19 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   const generate = async () => {
     if (!canGenerate) { onNeedLogin?.(); return; }
     if ((!mintAddress && !onboarding) || !ready || generating || uploading) return;
+    setError(null);
+    // Free allowance first, then a $0.50 USDC transfer from the account wallet to Solcameo. Null = top-up popup is open.
+    const payment = await billing.prepare(count);
+    if (!payment) return;
     const id = ++runId.current;
-    setError(null); setGenerating(true);
+    setGenerating(true);
     try {
       const res = await api<{ jobs: { model: CharModel; requestId: string; ticket?: string; count?: number; ratio?: string }[] }>("/api/character/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, brief: preset?.brief || undefined, model: photoUrl ? "qwen" : model, photoUrls, aspectRatio: ratio, count }),
+        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, brief: preset?.brief || undefined, model: photoUrl ? "qwen" : model, photoUrls, aspectRatio: ratio, count, useFree: billing.useFree, ...payment }),
       });
+      billing.settled();
       const startedAt = Date.now();
       // Placeholder tiles go to the top of the masonry immediately so the feed reacts at once.
       const jobTiles = res.jobs.map((job) => ({
@@ -248,6 +255,9 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
         if (runId.current === id) settle([], "Timed out, try again");
       }));
     } catch (e) {
+      const code = (e as { data?: { code?: string } }).data?.code;
+      if (code === "payment_used") billing.discard();
+      void billing.refresh();
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
       if (runId.current === id) setGenerating(false);
@@ -367,6 +377,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
                     </Section>
                   );
                 })}
+                {onboarding && <StudioWalletBox billing={billing} />}
               </div>
 
               <div className="space-y-2 border-t border-white/[0.06] p-3" style={{ background: SURFACE.panel }}>
@@ -382,10 +393,10 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.99 }}
-                    disabled={!ready || generating} onClick={() => void generate()}
+                    disabled={!ready || generating || billing.paying} onClick={() => void generate()}
                     className="relative flex h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg text-sm font-medium text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
                     style={{ background: LIME }}>
-                    {generating ? <><Loader2 className="size-4 animate-spin" /> Generating…</> : ready ? <>Generate <Sparkles className="size-4 fill-black" /> <span title="Images per run">{images}</span></> : "Pick a trait to start"}
+                    {billing.paying ? <><Loader2 className="size-4 animate-spin" /> Confirm in wallet…</> : generating ? <><Loader2 className="size-4 animate-spin" /> Generating…</> : ready ? <>Generate <Sparkles className="size-4 fill-black" /> <span title="Images per run">{images}</span>{priceLabel(billing, images) && <span className="rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-semibold">{priceLabel(billing, images)}</span>}</> : "Pick a trait to start"}
                   </motion.button>
                 </div>
               </div>
@@ -411,13 +422,14 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
         )}
       </div>
       <ShirtStudio
-        tile={shirtTile} mintAddress={mintAddress} draft={onboarding} onClose={() => setShirtTile(null)}
+        tile={shirtTile} mintAddress={mintAddress} draft={onboarding} billing={billing} onClose={() => setShirtTile(null)}
         onResult={(url, ratio) => {
-          // The edited portrait joins the feed as a normal candidate and becomes the selected look.
-          setTiles((prev) => [{ id: tileId(), model: "reference", ratio, status: "done", url, startedAt: 0 }, ...prev]);
-          setPickedUrl(url);
+          // Saved the moment it finishes: the edited portrait is already in R2, so it joins the feed (and history) at once.
+          setTiles((prev) => prev.some(t => t.url === url) ? prev : [{ id: tileId(), model: "reference", ratio, status: "done", url, startedAt: 0 }, ...prev]);
         }}
+        onUse={(url) => setPickedUrl(url)}
       />
+      <TopUpDialog billing={billing} />
     </div>
   );
 }

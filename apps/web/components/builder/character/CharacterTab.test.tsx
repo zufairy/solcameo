@@ -7,6 +7,10 @@ import { CharacterTab } from "./CharacterTab";
 
 vi.mock("@/providers/supabase-auth-provider", () => ({ useSupabaseAuth: () => ({ authenticated: true, accessToken: "test" }) }));
 
+vi.mock("@/hooks/use-solana-wallet", () => ({ useUnifiedSolanaWallet: () => ({ publicKey: null, signTransaction: undefined, connected: false, connecting: false }) }));
+vi.mock("@/lib/client/usdcClient", () => ({ useWalletUsdc: () => ({ usdc: 0, refresh: async () => 0 }), useWalletSol: () => ({ sol: 0, refresh: async () => 0 }), sendUsdc: vi.fn() }));
+vi.mock("@/components/wallet/AddFundsButton", () => ({ default: () => null }));
+
 let root: Root;
 let host: HTMLDivElement;
 const calls: { url: string; init?: RequestInit }[] = [];

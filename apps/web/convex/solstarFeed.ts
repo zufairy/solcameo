@@ -120,8 +120,8 @@ export const tickerItems = query({
 
 /** Reactive agent and standalone trader callouts; general chat and trade events stay in the activity feed. */
 export const listCallouts = query({
-  args: {},
-  handler: async ctx => {
+  args: { network: v.optional(v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet"))) },
+  handler: async (ctx, { network }) => {
     const rows = await ctx.db.query("ssFeed").withIndex("by_kind_created", q => q.eq("kind", "chat")).order("desc").take(100);
     const joined = await Promise.all(rows.filter(r => r.characterId || (r.calloutMetric === "trade" && r.wallet)).map(async r => {
       if (!r.characterId) {
@@ -129,12 +129,13 @@ export const listCallouts = query({
         const link = await ctx.db.query("walletLinks").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
         const user = link ? await ctx.db.get(link.userId) : await ctx.db.query("users").withIndex("by_wallet", q => q.eq("walletAddress", wallet)).first();
         const name = user?.name || `${wallet.slice(0, 4)}…${wallet.slice(-4)}`, imageUrl = user?.image || "/brand/solcameo-mark.png";
+        if (network && r.onchainTrade?.network !== network) return null;
         return { ...publicRow(r), name, imageUrl, authorName: name, authorImage: imageUrl, ticker: r.onchainTrade?.ticker || "", trader: true, mint: r.onchainTrade?.mint };
       }
       const character = await ctx.db.get(r.characterId);
       if (!character || character.status !== "approved") return null;
       const token = r.tokenId ? await ctx.db.get(r.tokenId) : null;
-      if (!token) return null;
+      if (!token || (network && token.network !== network)) return null;
       const author = r.wallet ? await profileFor(ctx, r.wallet) : null;
       return { ...publicRow(r), name: character.name, imageUrl: character.referenceImageUrl, authorName: author?.name ?? publicRow(r).wallet ?? "Trader", authorImage: author?.imageUrl ?? "/brand/solcameo-mark.png", ticker: token.ticker, trader: false, mint: token.mint };
     }));

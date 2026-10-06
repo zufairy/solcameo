@@ -603,11 +603,17 @@ function InfluencerOnboardingContent({
                     creatorImage={profile?.image}
                     coinImage={character?.image.url}
                   />
-                  <Notice tone="info" title={launchMode === "live" ? "Before you launch" : "Preview launch"}>
-                    {launchMode === "live"
-                      ? "Prepare your character, then approve the Meteora configuration and pool creation in your wallet. Your selected curve and liquidity settings are fixed at launch."
-                      : "This creates a simulated coin. The curve is a launch preview; no live token is minted, funds transferred, or daily posting activated."}
-                  </Notice>
+                  <div role="note" className="flex items-start gap-3 rounded-none border-2 border-black bg-white p-4 text-black shadow-[5px_5px_0_0_#d7ff00,5px_5px_0_2px_#000]">
+                    <span aria-hidden="true" className="text-3xl leading-none">{launchMode === "live" ? "⚠️" : "🧪"}</span>
+                    <div className="min-w-0">
+                      <p className="text-base font-black uppercase tracking-tight">{launchMode === "live" ? "Before you launch" : "Preview launch"}</p>
+                      <p className="mt-1 text-sm font-medium leading-6">
+                        {launchMode === "live"
+                          ? <>Prepare your character, then approve the Meteora configuration and pool creation in your wallet. <strong className="font-black underline decoration-[3px] underline-offset-2">Your selected curve and liquidity settings are fixed at launch.</strong></>
+                          : "This creates a simulated coin. The curve is a launch preview; no live token is minted, funds transferred, or daily posting activated."}
+                      </p>
+                    </div>
+                  </div>
                   <div className="flex items-start gap-3">
                     <Switch
                       id="rights"

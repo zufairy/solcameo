@@ -86,10 +86,10 @@ export function HomeCallouts() {
   const [target, setTarget] = useState<"agent" | "trader">("agent");
   const trader = target === "trader";
   const traderName = profile?.name || (wallet ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : "Your profile");
-  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
+  const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
   const agents = useQuery(api.influencers.listSearchable, {});
   const earnings = useQuery(api.submissions.earningsByAgent, {});
-  const callouts = useQuery(api.solstarFeed.listCallouts, {});
+  const callouts = useQuery(api.solstarFeed.listCallouts, { network: "mainnet" });
   const pools = usePools(rows); const viewStats = useViewStats(); const rate = useSolUsd(); const now = useNow(30000); const reduced = useReducedMotion();
   const [open, setOpen] = useState(false), [characterId, setCharacterId] = useState(""), [body, setBody] = useState(""), [sending, setSending] = useState(false), [error, setError] = useState(""), [posted, setPosted] = useState(false), [note, setNote] = useState("");
   const [metric, setMetric] = useState<CalloutMetric>("earnings");
@@ -163,9 +163,9 @@ export function HomeCallouts() {
   const threadCall = callouts?.find(c => c.id === threadId) ?? null;
   const ranked = [...(rows ?? []).slice(0, 20)].sort((a, b) => Number(pools[b.characterId]?.appVolume24hLamports ?? 0) - Number(pools[a.characterId]?.appVolume24hLamports ?? 0));
   return <div className="@container min-w-0 font-apple text-zinc-200 antialiased">
-    <div className="grid @3xl:h-[calc(100dvh-136px)] @3xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)] @3xl:divide-x @3xl:divide-white/10">
+    <div className="grid @3xl:h-[100cqh] @3xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)] @3xl:divide-x @3xl:divide-white/10">
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 feed-glass-header px-4"><span className="grid size-7 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-sm font-semibold tracking-tight text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); setOpen(true); }} className="ml-auto flex h-9 items-center gap-2 rounded-lg bg-[#d7ff00] px-4 text-sm font-semibold text-black transition-colors hover:bg-[#e4ff59] active:scale-[0.98]"><Megaphone className="size-4" />New callout</Button></div>
+    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 feed-glass-header px-4"><span className="grid size-7 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-sm font-semibold tracking-tight text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); setOpen(true); }} className="ml-auto flex h-7 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-2.5 text-xs font-semibold text-black transition-colors hover:bg-[#e4ff59] active:scale-[0.98]"><Megaphone className="size-3.5" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
       {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Share your trade or call out an agent.</p> : callouts.map((c, i) => <CalloutRow key={c.id} c={c} card={cardFor(c)} now={now} replies={replyCounts[c.id] ?? 0} index={i} onOpen={() => setThreadId(c.id)} />)}
     </div>

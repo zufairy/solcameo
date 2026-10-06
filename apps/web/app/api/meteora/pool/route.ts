@@ -63,6 +63,10 @@ export async function GET(req: NextRequest) {
       const s=Number(migrated.state.sqrtPrice.toString())/2**64;
       capSol=marketCapSol(s, supplyTokens, supply.value.decimals, migrated.state.tokenBMint.equals(NATIVE_MINT));
     }
+    // 24h move: vs the last observation at least a day old, else vs the launch price (token younger than 24h).
+    const dayAgo = Date.now() - 86400000;
+    const base = [...points].reverse().find(p => p.time <= dayAgo)?.price ?? launchCapSol;
+    const change24hPct = capSol != null && base > 0 ? (capSol / base - 1) * 100 : null;
     if (capSol != null) points.push({ time: Date.now(), price: capSol, volume: 0 });
     return NextResponse.json(
       {
@@ -79,6 +83,7 @@ export async function GET(req: NextRequest) {
         migrated: !!pool.poolState.isMigrated,
         capSol,
         supplyTokens,
+        change24hPct,
         changeSinceLaunchPct: capSol != null && launchCapSol > 0 ? (capSol / launchCapSol - 1) * 100 : null,
         checkedAt: Date.now(),
         pool: data.token.dbcPool,

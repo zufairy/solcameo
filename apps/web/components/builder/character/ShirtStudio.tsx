@@ -6,6 +6,7 @@ import { AlertTriangle, Check, ImagePlus, Loader2, Shirt, Sparkles, Type, Wand2,
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SHIRT_COLORS, SHIRT_POSES, type ShirtMode } from "@/lib/character/shirt";
 import type { Tile } from "./Gallery";
+import { priceLabel, type StudioBilling } from "./studioBilling";
 
 const LIME = "#D4F53C";
 const RATIOS = [["3:4", 3 / 4], ["1:1", 1], ["9:16", 9 / 16], ["16:9", 16 / 9], ["4:3", 4 / 3], ["2:3", 2 / 3]] as const;
@@ -28,21 +29,24 @@ const MODES: { id: ShirtMode; label: string; icon: React.ReactNode }[] = [
 ];
 
 /** Glass popup: put the user's logo (or a described / AI-chosen design) on a finished portrait, optionally in a new pose. */
-export function ShirtStudio({ tile, mintAddress, draft, onClose, onResult }: {
-  tile: Tile | null; mintAddress?: string; draft: boolean; onClose: () => void;
+export function ShirtStudio({ tile, mintAddress, draft, billing, onClose, onResult, onUse }: {
+  tile: Tile | null; mintAddress?: string; draft: boolean; billing: StudioBilling; onClose: () => void;
+  /** Fires as soon as an edit finishes (auto-save into the history feed). */
   onResult: (url: string, ratio: string) => void;
+  /** The user chose this look as the selected portrait. */
+  onUse: (url: string) => void;
 }) {
   return (
     <Dialog open={!!tile} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent showCloseButton={false} className="max-h-[92dvh] w-[min(96vw,980px)] max-w-none gap-0 overflow-hidden rounded-[28px] border border-white/[0.14] bg-[linear-gradient(135deg,rgba(255,255,255,0.1),rgba(255,255,255,0.025)_45%,rgba(255,255,255,0.06))] bg-[#0b0d0f]/80 p-0 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_50px_140px_-30px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:max-w-none">
         <DialogTitle className="sr-only">Shirt studio</DialogTitle>
-        {tile && <Studio key={tile.id} tile={tile} mintAddress={mintAddress} draft={draft} onClose={onClose} onResult={onResult} />}
+        {tile && <Studio key={tile.id} tile={tile} mintAddress={mintAddress} draft={draft} billing={billing} onClose={onClose} onResult={onResult} onUse={onUse} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; mintAddress?: string; draft: boolean; onClose: () => void; onResult: (url: string, ratio: string) => void }) {
+function Studio({ tile, mintAddress, draft, billing, onClose, onResult, onUse }: { tile: Tile; mintAddress?: string; draft: boolean; billing: StudioBilling; onClose: () => void; onResult: (url: string, ratio: string) => void; onUse: (url: string) => void }) {
   const reduced = useReducedMotion();
   const [mode, setMode] = useState<ShirtMode>("logo");
   const [logo, setLogo] = useState<string | null>(null);
@@ -81,8 +85,13 @@ function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; m
   const ready = !uploading && (mode === "logo" ? !!logo : mode === "describe" ? !!fullDescription : true);
 
   async function run() {
-    if (!ready || phase === "working") return;
-    setPhase("working"); setError(""); setResult(null); setSecs(0);
+    if (!ready || phase === "working" || billing.paying) return;
+    setError("");
+    // One run id per click: engine fallbacks reuse it, so the free image or the $0.50 is only taken once.
+    const runId = crypto.randomUUID();
+    const payment = await billing.prepare(1);
+    if (!payment) return;
+    setPhase("working"); setResult(null); setSecs(0);
     const seed = Date.now();
     let engineIndex = 0;
     try {
@@ -92,13 +101,16 @@ function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; m
         try {
           created = await api<Created>("/api/character/shirt", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mintAddress, draft, imageUrl: tile.url, logoUrl: mode === "logo" ? logo : undefined, mode, description: fullDescription || undefined, pose, ratio: tile.ratio, engineIndex, seed }),
+            body: JSON.stringify({ mintAddress, draft, runId, useFree: billing.useFree, ...(engineIndex === 0 ? payment : {}), imageUrl: tile.url, logoUrl: mode === "logo" ? logo : undefined, mode, description: fullDescription || undefined, pose, ratio: tile.ratio, engineIndex, seed }),
           });
         } catch (e) {
-          const next = (e as { data?: { nextEngine?: number | null } }).data?.nextEngine;
-          if (typeof next === "number") { engineIndex = next; continue; }
+          const data = (e as { data?: { nextEngine?: number | null; code?: string } }).data;
+          if (typeof data?.nextEngine === "number") { engineIndex = data.nextEngine; continue; }
+          if (data?.code === "payment_used") billing.discard();
+          void billing.refresh();
           throw e;
         }
+        if (engineIndex === 0) billing.settled();
         const started = Date.now();
         let failed = "";
         while (alive.current && Date.now() - started < 4 * 60_000) {
@@ -107,7 +119,10 @@ function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; m
           if (r.status === "completed" && r.url) {
             const dims = await new Promise<{ w: number; h: number }>(resolve => { const img = new Image(); img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight }); img.onerror = () => resolve({ w: 3, h: 4 }); img.src = r.url!; });
             if (!alive.current) return;
-            setResult({ url: r.url, ratio: closestRatio(dims.w, dims.h) }); setPhase("done"); return;
+            const ratio = closestRatio(dims.w, dims.h);
+            // Auto-save: the render is already in storage, so it lands in the history feed before the user does anything.
+            onResult(r.url, ratio);
+            setResult({ url: r.url, ratio }); setPhase("done"); return;
           }
           if (r.status === "failed") { failed = r.error || "Generation failed"; break; }
         }
@@ -136,7 +151,7 @@ function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; m
               {!reduced && <motion.div aria-hidden className="absolute inset-y-0 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" initial={{ x: "-120%" }} animate={{ x: "300%" }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} />}
               <div className="text-center"><Loader2 className="mx-auto size-6 animate-spin" style={{ color: LIME }} /><p role="status" className="mt-2 text-sm font-medium">{status}</p><p className="text-xs tabular-nums text-zinc-400">{secs}s · usually under a minute</p></div>
             </div>}
-            {result && <span className="absolute left-2.5 top-2.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-semibold text-white backdrop-blur-md">New shirt</span>}
+            {result && <motion.span initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-semibold text-white backdrop-blur-md"><Check className="size-3" strokeWidth={3} style={{ color: LIME }} />Saved to history</motion.span>}
           </div>
           {result && <button type="button" onClick={() => setResult(null)} className="mt-3 w-full text-center text-xs text-zinc-400 transition-colors hover:text-white">Show original</button>}
         </div>
@@ -186,9 +201,9 @@ function Studio({ tile, mintAddress, draft, onClose, onResult }: { tile: Tile; m
         </div>
 
         <div className="flex gap-2 border-t border-white/10 bg-black/20 p-4">
-          {result && <button type="button" onClick={() => { onResult(result.url, result.ratio); onClose(); }} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-[#D4F53C]/50 bg-[#D4F53C]/10 text-[15px] font-bold transition-colors hover:bg-[#D4F53C]/20" style={{ color: LIME }}><Check className="size-4" strokeWidth={3} />Use this look</button>}
-          <button type="button" disabled={!ready || busy} onClick={() => void run()} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-black transition-all active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-40" style={{ background: LIME, boxShadow: ready && !busy ? "0 10px 28px -10px rgba(212,245,60,0.6)" : undefined }}>
-            {busy ? <><Loader2 className="size-4 animate-spin" />Working…</> : <><Sparkles className="size-4" />{result ? "Try again" : "Generate shirt"}</>}
+          {result && <button type="button" onClick={() => { onUse(result.url); onClose(); }} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-[#D4F53C]/50 bg-[#D4F53C]/10 text-[15px] font-bold transition-colors hover:bg-[#D4F53C]/20" style={{ color: LIME }}><Check className="size-4" strokeWidth={3} />Use this look</button>}
+          <button type="button" disabled={!ready || busy || billing.paying} onClick={() => void run()} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-black transition-all active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-40" style={{ background: LIME, boxShadow: ready && !busy ? "0 10px 28px -10px rgba(212,245,60,0.6)" : undefined }}>
+            {busy ? <><Loader2 className="size-4 animate-spin" />Working…</> : billing.paying ? <><Loader2 className="size-4 animate-spin" />Confirm in wallet…</> : <><Sparkles className="size-4" />{result ? "Try again" : "Generate shirt"}{priceLabel(billing, 1) && <span className="rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-semibold">{priceLabel(billing, 1)}</span>}</>}
           </button>
         </div>
       </div>

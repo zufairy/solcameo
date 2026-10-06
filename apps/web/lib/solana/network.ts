@@ -10,10 +10,11 @@ export type SolanaNetwork = "mainnet-beta" | "devnet" | "testnet";
 
 /** Server reads its environment; Next.js inlines this value for clients at build time. */
 export function getNetwork(): SolanaNetwork {
-  const raw = (process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "devnet").toLowerCase();
+  const raw = (process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "mainnet-beta").toLowerCase();
   if (raw === "mainnet" || raw === "mainnet-beta") return "mainnet-beta";
   if (raw === "testnet") return "testnet";
-  return "devnet";
+  if (raw === "devnet") return "devnet";
+  return "mainnet-beta";
 }
 
 /** Canonical USDC mint per cluster. */

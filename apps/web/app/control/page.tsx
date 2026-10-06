@@ -106,8 +106,9 @@ function ControlPanel() {
     () => [...new Set([...(profile?.walletAddresses ?? []), profile?.walletAddress, activeWallet].filter((w): w is string => !!w))],
     [profile?.walletAddresses, profile?.walletAddress, activeWallet],
   );
-  const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets } : "skip") as Agent[] | undefined;
+  const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets, liveNetwork: "mainnet" } : "skip") as Agent[] | undefined;
   const agentsList = useMemo(() => agents ?? [], [agents]);
+  const changes = useChange24h(agentsList);
   const allFeed = useQuery(api.clipJobs.videoFeedByMints, agents?.length ? { mintAddresses: agents.map((agent) => agent.mintAddress).slice(0, 25) } : "skip");
   const allTeams = useTeams();
   useStoreVersion(); // re-render the sidebar as threads change (previews, "typing…")
@@ -264,7 +265,7 @@ function ControlPanel() {
               }
               const a = chat.agent;
               return <SidebarRow key={chat.key} compact={listHidden} active={selected?.kind === "agent" && selected.id === a.mintAddress}
-                threadKey={chat.key} avatar={<Avatar agent={a} />} title={a.name} badge={agentKind(a)}
+                threadKey={chat.key} avatar={<Avatar agent={a} />} title={a.name} change={<Change24h pct={changes[String(a.solstarCharacterId)]} />}
                 fallback={a.niche || `@${a.handle}`} onClick={() => select({ kind: "agent", id: a.mintAddress })} />;
             })}
             {agents.length === 0 ? (
@@ -391,13 +392,49 @@ function DashboardRow({ active, compact, onClick, count }: { active: boolean; co
   );
 }
 
-function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, fallback, typingName, onClick }: {
+/** 24h market-cap move of each agent's live token, keyed by Solstar character id. */
+function useChange24h(agents: Agent[]) {
+  const ids = agents.map((a) => a.solstarCharacterId).filter((id): id is NonNullable<typeof id> => !!id).map(String).join(",");
+  const [changes, setChanges] = useState<Record<string, number | null>>({});
+  useEffect(() => {
+    if (!ids) return;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (document.hidden) return;
+      const results = await Promise.all(ids.split(",").map(async (id) => {
+        try {
+          const res = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(id)}`, { signal: controller.signal, cache: "no-store" });
+          const data = await res.json();
+          return [id, data.available && typeof data.change24hPct === "number" ? data.change24hPct : null] as const;
+        } catch { return null; }
+      }));
+      if (!controller.signal.aborted) setChanges((prev) => ({ ...prev, ...Object.fromEntries(results.filter((r) => r !== null)) }));
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 30000);
+    return () => { controller.abort(); clearInterval(timer); };
+  }, [ids]);
+  return changes;
+}
+
+function Change24h({ pct }: { pct?: number | null }) {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const up = pct >= 0;
+  return (
+    <span title="Change in market cap, last 24 hours" className={`flex items-center gap-0.5 text-[11px] font-medium tabular-nums ${up ? "text-[#d7ff00]" : "text-red-400"}`}>
+      {up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{Math.abs(pct).toFixed(2)}%
+    </span>
+  );
+}
+
+function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, change, fallback, typingName, onClick }: {
   active: boolean;
   compact?: boolean;
   threadKey: string;
   avatar: React.ReactNode;
   title: string;
-  badge: string;
+  badge?: string;
+  change?: React.ReactNode;
   fallback: string;
   typingName?: (mint: string) => string | undefined;
   onClick: () => void;
@@ -422,7 +459,8 @@ function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, 
       <div className={`relative min-w-0 flex-1 ${compact ? "md:hidden" : ""}`}>
         <div className="flex items-center gap-2">
           <span className="truncate text-[15px] font-medium text-white">{title}</span>
-          <span className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10.5px] text-zinc-400">{badge}</span>
+          {badge && <span className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10.5px] text-zinc-400">{badge}</span>}
+          {change && <span className="ml-auto shrink-0">{change}</span>}
         </div>
         {t.sending ? (
           <p className="flex items-center gap-1.5 truncate text-[13px] text-[#d7ff00]">{who ? `${who} is typing` : "typing"} <TypingDots /></p>

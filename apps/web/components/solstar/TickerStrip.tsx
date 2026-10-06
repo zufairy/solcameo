@@ -14,7 +14,7 @@ type Quote = { available: boolean; capSol: number | null; changeSinceLaunchPct?:
 /** Shared coin tape with live RPC values and movement indicators. */
 export function TickerStrip() {
   const usd = useSolUsd();
-  const rows = useQuery(api.solstarMarket.listMarket, { network: "devnet", liveOnly: true, sort: "volume" });
+  const rows = useQuery(api.solstarMarket.listMarket, { network: "mainnet", liveOnly: true, sort: "volume" });
   const [mode, setMode] = useState<"trending" | "watchlist">("trending");
   const watch = useMarketWatchlist();
   const shown = rows === undefined ? undefined : (mode === "watchlist" ? rows.filter(r => watch.ids.includes(r.characterId)) : rows).slice(0, 12);

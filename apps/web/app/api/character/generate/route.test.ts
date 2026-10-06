@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({ edit: vi.fn(), soul: vi.fn(), put: vi.fn() }));
 vi.mock("@/lib/server/characterDraft", () => ({ authorizeCharacterScope: async () => ({ mint: "draft-owner" }), issueCharacterJobTicket: () => "owner-ticket" }));
+vi.mock("@/lib/server/studioGenBilling", () => ({ reserveStudioImages: async () => ({ refund: async () => undefined }), refundStudioRun: async () => undefined }));
 vi.mock("@/lib/server/imageStorage", () => ({ imagePublicUrl: (key: string) => `https://images.test/${key}`, putImage: mocks.put }));
 vi.mock("@/lib/server/higgsfield", () => ({ HfError: class extends Error {}, submitReferenceEdit: mocks.edit, submitImage: mocks.soul }));
 import { POST } from "./route";

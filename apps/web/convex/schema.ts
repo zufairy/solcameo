@@ -2529,4 +2529,27 @@ export default defineSchema({
      *  the counter ticks between hourly refreshes. Reset to 0 on refresh. */
     viewsDelta: v.optional(v.number()),
   }).index("by_key", ["key"]),
+
+  /** Per-wallet allowance for the create studio (portraits + shirt edits): 3 free images, then $0.50 each.
+   *  Written only by internal-secret mutations in convex/studioGen.ts. */
+  studioGenAccounts: defineTable({
+    account: v.string(),
+    freeUsed: v.number(),
+    /** Images paid for whose generation failed. Spent before the next on-chain payment is asked for. */
+    credits: v.number(),
+    updatedAt: v.number(),
+  }).index("by_account", ["account"]),
+
+  /** One row per billed image. `source` records how it was covered so a failure refunds the right balance. */
+  studioGenLedger: defineTable({
+    account: v.string(),
+    runId: v.string(),
+    source: v.union(v.literal("free"), v.literal("credit"), v.literal("paid")),
+    txSignature: v.optional(v.string()),
+    amountUsd: v.number(),
+    refunded: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_run", ["runId"])
+    .index("by_account", ["account", "createdAt"]),
 });

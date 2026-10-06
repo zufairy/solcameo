@@ -59,11 +59,11 @@ describe("helius DAS RPC host follows NEXT_PUBLIC_SOLANA_NETWORK", () => {
     expect(new URL(url).host).toBe("devnet.helius-rpc.com");
   });
 
-  it("defaults to devnet.helius-rpc.com when NEXT_PUBLIC_SOLANA_NETWORK is unset", async () => {
+  it("defaults to mainnet.helius-rpc.com when NEXT_PUBLIC_SOLANA_NETWORK is unset", async () => {
     delete process.env.NEXT_PUBLIC_SOLANA_NETWORK;
     const fetchMock = stubFetch();
     await fetchAsset("mint1");
     const url = fetchMock.mock.calls[0]?.[0] as string;
-    expect(new URL(url).host).toBe("devnet.helius-rpc.com");
+    expect(new URL(url).host).toBe("mainnet.helius-rpc.com");
   });
 });

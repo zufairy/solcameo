@@ -1,5 +1,4 @@
 "use client";
-import { getNetwork } from "@/lib/solana/network";
 /* eslint-disable @next/next/no-img-element -- remote character portraits */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -136,7 +135,7 @@ function Market() {
     const timer = setInterval(tick, 60000);
     return () => clearInterval(timer);
   }, []);
-  const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: getNetwork()==="mainnet-beta"?"mainnet":"devnet", liveOnly: true });
+  const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: "mainnet", liveOnly: true });
   useEffect(() => {
     const controller = new AbortController();
     const live = rows?.filter((r) => r.dbcPool) ?? [];

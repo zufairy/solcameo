@@ -226,7 +226,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
             {!isMarketTerminal && <ShellAnnouncement />}
             <TopBar terminal={isMarketTerminal} />
             {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && <TickerStrip />}
-            <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : "overflow-y-auto overscroll-contain"}`}>
+            <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : pathname === "/" ? "overflow-y-auto overscroll-contain [container-type:size]" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>
           </SidebarInset>

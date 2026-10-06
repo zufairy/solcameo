@@ -753,8 +753,9 @@ export const listByCreator = query({
  *  in coCreatorWallets (shared access without ownership transfer).
  *  Dedupes by mintAddress across wallets; real-TVL applied. */
 export const listByCreators = query({
-  args: { creatorWallets: v.array(v.string()) },
-  handler: async (ctx, { creatorWallets }) => {
+  // liveNetwork: keep only agents whose Solstar token is minted and live on that network.
+  args: { creatorWallets: v.array(v.string()), liveNetwork: v.optional(v.union(v.literal("devnet"), v.literal("mainnet"))) },
+  handler: async (ctx, { creatorWallets, liveNetwork }) => {
     const wallets = [...new Set(creatorWallets.filter(Boolean))];
     const seen = new Set<string>();
     const deduped: Doc<"influencers">[] = [];
@@ -782,7 +783,13 @@ export const listByCreators = query({
       seen.add(doc.mintAddress);
       deduped.push(doc);
     }
-    return withRealTvl(ctx, deduped);
+    if (!liveNetwork) return withRealTvl(ctx, deduped);
+    const tokens = await Promise.all(deduped.map((d) => (d.solstarTokenId ? ctx.db.get(d.solstarTokenId) : null)));
+    const live = deduped.filter((_, i) => {
+      const t = tokens[i];
+      return !!t && t.network === liveNetwork && !!t.mint && ["live", "graduated", "migrated"].includes(t.state);
+    });
+    return withRealTvl(ctx, live);
   },
 });
 

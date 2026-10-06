@@ -4,6 +4,7 @@ import { authorizeCharacterScope, issueCharacterJobTicket } from "@/lib/server/c
 import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { refundImage } from "@/lib/server/imageBilling";
 import { CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
+import { refundStudioRun, reserveStudioImages } from "@/lib/server/studioGenBilling";
 import { imagePublicUrl, putImage } from "@/lib/server/imageStorage";
 import { normalizeImageForKie } from "@/lib/server/imageForKie";
 import { SHIRT_ENGINES, ShirtEditError, createShirtTask } from "@/lib/server/shirtEdit";
@@ -43,7 +44,13 @@ export async function POST(req: NextRequest) {
   if (hasLogo && !logo) return NextResponse.json({ error: "The logo could not be read. Upload a PNG or JPG." }, { status: 422 });
 
   const walletFunded = !draft;
-  const billingRunId = `shirt:${randomUUID()}`;
+  // A draft run id is chosen by the client so engine fallbacks of one click bill once (reserving the same id is a no-op).
+  const clientRun = typeof body.runId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(body.runId) ? body.runId : randomUUID();
+  const billingRunId = walletFunded ? `shirt:${randomUUID()}` : `shirt:${clientRun}`;
+  if (!walletFunded) {
+    const studio = await reserveStudioImages(req, { runIds: [billingRunId], fresh: engineIndex === 0, useFree: body.useFree !== false, paymentSignature: body.paymentSignature, payer: body.payer });
+    if (studio.error) return studio.error;
+  }
   // Every engine attempt is its own charge and is refunded if that attempt fails.
   if (walletFunded) {
     const charge = await chargeAgentGeneration(a.mint, billingRunId, "image_gen");
@@ -51,11 +58,12 @@ export async function POST(req: NextRequest) {
   }
   try {
     const { taskId, engine } = await createShirtTask({ prompt, urls: logo ? [portrait, logo] : [portrait], ratio, engineIndex });
-    await putImage(Buffer.from(JSON.stringify({ billingRunId: walletFunded ? billingRunId : undefined, engine, ratio, createdAt: Date.now() })), "application/json", { key: `characters/${a.mint}/jobs/${taskId}.json` }).catch(() => undefined);
+    await putImage(Buffer.from(JSON.stringify({ billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, lastEngine: engineIndex + 1 >= SHIRT_ENGINES.length, engine, ratio, createdAt: Date.now() })), "application/json", { key: `characters/${a.mint}/jobs/${taskId}.json` }).catch(() => undefined);
     return NextResponse.json({ taskId, ticket: issueCharacterJobTicket(a.mint, taskId), engine, engineIndex, ratio, prompt, nextEngine: engineIndex + 1 < SHIRT_ENGINES.length ? engineIndex + 1 : null });
   } catch (e) {
     const next = engineIndex + 1 < SHIRT_ENGINES.length ? engineIndex + 1 : null;
     if (walletFunded) await refundImage(a.mint, billingRunId);
+    else if (next === null) await refundStudioRun(billingRunId);
     if (e instanceof ShirtEditError) return NextResponse.json({ error: e.message, nextEngine: next }, { status: next !== null ? 502 : e.status });
     return NextResponse.json({ error: "Could not start the shirt edit. Please try again.", nextEngine: next }, { status: 502 });
   }
