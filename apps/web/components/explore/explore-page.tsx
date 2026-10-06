@@ -42,6 +42,7 @@ import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
+import { referenceAffinity } from "@/lib/explore/recommendations";
 import { castToken } from "@/lib/explore/castKey";
 import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, type ExploreModel } from "@/lib/explore/models";
 import {
@@ -438,7 +439,7 @@ const SORTS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "cheapest", label: "Cheapest first" },
 ];
 
-export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }) {
+export function ExplorePage({ initial, short, fixedMint, persona = "", embedded = false }: { initial: Feed; short?: Short; fixedMint?: string; persona?: string; embedded?: boolean }) {
   const [items, setItems] = useState(() => withShort(initial, short));
   const [next, setNext] = useState(initial.next);
   const [query, setQuery] = useState("");
@@ -456,7 +457,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
     const url = customVideo ? selected?.videoUrl : undefined;
     return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
   }, [customVideo, selected?.videoUrl]);
-  const [mint, setMint] = useState("");
+  const [mint, setMint] = useState(fixedMint ?? "");
   const [generating, setGenerating] = useState(false);
   const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
   const [length, setLength] = useState("any");
@@ -486,10 +487,11 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
     ],
     [profile],
   );
-  const agents = useQuery(
+  const ownedAgents = useQuery(
     api.influencers.listByCreators,
     wallets.length ? { creatorWallets: wallets } : "skip",
   );
+  const agents = fixedMint ? ownedAgents?.filter(a => a.mintAddress === fixedMint) : ownedAgents;
   const reduced = useReducedMotion();
   // Favorites persist locally and synchronize across browser tabs.
   useEffect(() => {
@@ -538,9 +540,11 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
     const d = i.duration;
     return length === "any" || (length === "u5" ? d < 5 : length === "5-10" ? d >= 5 && d < 10 : length === "10-20" ? d >= 10 && d < 20 : d >= 20);
   };
+  const affinity = useMemo(() => new Map(items.map(item => [item.id, referenceAffinity(item, persona)])), [items, persona]);
   const visible = items
     .filter(
       (i) =>
+        (!embedded || referenceEstimate(i) !== null) &&
         inPrice(i) &&
         inLength(i) &&
         (category === "All" || i.category === category) &&
@@ -554,7 +558,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
         ? a.duration - b.duration
         : sort === "cheapest"
           ? (referenceEstimate(a) ?? Infinity) - (referenceEstimate(b) ?? Infinity)
-          : 0,
+          : (affinity.get(b.id) ?? 0) - (affinity.get(a.id) ?? 0),
     );
   const shown = visible.slice(0, limit);
   // Lazy loading: when the end of the grid nears the screen, reveal more of what is loaded; once all of it is shown,
@@ -679,7 +683,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
     ? estimateModelUsd(model, selected.duration, resolution)
     : null;
   return (
-    <main className="explore-library min-h-full bg-[#181a1c] px-4 py-4 text-white sm:px-7 lg:px-9">
+    <main className={`explore-library min-h-full px-4 py-4 text-white sm:px-7 lg:px-9 ${embedded ? "bg-transparent" : "bg-[#181a1c]"}`}>
       <motion.div
         initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -716,7 +720,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
             setSelected({ id: "upload:new", title: "Replicate a Video", description: "Upload your video, add a prompt, and bring your Cameo influencer into the scene.", videoUrl: "", previewUrl: "", duration: 0, category: "Other" });
           }}><VideoStackIcon className="size-4" /> Replicate a Video</Button>
         </div>
-        <h1 className="sr-only">Explore video references</h1>
+        <h1 className="sr-only">{embedded ? "Video suggestions for your influencer" : "Explore video references"}</h1>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => (
@@ -993,7 +997,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                   <label className="mb-4 block text-xs text-zinc-400">
                     Your influencer
                     <Select
-                      disabled={generating}
+                      disabled={generating || !!fixedMint}
                       value={mint}
                       onValueChange={(value) => setMint(value ?? "")}
                     >

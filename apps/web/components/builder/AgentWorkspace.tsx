@@ -1261,7 +1261,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
             className="flex-1 overflow-y-auto"
             style={WARM_GLASS_BG}
           >
-            <LearnTab mintAddress={isRealMint ? mintAddress : undefined} sessionId={sessionId} />
+            <LearnTab mintAddress={isRealMint ? mintAddress : undefined} sessionId={sessionId} persona={JSON.stringify(p)} agentName={displayName} />
           </motion.div>
         ) : tab === "series" ? (
           <motion.div key="series"

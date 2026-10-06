@@ -7,6 +7,9 @@ import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, CheckCircle2, ChevronDown, Loader2, Trash2, Upload } from "lucide-react";
+import { ExplorePage } from "@/components/explore/explore-page";
+import references from "@/lib/explore/references.json";
+import shortReferences from "@/lib/explore/short-references.json";
 import TabPageHeader from "./TabPageHeader";
 
 /* ── Learn tab (influencer) ────────────────────────────────────────────────
@@ -17,7 +20,21 @@ import TabPageHeader from "./TabPageHeader";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 
-export function LearnTab({ mintAddress, sessionId }: { mintAddress?: string; sessionId?: string }) {
+export function LearnTab({ mintAddress, sessionId, persona = "", agentName }: { mintAddress?: string; sessionId?: string; persona?: string; agentName?: string }) {
+  const [section, setSection] = useState("suggestions");
+  return <div className="min-h-full text-white">
+    <div className="px-4 pt-6 sm:px-7 lg:px-9">
+      <h2 className="text-xl font-semibold tracking-tight">Learn</h2>
+      <p className="mt-1 text-sm text-zinc-400">{persona ? `Video ideas matched to ${agentName || "your influencer"}’s persona. Choose a reference, add Cameo, and recreate it.` : "Explore video ideas, choose a reference, and recreate it with your influencer."}</p>
+      <div role="tablist" aria-label="Learn" className="mt-4 inline-flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+        {[["suggestions", "Suggested videos"], ["references", "Style references"]].map(([key, label]) => <button key={key} role="tab" aria-selected={section === key} onClick={() => setSection(key)} className={`rounded-md px-3 py-2 text-xs font-medium transition-colors ${section === key ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white"}`}>{label}</button>)}
+      </div>
+    </div>
+    {section === "suggestions" ? <ExplorePage key={mintAddress || sessionId || "draft"} initial={references} short={shortReferences} fixedMint={mintAddress} persona={persona} embedded /> : <StyleReferences mintAddress={mintAddress} sessionId={sessionId} />}
+  </div>;
+}
+
+function StyleReferences({ mintAddress, sessionId }: { mintAddress?: string; sessionId?: string }) {
   const { accessToken } = useSupabaseAuth();
   const mintKey = mintAddress || sessionId || "draft";
 
