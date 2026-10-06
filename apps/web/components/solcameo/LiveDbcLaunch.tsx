@@ -73,7 +73,7 @@ export function LiveDbcLaunch({
       return;
     }
     if (!preflight?.ready || preflight.balanceLamports === 0) {
-      setError("Verify the devnet connection and fund your wallet with test SOL first.");
+      setError(getNetworkLabel() === "Devnet" ? "Verify the devnet connection and fund your wallet with test SOL first." : "Verify the network connection and make sure your wallet holds enough SOL for the launch.");
       return;
     }
     launchLock.current = true;

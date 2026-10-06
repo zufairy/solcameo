@@ -40,10 +40,10 @@ describe("character-first coin creation", () => {
     await click("Use generated portrait");
     expect(host.textContent).toContain("Give your character a coin.");
     await click("Configure launch"); await click("Review launch");
-    const create = Array.from(host.querySelectorAll("button")).find(b => b.textContent?.includes("Launch on devnet"))!;
+    const create = Array.from(host.querySelectorAll("button")).find(b => b.textContent?.trim() === "Launch")!;
     expect(create.disabled).toBe(true); expect(fetchMock).not.toHaveBeenCalled();
     await act(async () => { (host.querySelector('[role="switch"]') as HTMLButtonElement).click(); });
-    await click("Launch on devnet");
+    await click("Launch");
     expect(mocks.signed).toHaveBeenCalledOnce(); expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ name: "Orbit Muse", ticker: "ORBIT", imageStorageId: "storage123", rightsAttested: true });
     expect(mocks.push).not.toHaveBeenCalled(); expect(host.textContent).toContain("Approve");
@@ -52,7 +52,7 @@ describe("character-first coin creation", () => {
     const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock); mocks.signed.mockResolvedValue(null);
     await mount(); await click("Use generated portrait"); await click("Configure launch"); await click("Review launch");
     await act(async () => { (host.querySelector('[role="switch"]') as HTMLButtonElement).click(); });
-    await click("Launch on devnet");
+    await click("Launch");
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("approve the sign-in message");
     expect(fetchMock).not.toHaveBeenCalled(); expect(mocks.push).not.toHaveBeenCalled();
   });

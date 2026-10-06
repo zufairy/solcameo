@@ -665,7 +665,7 @@ function InfluencerOnboardingContent({
                         <>
                           <Coins />{" "}
                           {launchMode === "live"
-                            ? "Launch on devnet"
+                            ? "Launch"
                             : "Create preview coin"}
                         </>
                       )}
