@@ -29,7 +29,7 @@ describe("platform token math", () => {
     expect(() => splitRevenue(-1n)).toThrow();
   });
   it("takes the 10% fee margin out of settled spend", () => {
-    expect(marginOf(1_100_000n)).toBe(999_900n);
+    expect(marginOf(1_100_000n)).toBe(99_990n);
   });
   it("splits a buyback and pays the reward pool out exactly", () => {
     const s = splitBuyback(1001n);
