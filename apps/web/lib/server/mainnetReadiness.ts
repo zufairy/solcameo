@@ -77,6 +77,10 @@ export async function mainnetReadiness(): Promise<{ ready: boolean; network: str
   try { treasuryOk = !!treasury && !!new PublicKey(treasury); } catch { treasuryOk = false; }
   add(checks, "treasury.wallet", treasuryOk ? "ok" : "fail", treasuryOk ? `Treasury ${treasury}` : "NEXT_PUBLIC_JOBTEPI_TREASURY_WALLET missing or invalid: settlements have no destination");
 
+  let platformOk = false;
+  try { platformOk = !!new PublicKey(process.env.SOLCAMEO_PLATFORM_WALLET ?? ""); } catch { platformOk = false; }
+  add(checks, "platform.wallet", platformOk ? "ok" : "fail", platformOk ? "SOLCAMEO_PLATFORM_WALLET (launch fee recipient) is set" : "SOLCAMEO_PLATFORM_WALLET missing or invalid: launch fees have no recipient");
+
   // Token launches run on Meteora's own programs; custom programs are optional for this launch.
   add(checks, "dbc.enabled", process.env.SOLCAMEO_DBC_LIVE_ENABLED === "true" ? "ok" : "fail", process.env.SOLCAMEO_DBC_LIVE_ENABLED === "true" ? "Mainnet token launches enabled" : "Set SOLCAMEO_DBC_LIVE_ENABLED=true to allow mainnet launches");
   const vaultOn = process.env.SOLCAMEO_AGENT_VAULT_ENABLED === "true";
