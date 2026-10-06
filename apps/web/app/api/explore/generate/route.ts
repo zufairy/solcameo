@@ -15,7 +15,7 @@ const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\/
 
 /**
  * Explore "Generate now". The source video and the price come from our own reference table, never
- * from the client. The agent is charged (reference price plus the 10% Solcameo fee, settled from
+ * from the client. The agent is charged (reference price plus the Solcameo fee: 10% or $1, whichever is higher, settled from
  * the agent wallet to the Solcameo treasury), then the render is submitted to Higgsfield. A render
  * that fails to start is refunded. The row it leaves behind lets the cron finish and auto-post it.
  */
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const runId = `explore:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
-  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" ? 503 : 402 });
+  if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });
 
   try {
     const requestId = await submitVideo(

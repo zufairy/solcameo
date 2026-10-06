@@ -148,9 +148,6 @@ function ReferenceCard({
         <span className="absolute left-3 top-3 rounded-md border border-white/30 bg-white/20 px-2 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur-xl">
           {item.category}
         </span>
-        <span aria-hidden className="absolute right-3 top-3 grid size-8 place-items-center rounded-full border border-white/25 bg-black/20 text-white backdrop-blur-xl transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:bg-white/20 motion-reduce:transform-none">
-          <ArrowUpRight className="size-4" />
-        </span>
         <span className="absolute inset-x-3 bottom-3">
           <span className="mb-2 flex items-center gap-1 text-[11px] text-white/70">
             <Play className="size-3 fill-current" />
@@ -385,7 +382,7 @@ function Generator({
         )}
       </Button>
       <p className="text-[11px] text-zinc-500">
-        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes a 10% Solcameo fee. ` : ""}
+        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (10% or $1, whichever is higher). ` : ""}
         Keep this popup open while rendering. {model.kind === "genjutsu" ? "Finished videos are saved to your agent’s motion library." : "Track the render in your agent’s activity."}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
       {(failure || uploadError) && (
@@ -450,6 +447,14 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File>();
+  const [dragging, setDragging] = useState(false);
+  function chooseVideo(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) { setUploadError("That file is not a video. Choose an MP4, MOV or WebM."); return; }
+    if (file.size > 150 * 1024 * 1024) { setUploadError("Choose a video under 150 MB."); return; }
+    setUploadError(""); setMediaError(false); setUploadedFile(file);
+    setSelected(current => current ? { ...current, id: `upload:${Date.now()}`, videoUrl: URL.createObjectURL(file), duration: 0 } : current);
+  }
   const [uploadError, setUploadError] = useState("");
   const [selected, setSelected] = useState<ReferenceVideo | null>(null);
   const customVideo = selected?.id.startsWith("upload:") ?? false;
@@ -868,16 +873,18 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
               </DialogDescription>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
-                  {customVideo && <label className="mb-4 flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center hover:bg-white/10">
-                    <Upload className="size-6 text-[#d7ff00]" />
-                    <span className="text-sm">{uploadedFile?.name || "Upload your own video"}</span>
-                    <span className="text-xs text-zinc-400">4–30 seconds · up to 150 MB</span>
-                    <input type="file" accept="video/*" disabled={generating} className="sr-only" aria-label="Upload your own video" onChange={e => {
-                      const file = e.target.files?.[0]; if (!file) return; e.target.value = "";
-                      if (!file.type.startsWith("video/") || file.size > 150 * 1024 * 1024) { setUploadError("Choose a video under 150 MB."); return; }
-                      setUploadError(""); setMediaError(false); setUploadedFile(file);
-                      setSelected(current => current ? { ...current, id: `upload:${Date.now()}`, videoUrl: URL.createObjectURL(file), duration: 0 } : current);
-                    }} />
+                  {customVideo && <label
+                    onDragOver={e => { if (!generating && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={e => { e.preventDefault(); setDragging(false); if (!generating) chooseVideo(e.dataTransfer.files?.[0]); }}
+                    className={`mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-left transition-colors ${dragging ? "border-[#d7ff00] bg-[#d7ff00]/10" : uploadedFile ? "border-white/15 bg-white/[0.04] hover:bg-white/[0.07]" : "flex-col border-white/20 bg-white/5 p-6 text-center hover:bg-white/10"} ${generating ? "pointer-events-none opacity-60" : ""}`}
+                  >
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/15 bg-black/30 text-[#d7ff00]"><Upload className="size-5" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-white">{uploadedFile ? uploadedFile.name : dragging ? "Drop your video" : "Upload or drop your own video"}</span>
+                      <span className="block text-xs text-zinc-400">{uploadedFile ? `${(uploadedFile.size / 1048576).toFixed(1)} MB · click to replace` : "MP4, MOV or WebM · 4–30 seconds · up to 150 MB"}</span>
+                    </span>
+                    <input type="file" accept="video/mp4,video/quicktime,video/webm,video/*" disabled={generating} className="sr-only" aria-label="Upload your own video" onChange={e => { chooseVideo(e.target.files?.[0]); e.target.value = ""; }} />
                   </label>}
                   {uploadError && <p role="alert" className="mb-3 text-xs text-red-400">{uploadError}</p>}
                   {selected.videoUrl && <ReferencePlayer
