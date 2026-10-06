@@ -9,8 +9,8 @@ describe("getMenuItems", () => {
         .map((i) => [i.label, i.href]),
     ).toEqual([
       ["Home", "/"],
-      ["Market", "/market"],
       ["My Agents", "/control"],
+      ["Video Feed", "/make"],
     ]);
   });
   it("keeps influencer workspaces and hides removed creator and account menus", () => {
@@ -41,16 +41,16 @@ describe("getMenuItems", () => {
     expect(getMenuItems(false)).toEqual(getMenuItems(true));
   });
   it("active matching: Market is active on /market and /market/abc but not on /marketing", () => {
-    const market = getMenuItems(false)[1];
+    const market = getMenuItems(false).find((i) => i.href === "/market")!;
     expect(market.match("/market")).toBe(true);
     expect(market.match("/market/abc")).toBe(true);
     expect(market.match("/marketing")).toBe(false);
     expect(getMenuItems(false)[0].match("/")).toBe(true);
     expect(getMenuItems(false)[0].match("/market")).toBe(false);
   });
-  it("legacy menu keeps the three Solstar items first", () => {
+  it("legacy menu keeps Home, My Agents and Video Feed first", () => {
     const labels = getMenuItems(true).map((i) => i.label);
-    expect(labels.slice(0, 3)).toEqual(["Home", "Market", "My Agents"]);
+    expect(labels.slice(0, 3)).toEqual(["Home", "My Agents", "Video Feed"]);
     expect(labels.length).toBeGreaterThan(3);
   });
 });

@@ -182,6 +182,7 @@ function Generator({
   item,
   resolution,
   mode,
+  xConnected,
   onBusy,
 }: {
   mint: string;
@@ -189,6 +190,7 @@ function Generator({
   item: ReferenceVideo;
   resolution: GenjutsuResolution;
   mode: GenMode;
+  xConnected: boolean;
   onBusy: (busy: boolean) => void;
 }) {
   const [portrait, setPortrait] = useState<string>();
@@ -196,6 +198,7 @@ function Generator({
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState("");
   const [cast, setCast] = useState<CameoMember[]>([]);
+  const [autoPost, setAutoPost] = useState(false);
   const estimate = estimateGenerationUsd(item.duration, resolution);
   const { runs, start } = useMotionRuns(mint);
   const run = runs[0];
@@ -253,6 +256,13 @@ function Generator({
         <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
+      {portrait && xConnected && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs transition-colors hover:bg-white/[0.07] has-[:checked]:border-[#d7ff00]/40 has-[:checked]:bg-[#d7ff00]/[0.06]">
+          <input type="checkbox" checked={autoPost} disabled={run?.status === "pending"} onChange={(e) => setAutoPost(e.target.checked)} className="peer sr-only" />
+          <span aria-hidden="true" className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border border-white/30 bg-black/30 text-transparent transition-colors peer-checked:border-[#d7ff00] peer-checked:bg-[#d7ff00] peer-checked:text-black peer-focus-visible:ring-2 peer-focus-visible:ring-[#d7ff00]/60"><Check className="size-3" strokeWidth={3.5} /></span>
+          <span><span className="block text-sm font-semibold text-white">Auto-post to X when it&apos;s ready</span><span className="mt-0.5 block text-zinc-400">We write a viral caption in your influencer&apos;s voice and publish it to the connected X account.</span></span>
+        </label>
+      )}
       <Button
         className={`h-11 w-full ${GREEN}`}
         disabled={
@@ -267,6 +277,7 @@ function Generator({
             resolution,
             title: item.title,
             poster: item.thumbUrl,
+            explore: { referenceId: item.id, autoPost: xConnected && autoPost },
           })
         }
       >
@@ -284,8 +295,9 @@ function Generator({
         )}
       </Button>
       <p className="text-[11px] text-zinc-500">
+        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes a 10% Solcameo fee. ` : ""}
         Keep this popup open while rendering. Finished videos are saved to this
-        agent&apos;s motion library.
+        agent&apos;s motion library.{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
       {run?.status === "error" && (
         <p role="alert" className="text-sm text-red-400">
@@ -849,6 +861,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                       item={selected}
                       resolution={resolution}
                       mode={mode}
+                      xConnected={!!agents?.find((a) => a.mintAddress === mint)?.connectedPlatforms?.includes("x")}
                       onBusy={setGenerating}
                     />
                   ) : (

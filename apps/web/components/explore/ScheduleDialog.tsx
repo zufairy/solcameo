@@ -11,8 +11,8 @@ import { AgentOption } from "./AgentOption";
 import { CameoPrompt, type CameoMember } from "./CameoPrompt";
 
 export type GenMode = "motion-transfer" | "object-swap";
-export interface ScheduleAgent { mintAddress: string; name: string; avatarUrl?: string; coinTicker?: string }
-interface Row { id: string; title: string; poster?: string; runAt: number; repeat: string; remaining: number; status: string; resolution: string; mode: string; resultUrl?: string; error?: string }
+export interface ScheduleAgent { mintAddress: string; name: string; avatarUrl?: string; coinTicker?: string; connectedPlatforms?: string[] }
+interface Row { postStatus?: string; postError?: string; id: string; title: string; poster?: string; runAt: number; repeat: string; remaining: number; status: string; resolution: string; mode: string; resultUrl?: string; error?: string }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -62,6 +62,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
   const [when, setWhen] = useState(() => toLocalInput(presets()[0].date));
   const [repeat, setRepeat] = useState<"once" | "daily" | "weekly">("once");
   const [count, setCount] = useState(7);
+  const [autoPost, setAutoPost] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [cast, setCast] = useState<CameoMember[]>([]);
   const [portraitState, setPortraitState] = useState<{ mint: string; url?: string } | null>(null);
@@ -99,6 +100,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
   const per = item ? estimateGenerationUsd(item.duration, resolution) : null;
   const runs = repeat === "once" ? 1 : count;
   const agent = agents?.find((a) => a.mintAddress === effMint);
+  const xConnected = !!agent?.connectedPlatforms?.includes("x");
   const valid = !!item && !!portrait && per !== null && Number.isFinite(runAt) && runAt > nowMs + 60_000;
   const whenLabel = Number.isFinite(runAt) ? new Date(runAt).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
 
@@ -108,7 +110,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
     try {
       const res = await fetch("/api/explore/schedule", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, title: item.title, poster: item.thumbUrl, videoUrl: item.videoUrl, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
+        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, autoPost: xConnected && autoPost, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Could not schedule this video.");
@@ -207,8 +209,16 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
                       : portrait && mint ? <CameoPrompt key={`${effMint}:${item.id}`} mint={effMint} primaryName={agent?.name ?? "Character"} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
                       : <p className="text-xs text-amber-300">{mint ? "This influencer needs a saved character portrait first." : "Choose an influencer to continue."}</p>}
 
+                    {portrait && xConnected && (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs transition-colors hover:bg-white/[0.07] has-[:checked]:border-[#d7ff00]/40 has-[:checked]:bg-[#d7ff00]/[0.06]">
+                        <input type="checkbox" checked={autoPost} onChange={(e) => setAutoPost(e.target.checked)} className="peer sr-only" />
+                        <span aria-hidden="true" className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border border-white/30 bg-black/30 text-transparent transition-colors peer-checked:border-[#d7ff00] peer-checked:bg-[#d7ff00] peer-checked:text-black peer-focus-visible:ring-2 peer-focus-visible:ring-[#d7ff00]/60"><Check className="size-3" strokeWidth={3.5} /></span>
+                        <span><span className="block text-sm font-semibold text-white">Auto-post to X when it&apos;s ready</span><span className="mt-0.5 block text-zinc-400">Each finished video gets a viral caption and goes out on the connected X account.</span></span>
+                      </label>
+                    )}
                     <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs">
                       <div className="flex items-center justify-between gap-3"><span className="text-zinc-400">{Number.isFinite(runAt) ? (repeat === "once" ? whenLabel : `${repeat === "daily" ? "Daily" : "Weekly"} from ${whenLabel}`) : "Pick a time"}</span><span className="font-medium tabular-nums">{per !== null ? `${formatGenerationUsd(per)} per run` : "Reference must be 4 to 30s"}</span></div>
+                      <p className="mt-1 text-right text-[11px] text-zinc-500">Charged from the agent wallet when each run starts. Includes a 10% Solcameo fee.</p>
                       {per !== null && runs > 1 && <p className="mt-1 text-right text-[11px] tabular-nums text-zinc-500">{runs} runs · about {formatGenerationUsd(per * runs)} in total</p>}
                     </div>
                     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
@@ -228,7 +238,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
                         {r.poster ? <img src={r.poster} alt="" className="size-10 shrink-0 rounded-md object-cover" /> : <span className="size-10 shrink-0 rounded-md bg-white/10" />}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium">{r.title}</p>
-                          <p className="truncate text-[11px] text-zinc-500">{new Date(r.runAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {r.resolution}{r.repeat !== "once" ? ` · ${r.repeat}` : ""}{r.error ? ` · ${r.error}` : ""}</p>
+                          <p className="truncate text-[11px] text-zinc-500">{new Date(r.runAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {r.resolution}{r.repeat !== "once" ? ` · ${r.repeat}` : ""}{r.error ? ` · ${r.error}` : ""}{r.postStatus === "posted" ? " · posted to X" : r.postStatus === "failed" ? ` · X post failed${r.postError ? `: ${r.postError}` : ""}` : ""}</p>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[r.status]?.cls ?? ""}`}>{STATUS[r.status]?.label ?? r.status}</span>
                         {r.status === "scheduled" && <button type="button" aria-label={`Cancel ${r.title}`} onClick={() => void cancel(r.id)} className="grid size-6 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-white/10 hover:text-white"><X className="size-3.5" /></button>}

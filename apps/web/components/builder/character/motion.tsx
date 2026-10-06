@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronRight, Film, Loader2, Play, Plus, Shapes, User, Video, X, Check, Download } from "lucide-react";
+import { ChevronRight, Film, Loader2, Plus, Shapes, User, Video, X, Check, Download } from "lucide-react";
 import { useAgentLibrary } from "../useAgentLibrary";
 import { LIME, SURFACE, SPRING } from "./character-ui";
 
@@ -47,14 +47,17 @@ export function useMotionRuns(mintAddress: string) {
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  const start = useCallback(async (p: { mode: MotionMode; videoUrl: string; imageUrls: string[]; prompt?: string; resolution: Resolution; title?: string; poster?: string }) => {
+  const start = useCallback(async (p: { mode: MotionMode; videoUrl: string; imageUrls: string[]; prompt?: string; resolution: Resolution; title?: string; poster?: string; explore?: { referenceId: string; autoPost: boolean } }) => {
     const id = uid();
     setRuns((prev) => [{ id, createdAt: Date.now(), status: "pending", mode: p.mode, title: p.title, poster: p.poster }, ...prev]);
     const patch = (fn: (r: MotionRun) => MotionRun) => alive.current && setRuns((prev) => prev.map((r) => (r.id === id ? fn(r) : r)));
     try {
-      const { requestId } = await api<{ requestId: string }>("/api/character/motion", {
+      // Explore renders go through the billed endpoint (agent wallet charge, optional X auto-post).
+      const { requestId } = await api<{ requestId: string }>(p.explore ? "/api/explore/generate" : "/api/character/motion", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress, mode: p.mode, videoUrl: p.videoUrl, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }),
+        body: JSON.stringify(p.explore
+          ? { mintAddress, referenceId: p.explore.referenceId, autoPost: p.explore.autoPost, mode: p.mode, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }
+          : { mintAddress, mode: p.mode, videoUrl: p.videoUrl, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }),
       });
       const t0 = Date.now();
       let delay = 4000;
@@ -125,7 +128,7 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
 
   return (
     <div>
-      <div className="columns-2 gap-1 sm:columns-3 xl:columns-4">
+      <div className="columns-2 gap-2.5 sm:columns-3 xl:columns-4">
         {items.slice(0, visibleCount).map((m, i) => {
           const on = selectedId === m.id;
           return (
@@ -134,19 +137,18 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
               onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover((h) => (h === m.id ? null : h))}
               initial={{ opacity: 0, y: reduced ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: reduced ? 0 : (i % 10) * 0.035 }}
               whileHover={{ y: -2 }} aria-pressed={on} title={m.title}
-              className="group relative mb-1 block w-full overflow-hidden rounded-[4px] border-2 bg-black text-left outline-none"
-              style={{ borderColor: on ? LIME : SURFACE.ring, boxShadow: on ? `0 0 0 1px ${LIME}55, 0 10px 28px -10px ${LIME}88` : undefined, aspectRatio: "9 / 16" }}
+              className="group relative mb-2.5 block w-full overflow-hidden rounded-[22px] bg-black text-left outline-none focus-visible:ring-2 focus-visible:ring-[#d7ff00]"
+              style={{ boxShadow: on ? `0 12px 34px -10px ${LIME}aa` : "0 10px 26px -14px rgba(0,0,0,0.8)", aspectRatio: "9 / 16" }}
             >
               {hover === m.id
                 ? <video src={m.previewUrl} poster={m.thumbUrl} autoPlay muted loop playsInline className="size-full object-cover" />
                 : m.thumbUrl ? <img src={m.thumbUrl} alt="" loading="lazy" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-zinc-600"><Film className="size-6" /></div>}
-              {m.duration > 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-[3px] bg-black/60 px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums text-white backdrop-blur">{Math.round(m.duration)}s</span>}
-              {hover !== m.id && !on && <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-[4px] bg-black/55 text-white backdrop-blur"><Play className="size-3 fill-white" /></span>}
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2.5 pb-2 pt-8 text-[11.5px] font-semibold leading-tight text-white">
+              {m.duration > 0 && <span className="pointer-events-none absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white backdrop-blur-md">{Math.round(m.duration)}s</span>}
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3.5 pb-3.5 pt-12 text-[15px] font-semibold leading-snug tracking-[-0.01em] text-white" style={{ fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
                 <span className="line-clamp-2">{m.title}</span>
               </span>
               <AnimatePresence>
-                {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-[4px] text-black" style={{ background: LIME }}><Check className="size-3.5" strokeWidth={3.5} /></motion.span>}
+                {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full text-black" style={{ background: LIME }}><Check className="size-4" strokeWidth={3.5} /></motion.span>}
               </AnimatePresence>
             </motion.button>
           );

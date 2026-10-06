@@ -21,7 +21,7 @@ export default function Earnings() {
   if (!ownerWallet) {
     return (
       <AppHeaderShell>
-        <div className="flex min-h-full flex-col items-center justify-center gap-5 bg-[#08080a] py-32 text-center text-white">
+        <div className="flex min-h-full flex-col items-center justify-center gap-5 bg-[#202326] py-32 text-center text-white">
           <div className="grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
             <Wallet className="size-7 text-white/40" />
           </div>

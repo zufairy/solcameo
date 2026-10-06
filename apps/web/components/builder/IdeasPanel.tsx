@@ -55,6 +55,9 @@ function friendlyTaskError(raw: string): string {
   return raw;
 }
 
+/** Badge text starts with a capital letter and keeps the rest as written. */
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
 const SOURCE_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
   news: { label: "News", icon: Newspaper },
   evergreen: { label: "Evergreen", icon: Sprout },
@@ -63,9 +66,9 @@ const SOURCE_META: Record<string, { label: string; icon: React.ComponentType<{ c
 };
 
 const INTENT_META: Record<string, { label: string; cls: string }> = {
-  entertain: { label: "🎭 entertain", cls: "bg-fuchsia-400/10 text-fuchsia-300" },
-  value: { label: "💡 value", cls: "bg-sky-400/10 text-sky-300" },
-  promo: { label: "🤝 promo", cls: "bg-amber-400/10 text-amber-300" },
+  entertain: { label: "🎭 Entertain", cls: "bg-fuchsia-400/10 text-fuchsia-300" },
+  value: { label: "💡 Value", cls: "bg-sky-400/10 text-sky-300" },
+  promo: { label: "🤝 Promo", cls: "bg-amber-400/10 text-amber-300" },
 };
 
 /** Progress steps shown while ideation is in flight. Real server-side work
@@ -432,6 +435,7 @@ export default function IdeasPanel({ mintAddress }: { mintAddress?: string }) {
         outcome={ideateOutcome}
         onClose={() => setIdeateModalOpen(false)}
       />
+      <style>{`.ideas-shine::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.85) 50%,transparent 65%);transform:translateX(-120%);animation:ideas-shine 3.4s ease-in-out infinite;pointer-events:none}@keyframes ideas-shine{0%,35%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}@media (prefers-reduced-motion:reduce){.ideas-shine::after{animation:none;display:none}}`}</style>
       <div className="mx-auto max-w-[1100px]">
         {/* Masthead + autonomy dial */}
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -474,14 +478,14 @@ export default function IdeasPanel({ mintAddress }: { mintAddress?: string }) {
         )}
 
         {/* Idea cards */}
-        <div className="mt-5 space-y-3">
+        <div className="mt-5 grid items-start gap-3 lg:grid-cols-2">
           {ideas === undefined && (
-            <div className="grid place-items-center rounded-xl border border-white/10 bg-white/[0.02] py-12 text-zinc-500">
+            <div className="grid place-items-center lg:col-span-2 rounded-xl border border-white/10 bg-white/[0.02] py-12 text-zinc-500">
               <Loader2 className="size-5 animate-spin" />
             </div>
           )}
           {ideas?.length === 0 && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-5 py-10 text-center">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-5 py-10 text-center lg:col-span-2">
               {ideating ? (
                 <>
                   <Loader2 className="mx-auto size-5 animate-spin text-lime-400" />
@@ -532,12 +536,12 @@ export default function IdeasPanel({ mintAddress }: { mintAddress?: string }) {
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.1em] ${STATUS_STYLE[idea.status] ?? STATUS_STYLE.proposed}`}>{idea.status}</span>
+                      {idea.status !== "proposed" && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-[0.02em] ${STATUS_STYLE[idea.status] ?? STATUS_STYLE.proposed}`}>{cap(idea.status)}</span>}
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-zinc-400"><SrcIcon className="size-2.5" /> {src.label}</span>
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-zinc-400">{idea.format}</span>
+                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-zinc-400">{cap(idea.format)}</span>
                       {idea.styleId && idea.styleId !== idea.format && (
                         <span className="rounded-full border border-lime-400/30 bg-lime-400/10 px-2 py-0.5 text-[10px] font-semibold text-lime-300" title="Video style this idea is written for">
-                          {idea.styleId.replace(/-/g, " ")}
+                          {cap(idea.styleId.replace(/-/g, " "))}
                         </span>
                       )}
                       {idea.intent && INTENT_META[idea.intent] && (
@@ -608,10 +612,6 @@ export default function IdeasPanel({ mintAddress }: { mintAddress?: string }) {
                           <ThumbsDown className="size-3.5" />
                         </button>
                       </div>
-                      <button type="button" onClick={() => void setStatus({ ideaId: idea._id, status: "approved" })}
-                        className="inline-flex items-center gap-1 rounded-lg bg-lime-500 px-2.5 py-1.5 text-[11px] font-bold text-black transition-colors hover:bg-lime-400">
-                        <Zap className="size-3" /> Make next
-                      </button>
                     </div>
                   )}
                   {idea.status === "approved" && !taskId && (
@@ -654,9 +654,15 @@ export default function IdeasPanel({ mintAddress }: { mintAddress?: string }) {
                     ) : (
                       <div className="flex items-center gap-2">
                         <button type="button" onClick={() => void generate(idea)} disabled={!mintAddress}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-lime-400/40 bg-lime-400/[0.1] px-3 py-1.5 text-[11.5px] font-bold text-lime-300 transition-colors hover:bg-lime-400/[0.18] disabled:opacity-40">
-                          <Clapperboard className="size-3.5" /> {renderFailed ? "Retry render" : "Generate video"}
+                          className="ideas-shine group relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-full bg-[linear-gradient(180deg,#f2ff7a_0%,#d7ff00_55%,#b8e000_100%)] px-5 text-[13px] font-bold tracking-tight text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.7),inset_0_-2px_0_rgba(0,0,0,0.12),0_0_0_1px_rgba(215,255,0,0.5),0_8px_28px_-6px_rgba(215,255,0,0.5)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_0_0_1px_rgba(215,255,0,0.7),0_14px_40px_-4px_rgba(215,255,0,0.7)] active:translate-y-0 active:scale-[0.98] disabled:opacity-50">
+                          <Clapperboard className="size-4" /> {renderFailed ? "Retry render" : "Generate video"}
                         </button>
+                        {actionable && (
+                          <button type="button" onClick={() => void setStatus({ ideaId: idea._id, status: "approved" })}
+                            className="group relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-full border border-white/25 bg-gradient-to-b from-white/[0.22] to-white/[0.07] px-5 text-[13px] font-bold tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:from-white/[0.3] hover:to-white/[0.1] active:translate-y-0 active:scale-[0.98]">
+                            <Zap className="size-4" /> Make next
+                          </button>
+                        )}
                         {renderFailed && task?.error && (
                           <span className="inline-flex items-center gap-1 text-[11px] text-red-300"><AlertCircle className="size-3" /> {friendlyTaskError(task.error).slice(0, 120)}</span>
                         )}

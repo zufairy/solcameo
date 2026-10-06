@@ -10,8 +10,11 @@ export type CalloutCardData = {
   changePct?: number | null;
   /** Headline caption, "SINCE CALL" or "SINCE LAUNCH". */
   label?: string;
-  /** Recent market-cap observations (oldest first) for the chart. */
-  points?: number[];
+  /** Total views across the influencer's videos: the number the card exists to flex. */
+  views?: number;
+  videos?: number;
+  /** Views of the top clips, for the pillars. */
+  bars?: number[];
   volume?: string;
   followers?: number;
   /** Market cap when the call was made, formatted. */
@@ -176,6 +179,14 @@ export const CALLOUT_THEMES: CalloutTheme[] = [
 export const themeById = (id: string): CalloutTheme => CALLOUT_THEMES.find((t) => t.id === id) ?? CALLOUT_THEMES[0];
 export const isThemeId = (id: unknown): id is CalloutThemeId => CALLOUT_THEMES.some((t) => t.id === id);
 
+const LADDER = [1_000, 10_000, 100_000, 1_000_000, 10_000_000];
+/** 1,200 → "1.2K", 3,400,000 → "3.4M". */
+export function compact(n: number) {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1).replace(/\.0$/, "")}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K`;
+  return String(Math.round(n));
+}
 const ease = (x: number) => 1 - Math.pow(1 - x, 3);
 function pctLabel(n: number) {
   return `${n >= 0 ? "+" : "−"}${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -236,64 +247,82 @@ export function drawCalloutCard(
   ctx.fillStyle = "#0b0c0a"; ctx.fillText(tick, nx + 17, ay + 78 + Math.max(10, 70 - ns) + 35);
   if (d.caller) { ctx.fillStyle = th.muted; ctx.font = font(22, "600"); ctx.fillText(`called by ${d.caller}`, nx, ay + as); }
 
-  // Headline: how much the call is up (or down).
-  const hasChange = typeof d.changePct === "number" && Number.isFinite(d.changePct);
-  const change = hasChange ? (d.changePct as number) : 0;
-  const hy = 456;
-  ctx.fillStyle = th.muted; ctx.font = font(26, "800"); ctx.fillText(d.label ?? "SINCE LAUNCH", PAD, hy - 112);
-  const headline = hasChange ? pctLabel(change * p) : "NEW";
-  const hcolor = hasChange ? (change >= 0 ? th.up : th.down) : th.ink;
-  fit(ctx, headline, (s) => font(s, "900"), hasChange ? 170 : 130, 70, W - PAD * 2);
-  ctx.fillStyle = hcolor; ctx.shadowColor = hasChange ? hcolor : "transparent"; ctx.shadowBlur = hasChange ? 34 : 0;
-  ctx.fillText(headline, PAD - 4, hy + 24); ctx.shadowBlur = 0;
+  // Hero: how many views the influencer has pulled. Counts up with the card.
+  const views = Math.max(0, d.views ?? 0);
+  const hy = 470;
+  ctx.fillStyle = th.muted; ctx.font = font(26, "800"); ctx.fillText("TOTAL VIEWS", PAD, hy - 124);
+  const shownViews = compact(Math.round(views * p));
+  fit(ctx, shownViews, (s) => font(s, "900"), 176, 80, W - PAD * 2);
+  ctx.fillStyle = th.accent; ctx.shadowColor = th.accent; ctx.shadowBlur = 34;
+  ctx.fillText(shownViews, PAD - 4, hy + 20); ctx.shadowBlur = 0;
 
-  // Chart panel
-  const cx = PAD, cy = 520, cw = W - PAD * 2, ch = 250;
-  ctx.fillStyle = "rgba(0,0,0,0.32)"; rr(ctx, cx, cy, cw, ch, 16); ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth = 1; rr(ctx, cx, cy, cw, ch, 16); ctx.stroke();
-  const pts = (d.points ?? []).filter((n) => Number.isFinite(n));
-  const gx = cx + 24, gy = cy + 28, gw = cw - 48, gh = ch - 56;
-  ctx.strokeStyle = "rgba(255,255,255,0.08)";
-  for (let i = 0; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(gx, gy + (gh * i) / 3); ctx.lineTo(gx + gw, gy + (gh * i) / 3); ctx.stroke(); }
-  if (pts.length >= 2) {
-    const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
-    const xy = (i: number) => [gx + (i / (pts.length - 1)) * gw, gy + gh - ((pts[i] - lo) / span) * (gh - 14) - 7] as const;
-    ctx.save(); ctx.beginPath(); ctx.rect(gx - 6, gy - 14, (gw + 12) * p, gh + 28); ctx.clip();
-    const fill = ctx.createLinearGradient(0, gy, 0, gy + gh);
-    fill.addColorStop(0, `${th.accent}66`); fill.addColorStop(1, `${th.accent}00`);
-    ctx.beginPath(); ctx.moveTo(gx, gy + gh);
-    for (let i = 0; i < pts.length; i++) ctx.lineTo(...xy(i));
-    ctx.lineTo(gx + gw, gy + gh); ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) (i ? ctx.lineTo(...xy(i)) : ctx.moveTo(...xy(i)));
-    ctx.strokeStyle = th.accent; ctx.lineWidth = 5; ctx.lineJoin = "round"; ctx.shadowColor = th.accent; ctx.shadowBlur = 16; ctx.stroke();
-    ctx.restore(); ctx.shadowBlur = 0;
-    const [ex, ey] = xy(Math.min(pts.length - 1, Math.max(1, Math.ceil(pts.length * p)) - 1));
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, ey, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = th.accent; ctx.lineWidth = 4; ctx.stroke();
+  // Milestone ladder: each tier lights up as the views clear it.
+  const lit = LADDER.filter((m) => views >= m).length;
+  const next = LADDER.find((m) => m > views) ?? null;
+  const prevTier = lit ? LADDER[lit - 1] : 0;
+  const ly = 540, lx0 = PAD + 12, lx1 = W - PAD - 12;
+  ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(lx0, ly); ctx.lineTo(lx1, ly); ctx.stroke();
+  LADDER.forEach((m, i) => {
+    const x = lx0 + ((lx1 - lx0) * i) / (LADDER.length - 1);
+    const on = i < lit && p > (i + 0.4) / LADDER.length * 0.9;
+    ctx.beginPath(); ctx.arc(x, ly, on ? 13 : 10, 0, Math.PI * 2);
+    ctx.fillStyle = on ? th.accent : "#16181c"; ctx.fill();
+    ctx.strokeStyle = on ? th.accent : "rgba(255,255,255,0.3)"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = on ? th.ink : th.muted; ctx.font = font(18, "800"); ctx.textAlign = "center";
+    ctx.fillText(compact(m), x, ly + 42); ctx.textAlign = "left";
+  });
+  const frac = next ? Math.max(0, Math.min(1, (views - prevTier) / (next - prevTier))) : 1;
+  ctx.fillStyle = "rgba(255,255,255,0.1)"; rr(ctx, PAD, 610, W - PAD * 2, 14, 7); ctx.fill();
+  if (frac * p > 0.005) { ctx.fillStyle = th.accent; ctx.shadowColor = th.accent; ctx.shadowBlur = 14; rr(ctx, PAD, 610, Math.max(14, (W - PAD * 2) * frac * p), 14, 7); ctx.fill(); ctx.shadowBlur = 0; }
+  ctx.fillStyle = th.muted; ctx.font = font(20, "700");
+  ctx.fillText(next ? `NEXT TIER ${compact(next)}` : "TOP TIER", PAD, 656);
+  ctx.textAlign = "right"; ctx.fillStyle = th.ink; ctx.fillText(next ? `${compact(Math.max(0, next - views))} to go` : "LEGEND", W - PAD, 656); ctx.textAlign = "left";
+
+  // Top clips as pillars that rise.
+  const px = PAD, py = 690, pw = W - PAD * 2, ph = 190;
+  ctx.fillStyle = "rgba(0,0,0,0.32)"; rr(ctx, px, py, pw, ph, 16); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth = 1; rr(ctx, px, py, pw, ph, 16); ctx.stroke();
+  ctx.fillStyle = th.muted; ctx.font = font(17, "800"); ctx.fillText("TOP CLIPS", px + 22, py + 32);
+  const bars = (d.bars ?? []).filter((n) => n > 0).slice(0, 8);
+  if (bars.length) {
+    const top = Math.max(...bars), bw = Math.min(54, (pw - 44 - (bars.length - 1) * 12) / bars.length), total = bars.length * bw + (bars.length - 1) * 12;
+    const bx0 = px + (pw - total) / 2, base = py + ph - 24, maxH = ph - 78;
+    bars.forEach((v, i) => {
+      const grow = ease(Math.max(0, Math.min(1, p * 1.5 - i * 0.07)));
+      const h = Math.max(8, (v / top) * maxH * grow);
+      const bx = bx0 + i * (bw + 12);
+      const g = ctx.createLinearGradient(0, base - h, 0, base);
+      g.addColorStop(0, th.accent); g.addColorStop(1, `${th.accent}33`);
+      ctx.fillStyle = g; rr(ctx, bx, base - h, bw, h, 6); ctx.fill();
+    });
   } else {
-    ctx.setLineDash([10, 10]); ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(gx, gy + gh / 2); ctx.lineTo(gx + gw, gy + gh / 2); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = th.muted; ctx.font = font(22, "600"); ctx.fillText("Waiting for the first trades", gx, gy + gh / 2 - 16);
+    ctx.fillStyle = th.muted; ctx.font = font(22, "600"); ctx.fillText("No clips posted yet. Get in early.", px + 22, py + ph / 2 + 14);
   }
 
   // Stats
-  const stats: Array<[string, string]> = [["MARKET CAP", d.cap], ["24H VOLUME", d.volume ?? "—"], ["FOLLOWERS", d.followers != null ? d.followers.toLocaleString("en-US") : "—"]];
-  if (d.calledAt) stats.push(["CALLED AT", d.calledAt]);
-  const colW = (W - PAD * 2) / 3;
-  stats.forEach(([label, value], i) => {
-    const sx = PAD + (i % 3) * colW, sy = 828 + Math.floor(i / 3) * 104;
-    ctx.fillStyle = th.muted; ctx.font = font(19, "700"); ctx.fillText(label, sx, sy);
-    fit(ctx, value, (s) => font(s, "900"), 40, 22, colW - 16);
-    ctx.fillStyle = th.ink; ctx.fillText(value, sx, sy + 46);
+  const hasChange = typeof d.changePct === "number" && Number.isFinite(d.changePct);
+  const change = hasChange ? (d.changePct as number) : 0;
+  const stats: Array<[string, string, string?]> = [
+    ["MARKET CAP", d.cap],
+    [d.label ?? "SINCE LAUNCH", hasChange ? pctLabel(change * p) : "NEW", hasChange ? (change >= 0 ? th.up : th.down) : undefined],
+    ["VIDEOS", d.videos != null ? d.videos.toLocaleString("en-US") : "—"],
+    ["FOLLOWERS", d.followers != null ? d.followers.toLocaleString("en-US") : "—"],
+  ];
+  const colW = (W - PAD * 2) / 2;
+  stats.forEach(([label, value, color], i) => {
+    const sx = PAD + (i % 2) * colW, sy = 922 + Math.floor(i / 2) * 92;
+    ctx.fillStyle = th.muted; ctx.font = font(18, "700"); ctx.fillText(label, sx, sy);
+    fit(ctx, value, (s) => font(s, "900"), 42, 22, colW - 16);
+    ctx.fillStyle = color ?? th.ink; ctx.fillText(value, sx, sy + 44);
   });
 
   // The call
-  ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(PAD, 1020, W - PAD * 2, 1);
-  ctx.fillStyle = th.accent; ctx.font = font(86, "900"); ctx.fillText("“", PAD - 6, 1100);
-  ctx.fillStyle = th.ink; ctx.font = font(38, "700");
-  const lines = wrap(ctx, d.body || "What's your call?", W - PAD * 2 - 70, 3);
-  lines.forEach((l, i) => ctx.fillText(l, PAD + 62, 1070 + i * 52));
+  ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(PAD, 1090, W - PAD * 2, 1);
+  ctx.fillStyle = th.accent; ctx.font = font(80, "900"); ctx.fillText("“", PAD - 6, 1166);
+  ctx.fillStyle = th.ink; ctx.font = font(34, "700");
+  const lines = wrap(ctx, d.body || "What's your call?", W - PAD * 2 - 64, 2);
+  lines.forEach((l, i) => ctx.fillText(l, PAD + 58, 1138 + i * 46));
 
   // Footer
   ctx.fillStyle = th.muted; ctx.font = font(20, "700"); ctx.fillText("CALLED ON SOLCAMEO", PAD, H - 40);

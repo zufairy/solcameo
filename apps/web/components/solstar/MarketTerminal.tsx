@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
 import { MarketInfoCarousel } from "./MarketInfoCarousel";
+import { XFeedPanel } from "./XFeedPanel";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -284,7 +285,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     return (
       <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-6 py-10">
         <div className="mb-6 h-[420px]">
-          <MarketCharacterChat characterId={characterId} />
+          <MarketCharacterChat characterId={characterId} agentName={data.character.name} agentImageUrl={data.character.referenceImageUrl} />
         </div>
         <Link href="/market" className="text-xs text-zinc-400">
           ← Back to market
@@ -924,6 +925,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               have no monetary value.
             </p>
           )}
+          </div>
+          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Meteora DBC", "Creator fees"] : []), "Pool activity", "Developer", "Token data", "X feed"]}>
           {token.dbcPool && (
             <div className="space-y-3 border-b border-white/10 bg-[#202326] p-4">
               <h2 className="text-sm font-semibold text-[#d7ff00]">
@@ -963,8 +966,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </a>
             </div>
           )}
-          </div>
-          <MarketInfoCarousel labels={[...(token.dbcPool ? ["Creator fees"] : []), "Pool activity", "Developer", "Token data"]}>
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
           <div className="space-y-3 border-b border-white/10 p-4">
             <div className="flex items-center justify-between">
@@ -1081,6 +1082,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </>
             )}
           </div>
+          <XFeedPanel xUrl={character.xUrl} name={character.name} />
           </MarketInfoCarousel>
         </aside>
       </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import { Component, memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { Loader2, Film, Play, ExternalLink, Eye, CalendarClock, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { PlatformBadge } from "@/components/social/platform-icons";
 
 /* ════════ From every agent — public video wall ════════
@@ -304,8 +305,8 @@ function WallCardBase({ item, index, onUnavailable }: { item: FeedItem; index: n
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
-      className="group relative block aspect-[9/16] cursor-pointer overflow-hidden rounded-xl ring-1 ring-white/10 outline-none transition-shadow duration-300 hover:ring-white/25 focus-visible:ring-2 focus-visible:ring-pink-400"
-      style={{ background: ME.card, boxShadow: "0 14px 34px -18px rgba(0,0,0,0.9)" }}
+      className="group relative mb-4 block cursor-pointer break-inside-avoid overflow-hidden rounded-[6px] ring-1 ring-white/10 outline-none transition-shadow duration-300 hover:ring-white/25 focus-visible:ring-2 focus-visible:ring-pink-400"
+      style={{ background: ME.card, aspectRatio: aspectFor(item.id), boxShadow: "0 14px 34px -18px rgba(0,0,0,0.9)" }}
     >
       <AnimatePresence>{open && <WallVideoModal item={item} onClose={() => setOpen(false)} />}</AnimatePresence>
       {/* Lazy: no network fetch until the card nears the viewport. A stable 9:16
@@ -471,6 +472,17 @@ export function AllAgentsVideoWall({ className }: { className?: string } = {}) {
 
 /** Responsive masonry column count, recomputed only when the breakpoint changes
  *  (not on every resize pixel), so we don't reshuffle cards needlessly. */
+/** Masonry rhythm: a stable, mixed set of frame shapes so the wall isn't a uniform grid. */
+const ASPECTS = ["9 / 16", "4 / 5", "9 / 16", "1 / 1", "3 / 4", "9 / 16"];
+function aspectFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ASPECTS[h % ASPECTS.length];
+}
+
+/** Stand-in while the network has posted nothing: this coin's published episodes, so the page is never empty. */
+const FALLBACK_CHARACTER = "sn7e3nb82dfcpep6sey2hqdc0n8fqz9w";
+
 function useColumnCount() {
   const [cols, setCols] = useState(2);
   useEffect(() => {
@@ -491,6 +503,29 @@ function VideoWallInner({ className }: { className?: string }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMore = useRef(false);
   const colCount = useColumnCount();
+  const nothingPosted = data !== undefined && (data.items?.length ?? 0) === 0;
+  const fallback = useQuery(api.solstarMarket.terminal, nothingPosted ? { characterId: FALLBACK_CHARACTER as Id<"ssCharacters"> } : "skip");
+  const fallbackItems = useMemo<FeedItem[]>(() => {
+    if (!fallback) return [];
+    return fallback.episodes.filter((e) => e.videoUrl).map((e) => ({
+      id: `ep-${e._id}`,
+      videoUrl: e.videoUrl,
+      posterUrl: e.posterUrl || null,
+      caption: e.title,
+      postUrl: null,
+      viralScore: null,
+      viewCount: null,
+      cost: 0,
+      state: "posted" as const,
+      scheduledFor: null,
+      createdAt: e.createdAt,
+      agentName: fallback.character.name,
+      agentAvatar: fallback.character.referenceImageUrl,
+      agentHandle: fallback.token.ticker,
+      engine: e.engine ?? null,
+      postedPlatforms: [],
+    }));
+  }, [fallback]);
 
   // Accumulate every video we've seen (updated in place), kept sorted newest
   // first. Cards live in a single grid keyed by item.id, so re-sorting only
@@ -516,7 +551,7 @@ function VideoWallInner({ className }: { className?: string }) {
       return merged;
     });
   }, [data]);
-  const visibleItems = items.filter((item) => !unavailableIds.has(item.id));
+  const visibleItems = (items.length ? items : fallbackItems).filter((item) => !unavailableIds.has(item.id));
   const markUnavailable = useCallback((id: string) => {
     setUnavailableIds((current) => {
       if (current.has(id)) return current;
@@ -576,7 +611,7 @@ function VideoWallInner({ className }: { className?: string }) {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="size-6 animate-spin" style={{ color: ME.sub }} />
         </div>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div
           className="rounded-2xl border border-dashed px-6 py-16 text-center"
           style={{ borderColor: ME.borderLit }}
@@ -602,10 +637,7 @@ function VideoWallInner({ className }: { className?: string }) {
               first" only moves keyed nodes in place. Every card is a uniform
               9:16, so this row-major grid is visually identical to the old
               per-column flex layout. */}
-          <div
-            className="grid gap-4"
-            style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
-          >
+          <div style={{ columnCount: colCount, columnGap: "1rem" }}>
             {visibleItems.map((item, i) => (
               <WallCard key={item.id} item={item} index={i} onUnavailable={markUnavailable} />
             ))}

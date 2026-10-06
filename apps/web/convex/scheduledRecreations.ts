@@ -18,6 +18,7 @@ export const create = mutation({
     authSecret: v.string(), mintAddress: v.string(), referenceId: v.string(), referenceTitle: v.string(), referencePoster: v.optional(v.string()),
     videoUrl: v.string(), imageUrls: v.array(v.string()), prompt: v.string(), mode: modeV, resolution: resV,
     runAt: v.number(), repeat: repeatV, repeatCount: v.optional(v.number()),
+    durationSec: v.number(), autoPost: v.optional(v.boolean()),
   },
   handler: async (ctx, { authSecret, repeatCount, ...a }) => {
     gate(authSecret);
@@ -29,6 +30,28 @@ export const create = mutation({
     if (active.filter((r) => r.status === "scheduled" || r.status === "running" || r.status === "submitted").length >= MAX_ACTIVE_PER_AGENT) throw new Error("too_many_scheduled");
     const remaining = a.repeat === "once" ? 1 : Math.min(MAX_REPEATS, Math.max(2, Math.floor(repeatCount ?? 7)));
     return ctx.db.insert("scheduledRecreations", { ...a, remaining, status: "scheduled", createdAt: now, updatedAt: now });
+  },
+});
+
+/** An immediate (Generate now) render that was already billed and submitted, tracked so the cron can finish and auto-post it. */
+export const recordSubmitted = mutation({
+  args: {
+    authSecret: v.string(), mintAddress: v.string(), referenceId: v.string(), referenceTitle: v.string(), referencePoster: v.optional(v.string()),
+    videoUrl: v.string(), imageUrls: v.array(v.string()), prompt: v.string(), mode: modeV, resolution: resV,
+    requestId: v.string(), durationSec: v.number(), billingRunId: v.string(), autoPost: v.boolean(),
+  },
+  handler: async (ctx, { authSecret, ...a }) => {
+    gate(authSecret);
+    const now = Date.now();
+    return ctx.db.insert("scheduledRecreations", { ...a, runAt: now, repeat: "once", remaining: 1, status: "submitted", createdAt: now, updatedAt: now });
+  },
+});
+
+export const markPosted = mutation({
+  args: { authSecret: v.string(), id: v.id("scheduledRecreations"), caption: v.optional(v.string()), error: v.optional(v.string()) },
+  handler: async (ctx, { authSecret, id, caption, error }) => {
+    gate(authSecret);
+    await ctx.db.patch(id, { postStatus: error ? "failed" : "posted", caption, postError: error?.slice(0, 300), updatedAt: Date.now() });
   },
 });
 
@@ -62,8 +85,8 @@ export const claimDue = mutation({
     for (const row of due) {
       await ctx.db.patch(row._id, { status: "running", updatedAt: now });
       if (row.repeat !== "once" && row.remaining > 1) {
-        const { _id, _creationTime, requestId: _r, resultUrl: _u, error: _e, ...rest } = row;
-        void _id; void _creationTime; void _r; void _u; void _e;
+        const { _id, _creationTime, requestId: _r, resultUrl: _u, error: _e, postStatus: _p, caption: _c, postError: _pe, billingRunId: _b, ...rest } = row;
+        void _id; void _creationTime; void _r; void _u; void _e; void _p; void _c; void _pe; void _b;
         await ctx.db.insert("scheduledRecreations", { ...rest, runAt: row.runAt + (row.repeat === "daily" ? DAY_MS : 7 * DAY_MS), remaining: row.remaining - 1, status: "scheduled", createdAt: now, updatedAt: now });
       }
     }

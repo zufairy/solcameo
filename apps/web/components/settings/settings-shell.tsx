@@ -79,7 +79,7 @@ function SidebarIdentity() {
 
 function SettingsSidebar({ active }: { active: SettingsTab }) {
   return (
-    <Panel className="w-full shrink-0 overflow-hidden lg:sticky lg:top-6 lg:w-60">
+    <Panel className="w-full shrink-0 self-start overflow-hidden lg:sticky lg:top-6 lg:w-60">
       <SidebarIdentity />
       <nav className="flex flex-col gap-0.5 p-2">
         {NAV.map((item) => {
@@ -128,10 +128,10 @@ export function SettingsShell({
   const pathname = usePathname();
   return (
     <AppHeaderShell>
-      <div className="min-h-full bg-[#08080a] text-white">
-        <div className="mx-auto max-w-6xl px-6 py-10 lg:flex lg:items-start lg:gap-6">
+      <div className="flex min-h-full flex-col bg-[#202326] text-white">
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-10 lg:flex-row lg:items-stretch lg:gap-6">
           <SettingsSidebar key={pathname} active={active} />
-          <div className="mt-6 min-w-0 flex-1 lg:mt-0">
+          <div className="mt-6 flex min-w-0 flex-1 flex-col lg:mt-0">
             <motion.div {...blurIn(0)} className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h1 className="flex items-center gap-2.5 text-[26px] font-thin tracking-tight text-white">
@@ -144,7 +144,7 @@ export function SettingsShell({
               </div>
               {actions}
             </motion.div>
-            <div className="mt-6">{children}</div>
+            <div className="mt-6 flex flex-1 flex-col">{children}</div>
           </div>
         </div>
       </div>

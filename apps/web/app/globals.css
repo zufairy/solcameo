@@ -1564,3 +1564,21 @@ html.light body *, html.dark body * {
 @keyframes callout-rise { 0%, 100% { opacity: 0.35; transform: translateY(8%); } 50% { opacity: 1; transform: translateY(0); } }
 @keyframes callout-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(560%); } }
 @media (prefers-reduced-motion: reduce) { .callout-art::after { animation: none !important; } .callout-art { transition: none; } }
+
+/* The info strip under each callout takes the callout's template: colours, glow and its own idle motion. */
+.callout-info { --ci-accent: #e0b45a; --ci-bg: linear-gradient(120deg, #2b1d0f, #14100a); --ci-edge: rgba(224, 180, 90, 0.4); background: var(--ci-bg); border: 1px solid var(--ci-edge); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s; }
+.callout-info:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -16px var(--ci-accent); }
+.callout-info::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.callout-info[data-theme="colosseum"]::after { background: linear-gradient(105deg, transparent 40%, rgba(255, 214, 140, 0.22) 50%, transparent 60%); background-size: 250% 100%; animation: ci-glint 5s ease-in-out infinite; }
+.callout-info[data-theme="solana"] { --ci-accent: #14f195; --ci-bg: linear-gradient(120deg, #1a0b33, #06261d); --ci-edge: rgba(20, 241, 149, 0.45); }
+.callout-info[data-theme="solana"]::after { box-shadow: inset 0 0 28px rgba(153, 69, 255, 0.35); animation: callout-breathe 4s ease-in-out infinite; }
+.callout-info[data-theme="lambo"] { --ci-accent: #ffd400; --ci-bg: linear-gradient(120deg, #0b0b0d, #1a1700); --ci-edge: rgba(255, 212, 0, 0.5); }
+.callout-info[data-theme="lambo"]::after { background: linear-gradient(100deg, transparent 0 42%, rgba(255, 212, 0, 0.5) 44% 46%, transparent 48% 100%); background-size: 260% 100%; animation: ci-streak 3.4s cubic-bezier(0.5, 0, 0.2, 1) infinite; mix-blend-mode: screen; }
+.callout-info[data-theme="bullrun"] { --ci-accent: #34d399; --ci-bg: linear-gradient(120deg, #04150d, #062417); --ci-edge: rgba(52, 211, 153, 0.4); }
+.callout-info[data-theme="bullrun"]::after { background: radial-gradient(90% 120% at 50% 130%, rgba(52, 211, 153, 0.3), transparent 70%); animation: callout-rise 3.2s ease-in-out infinite; }
+.callout-info[data-theme="neon"] { --ci-accent: #00e5ff; --ci-bg: linear-gradient(120deg, #1d0a3a, #4a1060); --ci-edge: rgba(0, 229, 255, 0.45); }
+.callout-info[data-theme="neon"]::after { background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.2), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: ci-scan 3.6s linear infinite; }
+@keyframes ci-glint { 0%, 55% { background-position: 150% 0; } 100% { background-position: -150% 0; } }
+@keyframes ci-streak { 0%, 35% { background-position: 140% 0; } 100% { background-position: -140% 0; } }
+@keyframes ci-scan { 0% { background-position: -50% 0; } 100% { background-position: 150% 0; } }
+@media (prefers-reduced-motion: reduce) { .callout-info::after { animation: none !important; } .callout-info { transition: none; } }

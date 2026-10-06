@@ -1,19 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { estimateGenerationUsd } from "./generationPrice";
 
-describe("Genjutsu generation estimates", () => {
-  it("uses the resolution rate and includes the platform amount", () => {
-    expect(estimateGenerationUsd(10, "480p")).toBe(4.18);
-    expect(estimateGenerationUsd(10, "720p")).toBe(7.81);
-    expect(estimateGenerationUsd(10, "1080p")).toBe(17.32);
+describe("explore generation price", () => {
+  it("is the Higgsfield rate plus 10% with no flat fee", () => {
+    expect(estimateGenerationUsd(10, "720p")).toBe(7.5); // 10s x $0.681 = $6.81, +10% = $7.491, rounded up to the cent
+    expect(estimateGenerationUsd(4, "480p")).toBe(1.4);
   });
-  it("rounds input duration up and the total up to cents", () => {
-    expect(estimateGenerationUsd(4.01, "720p")).toBe(4.41);
-    expect(estimateGenerationUsd(30, "1080p")).toBe(49.96);
+  it("rounds the duration up to whole seconds", () => {
+    expect(estimateGenerationUsd(9.2, "720p")).toBe(estimateGenerationUsd(10, "720p"));
   });
-  it("rejects unsupported input durations", () => {
-    for (const duration of [0, 3.9, 30.1, NaN, Infinity]) {
-      expect(estimateGenerationUsd(duration, "720p")).toBeNull();
-    }
+  it("rejects references outside 4 to 30 seconds", () => {
+    expect(estimateGenerationUsd(3.9, "720p")).toBeNull();
+    expect(estimateGenerationUsd(31, "720p")).toBeNull();
   });
 });

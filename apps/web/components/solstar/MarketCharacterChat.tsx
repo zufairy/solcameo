@@ -264,15 +264,17 @@ export function MarketCharacterChat({
         aria-label="Public community chat"
       >
         {!!rows?.length && hasOlder && (
-          <button
-            type="button"
-            onClick={loadOlder}
-            disabled={loadingHistory}
-            className="mx-auto mb-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 disabled:opacity-60"
-          >
-            {loadingHistory ? <Loader2 className="size-3 animate-spin" /> : <ChevronDown className="size-3 rotate-180" />}
-            {loadingHistory ? "Loading history…" : "Load earlier messages"}
-          </button>
+          <div className="pointer-events-none sticky -top-3 z-10 -mx-3 -mt-3 mb-1 bg-gradient-to-b from-[#101214] via-[#101214]/85 to-transparent px-3 pb-6 pt-3">
+            <button
+              type="button"
+              onClick={loadOlder}
+              disabled={loadingHistory}
+              className="pointer-events-auto mx-auto flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 transition-colors hover:text-white disabled:opacity-60"
+            >
+              {loadingHistory ? <Loader2 className="size-3 animate-spin" /> : <ChevronDown className="size-3 rotate-180" />}
+              {loadingHistory ? "Loading history…" : "Load earlier messages"}
+            </button>
+          </div>
         )}
         {rows === undefined ? (
           <div className="space-y-4" aria-hidden>
@@ -321,8 +323,11 @@ export function MarketCharacterChat({
                     {!grouped && (
                       <Avatar size="default" className="size-8">
                         {agent && agentImageUrl && <AvatarImage src={agentImageUrl} alt={agentName} className="object-cover" />}
-                        <AvatarFallback className={`text-[11px] font-semibold ${agent ? "bg-[#d7ff00]/15 text-[#d7ff00]" : tintFor(m.author)}`}>
-                          {(agent ? agentName : m.author.replace(/^Fan\s*/, "")).slice(0, 2).toUpperCase()}
+                        <AvatarFallback className={`text-[11px] font-semibold ${agent ? "bg-white/[0.06] p-1.5" : tintFor(m.author)}`}>
+                          {agent
+                            // eslint-disable-next-line @next/next/no-img-element -- bundled brand mark
+                            ? <img src="/brand/solcameo-mark.png" alt={agentName ?? "Solcameo"} className="size-full object-contain" />
+                            : m.author.replace(/^Fan\s*/, "").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     )}

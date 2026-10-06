@@ -6,18 +6,18 @@ import { CARD_H, CARD_W, drawCalloutCard, loadCardImage, type CalloutCardData, t
  * A callout's share card, drawn in its chosen template. It counts up and draws its chart the first time it
  * scrolls into view, then idles with the template's own motion (see `.callout-art` in globals.css).
  */
-export function CalloutArt({ data, theme, className = "" }: { data: CalloutCardData; theme: CalloutThemeId; className?: string }) {
+export function CalloutArt({ data, theme, className = "", scale = 0.5, replay = false }: { data: CalloutCardData; theme: CalloutThemeId; className?: string; /** Canvas resolution relative to 720×1280. Feed cards stay at 0.5; the preview uses more. */ scale?: number; /** Replay the count-up whenever the data or template changes (the composer preview). */ replay?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const latest = useRef({ data, theme });
   const state = useRef<{ img: HTMLImageElement | null; loadedFor: string; played: boolean; raf: number; draw: (p: number) => void }>({ img: null, loadedFor: "", played: false, raf: 0, draw: () => {} });
   latest.current = { data, theme };
-  const key = `${theme}|${data.name}|${data.ticker}|${data.body}|${data.cap}|${data.changePct}|${data.label}|${data.volume}|${data.followers}|${data.calledAt}|${data.caller}|${data.points?.length}|${data.imageUrl}`;
+  const key = `${theme}|${data.name}|${data.ticker}|${data.body}|${data.cap}|${data.changePct}|${data.label}|${data.views}|${data.videos}|${data.bars?.join(",")}|${data.volume}|${data.followers}|${data.calledAt}|${data.caller}|${data.imageUrl}`;
 
   useEffect(() => {
     const el = canvas.current, host = shell.current;
     if (!el || !host) return;
-    const SCALE = 0.5; // half resolution is plenty at feed size and keeps many cards cheap
+    const SCALE = scale;
     el.width = CARD_W * SCALE; el.height = CARD_H * SCALE;
     const ctx = el.getContext("2d");
     if (!ctx) return;
@@ -45,6 +45,7 @@ export function CalloutArt({ data, theme, className = "" }: { data: CalloutCardD
       };
       s.raf = requestAnimationFrame(frame);
     };
+    if (replay) { s.played = false; play(); return () => cancelAnimationFrame(s.raf); }
     const observer = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) { play(); observer.disconnect(); } }, { threshold: 0.35 });
     observer.observe(host);
     return () => { observer.disconnect(); cancelAnimationFrame(s.raf); };

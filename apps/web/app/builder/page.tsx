@@ -851,7 +851,7 @@ function FundWalletCard({ data, agentWallet, agentName, dailyBurn }: {
     }
   };
 
-  const shortAddr = agentWallet ? `${agentWallet.slice(0, 6)}…${agentWallet.slice(-6)}` : "provisioning…";
+  const shortAddr = agentWallet ? `${agentWallet.slice(0, 6)}…${agentWallet.slice(-6)}` : "setting up…";
 
   return (
     <div className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.04] overflow-hidden">
@@ -944,7 +944,7 @@ function FundWalletCard({ data, agentWallet, agentName, dailyBurn }: {
                 )}
               </div>
             )}
-            {publicKey && !agentWallet && <p className="text-[11px] text-amber-300">⏳ Agent wallet still provisioning — finish minting first, then refresh.</p>}
+            {publicKey && !agentWallet && <p className="text-[11px] text-amber-300">⏳ Setting up the agent wallet — it appears in a few seconds.</p>}
             {publicKey && agentWallet && !(num > 0) && <p className="text-[11px] text-amber-300">Enter an amount above.</p>}
             <button
               type="button"
@@ -5349,8 +5349,6 @@ function BuilderPageInner() {
             style={{ pointerEvents: mountStage >= 4 ? "auto" : "none" }}
             className="flex items-center gap-2 md:gap-3"
           >
-          <AgentWalletBalance address={agentWalletAddress} />
-
           {/* View mode toggle — icons + label bumped 2px larger */}
           <div className="hidden sm:flex items-center rounded-md border border-white/10 overflow-hidden">
             <button
@@ -5383,6 +5381,7 @@ function BuilderPageInner() {
             {/* Standing wallet status (address + balance) — previously the header
                 only showed wallet state when logged OUT. */}
             <WalletButton />
+            <AgentWalletBalance address={agentWalletAddress} mintAddress={agentBlueprint?.mintAddress} ready={influencerRecord !== undefined} />
             <button
               type="button"
               className="h-9 rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] px-3.5 text-[11.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all hover:from-white/[0.2] hover:to-white/[0.07] disabled:opacity-40"

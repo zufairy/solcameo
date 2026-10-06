@@ -1412,6 +1412,13 @@ export default defineSchema({
     requestId: v.optional(v.string()),
     resultUrl: v.optional(v.string()),
     error: v.optional(v.string()),
+    // Billing + auto-post. Price is recomputed server side from the trusted reference duration.
+    durationSec: v.optional(v.number()),
+    billingRunId: v.optional(v.string()),
+    autoPost: v.optional(v.boolean()),
+    postStatus: v.optional(v.union(v.literal("posted"), v.literal("failed"))),
+    caption: v.optional(v.string()),
+    postError: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_mint", ["mintAddress", "createdAt"]).index("by_status_runAt", ["status", "runAt"]),

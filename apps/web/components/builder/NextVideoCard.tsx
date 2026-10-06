@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
-import { Check, Lightbulb, Loader2, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
+import { Check, Clapperboard, Lightbulb, Loader2, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useSiwsSession } from "@/hooks/use-siws-session";
@@ -140,16 +140,15 @@ export default function NextVideoCard({
           </div>
         ) : nextIdea ? (
           <div className="flex items-center gap-3">
-            <span className="relative grid size-8 shrink-0 place-items-center rounded-full bg-lime-300/15 text-lime-300">
-              <Sparkles className="size-4" />
-              <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2 animate-pulse rounded-full bg-lime-300 shadow-[0_0_8px_#d4f53c]" />
+            <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+              <Clapperboard className="size-4" strokeWidth={1.7} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Up next · {nextIdea.format} · ~{nextIdea.suggestedDurationSec}s</p>
               <p className="truncate text-[13.5px] font-semibold tracking-tight text-white">{nextIdea.headline}</p>
             </div>
-            <button type="button" onClick={() => void makeNext()} disabled={busy === "video"} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-lime-300 px-3.5 text-[12.5px] font-bold text-black shadow-[0_0_18px_-4px_rgba(212,245,60,0.7)] transition hover:bg-lime-200 active:scale-[0.97] disabled:opacity-60">
-              {busy === "video" ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 fill-black" />}
+            <button type="button" onClick={() => void makeNext()} disabled={busy === "video"} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-white/20 bg-gradient-to-b from-white to-zinc-300 px-3.5 text-[12.5px] font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_6px_16px_-8px_rgba(0,0,0,0.8)] transition hover:brightness-95 active:scale-[0.97] disabled:opacity-60">
+              {busy === "video" ? <Loader2 className="size-3.5 animate-spin" /> : <Clapperboard className="size-3.5" strokeWidth={2} />}
               Make video
             </button>
           </div>

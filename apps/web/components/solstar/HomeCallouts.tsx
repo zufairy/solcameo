@@ -1,12 +1,11 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- hosted character portraits */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
-import dynamic from "next/dynamic";
 import { Download, Flame, Globe, Megaphone, Loader2, Shuffle } from "lucide-react";
-import { calloutCardBlob, CALLOUT_THEMES, isThemeId, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
+import { calloutCardBlob, CALLOUT_THEMES, compact, isThemeId, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
 import { CalloutArt } from "./CalloutArt";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -19,9 +18,9 @@ import { formatRelativeTime } from "@/lib/solstar/relativeTime";
 import { useNow } from "./feedShared";
 import type { MarketRow } from "./MarketTable";
 
-const CalloutCard3D = dynamic(() => import("./CalloutCard3D"), { ssr: false, loading: () => <div className="h-[250px] w-full animate-pulse rounded-[6px] bg-white/[0.04]" /> });
 
-type Observation = { available: boolean; capSol?: number; supplyTokens?: number; changeSinceLaunchPct?: number; appVolume24hLamports?: string; points?: { price: number }[] };
+type Observation = { available: boolean; capSol?: number; supplyTokens?: number; changeSinceLaunchPct?: number; appVolume24hLamports?: string };
+type ViewStats = { views: number; videos: number; bars: number[] };
 function pct(n: number) { return `${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`; }
 function usd(value: number | undefined, compact = false) { return value == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: compact ? "compact" : "standard", maximumFractionDigits: compact ? 2 : value < 1 ? 7 : 2 }).format(value); }
 function usePools(rows: MarketRow[] | undefined) {
@@ -52,10 +51,27 @@ function AgentOption({ r }: { r: MarketRow }) {
     <span className="shrink-0 rounded-[5px] bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-black">${r.ticker.toUpperCase()}</span>
   </span>;
 }
+/** Views per influencer, rolled up from every posted video (same source as the agents page), keyed by coin ticker. */
+function useViewStats() {
+  const agents = useQuery(api.influencers.listSearchable, {});
+  const feed = useQuery(api.clipJobs.globalVideoFeed, { limit: 120 });
+  return useMemo(() => {
+    const byTicker = new Map<string, ViewStats>();
+    if (!agents || !feed || Array.isArray(feed)) return byTicker;
+    const byMint = new Map<string, number[]>();
+    for (const v of feed.items) byMint.set(v.mint, [...(byMint.get(v.mint) ?? []), Math.max(0, Math.floor(v.viewCount ?? 0))]);
+    for (const a of agents) {
+      if (!a.ticker) continue;
+      const list = byMint.get(a.mintAddress) ?? [];
+      byTicker.set(a.ticker.toUpperCase(), { views: list.reduce((n, x) => n + x, 0), videos: list.length, bars: [...list].sort((x, y) => y - x).slice(0, 8) });
+    }
+    return byTicker;
+  }, [agents, feed]);
+}
 export function HomeCallouts() {
   const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
   const callouts = useQuery(api.solstarFeed.listCallouts, {});
-  const pools = usePools(rows); const rate = useSolUsd(); const now = useNow(30000); const reduced = useReducedMotion();
+  const pools = usePools(rows); const viewStats = useViewStats(); const rate = useSolUsd(); const now = useNow(30000); const reduced = useReducedMotion();
   const [theme, setTheme] = useState<CalloutThemeId>("colosseum");
   const shuffleTheme = () => setTheme(cur => { const rest = CALLOUT_THEMES.filter(t => t.id !== cur); return rest[Math.floor(Math.random() * rest.length)].id; });
   const [open, setOpen] = useState(false), [characterId, setCharacterId] = useState(""), [body, setBody] = useState(""), [sending, setSending] = useState(false), [error, setError] = useState(""), [posted, setPosted] = useState(false), [note, setNote] = useState("");
@@ -83,7 +99,9 @@ export function HomeCallouts() {
       name: who.name, ticker: who.ticker, imageUrl: who.imageUrl, body: text, cap: usd(cap(id), true),
       changePct: sinceCall ?? (o?.available ? o.changeSinceLaunchPct ?? null : null),
       label: sinceCall != null ? "SINCE CALL" : "SINCE LAUNCH",
-      points: (o?.points ?? []).slice(-40).map(p => p.price),
+      views: viewStats.get(who.ticker.toUpperCase())?.views ?? 0,
+      videos: viewStats.get(who.ticker.toUpperCase())?.videos,
+      bars: viewStats.get(who.ticker.toUpperCase())?.bars,
       volume: volumeSol != null && rate ? usd(volumeSol * rate, true) : undefined,
       followers: row?.followers,
       calledAt: callCapSol && rate ? usd(callCapSol * rate, true) : undefined,
@@ -118,7 +136,15 @@ export function HomeCallouts() {
       {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 border-b border-white/5 px-5 py-5 @md:flex-row">
         <Link href={`/market/${c.characterId}`} aria-label={`Open ${c.name} market`} className="block w-full shrink-0 @md:w-[190px]"><CalloutArt theme={isThemeId(c.theme) ? c.theme : "colosseum"} data={buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet)} /></Link>
         <div className="min-w-0 flex-1"><div className="flex items-center gap-2 text-xs"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-200">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div><p className="my-3 whitespace-pre-wrap break-words text-[15px] leading-6">{c.body}</p>
-          <Link href={`/market/${c.characterId}`} className="flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.025] p-3 transition-colors hover:bg-white/[0.05]"><img src={c.imageUrl} alt="" className="size-11 rounded-[8px] object-cover" /><div className="min-w-0"><p className="truncate text-sm font-bold uppercase tracking-wide">{c.name}</p><p className="text-xs text-zinc-500">${c.ticker}</p></div><div className="ml-auto text-right"><p className="text-[10px] text-zinc-500">Market cap</p><p className="text-sm tabular-nums text-white">{usd(cap(String(c.characterId)), true)}</p></div></Link></div>
+          {(() => {
+            const t = isThemeId(c.theme) ? c.theme : "colosseum", card = buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet);
+            return <Link href={`/market/${c.characterId}`} data-theme={t} className="callout-info group relative flex items-center gap-3 overflow-hidden rounded-[12px] p-3">
+              <img src={c.imageUrl} alt="" className="relative size-12 rounded-[8px] object-cover ring-2 ring-[var(--ci-accent)]" />
+              <div className="relative min-w-0"><p className="truncate text-sm font-extrabold uppercase tracking-wide text-white">{c.name} <span className="ml-1 rounded-[4px] bg-white px-1.5 py-0.5 text-[10px] font-bold text-black">${c.ticker}</span></p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-white/70"><span><span className="text-white/45">Views </span><span className="font-semibold text-[var(--ci-accent)]">{compact(card.views ?? 0)}</span></span>{card.changePct != null && <span className={card.changePct >= 0 ? "text-[var(--ci-accent)]" : "text-rose-300"}>{card.changePct >= 0 ? "▲" : "▼"} {Math.abs(card.changePct).toFixed(1)}% <span className="text-white/45">{card.label === "SINCE CALL" ? "since call" : "since launch"}</span></span>}</p></div>
+              <div className="relative ml-auto text-right"><p className="text-[10px] text-white/45">Market cap</p><p className="text-sm font-semibold tabular-nums text-white">{usd(cap(String(c.characterId)), true)}</p></div>
+            </Link>;
+          })()}</div>
       </motion.article>)}
     </div>
     </section>
@@ -138,7 +164,7 @@ export function HomeCallouts() {
     </div>
     <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
       <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <div className="h-[min(72dvh,640px)] min-h-[420px]"><CalloutCard3D data={cardData} burst={posted} theme={theme} /></div>
+        <div className="mx-auto w-full max-w-[340px] md:max-w-none"><CalloutArt replay scale={0.9} data={cardData} theme={theme} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /></div>
         <div className="flex min-w-0 flex-col gap-4 md:py-1">
           <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Pick an agent, pick a look, make your call."}</DialogDescription></div>
           <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Template</p>

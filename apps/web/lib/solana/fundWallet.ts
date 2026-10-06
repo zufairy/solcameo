@@ -270,9 +270,14 @@ export async function sendFundingTransfer(params: {
  * actual read failure propagates, letting the UI keep the last-known balance.
  */
 export async function fetchWalletBalances(connection: Connection, owner: PublicKey): Promise<{ sol: number; usdc: number }> {
-  // Failover over the candidates — the primary devnet Helius key is suspended.
+  // `connection` kept for call-site compatibility. Every candidate RPC is queried at once and the first good
+  // answer wins, each with a short timeout, so a suspended or rate-limited endpoint can't slow the read down.
   void connection;
-  return rpcTry(RPC_CANDIDATES, async (conn) => {
+  const read = async (url: string) => {
+    const conn = new Connection(url, {
+      commitment: "confirmed",
+      fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(5000) }),
+    });
     const [sol, usdc] = await Promise.all([
       conn.getBalance(owner, "confirmed").then((l) => l / LAMPORTS_PER_SOL),
       (async () => {
@@ -282,15 +287,21 @@ export async function fetchWalletBalances(connection: Connection, owner: PublicK
           return Number(acc.amount) / Math.pow(10, USDC_DECIMALS);
         } catch (e) {
           // No token account = a genuine $0 balance. Any OTHER error (RPC failure /
-          // rate limit / suspension) must NOT be reported as $0 — re-throw so the
-          // next candidate (or the caller) can tell a read failure from a real zero.
+          // rate limit / suspension) must NOT be reported as $0, so it rejects this
+          // candidate and another one answers.
           if (e instanceof TokenAccountNotFoundError) return 0;
           throw e;
         }
       })(),
     ]);
     return { sol, usdc };
-  });
+  };
+  try {
+    return await Promise.any(RPC_CANDIDATES.map(read));
+  } catch (e) {
+    const first = e instanceof AggregateError ? e.errors[0] : e;
+    throw first instanceof Error ? first : new Error("Could not read the wallet balance");
+  }
 }
 
 // The agentic funding algorithm lives in a web3-free module so it's unit-testable.

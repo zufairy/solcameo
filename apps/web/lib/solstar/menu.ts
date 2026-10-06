@@ -35,9 +35,9 @@ const item = (
 });
 const ITEMS: MenuItem[] = [
   item("Home", "/", Home, "Launchpad"),
+  item("My Agents", "/control", FolderOpen, "Launchpad"),
   item("Video Feed", "/make", Video, "Launchpad"),
   item("Market", "/market", TrendingUp, "Launchpad"),
-  item("My Agents", "/control", FolderOpen, "Launchpad"),
   item("Agent Marketplace", "/agents", LayoutGrid, "Launchpad"),
   item("Explore", "/explore", Compass, "Workspace"),
   item("Leaderboards", "/tournament", Trophy, "Workspace"),

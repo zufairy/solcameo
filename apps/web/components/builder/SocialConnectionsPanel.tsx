@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, ExternalLink, AlertCircle, Link2, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Loader2, ExternalLink, AlertCircle, Link2, RefreshCw, Sparkles } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -84,7 +84,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [activating, setActivating] = useState(false);
   const tiktokAddon = useQuery(api.agentAddons.status, username ? { mintAddress: username, addon: "tiktok" } : "skip");
   const [error, setError] = useState<string | null>(null);
@@ -248,32 +248,11 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
     }
   }, [accessToken, username]);
 
-  // Disconnect EVERY connected account in one shot. upload-post has no per-account
-  // disconnect API, so this deletes the agent's profile (clearing all links); the
-  // profile is re-provisioned automatically on the next status load.
-  const handleResetAll = useCallback(async () => {
-    if (!accessToken) { setError("Sign in to manage connections."); return; }
-    if (typeof window !== "undefined" &&
-        !window.confirm("Disconnect ALL connected social accounts for this agent? You'll need to reconnect each one.")) {
-      return;
-    }
-    setResetting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/social/disconnect-all", {
-        method: "POST",
-        headers: authHeaders(accessToken, true),
-        body: JSON.stringify({ username }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!data.ok) { setError(data.error ?? "Reset failed."); return; }
-      await refresh();
-    } catch {
-      setError("Reset request failed.");
-    } finally {
-      setResetting(false);
-    }
-  }, [accessToken, username, refresh]);
+  // Re-read connection status, e.g. after finishing the connect flow in another tab.
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refresh(); } finally { setRefreshing(false); }
+  }, [refresh]);
 
   const theme = isPaper
     ? { card: "duo-card", title: "text-zinc-900", muted: "text-zinc-500", row: "border-zinc-200/70" }
@@ -286,7 +265,6 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
   const connected = status?.connected ?? {};
   const notConfigured = status?.configured === false;
   const limitReached = status?.limitReached === true;
-  const anyConnected = Object.values(connected).some(Boolean);
 
   if (isGlass) {
     const ids = only && only.length ? only : ["tiktok", "youtube"];
@@ -320,9 +298,21 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
               {loading && !status ? (
                 <span className="h-9 w-24 animate-pulse rounded-full bg-white/[0.06]" />
               ) : isConnected ? (
-                <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 18 }} className="grid size-9 place-items-center rounded-full bg-lime-300 text-[#11180d]">
-                  <Check className="size-4" strokeWidth={3} />
-                </motion.span>
+                <span className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void handleRefresh()}
+                    disabled={refreshing}
+                    aria-label="Refresh connection status"
+                    title="Refresh connection status"
+                    className="grid size-9 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-all hover:border-white/30 hover:bg-white/[0.12] hover:text-white active:scale-95 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+                  </button>
+                  <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 18 }} className="grid size-9 place-items-center rounded-full bg-lime-300 text-[#11180d]">
+                    <Check className="size-4" strokeWidth={3} />
+                  </motion.span>
+                </span>
               ) : (
                 <button
                   type="button"
@@ -418,8 +408,20 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
                 </div>
               </div>
               {isConnected ? (
-                <span className="inline-flex items-center gap-1 rounded-[3px] bg-gradient-to-b from-white to-zinc-300 px-2.5 py-1 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-                  <Check className="size-3" strokeWidth={3} /> Connected
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-[3px] bg-gradient-to-b from-white to-zinc-300 px-2.5 py-1 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                    <Check className="size-3" strokeWidth={3} /> Connected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void handleRefresh()}
+                    disabled={refreshing}
+                    aria-label="Refresh connection status"
+                    title="Refresh connection status"
+                    className="inline-flex size-[26px] items-center justify-center rounded-[3px] bg-gradient-to-b from-white to-zinc-300 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] transition-transform hover:brightness-95 active:scale-95 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`size-3 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2.5} />
+                  </button>
                 </span>
               ) : needsPayment ? (
                 <button type="button" disabled={activating} onClick={() => void activateTiktok()} className={btn}>
@@ -435,22 +437,6 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
             </div>
           );
         })}
-
-        {/* Reset all, disconnects every connected account at once */}
-        {anyConnected && !notConfigured && (
-          <div className="flex justify-end pt-1">
-            <button
-              type="button"
-              onClick={handleResetAll}
-              disabled={resetting}
-              title="Disconnect all connected accounts for this agent"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-0 bg-red-600 text-white text-[11px] font-semibold outline-none transition-colors hover:bg-red-700 disabled:opacity-50"
-            >
-              {resetting ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw className="size-3" />}
-              Reset all connections
-            </button>
-          </div>
-        )}
       </div>
 
       {error && (

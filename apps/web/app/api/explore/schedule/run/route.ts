@@ -2,26 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { HfError, getStatus, submitVideo } from "@/lib/server/higgsfield";
 import { putVideo, r2Configured } from "@/lib/server/videoStorage";
+import { CHARGE_MESSAGES, chargeExploreRun, priceUsd, refundExploreRun } from "@/lib/server/exploreBilling";
+import { autoPostToX } from "@/lib/server/exploreAutoPost";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
+type Row = Doc<"scheduledRecreations">;
+/** Immediate runs carry their billing id; scheduled runs derive a stable one from the row. */
+const billingId = (row: Row) => row.billingRunId ?? `sched:${row._id}`;
 
-/** Cron driver (per minute): submit due scheduled renders, then finish the ones Higgsfield has completed. */
+/**
+ * Cron driver (per minute) for explore renders:
+ * 1. due scheduled rows are charged to the agent wallet, then submitted to Higgsfield;
+ * 2. in-flight rows are polled, finished videos are stored, and failures are refunded;
+ * 3. finished videos with auto-post on get a viral caption and go out on the agent's X account.
+ */
 export async function POST(req: NextRequest) {
   const secret = process.env.INTERNAL_CRON_SECRET ?? "";
   if (!secret || !CONVEX_URL) return NextResponse.json({ ok: false, error: "Not configured" }, { status: 500 });
   if (req.headers.get("X-Internal-Secret") !== secret) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   const convex = new ConvexHttpClient(CONVEX_URL);
-  const stats = { submitted: 0, completed: 0, failed: 0 };
-  const deadline = Date.now() + 100_000;
+  const stats = { submitted: 0, completed: 0, failed: 0, posted: 0 };
+  const deadline = Date.now() + 240_000;
+  const fail = async (row: Row, error: string) => {
+    await refundExploreRun(row.mintAddress, billingId(row));
+    await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error });
+    stats.failed++;
+  };
 
   const due = await convex.mutation(api.scheduledRecreations.claimDue, { authSecret: secret, limit: 10 });
   for (const row of due) {
     if (Date.now() > deadline) break;
+    const price = row.durationSec ? priceUsd(row.durationSec, row.resolution) : null;
+    if (price === null) { await fail(row, "This reference can no longer be priced."); continue; }
+    const charge = await chargeExploreRun(row.mintAddress, billingId(row), price);
+    if (!charge.ok) { await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet." }); stats.failed++; continue; }
     try {
       const requestId = await submitVideo(
         row.mode,
@@ -31,20 +51,18 @@ export async function POST(req: NextRequest) {
       await convex.mutation(api.scheduledRecreations.markSubmitted, { authSecret: secret, id: row._id, requestId });
       stats.submitted++;
     } catch (e) {
-      await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error: e instanceof HfError ? e.message : "Could not start the render." });
-      stats.failed++;
+      await fail(row, e instanceof HfError ? e.message : "Could not start the render.");
     }
   }
 
   const { submitted, stale } = await convex.query(api.scheduledRecreations.listInFlight, { authSecret: secret });
-  for (const row of stale) await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error: "The render did not start. Please schedule it again." });
+  for (const row of stale) await fail(row, "The render did not start. You were not charged. Please schedule it again.");
   for (const row of submitted) {
     if (Date.now() > deadline || !row.requestId) continue;
     try {
       const r = await getStatus(row.requestId);
       if (["failed", "nsfw", "canceled"].includes(r.status)) {
-        await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error: r.status === "nsfw" ? "Blocked by content moderation" : r.error || "Generation failed" });
-        stats.failed++;
+        await fail(row, r.status === "nsfw" ? "Blocked by content moderation" : r.error || "Generation failed");
       } else if (r.status === "completed" && r.videoUrl) {
         let url = r.videoUrl;
         if (r2Configured()) {
@@ -56,11 +74,16 @@ export async function POST(req: NextRequest) {
             }
           } catch { /* keep the Higgsfield URL */ }
         }
+        // Mark completed first so a slow post can never cause a second render pickup.
         await convex.mutation(api.scheduledRecreations.markCompleted, { authSecret: secret, id: row._id, resultUrl: url });
         stats.completed++;
+        if (row.autoPost) {
+          const post = await autoPostToX({ mint: row.mintAddress, videoUrl: url, referenceTitle: row.referenceTitle, scene: row.prompt });
+          await convex.mutation(api.scheduledRecreations.markPosted, { authSecret: secret, id: row._id, caption: post.caption, ...(post.ok ? {} : { error: post.error }) });
+          if (post.ok) stats.posted++;
+        }
       } else if (Date.now() - row.updatedAt > 60 * 60_000) {
-        await convex.mutation(api.scheduledRecreations.markFailed, { authSecret: secret, id: row._id, error: "Timed out waiting for the render." });
-        stats.failed++;
+        await fail(row, "Timed out waiting for the render.");
       }
     } catch { /* transient: retry next tick */ }
   }
