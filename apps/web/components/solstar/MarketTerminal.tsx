@@ -17,6 +17,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   Copy,
+  Check,
   ExternalLink,
   Loader2,
   Star,
@@ -338,7 +339,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     );
   async function copy() {
     try {
-      await navigator.clipboard.writeText(token.mint || characterId);
+      if (!token.mint) return;
+      await navigator.clipboard.writeText(token.mint);
       setCopied(true);
     } catch {
       setCopied(false);
@@ -457,14 +459,17 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                   <h1 className="text-xl font-semibold text-white">
                     {token.ticker}
                   </h1>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
+                  {token.mint && <button
+                    type="button"
                     onClick={() => void copy()}
                     aria-label="Copy token address"
+                    title={token.mint}
+                    className="inline-flex items-center gap-1.5 rounded-[4px] px-1.5 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-white/5 hover:text-white"
                   >
-                    <Copy className="size-3.5" />
-                  </Button>
+                    <span>…{token.mint.slice(-4)}</span>
+                    {copied ? <Check className="size-3.5 text-emerald-300" /> : <Copy className="size-3.5" />}
+                    <span role="status" className="sr-only">{copied ? "Token address copied" : ""}</span>
+                  </button>}
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -477,17 +482,18 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                     />
                   </Button>
                 </div>
-                <p className="mt-1 text-[11px] text-zinc-500">
-                  {character.name} ·{" "}
-                  {copied ? "Copied" : short(token.mint || characterId)}{" "}
-                  {token.dbcPool && (
+                <div className="mt-1 flex flex-wrap items-center gap-2.5 text-[11px] text-zinc-500">
+                  <span>{character.name}</span>
+                  {(token.dammPool || token.dbcPool) && (
                     <a
-                      href={`https://www.meteora.ag/dbc/${token.dbcPool}`}
+                      href={`https://www.meteora.ag/${token.dammPool ? "dammv2" : "dbc"}/${encodeURIComponent(token.dammPool || token.dbcPool!)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="mr-2 text-[#d7ff00]"
+                      aria-label="Open token liquidity pool on Meteora"
+                      className="inline-flex items-center gap-1.5 transition-colors hover:text-[#d7ff00]"
                     >
-                      Meteora <ExternalLink className="inline size-3" />
+                      <img src="/logos/meteora.svg" alt="" className="size-4" />
+                      Meteora <ExternalLink className="size-3" />
                     </a>
                   )}
                   {token.mint && (
@@ -495,12 +501,13 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                       href={explorer(token.mint)}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-block"
+                      aria-label="Open token on Solscan"
+                      className="inline-flex items-center gap-1 transition-colors hover:text-white"
                     >
-                      <ExternalLink className="size-3" />
+                      Solscan <ExternalLink className="size-3" />
                     </a>
                   )}
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex gap-5">
