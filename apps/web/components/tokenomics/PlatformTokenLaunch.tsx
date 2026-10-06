@@ -1,7 +1,7 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Loader2, Rocket } from "lucide-react";
+import { ArrowLeft, ExternalLink, ImagePlus, Loader2, Rocket, Upload } from "lucide-react";
 import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -23,6 +23,8 @@ export function PlatformTokenLaunch() {
   const [graduation, setGraduation] = useState(PLATFORM_DBC.graduationCapSol);
   const [options, setOptions] = useState<DbcOptions | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {
     try {
@@ -39,6 +41,19 @@ export function PlatformTokenLaunch() {
   }, []);
   useEffect(() => { let active = true; void Promise.resolve().then(() => { if (active) return refresh(); }); return () => { active = false; }; }, [refresh]);
   const owner = !!publicKey && publicKey.toBase58() === state?.owner;
+  async function uploadArtwork(file: File) {
+    setUploading(true); setError("");
+    try {
+      if (!await ensureSiwsViaRegistered()) throw new Error("Verify your platform wallet to upload artwork.");
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/tokenomics/artwork", { method: "POST", body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || typeof data.url !== "string") throw new Error(data.error ?? "Could not upload this image.");
+      setImage(data.url);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not upload this image."); }
+    finally { setUploading(false); }
+  }
   async function review() {
     setBusy(true); setError("");
     try {
@@ -58,7 +73,24 @@ export function PlatformTokenLaunch() {
       <section className={glass}><h2 className="text-lg font-semibold">Platform identity</h2><p className="mt-2 text-sm text-white/50">Ticker is fixed to SOLCAMEO. Supply is 1 billion. No influencer profile or agent wallet is created.</p>
         <fieldset disabled={!!options || busy} className="mt-5 space-y-4 disabled:opacity-60">
           <label className="block text-sm">Name<input className={input} value={name} onChange={e => setName(e.target.value)} maxLength={32} /></label>
-          <label className="block text-sm">Artwork URL<input className={input} type="url" value={image} onChange={e => setImage(e.target.value)} /></label>
+          <div className="block text-sm">Artwork
+            <div className="mt-2 flex items-center gap-3">
+              {image && /^https:\/\//.test(image) ? (
+                // eslint-disable-next-line @next/next/no-img-element -- hosted token artwork preview
+                <img src={image} alt="Token artwork preview" className="size-16 shrink-0 rounded-xl border border-white/15 object-cover" />
+              ) : <span className="grid size-16 shrink-0 place-items-center rounded-xl border border-dashed border-white/20 text-white/30"><ImagePlus size={20} /></span>}
+              <div className="min-w-0 flex-1">
+                <input className={input.replace("mt-2 ", "")} type="url" value={image} onChange={e => setImage(e.target.value)} placeholder="https://… or upload a file" aria-label="Artwork URL" />
+                <div className="mt-2 flex items-center gap-3">
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || !!options} className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/20 bg-white/[0.08] px-3 text-xs font-semibold text-white transition-colors hover:bg-white/15 disabled:opacity-50">
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}{uploading ? "Uploading…" : "Upload image"}
+                  </button>
+                  <span className="text-xs text-white/40">PNG, JPG or WebP, under 8 MB. Saved as a square 1024 px image.</span>
+                </div>
+                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" className="hidden" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void uploadArtwork(file); }} />
+              </div>
+            </div>
+          </div>
           <label className="block text-sm">Description<textarea className={input} value={description} onChange={e => setDescription(e.target.value)} maxLength={1000} rows={3} /></label>
           <div className="grid grid-cols-2 gap-4"><label className="text-sm">Opening market cap · SOL<input className={input} type="number" min="0.1" step="0.1" value={opening} onChange={e => setOpening(Number(e.target.value))} /></label><label className="text-sm">Graduation market cap · SOL<input className={input} type="number" min="1" value={graduation} onChange={e => setGraduation(Number(e.target.value))} /></label></div>
         </fieldset>
