@@ -1,83 +1,138 @@
 "use client";
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
 
-const COLORS = ["#d7ff00", "#f4ffb0", "#ffffff", "#34d399", "#7C4DFF", "#00FFD1", "#fbbf24"];
-const DURATION = 5.5;
+const COLORS = ["#d7ff00", "#f4ffb0", "#ffffff", "#34d399", "#8b5cf6", "#22d3ee", "#fbbf24", "#fb7185"];
+const DURATION = 6.2;
+const GRAVITY = 900;
 
-/** Full-screen three.js confetti: two cannons from the bottom corners, then a soft rain. Plays once per `fire`. */
+type Shape = "rect" | "circle" | "streamer" | "star" | "spark";
+type Particle = {
+  x: number; y: number; vx: number; vy: number; delay: number; life: number;
+  w: number; h: number; rot: number; spin: number; flipSpeed: number; flipPhase: number;
+  drag: number; wobble: number; wobbleSpeed: number; color: string; shape: Shape;
+};
+
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
+const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
+
+function makeParticle(x: number, y: number, angle: number, speed: number, delay: number, shape: Shape, scale: number): Particle {
+  const size = shape === "streamer" ? rand(5, 7) : shape === "spark" ? rand(2, 3.5) : rand(7, 13);
+  return {
+    x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, delay, life: rand(3.4, 5.2),
+    w: size * scale, h: (shape === "streamer" ? rand(26, 46) : shape === "rect" ? rand(10, 18) : size) * scale,
+    rot: rand(0, Math.PI * 2), spin: rand(-7, 7), flipSpeed: rand(4, 11), flipPhase: rand(0, Math.PI * 2),
+    drag: shape === "spark" ? rand(1.4, 2.2) : rand(0.9, 1.7), wobble: rand(10, 36), wobbleSpeed: rand(2, 5),
+    color: pick(COLORS), shape,
+  };
+}
+
+function star(ctx: CanvasRenderingContext2D, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const radius = i % 2 === 0 ? r : r * 0.45;
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    ctx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Full-screen celebration on a 2D canvas: a centre burst, two angled cannons, a delayed star and glitter volley,
+ * then a soft ribbon rain. Pieces tumble in 3D, shimmer, drag to a slow fall and fade out. Plays once per `fire`.
+ */
 export default function LaunchConfetti({ fire }: { fire: boolean }) {
-  const host = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const el = host.current;
-    if (!fire || !el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); } catch { return; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    el.appendChild(renderer.domElement);
-    renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
-    const scene = new THREE.Scene();
-    let w = el.clientWidth, h = el.clientHeight;
-    const camera = new THREE.OrthographicCamera(0, w, h, 0, -10, 10);
-    const resize = () => { w = el.clientWidth; h = el.clientHeight; renderer.setSize(w, h, false); camera.right = w; camera.top = h; camera.updateProjectionMatrix(); };
+    const canvas = canvasRef.current;
+    if (!fire || !canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = 0, h = 0;
+    const resize = () => {
+      w = window.innerWidth; h = window.innerHeight;
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
     resize();
     window.addEventListener("resize", resize);
 
-    const N = 420;
-    const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true }), N);
-    scene.add(mesh);
-    const p = Array.from({ length: N }, (_, i) => {
-      const cannon = i < 280;
+    const scale = Math.max(0.8, Math.min(1.25, w / 1280));
+    const particles: Particle[] = [];
+    const shapes: Shape[] = ["rect", "rect", "rect", "circle", "streamer", "star"];
+    // Centre burst: a wide fan straight up from the lower middle.
+    for (let i = 0; i < 170; i++) particles.push(makeParticle(w / 2, h * 0.62, -Math.PI / 2 + rand(-0.85, 0.85), rand(520, 1250) * scale, rand(0, 0.12), pick(shapes), scale));
+    // Side cannons, angled inward.
+    for (let i = 0; i < 110; i++) {
       const left = i % 2 === 0;
-      const angle = cannon ? (left ? 1 : Math.PI - 1) + (Math.random() - 0.5) * 0.9 : -Math.PI / 2;
-      const speed = cannon ? 700 + Math.random() * 900 : 40 + Math.random() * 90;
-      return {
-        x: cannon ? (left ? 20 : w - 20) : Math.random() * w,
-        y: cannon ? 20 : h + 20 + Math.random() * h * 0.6,
-        vx: Math.cos(angle) * speed * (cannon ? 1 : 0.2) + (cannon ? 0 : (Math.random() - 0.5) * 60),
-        vy: Math.sin(angle) * speed * (cannon ? 1 : 1) * (cannon ? 1 : 0),
-        delay: cannon ? Math.random() * 0.25 : 0.9 + Math.random() * 2.2,
-        w: 6 + Math.random() * 7, h: 10 + Math.random() * 9,
-        spin: Math.random() * 6, spinSpeed: 3 + Math.random() * 6, rot: Math.random() * 6.28, rotSpeed: (Math.random() - 0.5) * 6,
-        sway: Math.random() * 6, drift: 20 + Math.random() * 50, cannon,
-      };
-    });
-    const color = new THREE.Color();
-    p.forEach((_, i) => mesh.setColorAt(i, color.set(COLORS[i % COLORS.length])));
-    const dummy = new THREE.Object3D();
-    const clock = new THREE.Clock();
+      particles.push(makeParticle(left ? -10 : w + 10, h * 0.85, (left ? -1 : -Math.PI + 1) + rand(-0.3, 0.3), rand(700, 1500) * scale, 0.18 + rand(0, 0.2), pick(shapes), scale));
+    }
+    // Second volley: stars and glitter from the middle once the first wave peaks.
+    for (let i = 0; i < 70; i++) particles.push(makeParticle(w / 2, h * 0.5, rand(0, Math.PI * 2), rand(220, 780) * scale, 0.85 + rand(0, 0.15), i % 3 === 0 ? "star" : "spark", scale));
+    // Slow ribbon rain from above.
+    for (let i = 0; i < 90; i++) {
+      const p = makeParticle(rand(0, w), -20 - rand(0, h * 0.4), Math.PI / 2, rand(30, 110), 1.2 + rand(0, 2.6), i % 2 ? "streamer" : "rect", scale);
+      p.drag = 0.3; particles.push(p);
+    }
+
     let raf = 0;
-    const cleanup = () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); renderer.dispose(); renderer.domElement.remove(); };
-    const frame = () => {
-      const t = clock.getElapsedTime();
-      const fade = t > DURATION - 1.2 ? Math.max(0, (DURATION - t) / 1.2) : 1;
-      p.forEach((q, i) => {
-        const age = t - q.delay;
-        if (age < 0) { dummy.scale.set(0, 0, 1); dummy.position.set(-50, -50, 0); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); return; }
-        let x: number, y: number;
-        if (q.cannon) {
-          // Ballistic burst with air drag, then it settles into a slow fall.
-          const drag = Math.exp(-age * 1.6);
-          x = q.x + q.vx * (1 - drag) / 1.6;
-          y = q.y + q.vy * (1 - drag) / 1.6 - 150 * age * age * 0.5 - 40 * age;
+    const start = performance.now();
+    let last = start;
+    const cleanup = () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); ctx.clearRect(0, 0, w, h); };
+    const frame = (now: number) => {
+      const t = (now - start) / 1000;
+      const dt = Math.min(0.04, (now - last) / 1000);
+      last = now;
+      ctx.clearRect(0, 0, w, h);
+      let alive = 0;
+      for (const p of particles) {
+        const age = t - p.delay;
+        if (age < 0) { alive++; continue; }
+        if (age > p.life || p.y > h + 60) continue;
+        alive++;
+        // Integrate with air drag so pieces burst out fast and then float down.
+        const dragFactor = Math.exp(-p.drag * dt);
+        p.vx *= dragFactor;
+        p.vy = p.vy * dragFactor + GRAVITY * 0.55 * dt;
+        p.x += p.vx * dt + Math.sin(age * p.wobbleSpeed + p.flipPhase) * p.wobble * dt;
+        p.y += p.vy * dt;
+        p.rot += p.spin * dt;
+        const fade = Math.min(1, (p.life - age) / 0.9, age / 0.05);
+        const flip = Math.cos(p.flipPhase + age * p.flipSpeed);
+        const shimmer = 0.78 + 0.22 * Math.sin(age * 14 + p.flipPhase);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.max(0, fade) * shimmer;
+        ctx.fillStyle = p.color;
+        if (p.shape === "circle") {
+          ctx.scale(1, Math.abs(flip) * 0.8 + 0.2);
+          ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill();
+        } else if (p.shape === "star") {
+          ctx.scale(Math.abs(flip) * 0.6 + 0.4, 1);
+          star(ctx, p.w * 0.9); ctx.fill();
+        } else if (p.shape === "spark") {
+          ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill();
+        } else if (p.shape === "streamer") {
+          // A curling ribbon: a thin quad bent by a sine so it reads as paper, not a block.
+          ctx.beginPath();
+          const len = p.h, wid = p.w * (0.35 + 0.65 * Math.abs(flip));
+          for (let s = 0; s <= 8; s++) ctx.lineTo(Math.sin(age * 6 + s * 0.7 + p.flipPhase) * wid * 0.9 + wid / 2, (s / 8 - 0.5) * len);
+          for (let s = 8; s >= 0; s--) ctx.lineTo(Math.sin(age * 6 + s * 0.7 + p.flipPhase) * wid * 0.9 - wid / 2, (s / 8 - 0.5) * len);
+          ctx.closePath(); ctx.fill();
         } else {
-          x = q.x + q.vx * age * 0.2 + Math.sin(age * 1.4 + q.sway) * q.drift;
-          y = q.y - (110 + q.w * 6) * age;
+          ctx.scale(1, flip);
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         }
-        const flip = Math.cos(q.spin + age * q.spinSpeed);
-        dummy.position.set(x, y, 0);
-        dummy.rotation.set(0, 0, q.rot + age * q.rotSpeed);
-        dummy.scale.set(q.w * fade, q.h * flip * fade, 1);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      renderer.render(scene, camera);
-      if (t >= DURATION) { cleanup(); return; }
+        ctx.restore();
+      }
+      if (t >= DURATION || alive === 0) { cleanup(); return; }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return cleanup;
   }, [fire]);
-  return <div ref={host} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[200]" />;
+  return <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[300]" />;
 }
