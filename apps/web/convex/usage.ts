@@ -37,7 +37,7 @@ export const CREDITS_SETTLED_SENTINEL = "credits";
  *  on-chain sweep, so the spendable gate elsewhere still reflects real funds. */
 export async function accrueTaskCost(
   ctx: MutationCtx,
-  { mintAddress, service, costUsdc, idemKey, payerWallet }: { mintAddress: string; service: string; costUsdc: number; idemKey?: string; payerWallet?: string },
+  { mintAddress, service, costUsdc, idemKey, payerWallet, fundingSource }: { mintAddress: string; service: string; costUsdc: number; idemKey?: string; payerWallet?: string; fundingSource?: string },
 ) {
   const cost = +Number(costUsdc).toFixed(6);
   if (!(cost > 0)) return;
@@ -75,7 +75,9 @@ export async function accrueTaskCost(
   const ownerWallet = await getOwnerWalletForMint(ctx, mintAddress);
   const payerCandidates = [...new Set([payerWallet, ownerWallet].filter((w): w is string => !!w))];
   const costCredits = Math.round(cost * 100);
-  if (costCredits > 0) {
+  // `agent_wallet`: the run was funded from the agent's own wallet (run-task checked it covers the cost), so the
+  // cost rides the agent tab and is swept from that wallet, and prepaid credits are left alone.
+  if (costCredits > 0 && fundingSource !== "agent_wallet") {
     for (const candidate of payerCandidates) {
       const ledgerId = await ctx.db.insert("usageLedger", {
         mintAddress,

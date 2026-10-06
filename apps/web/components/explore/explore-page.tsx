@@ -39,6 +39,9 @@ import { CATEGORIES, type ReferenceVideo } from "@/lib/explore/feed";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
+import { ExploreSelect } from "./ExploreSelect";
+import { ReferencePlayer } from "./ReferencePlayer";
+import { EXPLORE_MODELS, engineSeconds, estimateModelUsd, modelById, qualityFor, type ExploreModel } from "@/lib/explore/models";
 import {
   estimateGenerationUsd,
   formatGenerationUsd,
@@ -46,7 +49,9 @@ import {
   type GenjutsuResolution,
 } from "@/lib/explore/generationPrice";
 import { useMotionRuns } from "@/components/builder/character/motion";
+import type { Id } from "@/convex/_generated/dataModel";
 
+type Short = { items: Array<ReferenceVideo & { rank?: number }> };
 type Feed = {
   items: ReferenceVideo[];
   next: number | null;
@@ -62,17 +67,19 @@ function ReferenceCard({
   onSave,
   onOpen,
   onSchedule,
+  estimate,
 }: {
   item: ReferenceVideo;
   saved: boolean;
   onSave: () => void;
   onOpen: () => void;
-  onSchedule: () => void;
+  /** Only Genjutsu renders can be scheduled, so this is absent for the other models. */
+  onSchedule?: () => void;
+  estimate: number | null;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const [preview, setPreview] = useState(false);
   const reduced = useReducedMotion();
-  const estimate = estimateGenerationUsd(item.duration, "720p");
   const stop = () => {
     video.current?.pause();
     setPreview(false);
@@ -145,6 +152,7 @@ function ReferenceCard({
         </span>
       </button>
       <div className="absolute right-2 top-2 flex items-center gap-1.5">
+      {onSchedule && (
       <Button
         variant="ghost"
         size="icon"
@@ -155,6 +163,7 @@ function ReferenceCard({
       >
         <CalendarClock className="size-4 text-white" />
       </Button>
+      )}
       <motion.div
         animate={saved && !reduced ? { scale: [1, 1.25, 1] } : { scale: 1 }}
       >
@@ -182,14 +191,16 @@ function Generator({
   item,
   resolution,
   mode,
+  model,
   xConnected,
   onBusy,
 }: {
   mint: string;
   primaryName: string;
   item: ReferenceVideo;
-  resolution: GenjutsuResolution;
+  resolution: string;
   mode: GenMode;
+  model: ExploreModel;
   xConnected: boolean;
   onBusy: (busy: boolean) => void;
 }) {
@@ -199,12 +210,58 @@ function Generator({
   const [prompt, setPrompt] = useState("");
   const [cast, setCast] = useState<CameoMember[]>([]);
   const [autoPost, setAutoPost] = useState(false);
-  const estimate = estimateGenerationUsd(item.duration, resolution);
+  const estimate = estimateModelUsd(model, item.duration, resolution);
   const { runs, start } = useMotionRuns(mint);
   const run = runs[0];
+  // Grok, Veo, Seedance and Gemini render through the agent's normal video path, paid from the same agent wallet.
+  const [engineTask, setEngineTask] = useState<Id<"agentTasks"> | null>(null);
+  const [engineError, setEngineError] = useState("");
+  const [engineStarting, setEngineStarting] = useState(false);
+  const engineStatus = useQuery(api.agentTasks.generationStatus, engineTask ? { ids: [engineTask] } : "skip") as
+    | Record<string, { status: string; videoUrl?: string; error?: string }>
+    | undefined;
+  const engineState = engineTask ? engineStatus?.[engineTask] : undefined;
+  const engineRunning = engineStarting || (!!engineTask && (!engineState || engineState.status === "pending" || engineState.status === "running"));
+  const busy = model.kind === "genjutsu" ? run?.status === "pending" : engineRunning;
+  const resultUrl = model.kind === "genjutsu" ? run?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
+  const failure = model.kind === "genjutsu" ? (run?.status === "error" ? run.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
   useEffect(() => {
-    onBusy(run?.status === "pending");
-  }, [run?.status, onBusy]);
+    onBusy(busy);
+  }, [busy, onBusy]);
+  async function startEngine() {
+    if (!portrait || !model.engine) return;
+    setEngineError("");
+    setEngineStarting(true);
+    setEngineTask(null);
+    try {
+      const res = await fetch("/api/agents/run-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mintAddress: mint,
+          taskType: "create_video",
+          title: `Explore: ${item.title}`.slice(0, 80),
+          input: {
+            topic: (prompt.trim() || `${item.title}. ${item.description}`).slice(0, 900),
+            referenceImageUrl: portrait,
+            videoEngine: model.engine,
+            videoResolution: resolution,
+            durationSeconds: engineSeconds(model, item.duration),
+            skipStoryboard: true,
+            ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
+          },
+          triggeredBy: "explore",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
+      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? `Request failed (${res.status})`);
+      setEngineTask(data.taskId as Id<"agentTasks">);
+    } catch (e) {
+      setEngineError(e instanceof Error ? e.message : "Could not start the render");
+    } finally {
+      setEngineStarting(false);
+    }
+  }
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/character?mint=${encodeURIComponent(mint)}`, {
@@ -256,9 +313,9 @@ function Generator({
         <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
-      {portrait && xConnected && (
+      {portrait && xConnected && model.kind === "genjutsu" && (
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs transition-colors hover:bg-white/[0.07] has-[:checked]:border-[#d7ff00]/40 has-[:checked]:bg-[#d7ff00]/[0.06]">
-          <input type="checkbox" checked={autoPost} disabled={run?.status === "pending"} onChange={(e) => setAutoPost(e.target.checked)} className="peer sr-only" />
+          <input type="checkbox" checked={autoPost} disabled={busy} onChange={(e) => setAutoPost(e.target.checked)} className="peer sr-only" />
           <span aria-hidden="true" className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border border-white/30 bg-black/30 text-transparent transition-colors peer-checked:border-[#d7ff00] peer-checked:bg-[#d7ff00] peer-checked:text-black peer-focus-visible:ring-2 peer-focus-visible:ring-[#d7ff00]/60"><Check className="size-3" strokeWidth={3.5} /></span>
           <span><span className="block text-sm font-semibold text-white">Auto-post to X when it&apos;s ready</span><span className="mt-0.5 block text-zinc-400">We write a viral caption in your influencer&apos;s voice and publish it to the connected X account.</span></span>
         </label>
@@ -266,22 +323,24 @@ function Generator({
       <Button
         className={`h-11 w-full ${GREEN}`}
         disabled={
-          !portrait || loading || run?.status === "pending" || estimate === null
+          !portrait || loading || busy || estimate === null
         }
         onClick={() =>
-          void start({
-            mode,
-            videoUrl: item.videoUrl,
-            imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8),
-            prompt,
-            resolution,
-            title: item.title,
-            poster: item.thumbUrl,
-            explore: { referenceId: item.id, autoPost: xConnected && autoPost },
-          })
+          model.kind === "engine"
+            ? void startEngine()
+            : void start({
+                mode,
+                videoUrl: item.videoUrl,
+                imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8),
+                prompt,
+                resolution: resolution as GenjutsuResolution,
+                title: item.title,
+                poster: item.thumbUrl,
+                explore: { referenceId: item.id, autoPost: xConnected && autoPost },
+              })
         }
       >
-        {run?.status === "pending" ? (
+        {busy ? (
           <>
             <Loader2 className="size-4 animate-spin" /> Generating…
           </>
@@ -299,22 +358,22 @@ function Generator({
         Keep this popup open while rendering. Finished videos are saved to this
         agent&apos;s motion library.{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
-      {run?.status === "error" && (
+      {failure && (
         <p role="alert" className="text-sm text-red-400">
-          {run.error}
+          {failure}
         </p>
       )}
-      {run?.url && (
+      {resultUrl && (
         <div>
           <p className="mb-2 text-xs text-[#d7ff00]">Your latest generation</p>
           <video
-            src={run.url}
+            src={resultUrl}
             controls
             playsInline
             className="max-h-56 w-full rounded-lg bg-black"
           />
           <a
-            href={run.url}
+            href={resultUrl}
             target="_blank"
             rel="noreferrer"
             className="mt-2 inline-block text-xs text-[#d7ff00] underline"
@@ -327,8 +386,50 @@ function Generator({
   );
 }
 
-export function ExplorePage({ initial }: { initial: Feed }) {
-  const [items, setItems] = useState(initial.items);
+/** Short, popular references (4 to 6 seconds) indexed from the public feed, folded in ahead of the paged list. */
+function withShort(initial: Feed, short?: Short): ReferenceVideo[] {
+  if (!short?.items.length) return initial.items;
+  const seen = new Set(initial.items.map((i) => i.id));
+  return [...initial.items, ...short.items.filter((i) => !seen.has(i.id)).map(({ rank: _rank, ...item }) => (void _rank, item))];
+}
+
+const LENGTHS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "any", label: "Any" },
+  { value: "u5", label: "Under 5s" },
+  { value: "5-10", label: "5 to 10s" },
+  { value: "10-20", label: "10 to 20s" },
+  { value: "o20", label: "20s+" },
+];
+const REVEAL = 24; // cards added to the grid each time the end comes into view
+
+type Bounds = { min: number; max: number }; // seconds; max 0 = no upper bound
+const LENGTH_BOUNDS: Record<string, Bounds> = { any: { min: 0, max: 0 }, u5: { min: 0, max: 5 }, "5-10": { min: 5, max: 10 }, "10-20": { min: 10, max: 20 }, o20: { min: 20, max: 0 } };
+/** The clip lengths whose price for this model and quality falls in the chosen price band, as one bound. */
+function priceBounds(model: ExploreModel, quality: string, price: string): Bounds | null {
+  if (price === "any") return { min: 0, max: 0 };
+  const inBand = (p: number) => (price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20);
+  let lo = -1, hi = -1;
+  for (let d = 4; d <= 120; d += 0.5) {
+    const p = estimateModelUsd(model, d, quality);
+    if (p !== null && inBand(p)) { if (lo < 0) lo = d; hi = d; }
+  }
+  if (lo < 0) return null;
+  return { min: lo, max: price === "o20" || hi >= 120 ? 0 : hi + 0.5 };
+}
+const intersect = (a: Bounds, b: Bounds): Bounds | null => {
+  const min = Math.max(a.min, b.min);
+  const max = a.max && b.max ? Math.min(a.max, b.max) : a.max || b.max;
+  return max && max <= min ? null : { min, max };
+};
+
+const SORTS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "trending", label: "Trending" },
+  { value: "shortest", label: "Shortest first" },
+  { value: "cheapest", label: "Cheapest first" },
+];
+
+export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }) {
+  const [items, setItems] = useState(() => withShort(initial, short));
   const [next, setNext] = useState(initial.next);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -340,9 +441,21 @@ export function ExplorePage({ initial }: { initial: Feed }) {
   const [selected, setSelected] = useState<ReferenceVideo | null>(null);
   const [mint, setMint] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [resolution, setResolution] = useState<GenjutsuResolution>("720p");
-  const [mode, setMode] = useState<GenMode>("motion-transfer");
+  const [quality, setQuality] = useState("720p");
+  const [modelId, setModelId] = useState<string>(EXPLORE_MODELS[0].id);
   const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
+  const [length, setLength] = useState("any");
+  const [sort, setSort] = useState("trending");
+  const model = modelById(modelId);
+  const resolution = qualityFor(model, quality);
+  // What the library is asked for: search, category, and the length implied by the length and price filters together.
+  const bounds = useMemo(() => intersect(LENGTH_BOUNDS[length] ?? LENGTH_BOUNDS.any, priceBounds(model, resolution, price) ?? { min: 999, max: 1000 }), [length, model, resolution, price]);
+  const remote = !!query.trim() || category !== "All" || (!!bounds && (bounds.min > 0 || bounds.max > 0) && length !== "u5");
+  const filterKey = `${query.trim().toLowerCase()}|${category}|${bounds ? `${bounds.min}-${bounds.max}` : "none"}|${length === "u5"}`;
+  const [limit, setLimit] = useState(REVEAL);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const request = useRef(0);
+  const mode: GenMode = model.mode ?? "motion-transfer";
   const [scheduleItem, setScheduleItem] = useState<ReferenceVideo | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -402,18 +515,51 @@ export function ExplorePage({ initial }: { initial: Feed }) {
   }, []);
   const inPrice = (i: ReferenceVideo) => {
     if (price === "any") return true;
-    const p = estimateGenerationUsd(i.duration, resolution);
+    const p = estimateModelUsd(model, i.duration, resolution);
     if (p === null) return false;
     return price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20;
   };
-  const visible = items.filter(
-    (i) =>
-      inPrice(i) &&
-      (category === "All" || i.category === category) &&
-      `${i.title} ${i.description}`
-        .toLowerCase()
-        .includes(query.toLowerCase().trim()),
-  );
+  const inLength = (i: ReferenceVideo) => {
+    const d = i.duration;
+    return length === "any" || (length === "u5" ? d < 5 : length === "5-10" ? d >= 5 && d < 10 : length === "10-20" ? d >= 10 && d < 20 : d >= 20);
+  };
+  const visible = items
+    .filter(
+      (i) =>
+        inPrice(i) &&
+        inLength(i) &&
+        (category === "All" || i.category === category) &&
+        `${i.title} ${i.description}`
+          .toLowerCase()
+          .includes(query.toLowerCase().trim()),
+    )
+    // "Trending" keeps the feed's own order; the other two re-rank what is loaded.
+    .sort((a, b) =>
+      sort === "shortest"
+        ? a.duration - b.duration
+        : sort === "cheapest"
+          ? (estimateModelUsd(model, a.duration, resolution) ?? Infinity) - (estimateModelUsd(model, b.duration, resolution) ?? Infinity)
+          : 0,
+    );
+  const shown = visible.slice(0, limit);
+  // Lazy loading: when the end of the grid nears the screen, reveal more of what is loaded; once all of it is shown,
+  // fetch the next batch from the library. The observer is rebuilt as things change, so if the end is still in view
+  // (a sparse filter) the walk keeps going until it finds matches or reaches the last page.
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (limit < visible.length) setLimit((l) => l + REVEAL);
+        else if (next && !loading && !error) loadMore();
+      },
+      { rootMargin: "1100px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, visible.length, next, loading, error, filterKey]);
   const favorites = [
     ...new Map(
       [...savedItems, ...items]
@@ -451,25 +597,58 @@ export function ExplorePage({ initial }: { initial: Feed }) {
     setCopied(false);
     setCopyError("");
   }
-  async function loadMore() {
-    if (!next || loading) return;
+  /** Fetch the next batch of the library for the current filters; `reset` starts a fresh result list. */
+  async function fetchBatch(cursor: number, reset: boolean) {
+    const id = ++request.current;
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/explore?cursor=${next}`);
+      const params = new URLSearchParams({ cursor: String(cursor) });
+      if (remote && bounds) {
+        if (query.trim()) params.set("q", query.trim());
+        if (category !== "All") params.set("category", category);
+        if (bounds.min > 0) params.set("min", String(bounds.min));
+        if (bounds.max > 0) params.set("max", String(bounds.max));
+      }
+      const res = await fetch(`/api/explore?${params}`);
       const d: Feed & { error?: string } = await res.json();
       if (!res.ok) throw new Error(d.error);
+      if (id !== request.current) return; // a newer filter change superseded this request
       setItems((prev) => {
-        const ids = new Set(prev.map((i) => i.id));
-        return [...prev, ...d.items.filter((i) => !ids.has(i.id))];
+        const base = reset ? [] : prev;
+        const ids = new Set(base.map((i) => i.id));
+        return [...base, ...d.items.filter((i) => !ids.has(i.id))];
       });
-      setNext(d.next && d.next > next ? d.next : null);
+      setNext(d.next && d.next > cursor ? d.next : null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load references");
+      if (id === request.current) setError(e instanceof Error ? e.message : "Unable to load references");
     } finally {
-      setLoading(false);
+      if (id === request.current) setLoading(false);
     }
   }
+  function loadMore() {
+    if (next && !loading) void fetchBatch(next, false);
+  }
+  // Any filter change restarts the walk through the library: back to the built-in index when nothing needs the
+  // server, otherwise a fresh scan from page one (search is debounced while typing).
+  useEffect(() => {
+    setLimit(REVEAL);
+    if (!remote || !bounds) {
+      request.current++;
+      setItems(withShort(initial, short));
+      setNext(initial.next);
+      setError("");
+      setLoading(false);
+      return;
+    }
+    request.current++;
+    setItems([]);
+    setNext(null);
+    setLoading(true);
+    const timer = setTimeout(() => void fetchBatch(1, true), query.trim() ? 350 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
   async function copy() {
     if (!selected) return;
     try {
@@ -481,7 +660,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
     }
   }
   const estimate = selected
-    ? estimateGenerationUsd(selected.duration, resolution)
+    ? estimateModelUsd(model, selected.duration, resolution)
     : null;
   return (
     <main className="explore-library min-h-full bg-[#181a1c] px-4 py-4 text-white sm:px-7 lg:px-9">
@@ -536,19 +715,11 @@ export function ExplorePage({ initial }: { initial: Feed }) {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {([
-              ["Model", mode, (v: string) => setMode(v as GenMode), [["motion-transfer", "Genjutsu · Motion transfer"], ["object-swap", "Genjutsu · Object swap"]]],
-              ["Quality", resolution, (v: string) => setResolution(v as GenjutsuResolution), GENJUTSU_RESOLUTIONS.map((r) => [r, r])],
-              ["Price", price, (v: string) => setPrice(v as typeof price), [["any", "Any price"], ["u5", "Under $5"], ["5-10", "$5 to $10"], ["10-20", "$10 to $20"], ["o20", "$20 and up"]]],
-            ] as Array<[string, string, (v: string) => void, string[][]]>).map(([label, value, set, opts]) => (
-              <label key={label} className="relative">
-                <span className="sr-only">{label}</span>
-                <select value={value} onChange={(e) => set(e.target.value)} aria-label={label} className="h-9 cursor-pointer appearance-none rounded-lg border border-white/10 bg-white/[0.05] py-0 pl-3 pr-8 text-xs font-medium text-zinc-200 outline-none backdrop-blur-xl transition-colors hover:bg-white/[0.09] focus-visible:ring-2 focus-visible:ring-[#d7ff00]/50 [color-scheme:dark]">
-                  {opts.map(([v, l]) => <option key={v} value={v}>{label}: {l}</option>)}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 size-3.5 text-zinc-500" />
-              </label>
-            ))}
+            <ExploreSelect label="Model" value={modelId} onChange={setModelId} options={EXPLORE_MODELS.map((m) => ({ value: m.id, label: m.label }))} />
+            <ExploreSelect label="Quality" value={resolution} onChange={setQuality} options={model.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
+            <ExploreSelect label="Length" value={length} onChange={setLength} options={LENGTHS} />
+            <ExploreSelect label="Price" value={price} onChange={(v) => setPrice(v as typeof price)} options={[{ value: "any", label: "Any" }, { value: "u5", label: "Under $5" }, { value: "5-10", label: "$5 to $10" }, { value: "10-20", label: "$10 to $20" }, { value: "o20", label: "$20 and up" }]} />
+            <ExploreSelect label="Sort" value={sort} onChange={setSort} options={SORTS} />
           <p className="text-sm font-medium tracking-tight text-white/50">
             <span className="tabular-nums text-white/80">
               {initial.total.toLocaleString()}
@@ -558,60 +729,52 @@ export function ExplorePage({ initial }: { initial: Feed }) {
           </div>
         </div>
         <div className="columns-2 gap-3 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6">
-          {visible.map((item) => (
+          {shown.map((item) => (
             <ReferenceCard
               key={item.id}
               item={item}
               saved={saved.includes(item.id)}
               onSave={() => toggleSave(item)}
               onOpen={() => openReference(item)}
-              onSchedule={() => setScheduleItem(item)}
+              onSchedule={model.kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
+              estimate={estimateModelUsd(model, item.duration, resolution)}
             />
           ))}
         </div>
-        {!visible.length && (
+        {!visible.length && !loading && !next && (
           <div className="py-20 text-center">
             <Film className="mx-auto mb-3 size-8 text-zinc-600" />
-            <p className="text-zinc-400">
-              No matching references in the loaded library.
-            </p>
+            <p className="text-zinc-400">No references match these filters in the whole library.</p>
             <Button
               variant="ghost"
               onClick={() => {
                 setQuery("");
                 setCategory("All");
+                setLength("any");
+                setPrice("any");
               }}
             >
               Reset filters
             </Button>
           </div>
         )}
+        {/* End-of-grid marker: reveals more cards, then pulls the next batch from the library. */}
+        <div ref={sentinel} aria-hidden className="h-px" />
         <div className="flex flex-col items-center gap-3 py-8">
-          {error && (
-            <p role="alert" className="text-sm text-red-400">
-              {error}
+          {(loading || (!visible.length && next)) && (
+            <p role="status" className="flex items-center gap-2 text-xs text-zinc-400">
+              <Loader2 className="size-4 animate-spin" />
+              {!visible.length ? "Searching the whole library…" : "Loading more…"}
             </p>
           )}
-          {next && (
-            <Button
-              variant="outline"
-              disabled={loading}
-              onClick={() => void loadMore()}
-              className="h-10 border-white/15 bg-transparent px-7 text-white"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Loading…
-                </>
-              ) : error ? (
-                "Retry loading"
-              ) : (
-                "Load more references"
-              )}
-            </Button>
+          {error && (
+            <p role="alert" className="text-sm text-red-400">
+              {error}{" "}
+              <button type="button" onClick={() => { setError(""); loadMore(); }} className="underline underline-offset-2 hover:text-red-300">Retry</button>
+            </p>
           )}
           <p className="text-[11px] text-zinc-500">
-            Search and filters apply to loaded references. Public references via{" "}
+            Filters search the whole library, and more loads as you scroll. Public references via{" "}
             <a
               href="https://higgsfield.ai/ai/video?model=genjutsu"
               target="_blank"
@@ -648,7 +811,8 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                 saved
                 onSave={() => toggleSave(item)}
                 onOpen={() => openReference(item)}
-              onSchedule={() => setScheduleItem(item)}
+                onSchedule={model.kind === "genjutsu" ? () => setScheduleItem(item) : undefined}
+                estimate={estimateModelUsd(model, item.duration, resolution)}
               />
             ))}
           </motion.div>
@@ -682,38 +846,20 @@ export function ExplorePage({ initial }: { initial: Feed }) {
               </DialogDescription>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
-                  <video
+                  <ReferencePlayer
                     key={selected.id}
                     src={selected.videoUrl}
-                    onError={() => setMediaError(true)}
                     poster={selected.thumbUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    onLoadedMetadata={(event) => {
-                      const v = event.currentTarget;
-                      if (v.videoWidth > 0 && v.videoHeight > 0)
-                        setSelected((current) =>
-                          current?.id === selected.id
-                            ? {
-                                ...current,
-                                width: v.videoWidth,
-                                height: v.videoHeight,
-                                duration: Number.isFinite(v.duration)
-                                  ? v.duration
-                                  : current.duration,
-                              }
-                            : current,
-                        );
-                    }}
-                    style={{
-                      width: `min(100%, ${(selected.width && selected.height ? selected.width / selected.height : 9 / 16) * 50}dvh)`,
-                      aspectRatio:
-                        selected.width && selected.height
-                          ? `${selected.width} / ${selected.height}`
-                          : "9 / 16",
-                    }}
-                    className="mx-auto block h-auto max-h-[50dvh] rounded-lg"
+                    aspectRatio={selected.width && selected.height ? `${selected.width} / ${selected.height}` : "9 / 16"}
+                    onError={() => setMediaError(true)}
+                    onMetadata={(info) =>
+                      setSelected((current) =>
+                        current?.id === selected.id
+                          ? { ...current, width: info.width, height: info.height, duration: Number.isFinite(info.duration) ? info.duration : current.duration }
+                          : current,
+                      )
+                    }
+                    className="max-h-[56dvh]"
                   />
                   {mediaError && (
                     <p role="alert" className="mt-3 text-xs text-red-400">
@@ -788,14 +934,14 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-zinc-400">Resolution</span>
                       <div className="flex gap-1">
-                        {GENJUTSU_RESOLUTIONS.map((r) => (
+                        {model.qualities.map((r) => (
                           <Button
                             key={r}
                             size="sm"
                             variant="outline"
                             disabled={generating}
                             aria-pressed={r === resolution}
-                            onClick={() => setResolution(r)}
+                            onClick={() => setQuality(r)}
                             className={
                               r === resolution
                                 ? `${GREEN} !border-[#d7ff00] !bg-[#d7ff00] !text-black font-semibold hover:!bg-[#e4ff59] aria-pressed:!bg-[#d7ff00] aria-pressed:!text-black`
@@ -861,6 +1007,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                       item={selected}
                       resolution={resolution}
                       mode={mode}
+                      model={model}
                       xConnected={!!agents?.find((a) => a.mintAddress === mint)?.connectedPlatforms?.includes("x")}
                       onBusy={setGenerating}
                     />
@@ -884,7 +1031,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
         agents={agents}
         initialMint={mint}
         mode={mode}
-        resolution={resolution}
+        resolution={resolution as GenjutsuResolution}
         onClose={() => setScheduleItem(null)}
       />
     </main>

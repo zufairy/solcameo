@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import velloLogo from "@/assets/solcameo-dark.png";
+import brandLogo from "@/assets/solcameo-dark.png";
 import { AccountButton } from "@/components/layout/account-button";
 import { WalletButton } from "@/components/layout/wallet-button";
 import {
@@ -16,7 +16,7 @@ import {
   type DocChapter,
 } from "./docs-config";
 
-/* ════════ Vello Docs — shared reading shell ════════
+/* ════════ Solcameo Docs: shared reading shell ════════
    Warm-monochrome, three-column layout reused by every docs route:
    • left   — sticky table of contents (overview link + four numbered chapters)
    • centre — eyebrow pill, light display heading, lead, then anchored sections
@@ -43,11 +43,11 @@ function Navigation({ slug }: { slug: string }) {
           href="/"
           className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-lime-500/60"
         >
-          <Image src={velloLogo} alt="Solcameo" priority className="h-5 w-auto sm:h-6" />
+          <Image src={brandLogo} alt="Solcameo" priority className="h-5 w-auto sm:h-6" />
         </Link>
 
         <div className="flex items-center gap-2.5">
-          {/* Segmented section nav — How to · Start · Build · Sell · Scale */}
+          {/* Segmented section nav: Overview · Start · Create · Launch · Grow */}
           <div className="hidden items-center rounded-lg border border-black/[0.07] bg-white px-1 py-1 text-[13px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] lg:flex">
             {CHAPTERS.map((c, i) => {
               const active = c.slug === slug;
@@ -100,9 +100,9 @@ function Sidebar({ slug, activeId }: { slug: string; activeId: string }) {
             : "border-black/10 text-[#6f6f6f] hover:text-neutral-900",
         ].join(" ")}
       >
-        How to launch & earn
+        Launch an AI character
         <br />
-        with Vello
+        with Solcameo
       </Link>
 
       <div className="mt-9 space-y-8">
@@ -461,7 +461,7 @@ export function DocsShell({
   );
 }
 
-/** Framed pixel-art figure — used on pages that want the hero artwork. */
+/** Framed figure for chapter art. Pass a static image, or use <DocVisual> for the brand illustrations. */
 export function DocFigure({
   src,
   alt,
@@ -481,6 +481,108 @@ export function DocFigure({
       {caption && (
         <figcaption className="mt-3 text-center text-[13px] text-neutral-400">{caption}</figcaption>
       )}
+    </figure>
+  );
+}
+
+/* ── Brand illustrations: dark Solcameo panels drawn in code (crisp at any size, no image weight) ── */
+const PANEL_BG = "[background-image:radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:16px_16px]";
+const chip = "rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-zinc-200";
+const LIME = "#d7ff00";
+
+function SolanaBars({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 397.7 311.7" className={className} aria-hidden>
+      <defs>
+        <linearGradient id="docSolGrad" x1="360.879" y1="351.455" x2="141.213" y2="-69.294" gradientTransform="matrix(1 0 0 -1 0 314)" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#00FFA3" /><stop offset="1" stopColor="#DC1FFF" />
+        </linearGradient>
+      </defs>
+      <path fill="url(#docSolGrad)" d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
+      <path fill="url(#docSolGrad)" d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
+      <path fill="url(#docSolGrad)" d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
+    </svg>
+  );
+}
+
+export function DocVisual({ kind, caption }: { kind: "hero" | "start" | "create" | "launch" | "grow"; caption?: string }) {
+  return (
+    <figure className="mt-12">
+      <div className="overflow-hidden rounded-2xl border border-black/[0.08] bg-white p-2 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.18)]">
+        <div className={`relative aspect-[16/9] overflow-hidden rounded-xl bg-[#08090b] text-white ring-1 ring-inset ring-black/10 ${PANEL_BG}`}>
+          <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-56 w-80 -translate-x-1/2 rounded-full bg-[#d7ff00]/[0.12] blur-3xl" />
+          {kind === "hero" && (
+            <div className="absolute inset-0 grid place-items-center text-center">
+              <div className="flex flex-col items-center px-6">
+                <Image src="/brand/solcameo-mark.png" alt="" width={96} height={96} className="size-16 drop-shadow-[0_0_28px_rgba(200,240,42,0.45)] sm:size-24" priority />
+                <p className="mt-4 text-[clamp(1.1rem,3vw,2rem)] font-semibold leading-tight tracking-tight">Launch an AI character.<br /><span style={{ color: LIME }}>With its own coin.</span></p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2"><span className={chip}>Meteora bonding curve</span><span className={chip}>1B fixed supply</span><span className={chip}>Locked liquidity</span></div>
+              </div>
+              <SolanaBars className="absolute bottom-4 right-5 w-10 opacity-90 sm:w-14" />
+            </div>
+          )}
+          {kind === "start" && (
+            <div className="absolute inset-0 flex items-center justify-center px-5">
+              <div className="grid w-full max-w-[560px] grid-cols-4 gap-2.5 sm:gap-3">
+                {[["01", "Sign in", "Google or wallet"], ["02", "Wallet", "Embedded or Phantom"], ["03", "Add SOL", "Deposit or faucet"], ["04", "Explore", "Meet the market"]].map(([n, t, d], i) => (
+                  <div key={n} className="relative rounded-lg border border-white/12 bg-white/[0.05] p-2.5 sm:p-3.5">
+                    <p className="font-mono text-[10px] text-zinc-500">{n}</p>
+                    <p className="mt-1 text-[11px] font-semibold sm:text-sm">{t}</p>
+                    <p className="mt-0.5 hidden text-[10px] text-zinc-400 sm:block">{d}</p>
+                    {i === 0 && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-b-lg" style={{ background: LIME }} />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {kind === "create" && (
+            <div className="absolute inset-0 flex items-center justify-center px-5">
+              <div className="w-full max-w-[520px]">
+                <div className="rounded-lg border border-white/12 bg-white/[0.06] p-3.5">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-400">Describe your character</p>
+                  <p className="mt-1.5 text-[13px] font-medium sm:text-sm">A tiny knight cat who films misty adventures<span className="ml-0.5 animate-pulse" style={{ color: LIME }}>|</span></p>
+                </div>
+                <div className="mt-3 flex items-center gap-2.5">
+                  {["from-amber-300/70 to-orange-600/60", "from-lime-300/80 to-emerald-600/60", "from-sky-300/70 to-indigo-600/60"].map((g, i) => (
+                    <div key={g} className={`size-14 rounded-md bg-gradient-to-br sm:size-[72px] ${g} ${i === 1 ? "ring-2 ring-[#d7ff00] shadow-[0_0_22px_-4px_rgba(215,255,0,0.6)]" : "ring-1 ring-white/15"}`} />
+                  ))}
+                  <span className="ml-auto rounded-md px-4 py-2.5 text-xs font-bold text-black" style={{ background: LIME }}>Generate ✦</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {kind === "launch" && (
+            <div className="absolute inset-0 flex flex-col justify-center gap-4 px-6 sm:px-10">
+              <svg viewBox="0 0 400 120" className="h-auto w-full" aria-hidden>
+                <path d="M0 112 C90 108 170 96 240 66 S350 14 400 8" fill="none" stroke={LIME} strokeWidth="3" strokeLinecap="round" />
+                <path d="M0 112 C90 108 170 96 240 66 S350 14 400 8 V120 H0Z" fill="rgba(215,255,0,0.12)" />
+                <line x1="318" y1="0" x2="318" y2="120" stroke="rgba(255,255,255,0.35)" strokeDasharray="4 5" />
+                <text x="324" y="14" fill="#e4e4e7" fontSize="10" fontWeight="600">Graduates</text>
+              </svg>
+              <div>
+                <div className="flex h-2.5 overflow-hidden rounded-full"><span style={{ width: "40%", background: LIME }} /><span style={{ width: "20%", background: "#7C4DFF" }} /><span style={{ width: "20%", background: "#52525b" }} /><span style={{ width: "20%", background: "#00FFD1" }} /></div>
+                <div className="mt-2 flex justify-between text-[10px] text-zinc-400 sm:text-xs"><span>Creator 40%</span><span>Content 20%</span><span>Platform 20%</span><span>Meteora 20%</span></div>
+              </div>
+            </div>
+          )}
+          {kind === "grow" && (
+            <div className="absolute inset-0 grid grid-cols-2 gap-3 p-4 sm:gap-4 sm:p-6">
+              <div className="flex flex-col justify-center gap-2">
+                <div className="ml-auto max-w-[85%] rounded-md border border-white/12 bg-white/[0.07] px-2.5 py-1.5 text-[11px] sm:text-xs">give her a storm to cross</div>
+                <div className="max-w-[90%] rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs" style={{ borderColor: "rgba(215,255,0,0.5)", background: "rgba(215,255,0,0.08)" }}><span className="block text-[9px] font-semibold uppercase tracking-wider" style={{ color: LIME }}>Proposed</span>The Storm Crossing</div>
+                <div className="ml-auto rounded-md border border-white/12 bg-white/[0.07] px-2.5 py-1.5 text-[11px] sm:text-xs">yes!!</div>
+              </div>
+              <div className="flex flex-col justify-center gap-1.5 rounded-lg border border-white/12 bg-white/[0.04] p-2.5 sm:p-3">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-zinc-400">Leaderboard · earnings</p>
+                {[["1", "$LUNA", "+312%"], ["2", "$KAI", "+148%"], ["3", "$MOCHI", "+96%"]].map(([r, t, v]) => (
+                  <div key={t} className="flex items-center gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 text-[11px] sm:text-xs"><span className="font-mono text-zinc-500">{r}</span><span className="font-semibold">{t}</span><span className="ml-auto font-semibold tabular-nums" style={{ color: LIME }}>{v}</span></div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {caption && <figcaption className="mt-3 text-center text-[13px] text-neutral-400">{caption}</figcaption>}
     </figure>
   );
 }

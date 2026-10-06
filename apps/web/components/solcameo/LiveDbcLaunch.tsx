@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { motion, useReducedMotion } from "framer-motion";
 import { Loader2, CheckCircle2, Rocket } from "lucide-react";
 import type { DbcOptions } from "@/lib/meteora/options";
+import { Notice } from "./Notice";
+
+const LAUNCH_STEPS = [
+  { title: "Approve your curve", body: "Sign once so Meteora can lock in your launch settings." },
+  { title: "Create token and pool", body: "Sign again to mint your coin and open its market." },
+  { title: "Live on Solana", body: "Your character is trading and ready to make videos." },
+];
 type Pending = {
   mintSecret: number[];
   configSecret: number[];
@@ -213,14 +220,39 @@ export function LiveDbcLaunch({
   return (
     <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate space-y-5 overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/[0.09] via-[#202326]/90 to-[#17191c]/95 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-[#d7ff00]/10 blur-3xl" />
-      <div className="flex items-center gap-3"><motion.div animate={reduced ? {} : { y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }} className="grid size-10 place-items-center rounded-xl bg-[#d7ff00]/10"><Rocket className="size-5 text-[#d7ff00]" /></motion.div><div><h3 className="text-base font-semibold text-white">Your next chapter starts here</h3><p className="text-xs text-zinc-400">Two wallet approvals. Your character, live on Solana.</p></div></div>
-      <div className="relative grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5" aria-label="Launch progress">{["Configure curve", "Create token", "Live on Solana"].map((label, index) => <div key={label} className={`relative rounded-xl border px-2 py-3 text-center text-[11px] transition-colors duration-500 ${index <= launchStep ? "border-[#d7ff00]/25 bg-[#d7ff00]/5 text-[#d7ff00]" : "border-white/10 text-zinc-500"}`}>{index === launchStep && <motion.span layoutId="launch-step" className="absolute inset-0 rounded-xl bg-[#d7ff00]/5 shadow-[inset_0_1px_0_rgba(215,255,0,0.15)]" transition={{duration: reduced ? 0 : 0.4}} />}<span className="relative"><span className="mr-1">{index < launchStep ? "✓" : `${index + 1}.`}</span>{label}</span></div>)}</div>
+      <div className="flex items-center gap-3.5">
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-[#d7ff00]/25 bg-[#d7ff00]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"><Rocket className="size-5 text-[#d7ff00]" /></span>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#d7ff00]/80">Launch</p>
+          <h3 className="text-[19px] font-semibold leading-tight tracking-tight text-white">Your next chapter starts here</h3>
+          <p className="mt-0.5 text-[12.5px] text-zinc-400">Two wallet approvals. Your character, live on Solana.</p>
+        </div>
+      </div>
+      <ol className="relative space-y-1" aria-label="Launch progress">
+        <span aria-hidden className="absolute bottom-6 left-[17px] top-6 w-px bg-gradient-to-b from-[#d7ff00]/40 via-white/10 to-white/5" />
+        {LAUNCH_STEPS.map((step, index) => {
+          const done = index < launchStep, current = index === launchStep;
+          return (
+            <motion.li key={step.title} initial={reduced ? false : { opacity: 0, y: 14, filter: "blur(6px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.55, delay: reduced ? 0 : 0.25 + index * 0.4, ease: [0.22, 1, 0.36, 1] }}
+              aria-current={current ? "step" : undefined}
+              className={`relative flex items-start gap-3.5 rounded-xl border px-2.5 py-2.5 transition-colors duration-500 ${current ? "border-[#d7ff00]/25 bg-[#d7ff00]/[0.05]" : done ? "border-transparent" : "border-transparent opacity-70"}`}>
+              <span className={`relative z-10 grid size-[26px] shrink-0 place-items-center rounded-full border text-[11px] font-bold tabular-nums transition-colors duration-500 ${done ? "border-[#d7ff00] bg-[#d7ff00] text-black" : current ? "border-[#d7ff00]/60 bg-[#14170a] text-[#d7ff00]" : "border-white/15 bg-[#17191c] text-zinc-500"}`}>
+                {done ? <CheckCircle2 className="size-3.5" strokeWidth={3} /> : index + 1}
+              </span>
+              <span className="min-w-0 pt-0.5">
+                <span className={`block text-[13.5px] font-semibold leading-tight ${current || done ? "text-white" : "text-zinc-300"}`}>{step.title}</span>
+                <span className="mt-0.5 block text-[12px] leading-5 text-zinc-500">{step.body}</span>
+              </span>
+            </motion.li>
+          );
+        })}
+      </ol>
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="text-zinc-300">{getNetworkLabel()} launch</span>
         <span className="text-[#d7ff00]">{preflight?.ready ? "RPC verified" : preflight ? "Needs attention" : "Checking network…"}</span>
       </div>
       {preflight?.balanceLamports != null && <p className="text-xs text-zinc-400">Wallet balance: {(preflight.balanceLamports / 1e9).toFixed(4)} SOL</p>}
-      {preflight?.error && <p role="alert" className="text-xs text-red-300">{preflight.error}</p>}
+      {preflight?.error && <Notice tone="warn">{preflight.error}</Notice>}
       {(!preflight?.ready || preflight.balanceLamports === 0) && <div className="flex items-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
             <p className="text-sm leading-6 text-zinc-400">
         Two wallet approvals: your curve configuration, then your token and
@@ -235,16 +267,8 @@ export function LiveDbcLaunch({
         {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
         {busy ? "Launching…" : !publicKey ? "Connect Solana wallet" : `Launch on ${getNetworkLabel().toLowerCase()}`}
       </Button>
-      {status && (
-        <p role="status" className="text-xs text-[#d7ff00]">
-          {status}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-300">
-          {error} Keep this tab open; your launch progress is saved.
-        </p>
-      )}
+      {status && <Notice tone="info" role="status">{status}</Notice>}
+      {error && <Notice tone="error" title="Launch needs attention">{error} Keep this tab open; your launch progress is saved.</Notice>}
     </motion.div>
   );
 }

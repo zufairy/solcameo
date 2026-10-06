@@ -93,7 +93,6 @@ function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; las
       <div className="pointer-events-none relative z-[2] flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-4">
         <div className="flex items-center gap-1.5">
           <p className="truncate text-[15px] font-medium text-white">{doc.name}</p>
-          <p className="shrink-0 truncate text-[11px] text-white/40">@{doc.handle}</p>
           {doc.coinTicker && <span className="rounded bg-[#d7ff00]/10 px-1.5 py-0.5 text-[9px] text-[#d7ff00]">${doc.coinTicker}</span>}
           {doc.heartbeatEnabled && (
             <Heart className="size-3 shrink-0 animate-pulse fill-pink-500 text-pink-500" aria-label="Heartbeat on" role="img">
@@ -116,7 +115,6 @@ function AgentCard({ doc, lastPostAt, onDelete, onChat }: { doc: CreatorDoc; las
           />
         </div>
       </div>
-      {doc.solstarCharacterId && <Link href={`/market/${doc.solstarCharacterId}`} className="absolute bottom-2 left-2 z-10 rounded-md border border-white/15 bg-black/70 px-2 py-1 text-[10px] text-[#d7ff00] backdrop-blur">View coin</Link>}
     </div>
   );
 }
@@ -220,7 +218,7 @@ function AccountHealthPanel({
           <div className="mt-3.5 grid grid-cols-4 gap-1.5 border-t border-white/[0.06] pt-3">
             {(["good", "monitor", "bad", "not-active"] as const).map((s) => (
               <div key={s} className="rounded-lg bg-white/[0.03] px-1.5 py-1.5 text-center">
-                <p className={`text-[15px] font-bold tabular-nums ${HEALTH_META[s].color}`}>{counts[s]}</p>
+                <p className="text-[15px] font-bold tabular-nums text-white">{counts[s]}</p>
                 <p className="text-[8.5px] uppercase leading-tight tracking-wide text-white/35">{HEALTH_META[s].label}</p>
               </div>
             ))}

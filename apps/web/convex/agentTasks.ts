@@ -165,6 +165,14 @@ function payerFromInput(task: Doc<"agentTasks">): string | undefined {
   } catch { return undefined; }
 }
 
+/** Set server-side by run-task when the agent's own wallet funds the run. */
+function fundingFromInput(task: Doc<"agentTasks">): string | undefined {
+  try {
+    const inp = task.input ? (JSON.parse(task.input) as { fundingSource?: unknown }) : undefined;
+    return inp?.fundingSource === "agent_wallet" ? "agent_wallet" : undefined;
+  } catch { return undefined; }
+}
+
 /** Refund whatever part of a task's hold wasn't used, once. */
 async function releaseHold(ctx: MutationCtx, task: Doc<"agentTasks">, usedCredits: number): Promise<void> {
   const hold = task.creditHold;
@@ -262,7 +270,7 @@ export const succeed = mutation({
       }
       const overage = (actualCredits - covered) / 100;
       if (overage > 0) {
-        await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: overage, idemKey: `task:${id}:overage`, payerWallet: payerFromInput(task) });
+        await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: overage, idemKey: `task:${id}:overage`, payerWallet: payerFromInput(task), fundingSource: fundingFromInput(task) });
       }
     } else if (task && effectiveCost && effectiveCost > 0) {
       // payerWallet (server-injected by run-task from the SIWS-proven login
@@ -273,7 +281,7 @@ export const succeed = mutation({
         const inp = task.input ? (JSON.parse(task.input) as { payerWallet?: unknown }) : undefined;
         if (typeof inp?.payerWallet === "string" && inp.payerWallet.trim()) payerWallet = inp.payerWallet.trim();
       } catch { /* unparseable input — creatorWallet fallback applies */ }
-      await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: effectiveCost, idemKey: `task:${id}`, payerWallet });
+      await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: effectiveCost, idemKey: `task:${id}`, payerWallet, fundingSource: fundingFromInput(task) });
     }
   },
 });

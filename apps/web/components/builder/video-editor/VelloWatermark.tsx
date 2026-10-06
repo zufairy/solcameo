@@ -7,10 +7,10 @@
 // safe area, not clipped at the edge. Keep in sync with the server burn in
 // lib/server/velloWatermark.ts — same design, same numbers, top vs. bottom.
 export function VelloWatermark() {
-  return <div aria-label="Made by Vello watermark" className="pointer-events-none absolute top-[6.5%] left-[8%] z-20 flex select-none flex-col items-start gap-[3px]"
+  return <div aria-label="Made by Solcameo watermark" className="pointer-events-none absolute top-[6.5%] left-[8%] z-20 flex select-none flex-col items-start gap-[3px]"
     style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,.55)) drop-shadow(0 2px 10px rgba(0,0,0,.3))" }}>
     <span className="text-[6px] font-medium uppercase leading-none tracking-[0.32em] text-white/65" style={{ fontFamily: '"lab Manrope Medium", Manrope, sans-serif' }}>Made by</span>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src="/vello-logo-white.png" alt="Solcameo" className="h-[15px] w-auto object-contain" />
+    <img src="/brand/solcameo-dark.png" alt="Solcameo" className="h-[14px] w-auto object-contain" />
   </div>;
 }

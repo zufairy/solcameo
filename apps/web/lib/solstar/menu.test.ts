@@ -9,7 +9,7 @@ describe("getMenuItems", () => {
         .map((i) => [i.label, i.href]),
     ).toEqual([
       ["Home", "/"],
-      ["My Agents", "/control"],
+      ["My Influencers", "/control"],
       ["Video Feed", "/make"],
     ]);
   });
@@ -50,7 +50,7 @@ describe("getMenuItems", () => {
   });
   it("legacy menu keeps Home, My Agents and Video Feed first", () => {
     const labels = getMenuItems(true).map((i) => i.label);
-    expect(labels.slice(0, 3)).toEqual(["Home", "My Agents", "Video Feed"]);
+    expect(labels.slice(0, 3)).toEqual(["Home", "My Influencers", "Video Feed"]);
     expect(labels.length).toBeGreaterThan(3);
   });
 });

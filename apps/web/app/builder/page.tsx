@@ -50,9 +50,8 @@ import BuilderMcpPanel from "@/components/builder/BuilderMcpPanel";
 import type { ToolCallAction } from "@/components/builder/BuilderMcpPanel";
 import AvatarGifPlayer from "@/components/builder/AvatarGifPlayer";
 import NftMintCard from "@/components/builder/NftMintCard";
-import { WalletButton } from "@/components/layout/wallet-button";
 import { LowBalanceBanner } from "@/components/billing/LowBalanceBanner";
-import { AgentWalletBalance } from "@/components/builder/AgentWalletBalance";
+import { BuilderAccount } from "@/components/builder/BuilderAccount";
 import ClipJobProgress from "@/components/builder/ClipJobProgress";
 import ClipRunNarrator from "@/components/builder/ClipRunNarrator";
 import { uploadMediaFile } from "@/lib/client/uploadMedia";
@@ -1062,13 +1061,13 @@ function SpotlightSearch({ actions }: { actions: SpotAction[] }) {
   return (
     <div className="relative mx-4 hidden max-w-xl flex-1 md:mx-8 lg:block">
       <div
-        className={`group relative flex items-center gap-2.5 rounded-2xl border px-3.5 py-2 transition-all duration-300 ${
+        className={`group relative flex h-8 items-center gap-2 rounded-[6px] border px-2.5 transition-all duration-200 ${
           open
-            ? "border-white/25 bg-white/[0.10] shadow-[0_0_0_4px_rgba(255,255,255,0.06),0_20px_50px_-12px_rgba(0,0,0,0.75)]"
-            : "border-white/10 bg-white/[0.05] hover:border-white/20"
+            ? "border-white/30 bg-[#16181c] shadow-[0_0_0_3px_rgba(255,255,255,0.05),0_18px_40px_-14px_rgba(0,0,0,0.8)]"
+            : "border-white/[0.09] bg-[#111316] hover:border-white/20"
         }`}
       >
-        <Search className={`size-4 transition-colors ${open ? "text-white/85" : "text-white/40"}`} />
+        <Search className={`size-3.5 transition-colors ${open ? "text-white/85" : "text-white/40"}`} />
         <input
           ref={inputRef}
           value={query}
@@ -1077,9 +1076,9 @@ function SpotlightSearch({ actions }: { actions: SpotAction[] }) {
           onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 120); }}
           onKeyDown={onKeyDown}
           placeholder="Search pages, actions, tools…"
-          className="w-full bg-transparent text-sm text-white/90 outline-none placeholder-white/35"
+          className="w-full bg-transparent text-[12.5px] text-white/90 outline-none placeholder-white/35"
         />
-        <kbd className="hidden items-center rounded-md border border-white/15 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/40 md:flex">⌘K</kbd>
+        <kbd className="hidden items-center rounded-[4px] border border-white/10 bg-white/[0.04] px-1.5 py-px text-[10px] font-medium text-white/40 md:flex">⌘K</kbd>
       </div>
 
       <AnimatePresence>
@@ -1089,7 +1088,7 @@ function SpotlightSearch({ actions }: { actions: SpotAction[] }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.985 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-x-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-[#15151a]/95 p-1.5 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.85)] backdrop-blur-2xl"
+            className="absolute inset-x-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-[8px] border border-white/10 bg-[#121417]/95 p-1 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.85)] backdrop-blur-2xl"
           >
             <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/30">Suggestions</p>
             {results.map((r, i) => {
@@ -1101,12 +1100,12 @@ function SpotlightSearch({ actions }: { actions: SpotAction[] }) {
                   type="button"
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => { e.preventDefault(); run(r); }}
-                  className="relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left"
+                  className="relative flex w-full items-center gap-2.5 rounded-[5px] px-2.5 py-1.5 text-left"
                 >
                   {isActive && (
                     <motion.span
                       layoutId="spotlight-active"
-                      className="absolute inset-0 rounded-xl bg-white/[0.10] ring-1 ring-white/10"
+                      className="absolute inset-0 rounded-[5px] bg-white/[0.09] ring-1 ring-white/10"
                       transition={{ type: "spring", stiffness: 520, damping: 40 }}
                     />
                   )}
@@ -5181,7 +5180,7 @@ function BuilderPageInner() {
   // chip in chat so the operator can dismiss and reopen it.
   const [mintOverlayCollapsed, setMintOverlayCollapsed] = useState(false);
 
-  const handleSaveAgent = useCallback(async () => {
+  const handleSaveAgent = useCallback(async (silent = false) => {
     if (!sessionIdRef.current || isSavingAgent) return;
     setIsSavingAgent(true);
     try {
@@ -5201,7 +5200,7 @@ function BuilderPageInner() {
       const data = await res.json() as { ok?: boolean; draftId?: string; updatedInfluencer?: boolean; error?: string };
       if (!res.ok || data.error) throw new Error(data.error ?? "Save failed");
       setSavedAgentAt(Date.now());
-      setMessages((prev) => [
+      if (!silent) setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-saved`,
@@ -5212,7 +5211,7 @@ function BuilderPageInner() {
       ]);
     } catch (err) {
       const detail = err instanceof Error ? err.message : "Unknown";
-      setMessages((prev) => [
+      if (!silent) setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-save-err`, text: `Save failed: ${detail}`, sender: "ai" as const, timestamp: new Date() },
       ]);
@@ -5220,6 +5219,24 @@ function BuilderPageInner() {
       setIsSavingAgent(false);
     }
   }, [agentType, agentBlueprint, nftAvatarUrls, characterBible, publicKey, isSavingAgent]);
+
+  // Autosave: whenever the persona, avatars, bible or type change, save quietly a few seconds later.
+  // The first snapshot is only recorded, never saved, so opening the builder does not write anything.
+  const autosaveSignature = useMemo(
+    () => JSON.stringify([agentType, agentBlueprint?.persona, nftAvatarUrls, characterBible, agentBlueprint?.mintAddress]),
+    [agentType, agentBlueprint?.persona, nftAvatarUrls, characterBible, agentBlueprint?.mintAddress],
+  );
+  const lastSavedSignature = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasSaveableAgent) return;
+    if (lastSavedSignature.current === null) { lastSavedSignature.current = autosaveSignature; return; }
+    if (lastSavedSignature.current === autosaveSignature) return;
+    const timer = setTimeout(() => {
+      lastSavedSignature.current = autosaveSignature;
+      void handleSaveAgent(true);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [autosaveSignature, hasSaveableAgent, handleSaveAgent]);
 
   const walletAddress = publicKey?.toString();
   const displayName = walletAddress
@@ -5378,19 +5395,14 @@ function BuilderPageInner() {
             <span className="inline-block h-[30px] w-[7.5rem] shrink-0 animate-pulse rounded-md bg-white/[0.08]" aria-hidden />
           ) : isAuthenticated ? (
             <>
-            {/* Standing wallet status (address + balance) — previously the header
-                only showed wallet state when logged OUT. */}
-            <WalletButton />
-            <AgentWalletBalance address={agentWalletAddress} mintAddress={agentBlueprint?.mintAddress} ready={influencerRecord !== undefined} />
-            <button
-              type="button"
-              className="h-9 rounded-lg border border-white/15 bg-gradient-to-b from-white/[0.14] to-white/[0.04] px-3.5 text-[11.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all hover:from-white/[0.2] hover:to-white/[0.07] disabled:opacity-40"
-              disabled={!canSaveAgent || isSavingAgent}
-              onClick={handleSaveAgent}
-              title={savedAgentAt ? `Last saved ${new Date(savedAgentAt).toLocaleTimeString()}` : "Save agent working state"}
-            >
-              {isSavingAgent ? "Saving…" : savedAgentAt ? "Saved ✓" : "Save"}
-            </button>
+            {/* One control for the profile and both balances: the swap button flips between your wallet and the agent's. */}
+            <BuilderAccount agentWalletAddress={agentWalletAddress} mintAddress={agentBlueprint?.mintAddress} agentName={agentBlueprint?.persona?.name} ready={influencerRecord !== undefined} />
+            {/* Everything saves itself; this only reports it. */}
+            {hasSaveableAgent && (
+              <span className="hidden text-[10.5px] text-white/35 xl:inline" aria-live="polite">
+                {isSavingAgent ? "Saving…" : savedAgentAt ? `Saved ${new Date(savedAgentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+              </span>
+            )}
             </>
           ) : hasMounted ? (
             <button

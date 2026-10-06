@@ -142,7 +142,7 @@ function LandingWalletPill() {
         </DropdownMenuItem>
         <DropdownMenuItem className="focus:bg-white/[0.06]" onClick={() => router.push("/studio")}>
           <Sparkles className="mr-2 size-3.5 text-[#00FFD1]" />
-          My Agents
+          My Influencers
         </DropdownMenuItem>
         <DropdownMenuItem className="focus:bg-white/[0.06]" onClick={() => router.push("/agents")}>
           <Bot className="mr-2 size-3.5 text-white/50" />
@@ -248,7 +248,7 @@ export function Navigation() {
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem className="focus:bg-white/[0.06]" onClick={() => router.push("/studio")}>
                     <Sparkles className="mr-2 size-3.5 text-[#00FFD1]" />
-                    My Agents
+                    My Influencers
                   </DropdownMenuItem>
                   <DropdownMenuItem className="focus:bg-white/[0.06]" onClick={() => router.push("/agents")}>
                     <Bot className="mr-2 size-3.5 text-white/50" />

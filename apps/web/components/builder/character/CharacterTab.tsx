@@ -7,9 +7,10 @@ import {
   Brush, Check, CircleUserRound, Eye, Glasses, ImagePlus, Loader2, Lock, Palette, Pencil, Ruler, Scissors, Shirt, Shuffle, Sparkles,
   UserRound, Users, X,
 } from "lucide-react";
-import { buildPrompt, categoriesFor, isBuildable, TIERS } from "@/lib/character/spec";
+import { buildPrompt, categoriesFor, isBuildable, sanitizeSelection, TIERS } from "@/lib/character/spec";
 import { generationError } from "@/lib/character/generationError";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
+import { PRESETS, type CharacterPreset } from "@/lib/character/presets";
 import type { CharacterImage, CharModel, ModelChoice, SavedCharacter, Selection, Tier } from "@/lib/character/types";
 import { Card, CountToggle, DISPLAY_FONT, LIME, Pill, RatioSelect, Section, SPRING, SURFACE, Swatch } from "./character-ui";
 import { Gallery, MODEL_LABEL, type Tile } from "./Gallery";
@@ -48,6 +49,8 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   const [tier, setTier] = useState<Tier>(initialCharacter?.tier ?? "normal");
   const [selection, setSelection] = useState<Selection>(initialCharacter?.selection ?? {});
+  // A preset carries the exact brief it was made with. Editing any trait afterwards drops it.
+  const [preset, setPreset] = useState<CharacterPreset | null>(null);
   const [model, setModel] = useState<ModelChoice>(initialCharacter?.model === "soul2" ? "soul2" : "soul");
   const [ratio, setRatio] = useState("3:4");
   const [count, setCount] = useState<1 | 4>(1);
@@ -69,7 +72,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   const categories = useMemo(() => categoriesFor(tier), [tier]);
   const prompt = useMemo(() => buildPrompt(selection, tier, { photo: !!photoUrl }), [selection, tier, photoUrl]);
-  const ready = isBuildable(selection);
+  const ready = isBuildable(selection) || !!preset?.brief;
   const images = count;
   const picks = Object.values(selection).reduce((n, v) => n + v.length, 0);
 
@@ -125,6 +128,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   }, [saved]);
 
   const toggle = (cid: string, oid: string, max: number) => {
+    setPreset(null);
     setSelection((prev) => {
       const cur = prev[cid] ?? [];
       const next = cur.includes(oid) ? cur.filter((x) => x !== oid) : max === 1 ? [oid] : [...cur, oid].slice(-max);
@@ -135,6 +139,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
   };
 
   const changeTier = (t: Tier) => {
+    setPreset(null);
     setTier(t);
     setSelection((prev) => {
       const out: Selection = {};
@@ -146,7 +151,14 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
     });
   };
 
+  const applyPreset = (p: CharacterPreset) => {
+    setPreset(p);
+    setTier(p.tier);
+    setSelection(sanitizeSelection(p.selection, p.tier));
+  };
+
   const shuffle = () => {
+    setPreset(null);
     const out: Selection = {};
     for (const c of categories) {
       if (c.max > 1 || c.id === "accessory") continue;
@@ -189,7 +201,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
       const res = await api<{ jobs: { model: CharModel; requestId: string; ticket?: string; count?: number; ratio?: string }[] }>("/api/character/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, model: photoUrl ? "qwen" : model, photoUrls, aspectRatio: ratio, count }),
+        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, brief: preset?.brief || undefined, model: photoUrl ? "qwen" : model, photoUrls, aspectRatio: ratio, count }),
       });
       const startedAt = Date.now();
       // Placeholder tiles go to the top of the masonry immediately so the feed reacts at once.
@@ -324,10 +336,16 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
                   </label>}
                 </div>
                 <p className="px-1 text-[11px] leading-5 text-zinc-500">{photoUrl ? "Qwen Edit uses all references in order. The first image is the primary identity." : "Add up to three references to use Qwen Edit, or create with Soul and Soul 2."}</p>
-                <Section title="Character type" count={TIERS.length + 3} icon={<Sparkles className="size-4" />} open={open.has("tier")} onToggle={() => setOpen(flip(open, "tier"))}>
+                <Section title="Presets" count={PRESETS.length} icon={<Sparkles className="size-4" />} open={open.has("presets")} onToggle={() => setOpen(flip(open, "presets"))}>
+                  <p className="px-1 pb-2 text-[11px] leading-5 text-zinc-500">Exact looks from the Higgsfield studio. Pick one to load its traits and original prompt, then generate. Every take gets a different pose.</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PRESETS.map((p, i) => <Card key={p.id} order={i} label={p.name} image={p.preview} selected={preset?.id === p.id} onClick={() => applyPreset(p)} />)}
+                  </div>
+                  {preset && <p className="px-1 pt-2 text-[11px] text-zinc-400"><span className="font-semibold text-white">{preset.name}</span> loaded. Changing any trait switches back to your own selection.</p>}
+                </Section>
+                <Section title="Character type" count={TIERS.length} icon={<Sparkles className="size-4" />} open={open.has("tier")} onToggle={() => setOpen(flip(open, "tier"))}>
                   <div className="grid grid-cols-4 gap-1.5">
-                    {TIERS.map((t, i) => <Card key={t.id} showLabel order={i} label={t.label} image={t.image} selected={tier === t.id} onClick={() => changeTier(t.id)} />)}
-                    {(["mantis", "ant", "dog"] as const).map((n, i) => <Card key={n} order={i + 3} label={n} image={`/character/opt/type-${n}.webp`} soon />)}
+                    {TIERS.map((t, i) => <Card key={t.id} showLabel order={i} label={t.label} image={t.image} emoji={t.emoji} selected={tier === t.id} onClick={() => changeTier(t.id)} />)}
                   </div>
                 </Section>
 

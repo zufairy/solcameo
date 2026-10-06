@@ -12,9 +12,9 @@ const INTER = { fontFamily: "var(--font-inter)" } as const;
 
 const DOCS = [
   { label: "How to start", href: "/docs/start" },
-  { label: "How to build", href: "/docs/build" },
-  { label: "How to sell", href: "/docs/sell" },
-  { label: "How to scale", href: "/docs/scale" },
+  { label: "How to create", href: "/docs/build" },
+  { label: "How to launch", href: "/docs/launch" },
+  { label: "How to grow", href: "/docs/grow" },
 ];
 
 const COL_ONE = [

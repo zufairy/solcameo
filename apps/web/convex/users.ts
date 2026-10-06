@@ -324,6 +324,8 @@ export type WhoAmI = {
   goal?: "grow_views" | "sell_product" | "build_audience" | "other";
   onboardingCompletedAt?: number;
   onboardingSkippedAt?: number;
+  /** When the account was created (epoch ms). */
+  joinedAt?: number;
 } | null;
 
 /** Verify the caller's Supabase session, upsert the user, return their profile. */
@@ -363,6 +365,7 @@ export const whoami = action({
       goal: user.goal,
       onboardingCompletedAt: user.onboardingCompletedAt,
       onboardingSkippedAt: user.onboardingSkippedAt,
+      joinedAt: user.createdAt ?? user._creationTime,
     };
   },
 });

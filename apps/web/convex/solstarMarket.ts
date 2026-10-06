@@ -242,3 +242,20 @@ export const terminal = query({
     };
   },
 });
+
+/** Live coins with their on-chain addresses: the input for the public /tokenomics page, which reads the
+ *  pools straight from Solana RPC. Only approved characters with a launched pool are returned. */
+export const tokenomicsTargets = query({
+  args: { network: networkV },
+  handler: async (ctx, { network }) => {
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", network)).take(300);
+    const out: { characterId: string; name: string; ticker: string; mint: string; dbcPool: string; dbcConfig: string; state: string }[] = [];
+    for (const t of tokens) {
+      if (!t.mint || !t.dbcPool || !t.dbcConfig || !["live", "graduated", "migrated"].includes(t.state)) continue;
+      const c = await ctx.db.get(t.characterId);
+      if (!c || c.status !== "approved") continue;
+      out.push({ characterId: c._id, name: c.name, ticker: t.ticker, mint: t.mint, dbcPool: t.dbcPool, dbcConfig: t.dbcConfig, state: t.state });
+    }
+    return out;
+  },
+});

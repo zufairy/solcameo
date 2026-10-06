@@ -1611,7 +1611,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
       // back forced on. Reflect what actually got saved, not what was clicked.
       if (result.forcedFreePlan) {
         setWatermarkOverride(true);
-        setWatermarkError("The Vello watermark is required on the free plan — upgrade to remove it.");
+        setWatermarkError("The Solcameo watermark is required on the free plan — upgrade to remove it.");
         useClippingStore.getState().queueChatOps([{ op: "set_watermark", enabled: true }]);
         return;
       }
@@ -4173,7 +4173,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
 
       {/* Left: asset panel — full height, beside the header/toolbar and the
           bottom elements bar, never below either. */}
-      <div className="w-64 h-full shrink-0 border-r border-white/10 bg-black/20 backdrop-blur-xl flex flex-col overflow-hidden">
+      <div className="m-3 mr-0 h-[calc(100%-1.5rem)] w-56 shrink-0 flex flex-col overflow-hidden rounded-[14px] border border-white/[0.14] bg-gradient-to-b from-white/[0.09] to-white/[0.03] shadow-[0_24px_60px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl">
           <div className="flex shrink-0 border-b border-white/10">
             {(["videos", "uploads"] as const).map((t) => (
               <button key={t} type="button" onClick={() => setLeftTab(t)}
@@ -4185,7 +4185,8 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
           <div className="flex-1 overflow-y-auto editor-scroll p-3 space-y-2">
             {leftTab === "videos" ? (
               <>
-                <form onSubmit={(e) => { e.preventDefault(); void submitGetClips(); }} className="space-y-1.5 mb-1">
+                {/* The paste-a-link download form is a clipping tool; the AI-influencer Editor works on its own videos. */}
+                {!clipLabel && <form onSubmit={(e) => { e.preventDefault(); void submitGetClips(); }} className="space-y-1.5 mb-1">
                   <input value={sourceUrlInput} onChange={(e) => setSourceUrlInput(e.target.value)}
                     placeholder="Paste a video URL or Google Drive file/folder link…"
                     className="w-full bg-white/5 border border-white/15 rounded-md px-2.5 py-2 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-lime-400/60" />
@@ -4206,7 +4207,7 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
                     {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <UploadIcon className="size-3.5" />}
                     {uploading ? "Uploading…" : "Upload your own video"}
                   </button>
-                </form>
+                </form>}
 
                 {/* Google Drive folder resolved to multiple videos, pick which
                     file to pull, same list the clipper's Source node shows. */}
@@ -4396,10 +4397,10 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
               target="_blank"
               rel="noopener noreferrer"
               title="Download the original, unedited video (no hooks, captions, music, or intro/CTA burned in)"
-              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-zinc-300 backdrop-blur-xl transition-colors hover:bg-white/[0.12] hover:text-white"
+              aria-label="Download the original video"
+              className="grid size-8 place-items-center rounded-lg border border-white/15 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
-              <Download className="size-3.5" />
-              Original
+              <Download className="size-4" />
             </a>
           )}
           {/* clipLabel (AI-influencer Editor): useful with just one clip open —

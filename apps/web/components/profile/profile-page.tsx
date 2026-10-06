@@ -14,7 +14,7 @@ import { SettingsShell, Panel, Kpi, blurIn } from "@/components/settings/setting
 import flashAvatar from "@/assets/flash.jpeg";
 import {
   Check, Copy, ChevronRight, Wallet, Bot, User, Pencil, Eye, Film, Users as UsersIcon,
-  Camera, Loader2, X, CreditCard, Zap,
+  Camera, Loader2, X, CreditCard,
 } from "lucide-react";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -77,7 +77,7 @@ type FeedItem = FunctionReturnType<typeof api.clipJobs.videoFeedByMints>["items"
 
 const AGENTS_PREVIEW_COUNT = 5;
 
-/** Like <Row>, but with the agent's real profile photo instead of the generic
+/** Like <Row>, but with the influencer's real profile photo instead of the generic
  *  Bot icon (falls back to a gradient initial when there's no avatar, or it
  *  fails to load — same graceful-fallback pattern as the marketplace card). */
 function AgentRow({ agent }: { agent: CreatorDoc }) {
@@ -144,12 +144,12 @@ export function ProfilePage() {
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [showAllAgents, setShowAllAgents] = useState(false);
+  const [addrCopied, setAddrCopied] = useState(false);
+  const copyAddress = () => {
+    if (!address) return;
+    void navigator.clipboard.writeText(address).then(() => { setAddrCopied(true); setTimeout(() => setAddrCopied(false), 1500); });
+  };
 
-  const creditsBalance = useQuery(
-    api.userCredits.getBalance,
-    profile?.walletAddress ? { ownerWallet: profile.walletAddress } : "skip",
-  );
-  const credits = creditsBalance === undefined ? null : (creditsBalance?.balanceCredits ?? 0);
 
   const handleAvatarPick = async (file: File) => {
     setUploadingAvatar(true);
@@ -197,7 +197,7 @@ export function ProfilePage() {
 
   if (!profile) {
     return (
-      <SettingsShell active="profile" icon={User} title="Profile" description="Your identity, wallets, and agents on Vello.">
+      <SettingsShell active="profile" icon={User} title="Profile" description="Your identity, wallets, and influencers on Solcameo.">
         <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="text-[15px] text-white/60">Sign in to view your profile.</p>
           <AccountButton />
@@ -210,7 +210,7 @@ export function ProfilePage() {
   const avatarSrc = profile.image || flashAvatar.src;
 
   return (
-    <SettingsShell active="profile" icon={User} title="Profile" description="Your identity, wallets, and agents on Vello.">
+    <SettingsShell active="profile" icon={User} title="Profile" description="Your identity, wallets, and influencers on Solcameo.">
       {/* ── Identity ── */}
       <motion.div {...blurIn(0.04)}>
         <Panel className="overflow-hidden">
@@ -268,20 +268,28 @@ export function ProfilePage() {
                   </span>
                 </button>
               )}
-              {profile.email && <p className="truncate text-[13px] text-white/45">{profile.email}</p>}
+              {address && (
+                <button type="button" onClick={copyAddress} title="Copy wallet address" className="group mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-2.5 pr-2 text-[12px] text-white/70 transition-colors hover:border-white/20 hover:text-white">
+                  <Wallet className="size-3.5 shrink-0 text-white/40" />
+                  <span className="truncate font-mono">{address.slice(0, 4)}…{address.slice(-4)}</span>
+                  {addrCopied ? <Check className="size-3.5 shrink-0 text-emerald-400" /> : <Copy className="size-3.5 shrink-0 text-white/35 group-hover:text-white/70" />}
+                </button>
+              )}
+              <p className="mt-1.5 truncate text-[12.5px] text-white/45">
+                {profile.joinedAt ? `Joined ${new Date(profile.joinedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : null}
+                {profile.joinedAt && profile.email ? " · " : null}
+                {profile.email}
+              </p>
             </div>
           </div>
         </Panel>
       </motion.div>
 
       {/* ── Stats ── */}
-      <motion.div {...blurIn(0.08)} className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Link href="/billing">
-          <Kpi icon={<Zap className="size-3" />} label="Credits" value={credits === null ? "···" : nf(credits)} sub="Balance, tap to top up" />
-        </Link>
-        <Kpi icon={<Eye className="size-3" />} label="Total views" value={nf(totalViews)} sub="Across all agents" />
+      <motion.div {...blurIn(0.08)} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Kpi icon={<Eye className="size-3" />} label="Total views" value={nf(totalViews)} sub="Across all influencers" />
         <Kpi icon={<Film className="size-3" />} label="Videos posted" value={nf(totalPosted)} sub="Live on platforms" />
-        <Kpi icon={<UsersIcon className="size-3" />} label="Agents" value={nf(agents.length)} sub="You operate" />
+        <Kpi icon={<UsersIcon className="size-3" />} label="Influencers" value={nf(agents.length)} sub="You manage" />
       </motion.div>
 
       {/* ── Wallets ── */}
@@ -299,12 +307,12 @@ export function ProfilePage() {
 
       {/* ── My Agents ── */}
       <motion.div {...blurIn(0.16)} className="mt-6">
-        <SectionLabel>My Agents</SectionLabel>
+        <SectionLabel>My Influencers</SectionLabel>
         <Panel className="mt-2 divide-y divide-white/[0.06] overflow-hidden">
           {loadingAgents ? (
             <div className="px-5 py-4 text-[13px] text-white/40">Loading…</div>
           ) : agents.length === 0 ? (
-            <div className="px-5 py-4 text-[13px] text-white/40">No agents yet.</div>
+            <div className="px-5 py-4 text-[13px] text-white/40">No influencers yet.</div>
           ) : (
             <>
               {(showAllAgents ? agents : agents.slice(0, AGENTS_PREVIEW_COUNT)).map((a) => (
@@ -316,12 +324,12 @@ export function ProfilePage() {
                   onClick={() => setShowAllAgents(true)}
                   className="flex w-full items-center justify-center gap-1.5 px-5 py-3 text-[13px] font-medium text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white"
                 >
-                  Show all {agents.length} agents
+                  Show all {agents.length} influencers
                 </button>
               )}
             </>
           )}
-          <Row icon={Bot} label="Manage all agents" href="/studio" />
+          <Row icon={Bot} label="Manage all influencers" href="/studio" />
         </Panel>
       </motion.div>
 
@@ -331,9 +339,9 @@ export function ProfilePage() {
         <Panel className="mt-2 overflow-hidden">
           <div className="px-5 py-4">
             <p className="text-[14px] text-white">
-              {agents.length === 0 ? "Your first agent is free, no subscription yet." : `${agents.length} active agent${agents.length === 1 ? "" : "s"} on Vello.`}
+              {agents.length === 0 ? "Your first influencer is free, no subscription yet." : `${agents.length} active influencer${agents.length === 1 ? "" : "s"} on Solcameo.`}
             </p>
-            <p className="mt-1 text-[12px] text-white/40">Each agent after your first carries a one-time mint fee plus a monthly fee, billed in USDC from your wallet.</p>
+            <p className="mt-1 text-[12px] text-white/40">Each influencer after your first carries a one-time mint fee plus a monthly fee, billed in USDC from your wallet.</p>
           </div>
           <div className="h-px bg-white/[0.06]" />
           <Row icon={CreditCard} label="View plans & pricing" href="/pricing" />

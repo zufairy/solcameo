@@ -2,12 +2,10 @@
 import { useEffect, useId, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight,
   Check,
   Loader2,
   Coins,
   Video,
-  ShieldCheck,
   Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,10 +23,16 @@ export function DbcEconomics({
   value,
   onChange,
   readOnly = false,
+  creatorImage,
+  coinImage,
 }: {
   value: DbcOptions;
   onChange: (v: DbcOptions) => void;
   readOnly?: boolean;
+  /** The creator's profile picture, shown for the creator share. */
+  creatorImage?: string;
+  /** The coin's picture (the character portrait), shown for the content budget. */
+  coinImage?: string;
 }) {
   const [preview, setPreview] = useState<Preview | null>(null),
     [error, setError] = useState(""),
@@ -256,27 +260,24 @@ export function DbcEconomics({
             />
           ))}
         </div>
-        <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            [sustainable ? "Creator · 40%" : "Creator · 80%", fees.creator, Coins],
-            [sustainable ? "Content budget · 20%" : "Content budget · 0%", fees.content, Video],
-            [sustainable ? "Solcameo · 20%" : "Solcameo · 0%", fees.platform, ArrowRight],
-            ["Meteora · 20%", fees.protocol, ShieldCheck],
-          ].map(([label, amount, Icon]) => {
-            const I = Icon as typeof Coins;
-            return (
-              <div key={String(label)}>
-                <dt className="flex items-center gap-2 text-xs text-zinc-500">
-                  <I className="size-3" />
-                  {String(label)}
-                </dt>
-                <dd className="mt-2 text-lg font-medium tabular-nums">
-                  {fmt(Number(amount))}{" "}
-                  <span className="text-xs font-normal text-zinc-500">SOL</span>
-                </dd>
-              </div>
-            );
-          })}
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([
+            { label: "Creator", pct: sustainable ? 40 : 80, amount: fees.creator, kind: "creator" },
+            { label: "Content budget", pct: sustainable ? 20 : 0, amount: fees.content, kind: "content" },
+            { label: "Solcameo", pct: sustainable ? 20 : 0, amount: fees.platform, kind: "solcameo" },
+            { label: "Meteora", pct: 20, amount: fees.protocol, kind: "meteora" },
+          ] as const).map(({ label, pct, amount, kind }, i) => (
+            <motion.div key={label} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <dt className="flex items-center gap-2 text-xs text-zinc-400">
+                <FeeLogo kind={kind} creatorImage={creatorImage} coinImage={coinImage} />
+                <span className="min-w-0 truncate">{label}<span className="ml-1 text-zinc-600">{pct}%</span></span>
+              </dt>
+              <dd className="mt-2.5 text-lg font-medium tabular-nums">
+                {fmt(Number(amount))}{" "}
+                <span className="text-xs font-normal text-zinc-500">SOL</span>
+              </dd>
+            </motion.div>
+          ))}
         </dl>
       </div>
       <details className="rounded-xl border border-white/10 p-4">
@@ -371,4 +372,17 @@ export function DbcEconomics({
       </p>
     </section>
   );
+}
+
+/* eslint-disable @next/next/no-img-element -- small brand and profile images */
+/** Logo or profile picture for each slice of the trading fee. Falls back to an icon when no picture is known. */
+function FeeLogo({ kind, creatorImage, coinImage }: { kind: "creator" | "content" | "solcameo" | "meteora"; creatorImage?: string; coinImage?: string }) {
+  if (kind === "creator") return creatorImage
+    ? <img src={creatorImage} alt="" className="size-7 rounded-full object-cover ring-1 ring-white/20" />
+    : <span className="grid size-7 place-items-center rounded-full bg-[#d7ff00]/15 text-[#d7ff00]"><Coins className="size-3.5" /></span>;
+  if (kind === "content") return coinImage
+    ? <img src={coinImage} alt="" className="size-7 rounded-[6px] object-cover ring-1 ring-white/20" />
+    : <span className="grid size-7 place-items-center rounded-[6px] bg-white/10 text-white/70"><Video className="size-3.5" /></span>;
+  if (kind === "solcameo") return <img src="/brand/solcameo-mark.png" alt="" className="size-7 rounded-[6px] bg-white/5 object-contain p-0.5 ring-1 ring-white/15" />;
+  return <img src="/logos/meteora.svg" alt="" className="size-7 rounded-[6px] bg-white/5 object-contain p-1 ring-1 ring-white/15" />;
 }

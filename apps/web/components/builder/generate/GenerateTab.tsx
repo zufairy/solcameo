@@ -308,25 +308,6 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, agentName, char
               ))}
             </div>
           )}
-          {characterAssets.length > 0 && (
-            <div className="mb-3">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Your AI influencer</p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {characterAssets.map((c) => {
-                  const on = refIds.includes(c.id);
-                  return (
-                    <button key={c.id} type="button" title={on ? "Remove reference" : "Use this face as the reference"}
-                      onClick={() => setRefIds((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : prev.length >= MAX_REFS ? prev : [...prev, c.id]))}
-                      className={`relative size-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${on ? "border-lime-400" : "border-white/10 hover:border-white/30"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={c.url} alt={c.engineLabel} className="size-full object-cover" />
-                      {on && <span className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-lime-500 text-[9px] font-black text-black">✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
           <MentionTextarea
             value={prompt}
             onChange={setPrompt}
@@ -340,6 +321,21 @@ export function GenerateTab({ mintAddress, sessionId, avatarUrl, agentName, char
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ChipSelect value={engineId} onChange={setEngineId} title="Image model"
               options={generateEngines.map((e) => ({ value: e.id, label: `${e.label} · $${imageRetailPriceUsd(e).toFixed(3)}` }))} />
+            {characterAssets.length > 0 && (
+              <div className="flex -space-x-1.5" role="group" aria-label="Influencer face reference">
+                {characterAssets.map((c) => {
+                  const on = refIds.includes(c.id);
+                  return (
+                    <button key={c.id} type="button" title={on ? "Remove face reference" : "Use this face as the reference"}
+                      onClick={() => setRefIds((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : prev.length >= MAX_REFS ? prev : [...prev, c.id]))}
+                      className={`relative size-7 shrink-0 overflow-hidden rounded-full ring-2 transition ${on ? "z-10 ring-lime-400" : "opacity-55 ring-[#050506] hover:opacity-100"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.url} alt={c.engineLabel} className="size-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <label className={`${CHIP} cursor-pointer`}>
               {uploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
               {uploading ? "Uploading…" : "Upload"}

@@ -6,7 +6,11 @@ import { Loader2, PlayCircle, RefreshCw, AlertTriangle, Sparkles, Clock, Film, W
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useSiwsSession } from "@/hooks/use-siws-session";
-import { getVideoEngine, videoCreditsForLength, clipsForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { getVideoEngine, videoCostForLength, VIDEO_STORYBOARD_COST_USDC, clipsForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { formatRetailUsd } from "@/lib/pricing/retail";
+import { useAgentWallet } from "@/components/builder/useAgentWallet";
+import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
+import { CONNECT_BUTTON_CLASS } from "@/components/builder/connectButton";
 import { formatById } from "@/lib/builder/formatCatalog";
 
 /** Sample gate — the wizard's step 6. Renders ONE real sample video against
@@ -94,6 +98,10 @@ export default function SampleGate({
   // even if a format/engine combo renders a different ratio than requested.
   const [sampleIsLandscape, setSampleIsLandscape] = useState(false);
   const launchedRef = useRef(false);
+  // The agent pays for its own render from its wallet, so show that wallet and let the operator top it up right here.
+  const agentDoc = useQuery(api.influencers.getByMint, { mintAddress }) as { agentWallet?: string; name?: string } | null | undefined;
+  const agentWallet = useAgentWallet({ address: agentDoc?.agentWallet, mintAddress, ready: agentDoc !== undefined });
+  const [fundOpen, setFundOpen] = useState(false);
 
   const launch = async () => {
     // Bump the persisted launch counter BEFORE the request — this call is a
@@ -161,7 +169,9 @@ export default function SampleGate({
   const engineOpt = getVideoEngine(videoEngine as VideoEngineId | undefined);
   const planSeconds = durationSeconds && durationSeconds > 0 ? durationSeconds : 24;
   const planClips = clipsForLength(engineOpt, planSeconds);
-  const planCredits = videoCreditsForLength(engineOpt, planSeconds);
+  const planUsd = VIDEO_STORYBOARD_COST_USDC + videoCostForLength(engineOpt, planSeconds);
+  const walletUsdc = agentWallet.funds?.usdc;
+  const walletShort = walletUsdc != null && walletUsdc + 0.005 < planUsd;
   const planFormatName = formatById(formatId)?.name ?? formatId;
   // Wall-clock estimate for the progress bar: planning/storyboard overhead +
   // a per-clip render allowance (sequential frame-chained engines take the
@@ -249,19 +259,30 @@ export default function SampleGate({
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
                 <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"><Wallet className="size-3" /> Est. cost</p>
-                <p className="mt-0.5 text-[12.5px] font-bold text-lime-300">{planCredits.toLocaleString()} credits</p>
+                <p className="mt-0.5 text-[12.5px] font-bold text-white">{formatRetailUsd(planUsd)}</p>
               </div>
             </div>
             {topicHint?.trim() && (
               <p className="max-w-sm truncate text-[11.5px] text-zinc-500">Topic: <span className="text-zinc-400">{topicHint.trim()}</span></p>
             )}
+            {/* Charged to the agent wallet, with a one-tap top-up when it is short. */}
+            <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Paid from the agent wallet</p>
+                <p className="mt-0.5 text-[12.5px] font-medium text-zinc-200 tabular-nums">
+                  {walletUsdc != null ? `${formatRetailUsd(walletUsdc)} available` : agentWallet.setupFailed ? "Wallet setup failed" : "Loading balance…"}
+                  {walletShort && <span className="ml-1.5 text-amber-300">· needs {formatRetailUsd(planUsd - walletUsdc!)} more</span>}
+                </p>
+              </div>
+              <button type="button" onClick={() => setFundOpen(true)} className={`${CONNECT_BUTTON_CLASS} shrink-0`}>Add funds</button>
+            </div>
             <div className="mt-1 flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={startLaunch}
                 className="flex items-center gap-2 rounded-lg bg-lime-500 px-5 py-2.5 text-[13px] font-bold text-black shadow-[0_1px_0_rgba(255,255,255,0.2)_inset] transition-colors hover:bg-lime-400"
               >
-                <PlayCircle className="size-4" /> Generate sample · {planCredits.toLocaleString()} credits
+                <PlayCircle className="size-4" /> Generate sample · {formatRetailUsd(planUsd)}
               </button>
               <button
                 type="button"
@@ -415,6 +436,7 @@ export default function SampleGate({
           </div>
         )}
       </div>
+      <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} agentWallet={agentWallet.wallet} agentName={agentDoc?.name} suggestedUsdc={walletShort ? planUsd - (walletUsdc ?? 0) : planUsd} />
     </div>
   );
 }

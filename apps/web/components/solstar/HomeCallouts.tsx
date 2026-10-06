@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Download, Flame, Globe, Megaphone, Loader2, Shuffle } from "lucide-react";
-import { calloutCardBlob, CALLOUT_THEMES, compact, isThemeId, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
-import { CalloutArt } from "./CalloutArt";
+import { Download, Flame, Globe, Megaphone, Loader2 } from "lucide-react";
+import { calloutCardBlob, compact, type CalloutCardData } from "@/lib/client/calloutCard";
+import { CalloutVisual } from "./CalloutVisual";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -20,7 +20,7 @@ import type { MarketRow } from "./MarketTable";
 
 
 type Observation = { available: boolean; capSol?: number; supplyTokens?: number; changeSinceLaunchPct?: number; appVolume24hLamports?: string };
-type ViewStats = { views: number; videos: number; bars: number[] };
+type ViewStats = { views: number; videos: number; bars: number[]; thumbs: string[] };
 function pct(n: number) { return `${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`; }
 function usd(value: number | undefined, compact = false) { return value == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: compact ? "compact" : "standard", maximumFractionDigits: compact ? 2 : value < 1 ? 7 : 2 }).format(value); }
 function usePools(rows: MarketRow[] | undefined) {
@@ -58,12 +58,13 @@ function useViewStats() {
   return useMemo(() => {
     const byTicker = new Map<string, ViewStats>();
     if (!agents || !feed || Array.isArray(feed)) return byTicker;
-    const byMint = new Map<string, number[]>();
-    for (const v of feed.items) byMint.set(v.mint, [...(byMint.get(v.mint) ?? []), Math.max(0, Math.floor(v.viewCount ?? 0))]);
+    const byMint = new Map<string, Array<{ views: number; poster: string | null }>>();
+    for (const v of feed.items) byMint.set(v.mint, [...(byMint.get(v.mint) ?? []), { views: Math.max(0, Math.floor(v.viewCount ?? 0)), poster: v.posterUrl ?? null }]);
     for (const a of agents) {
       if (!a.ticker) continue;
       const list = byMint.get(a.mintAddress) ?? [];
-      byTicker.set(a.ticker.toUpperCase(), { views: list.reduce((n, x) => n + x, 0), videos: list.length, bars: [...list].sort((x, y) => y - x).slice(0, 8) });
+      const top = [...list].sort((x, y) => y.views - x.views);
+      byTicker.set(a.ticker.toUpperCase(), { views: list.reduce((n, x) => n + x.views, 0), videos: list.length, bars: top.slice(0, 8).map((x) => x.views), thumbs: top.map((x) => x.poster).filter((u): u is string => !!u).slice(0, 6) });
     }
     return byTicker;
   }, [agents, feed]);
@@ -72,8 +73,6 @@ export function HomeCallouts() {
   const rows = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
   const callouts = useQuery(api.solstarFeed.listCallouts, {});
   const pools = usePools(rows); const viewStats = useViewStats(); const rate = useSolUsd(); const now = useNow(30000); const reduced = useReducedMotion();
-  const [theme, setTheme] = useState<CalloutThemeId>("colosseum");
-  const shuffleTheme = () => setTheme(cur => { const rest = CALLOUT_THEMES.filter(t => t.id !== cur); return rest[Math.floor(Math.random() * rest.length)].id; });
   const [open, setOpen] = useState(false), [characterId, setCharacterId] = useState(""), [body, setBody] = useState(""), [sending, setSending] = useState(false), [error, setError] = useState(""), [posted, setPosted] = useState(false), [note, setNote] = useState("");
   const selected = rows?.find(r => r.characterId === characterId);
   const cap = (id: string) => pools[id]?.available && pools[id]?.capSol != null && rate != null ? pools[id].capSol! * rate : undefined;
@@ -82,7 +81,7 @@ export function HomeCallouts() {
     setSending(true); setError("");
     try {
       if (!getCurrentSiwsToken()) await ensureSiwsViaRegistered();
-      const res = await fetch("/api/solstar/feed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: body.trim(), characterId, theme, ...(pools[characterId]?.available && pools[characterId]?.capSol ? { callCapSol: pools[characterId].capSol } : {}) }) });
+      const res = await fetch("/api/solstar/feed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: body.trim(), characterId, ...(pools[characterId]?.available && pools[characterId]?.capSol ? { callCapSol: pools[characterId].capSol } : {}) }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error === "rate_limited" ? "Please wait before posting another callout." : data.error === "duplicate_message" ? "You already posted that message." : "Connect your wallet and sign in to post a callout.");
       setPosted(true);
@@ -91,20 +90,16 @@ export function HomeCallouts() {
   const rowById = new Map((rows ?? []).map(r => [r.characterId as string, r]));
   /** Everything the share card shows, from live pool data. `callCapSol` turns the headline into the gain since the call. */
   function buildCard(id: string, text: string, who: { name: string; ticker: string; imageUrl?: string }, callCapSol?: number, caller?: string): CalloutCardData {
-    const o = pools[id], row = rowById.get(id);
+    const o = pools[id];
     const capNow = o?.available ? o.capSol : undefined;
     const sinceCall = callCapSol && capNow ? (capNow / callCapSol - 1) * 100 : null;
-    const volumeSol = o?.appVolume24hLamports ? Number(o.appVolume24hLamports) / 1e9 : undefined;
     return {
       name: who.name, ticker: who.ticker, imageUrl: who.imageUrl, body: text, cap: usd(cap(id), true),
       changePct: sinceCall ?? (o?.available ? o.changeSinceLaunchPct ?? null : null),
       label: sinceCall != null ? "SINCE CALL" : "SINCE LAUNCH",
       views: viewStats.get(who.ticker.toUpperCase())?.views ?? 0,
       videos: viewStats.get(who.ticker.toUpperCase())?.videos,
-      bars: viewStats.get(who.ticker.toUpperCase())?.bars,
-      volume: volumeSol != null && rate ? usd(volumeSol * rate, true) : undefined,
-      followers: row?.followers,
-      calledAt: callCapSol && rate ? usd(callCapSol * rate, true) : undefined,
+      thumbs: viewStats.get(who.ticker.toUpperCase())?.thumbs,
       caller,
     };
   }
@@ -113,7 +108,7 @@ export function HomeCallouts() {
   const shareText = `I just called out $${selected?.ticker ?? ""} on Solcameo: "${body.trim().slice(0, 180)}"`;
   async function shareToX() {
     setNote("");
-    const blob = await calloutCardBlob(cardData, theme);
+    const blob = await calloutCardBlob(cardData);
     const file = blob ? new File([blob], `solcameo-${selected?.ticker ?? "callout"}.png`, { type: "image/png" }) : null;
     try { if (file && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text: shareText, url: shareUrl }); return; } } catch { /* fall through to the X composer */ }
     let copied = false;
@@ -122,7 +117,7 @@ export function HomeCallouts() {
     window.open(`https://x.com/intent/post?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer");
   }
   async function saveCard() {
-    const blob = await calloutCardBlob(cardData, theme);
+    const blob = await calloutCardBlob(cardData);
     if (!blob) { setNote("Could not render the card image."); return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `solcameo-${selected?.ticker ?? "callout"}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
@@ -131,25 +126,18 @@ export function HomeCallouts() {
   return <div className="@container min-w-0 text-zinc-200">
     <div className="grid @3xl:h-[calc(100dvh-136px)] @3xl:grid-cols-2 @3xl:divide-x @3xl:divide-white/10">
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
-    <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); shuffleTheme(); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
+    <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
       {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => {
-        const t = isThemeId(c.theme) ? c.theme : "colosseum", card = buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet);
+        const card = buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet);
         const has = card.changePct != null, up = (card.changePct ?? 0) >= 0;
-        return <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="border-b border-white/5 px-5 py-4">
-          <div className="flex items-center gap-2 text-xs"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-300">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div>
-          <p className="my-2.5 whitespace-pre-wrap break-words text-[15px] leading-6 text-zinc-100">{c.body}</p>
-          <Link href={`/market/${c.characterId}`} data-theme={t} aria-label={`Open ${c.name} market`} className="callout-info group relative flex min-h-[96px] items-center gap-4 overflow-hidden rounded-[10px] p-4">
-            <img src={c.imageUrl} alt="" className="relative size-14 shrink-0 rounded-[8px] object-cover ring-2 ring-[var(--ci-accent)]" />
-            <div className="relative min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 truncate text-[15px] font-extrabold uppercase tracking-wide text-white"><span className="truncate">{c.name}</span><span className="shrink-0 rounded-[4px] bg-white px-1.5 py-0.5 text-[10px] font-bold text-black">${c.ticker}</span></p>
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-white/65"><span><span className="text-white/45">MCap </span><span className="font-semibold text-white">{usd(cap(String(c.characterId)), true)}</span></span><span><span className="text-white/45">Views </span><span className="font-semibold text-white">{compact(card.views ?? 0)}</span></span></p>
-            </div>
-            <div className="relative shrink-0 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">{has ? (card.label === "SINCE CALL" ? "Since call" : "Since launch") : "Market cap"}</p>
-              <p className={`mt-1 text-[30px] font-black leading-none tabular-nums ${has ? (up ? "text-[var(--ci-accent)]" : "text-rose-300") : "text-[var(--ci-accent)]"}`}>{has ? `${up ? "▲" : "▼"} ${Math.abs(card.changePct as number).toFixed(1)}%` : usd(cap(String(c.characterId)), true)}</p>
-            </div>
-          </Link>
+        return <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3 border-b border-white/5 px-5 py-4 @md:flex-row @md:items-start">
+          <Link href={`/market/${c.characterId}`} aria-label={`Open ${c.name} market`} className="block w-full shrink-0 @md:w-[236px]"><CalloutVisual data={card} /></Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-xs"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-300">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div>
+            <p className="my-2 whitespace-pre-wrap break-words text-[15px] leading-6 text-zinc-100">{c.body}</p>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums text-zinc-400"><Link href={`/market/${c.characterId}`} className="font-semibold text-white hover:underline">{c.name} <span className="text-zinc-500">${c.ticker}</span></Link>{has && <span className={`rounded-[4px] px-1.5 py-0.5 font-semibold ${up ? "bg-[#c8f02a]/12 text-[#c8f02a]" : "bg-rose-400/12 text-rose-300"}`}>{up ? "▲" : "▼"} {Math.abs(card.changePct as number).toFixed(1)}% {card.label === "SINCE CALL" ? "since call" : "since launch"}</span>}<span>{compact(card.views ?? 0)} views</span><span>{card.videos ?? 0} videos</span></p>
+          </div>
         </motion.article>;
       })}
     </div>
@@ -170,14 +158,9 @@ export function HomeCallouts() {
     </div>
     <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
       <div className="grid gap-5 md:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[520px] md:max-w-none"><CalloutArt replay scale={0.6} data={cardData} theme={theme} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /></div>
+        <div className="mx-auto w-full max-w-[520px] md:max-w-none"><CalloutVisual replay data={cardData} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /></div>
         <div className="flex min-w-0 flex-col gap-4 md:py-1">
-          <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Pick an agent, pick a look, make your call."}</DialogDescription></div>
-          <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Template</p>
-            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Card theme">
-              {CALLOUT_THEMES.map(t => <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => setTheme(t.id)} className={`flex h-8 items-center gap-2 rounded-[6px] px-3 text-xs font-medium transition-colors ${theme === t.id ? "bg-white/[0.12] text-white" : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"}`}><span aria-hidden className="size-2.5 rounded-full" style={{ background: t.accent }} />{t.label}</button>)}
-              <button type="button" onClick={shuffleTheme} aria-label="Random template" title="Random template" className="ml-auto grid size-8 place-items-center rounded-[6px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white"><Shuffle className="size-4" /></button>
-            </div></div>
+          <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Pick an agent and make your call. Its live video stats become the card."}</DialogDescription></div>
           {!posted ? <>
             <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Agent</p>
               <Select value={characterId} onValueChange={v => setCharacterId(v ?? "")}>

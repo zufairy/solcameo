@@ -7,6 +7,7 @@ import velloLogo from "@/assets/solcameo-dark.png";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
+import { CONNECT_BUTTON_CLASS } from "./connectButton";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Line, LineChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import {
@@ -2428,7 +2429,7 @@ function AgentSettingsCog({
         aria-expanded={open}
         aria-label="Agent settings"
         title="Agent settings"
-        className="grid size-10 place-items-center rounded-xl border border-white/25 bg-white/[0.12] text-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.2] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        className={`${CONNECT_BUTTON_CLASS} size-9 justify-center !px-0`}
       >
         <Settings className={`size-[18px] transition-transform duration-200 ${open ? "rotate-45" : ""}`} aria-hidden />
       </button>
@@ -3253,6 +3254,10 @@ function ClipperHomeCockpit(props: {
   // way the Posting tab joins them (scheduledContent has no clipId column).
   // Remaining slots: the latest rendered clips, newest first — max 8 total.
   const clipRows = useQuery(api.clipJobs.listClipsByMint, mintAddress ? { mintAddress } : "skip") as Doc<"clips">[] | undefined;
+  // The agent's coin ticker, shown beside its name.
+  const homeInfluencer = useQuery(api.influencers.getByMint, mintAddress ? { mintAddress } : "skip") as { solstarCharacterId?: Id<"ssCharacters"> } | null | undefined;
+  const homeCoin = useQuery(api.solstarMarket.terminal, homeInfluencer?.solstarCharacterId ? { characterId: homeInfluencer.solstarCharacterId } : "skip");
+  const homeTicker = homeCoin?.token.ticker;
   const scheduledRows = useQuery(api.scheduledContent.listByMint, mintAddress ? { mintAddress, limit: 100 } : "skip") as
     Doc<"scheduledContent">[] | undefined;
   const nextScheduledPost = useMemo(() => {
@@ -3372,10 +3377,13 @@ function ClipperHomeCockpit(props: {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-sans text-2xl font-semibold text-white leading-[1.05] truncate">{displayName}</h2>
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="min-w-0 truncate font-sans text-2xl font-semibold leading-[1.05] text-white">{displayName}</h2>
+                  {homeTicker && <span className="shrink-0 rounded-[5px] bg-white px-1.5 py-1 text-[11px] font-bold leading-none tracking-wide text-black">${homeTicker.toUpperCase()}</span>}
+                </div>
                 {p.handle && <p className="mt-0.5 font-sans text-[12.5px] text-zinc-500 truncate">@{p.handle.replace(/^@/, "")}</p>}
                 {/* Description sits where the status pill used to lead, white text. */}
-                <p className="mt-2 text-[12.5px] leading-snug text-white">{tagline}</p>
+                <p className="mt-2.5 text-[15px] leading-[1.45] text-white">{tagline}</p>
                 {/* Status pill, the "Live on Solana" state shows NOTHING (hidden
                     per request); only in-progress states keep a pill. */}
                 {!isOnchainMinted && (
@@ -3435,13 +3443,11 @@ function ClipperHomeCockpit(props: {
                 <button
                   type="button"
                   onClick={isClipping ? onStartClipping : onTestAgent}
-                  className="group relative w-full overflow-hidden rounded-2xl border border-white/25 bg-gradient-to-b from-white/[0.16] to-white/[0.06] px-4 py-2 text-[15px] font-semibold tracking-[-0.01em] text-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.14] hover:shadow-[0_22px_50px_-24px_rgba(255,255,255,0.65),inset_0_1px_0_rgba(255,255,255,0.24)] active:translate-y-0"
+                  className={`${CONNECT_BUTTON_CLASS} group relative w-full justify-center overflow-hidden !py-2.5 !text-[12.5px]`}
                 >
-                  <span aria-hidden className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative inline-flex items-center justify-center gap-2.5">
-                    <span className="grid size-6 place-items-center rounded-full border border-white/15 bg-black/20">{isClipping ? <Scissors className="size-3" /> : <Clapperboard className="size-3" />}</span>
+                  <span className="relative inline-flex items-center justify-center gap-2">
+                    {isClipping ? <Scissors className="size-3.5" /> : <Clapperboard className="size-3.5" />}
                     {isClipping ? "Start clipping" : "Generate next video"}
-                    <ArrowUpRight className="size-4 text-white/60 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </span>
                 </button>
               )}

@@ -1,4 +1,4 @@
-/* ════════ Vello Docs — chapter map (single source of truth) ════════
+/* ════════ Solcameo Docs: chapter map (single source of truth) ════════
    Every docs route, its nav segment, sidebar group, and the section anchors
    that drive scroll-spy + the progress rail all live here. The shell reads
    this; the page files only supply prose. Keep section ids in sync with the
@@ -9,7 +9,7 @@ export type DocSection = { id: string; label: string };
 export type DocChapter = {
   /** Route path. The overview lives at /docs (slug ""). */
   slug: string;
-  /** Top-nav segment label — matches the /landing nav exactly. */
+  /** Top-nav segment label. */
   nav: string;
   /** Roman numeral shown in the sidebar (overview has none). */
   numeral?: string;
@@ -26,12 +26,12 @@ export const DOCS_BASE = "/docs";
 export const CHAPTERS: DocChapter[] = [
   {
     slug: "",
-    nav: "How to",
-    title: "How to launch & earn with Vello",
+    nav: "Overview",
+    title: "Launch an AI character with its own coin",
     eyebrow: "Overview",
     sections: [
       { id: "welcome", label: "Introduction" },
-      { id: "what-is-vello", label: "What is Vello?" },
+      { id: "what-is-solcameo", label: "What is Solcameo?" },
       { id: "the-journey", label: "The four stages" },
       { id: "prerequisites", label: "Before you start" },
       { id: "using-these-docs", label: "Using these docs" },
@@ -45,63 +45,58 @@ export const CHAPTERS: DocChapter[] = [
     eyebrow: "Chapter I",
     sections: [
       { id: "intro", label: "Introduction" },
-      { id: "create-account", label: "Create your account" },
-      { id: "connect-wallet", label: "Connect a wallet" },
-      { id: "fund-agent", label: "Fund your agent" },
-      { id: "first-influencer", label: "Launch your first influencer" },
-      { id: "dashboard", label: "Your dashboard" },
+      { id: "sign-in", label: "Sign in" },
+      { id: "wallet", label: "Your wallet" },
+      { id: "deposit", label: "Add SOL" },
+      { id: "explore-first", label: "Look around first" },
     ],
   },
   {
     slug: "build",
-    nav: "Build",
+    nav: "Create",
     numeral: "II",
-    title: "Build a Vello agent",
+    title: "Create your influencer",
     eyebrow: "Chapter II",
     sections: [
       { id: "intro", label: "Introduction" },
       { id: "open-builder", label: "Open the builder" },
-      { id: "persona", label: "Persona & niche" },
-      { id: "face-voice", label: "Face & voice" },
-      { id: "mint", label: "Mint the identity" },
-      { id: "memory", label: "Knowledge & memory" },
-      { id: "content-style", label: "Content style" },
-      { id: "skills", label: "Add skills" },
-      { id: "templates", label: "Skill templates" },
-      { id: "schedule", label: "Publishing schedule" },
+      { id: "character", label: "Design the character" },
+      { id: "generate", label: "Generate and save" },
+      { id: "video-ideas", label: "Top video ideas" },
+      { id: "replicate", label: "Replicate a motion" },
+      { id: "identity", label: "One identity everywhere" },
     ],
   },
   {
-    slug: "sell",
-    nav: "Sell",
+    slug: "launch",
+    nav: "Launch",
     numeral: "III",
-    title: "Campaigns & posting",
+    title: "Launch its coin",
     eyebrow: "Chapter III",
     sections: [
       { id: "intro", label: "Introduction" },
-      { id: "daily-posting", label: "Daily posting" },
-      { id: "browse-campaigns", label: "Browse campaigns" },
-      { id: "eligibility", label: "Campaign eligibility" },
-      { id: "submissions", label: "Submissions" },
-      { id: "approvals", label: "Approvals & review" },
-      { id: "captions", label: "Smart captions" },
+      { id: "coin-details", label: "Name and ticker" },
+      { id: "approve", label: "Approve the launch" },
+      { id: "the-curve", label: "The bonding curve" },
+      { id: "graduation", label: "Graduation" },
+      { id: "fees", label: "Where fees go" },
+      { id: "devnet-risk", label: "Devnet and risk" },
     ],
   },
   {
-    slug: "scale",
-    nav: "Scale",
+    slug: "grow",
+    nav: "Grow",
     numeral: "IV",
-    title: "Earn & scale",
+    title: "Community, callouts and growth",
     eyebrow: "Chapter IV",
     sections: [
       { id: "intro", label: "Introduction" },
-      { id: "how-earning-works", label: "How earning works" },
-      { id: "usdc-payouts", label: "USDC payouts" },
-      { id: "treasury", label: "Vaults & treasury" },
-      { id: "analytics", label: "Performance analytics" },
-      { id: "multiple-agents", label: "Run multiple agents" },
-      { id: "agency", label: "Make money as an agency" },
-      { id: "whats-next", label: "What comes next" },
+      { id: "market-page", label: "The market page" },
+      { id: "community-chat", label: "Community chat" },
+      { id: "chapters", label: "Fans steer the plot" },
+      { id: "callouts", label: "Callouts" },
+      { id: "leaderboard", label: "The leaderboard" },
+      { id: "analytics", label: "Analytics and sharing" },
     ],
   },
 ];

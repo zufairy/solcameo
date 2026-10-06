@@ -43,6 +43,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { LiveDbcLaunch } from "./LiveDbcLaunch";
+import { Notice } from "./Notice";
+import dynamic from "next/dynamic";
+import { Loader2 as Spinner, Wand2 } from "lucide-react";
+
+const LaunchConfetti = dynamic(() => import("./LaunchConfetti"), { ssr: false });
 import {
   DEFAULT_DBC,
   dbcOptionsSchema,
@@ -151,7 +156,9 @@ function InfluencerOnboardingContent({
   const reduced = useReducedMotion();
   const [autoLaunch, setAutoLaunch] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
-  const { authenticated, login } = useSupabaseAuth();
+  const { authenticated, login, profile } = useSupabaseAuth();
+  const [writing, setWriting] = useState(false);
+  const [storyError, setStoryError] = useState("");
   const [draft] = useState(readDraft);
   const [step, setStep] = useState(draft.pendingCharacterId ? 3 : 0);
   const [character, setCharacter] = useState<SavedCharacter | null>(
@@ -192,6 +199,24 @@ function InfluencerOnboardingContent({
       /* Private browser storage may be unavailable. */
     }
   }, [character, concept, dbcOptions, pendingCharacterId, launchMode]);
+  /** Magic prompt: search the web for the name and write a Gen Z hype character story. */
+  async function magicStory() {
+    if (!authenticated) { login(); return; }
+    if (!concept.name.trim() || writing) return;
+    setWriting(true); setStoryError("");
+    try {
+      const res = await fetch("/api/character/story", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: concept.name, ticker: concept.ticker, category: concept.category }) });
+      const data = (await res.json().catch(() => ({}))) as { story?: string; error?: string };
+      if (!res.ok || !data.story) throw new Error(data.error || "Couldn't write a story right now.");
+      requestKey.current = null;
+      setConcept((p) => ({ ...p, bio: data.story! }));
+    } catch (e) {
+      setStoryError(e instanceof Error ? e.message : "Couldn't write a story right now.");
+    } finally {
+      setWriting(false);
+    }
+  }
+
   function continueToReview() {
     const result = validateConcept(concept);
     if (step === 2) {
@@ -422,7 +447,19 @@ function InfluencerOnboardingContent({
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="coin-bio">Character story</Label>
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="coin-bio">Character story</Label>
+                      <button
+                        type="button"
+                        onClick={() => void magicStory()}
+                        disabled={writing || !concept.name.trim()}
+                        title={concept.name.trim() ? "Searches the web for your name and writes a hype story" : "Add a name first"}
+                        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/25 bg-gradient-to-b from-white/[0.2] to-white/[0.06] px-3 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-xl transition-colors hover:from-white/[0.28] hover:to-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {writing ? <Spinner className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
+                        {writing ? "Searching and writing…" : "Magic prompt"}
+                      </button>
+                    </div>
                     <Textarea
                       id="coin-bio"
                       value={concept.bio}
@@ -434,9 +471,10 @@ function InfluencerOnboardingContent({
                       placeholder="What makes your influencer worth following?"
                       className="min-h-24"
                     />
-                    <p className="text-right text-xs text-zinc-600">
-                      {concept.bio.length}/280
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs text-red-400">{storyError}</p>
+                      <p className="shrink-0 text-xs text-zinc-600">{concept.bio.length}/280</p>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label id="category-label">Category</Label>
@@ -552,13 +590,14 @@ function InfluencerOnboardingContent({
                       setDbcOptions(value);
                     }}
                     readOnly
+                    creatorImage={profile?.image}
+                    coinImage={character?.image.url}
                   />
-                  <div className="rounded-xl border border-[#d7ff00]/15 bg-[#d7ff00]/5 p-4 text-sm leading-6 text-zinc-400">
-                    <Coins className="mb-2 size-5 text-[#d7ff00]" />
+                  <Notice tone="info" title={launchMode === "live" ? "Before you launch" : "Preview launch"}>
                     {launchMode === "live"
                       ? "Prepare your character, then approve the Meteora configuration and pool creation in your wallet. Your selected curve and liquidity settings are fixed at launch."
                       : "This creates a simulated coin. The curve is a launch preview; no live token is minted, funds transferred, or daily posting activated."}
-                  </div>
+                  </Notice>
                   <div className="flex items-start gap-3">
                     <Switch
                       id="rights"
@@ -573,14 +612,7 @@ function InfluencerOnboardingContent({
                       I have the rights to use this character and its images.
                     </Label>
                   </div>
-                  {error && (
-                    <p
-                      role="alert"
-                      className="rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-sm text-red-300"
-                    >
-                      {error}
-                    </p>
-                  )}
+                  {error && <Notice tone="error" title="Something went wrong">{error}</Notice>}
                   {pendingCharacterId && (
                     <LiveDbcLaunch
                       autoStart={autoLaunch}
@@ -659,6 +691,7 @@ function InfluencerOnboardingContent({
           </motion.div>
         )}
       </main>
+      <LaunchConfetti fire={!!createdId} />
       <Dialog
         open={!!createdId}
         onOpenChange={(open) => {

@@ -56,7 +56,7 @@ function ShareProgress({ value, label, compact }: { value: number; label: string
   );
 }
 
-export function ShareOnX({ mint, name, compact = false }: { mint: string; name: string; compact?: boolean }) {
+export function ShareOnX({ mint, name, compact = false, inline = false }: { mint: string; name: string; compact?: boolean; /** Sits in a row beside another button instead of filling its own line. */ inline?: boolean }) {
   const { getFreshToken } = useSupabaseAuth();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -329,7 +329,7 @@ export function ShareOnX({ mint, name, compact = false }: { mint: string; name: 
         type="button"
         whileTap={{ scale: 0.98 }}
         onClick={openShare}
-        className={`group inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/25 bg-white/[0.12] font-semibold text-white backdrop-blur-xl transition-[background-color,border-color,transform] duration-300 hover:border-white/45 hover:bg-white/[0.2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_18px_-8px_rgba(0,0,0,0.6)] ${compact ? "h-8 px-3 text-[11px]" : "mt-4 h-10 w-full text-[13px]"}`}
+        className={`group inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/25 bg-white/[0.12] font-semibold text-white backdrop-blur-xl transition-[background-color,border-color,transform] duration-300 hover:border-white/45 hover:bg-white/[0.2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_18px_-8px_rgba(0,0,0,0.6)] ${compact ? "h-8 px-3 text-[11px]" : inline ? "h-10 min-w-0 flex-1 px-3 text-[13px]" : "mt-4 h-10 w-full text-[13px]"}`}
       >
         <svg viewBox="0 0 24 24" className={`fill-current transition-transform duration-300 group-hover:scale-110 ${compact ? "size-3" : "size-3.5"}`} aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
         Share on X

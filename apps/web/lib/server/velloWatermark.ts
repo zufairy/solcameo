@@ -14,10 +14,10 @@ import { join } from "node:path";
  * VelloWatermark.tsx exactly — same design, same numbers, just burned instead
  * of previewed — so the export always matches what the editor showed. */
 export async function writeVelloWatermark(path: string, width: number, height: number): Promise<string> {
-  const logo = await readFile(join(process.cwd(), "public", "vello-logo-white.png"));
+  const logo = await readFile(join(process.cwd(), "public", "brand", "solcameo-dark.png"));
   const meta = await sharp(logo).metadata();
   const scale = Math.min(width, height) / 315;
-  const logoH = 15 * scale;
+  const logoH = 14 * scale;
   const logoW = logoH * (meta.width! / meta.height!);
   const x = width * 0.08;
   const textFontSize = 6 * scale;

@@ -449,6 +449,7 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
   const mints = useMemo(() => members.map((m) => m.mintAddress), [members]);
   const feed = useQuery(api.clipJobs.videoFeedByMints, { mintAddresses: mints });
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getTime();
   const monthEnd = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1).getTime() - 1;
   const scheduled = useQuery(api.scheduledContent.listByMintsInRange, { mintAddresses: mints, startMs: monthStart, endMs: monthEnd }) ?? [];
@@ -743,8 +744,34 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
               </p>
 
               <VideoStats videos={videos} loaded={!!feed} />
-              {!isTeam && <ShareOnX mint={lead.mintAddress} name={lead.name} />}
-              <MiniSchedule rows={scheduled} members={members} month={calendarMonth} onMonth={setCalendarMonth} />
+              <div className="mt-4 flex items-center gap-2">
+                {!isTeam && <ShareOnX mint={lead.mintAddress} name={lead.name} inline />}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setScheduleOpen((o) => !o)}
+                  aria-expanded={scheduleOpen}
+                  aria-controls="posting-schedule"
+                  className={`group inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border px-3.5 text-[13px] font-semibold text-white backdrop-blur-xl transition-[background-color,border-color] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_18px_-8px_rgba(0,0,0,0.6)] ${scheduleOpen ? "border-white/50 bg-white/[0.24]" : "border-white/25 bg-white/[0.12] hover:border-white/45 hover:bg-white/[0.2]"} ${isTeam ? "flex-1" : ""}`}
+                >
+                  <CalendarClock className="size-3.5 transition-transform duration-300 group-hover:scale-110" />
+                  Schedule
+                </motion.button>
+              </div>
+              <AnimatePresence initial={false}>
+                {scheduleOpen && (
+                  <motion.div
+                    id="posting-schedule"
+                    key="schedule"
+                    initial={{ opacity: 0, x: 44, height: 0, filter: "blur(14px)" }}
+                    animate={{ opacity: 1, x: 0, height: "auto", filter: "blur(0px)", transition: { height: { duration: 0.32, ease: [0.22, 1, 0.36, 1] }, x: { type: "spring", stiffness: 260, damping: 28 }, opacity: { duration: 0.3 }, filter: { duration: 0.42 } } }}
+                    exit={{ opacity: 0, x: 44, height: 0, filter: "blur(12px)", transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
+                    className="overflow-hidden"
+                  >
+                    <MiniSchedule rows={scheduled} members={members} month={calendarMonth} onMonth={setCalendarMonth} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {videos.length > 0 && (
                 <div className="mt-4">

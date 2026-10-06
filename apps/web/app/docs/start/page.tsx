@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { DocsShell, Section, Bullets, Steps, Note, DocLink } from "@/components/docs/docs-shell";
+import { DocsShell, DocVisual, Section, Bullets, Steps, Note, DocLink } from "@/components/docs/docs-shell";
 import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Getting Started With Vello Agents",
-  description:
-    "Create your Vello Agents account, connect a Solana wallet, fund your agent, and post your first shorts.",
-  keywords: ["Vello Agents getting started", "Vello Agents onboarding", "Solana wallet setup", "Vello guide"],
+  title: "Getting Started With Solcameo",
+  description: "Sign in to Solcameo, get a Solana wallet, add SOL and look around the market before you launch your first AI character.",
+  keywords: ["Solcameo getting started", "Solana wallet setup", "Privy sign in", "devnet SOL"],
   alternates: { canonical: canonicalUrl("/docs/start") },
 };
 
@@ -16,117 +15,78 @@ export default function StartPage() {
       slug="start"
       lead={
         <>
-          <p>
-            Getting onto Vello takes a few minutes: create an account, connect a wallet, and open the
-            builder. By the end of this chapter you will have your first AI influencer minted and ready
-            to post.
-          </p>
-          <p>
-            Never used a Solana wallet? You do not need one in advance. Vello can create one for you.
-          </p>
+          <p>Getting started takes a few minutes: sign in, get a wallet, add a little SOL. After that you can build and launch.</p>
+          <p>You do not need a Solana wallet in advance. Solcameo can create one for you.</p>
         </>
       }
+      figure={<DocVisual kind="start" caption="Four quick steps before your first character." />}
     >
       <Section id="intro" kicker="Overview" title="Introduction">
         <p>
-          Everything on Vello is tied to your account and your wallet. Your account is your identity.
-          Your wallet holds the SOL that mints an influencer&apos;s on-chain identity and the USDC that
-          funds its content and receives its earnings.
+          Your account is your identity on Solcameo, and your wallet is how you approve launches, trade coins and
+          receive earnings. The two are linked, so you only sign in once.
         </p>
-        <p>Follow these four steps in order: account, then wallet, then funds, then build.</p>
       </Section>
 
-      <Section id="create-account" kicker="Step 1" title="Create your account">
-        <p>Vello uses Privy for sign-in, so you have two ways in:</p>
+      <Section id="sign-in" kicker="Step 1" title="Sign in">
+        <p>Solcameo uses Privy, so there are two ways in:</p>
         <Bullets
           items={[
-            ["Google", "the fastest path. Sign in with Google and Vello creates an embedded Solana wallet for you behind the scenes."],
-            ["Solana wallet", "connect an existing wallet such as Phantom or Backpack and sign a message to log in. No email required."],
+            ["Google", "the fastest path. Solcameo creates an embedded Solana wallet for you behind the scenes."],
+            ["Solana wallet", "connect Phantom, Solflare or another wallet and sign a message. No email needed."],
           ]}
         />
         <Steps
           items={[
-            <>
-              Click <span className="font-medium text-neutral-900">Sign In</span> in the top-right of
-              any Vello page.
-            </>,
-            <>Choose Google or your wallet provider in the sign-in window.</>,
-            <>
-              Approve the prompt. You land on your <DocLink href="/wallet">wallet</DocLink> page, signed
-              in.
-            </>,
+            <>Click <span className="font-medium text-neutral-900">Sign in</span> at the top right of any page.</>,
+            <>Choose Google or your wallet.</>,
+            <>Approve the prompt. You are signed in and your balance appears in the header.</>,
           ]}
         />
       </Section>
 
-      <Section id="connect-wallet" kicker="Step 2" title="Connect a wallet">
+      <Section id="wallet" kicker="Step 2" title="Your wallet">
         <p>
-          Your wallet is how an influencer gets minted and paid. The wallet button in the header shows
-          your SOL balance, your address, and a link to view it on the Solana Explorer.
+          The balance in the header opens your wallet panel: your balance, your address (tap to copy), the wallet you
+          are connected with, and tabs to send SOL or see recent activity. Your profile page also shows the connected
+          address and when you joined.
         </p>
         <Bullets
           items={[
-            ["Embedded wallet", "if you signed in with Google, Vello already made one. Nothing to install."],
-            ["External wallet", "link Phantom or Backpack from the account menu. You can link more than one and switch between them."],
-            ["What it unlocks", "minting an influencer's identity, funding its content budget, and receiving USDC payouts."],
+            ["Embedded wallet", "created for you when you sign in with Google. Nothing to install."],
+            ["External wallet", "link Phantom or another wallet from the account menu. You can link more than one."],
+            ["What it is for", "approving a coin launch, buying and selling coins, and receiving creator fees."],
           ]}
         />
         <Note>
-          You sign every on-chain action through your connected wallet. Vello never holds your keys, so
-          the influencer&apos;s identity and earnings stay yours.
+          You approve every on-chain action in your own wallet. Solcameo never holds your keys.
         </Note>
       </Section>
 
-      <Section id="fund-agent" kicker="Step 3" title="Fund your agent">
-        <p>An influencer needs two kinds of funds to operate:</p>
+      <Section id="deposit" kicker="Step 3" title="Add SOL">
+        <p>
+          Press <span className="font-medium text-neutral-900">Deposit</span> in the header. It shows your wallet address:
+          send SOL there from any wallet or exchange and your balance updates on its own.
+        </p>
         <Bullets
           items={[
-            ["SOL, one time", "minting the influencer's avatar identity on-chain costs a small amount of SOL (around 0.5 SOL)."],
-            ["USDC, ongoing", "a monthly content budget the agent spends generating videos and using paid skills. You set the amount in the builder."],
+            ["On devnet", "use the “Get 1 devnet SOL” button for free test SOL. Devnet SOL has no monetary value."],
+            ["On mainnet", "buy SOL with a card from the same dialog."],
           ]}
         />
-        <p>
-          Top up or withdraw from the influencer&apos;s wallet at any time on the{" "}
-          <DocLink href="/wallet">wallet</DocLink> page. Earnings accrue there as USDC, and you sweep
-          them to your personal wallet whenever you like.
-        </p>
       </Section>
 
-      <Section id="first-influencer" kicker="Step 4" title="Launch your first influencer">
-        <p>
-          With an account and a funded wallet, you are ready to build. The{" "}
-          <DocLink href="/builder">builder</DocLink> is a guided, conversational flow. It asks you
-          questions and assembles the influencer as you answer.
-        </p>
-        <Steps
-          items={[
-            <>
-              Open <DocLink href="/studio/build">Build</DocLink> and start a new influencer, or jump
-              straight into the <DocLink href="/builder">builder</DocLink>.
-            </>,
-            <>Answer the persona questions: name, niche, and audience.</>,
-            <>Upload a few reference photos so Vello can generate the face.</>,
-            <>Mint the identity, then deepen the agent&apos;s knowledge and skills.</>,
-          ]}
-        />
-        <p>
-          The full creation process is covered step by step in{" "}
-          <DocLink href="/docs/build">Build a Vello agent</DocLink>.
-        </p>
-      </Section>
-
-      <Section id="dashboard" kicker="Where things live" title="Your dashboard">
-        <p>Once you have an influencer, these are the pages you will use most:</p>
+      <Section id="explore-first" kicker="Step 4" title="Look around first">
+        <p>It helps to see what a finished character looks like before you make one:</p>
         <Bullets
           items={[
-            ["My Agents", "your roster of influencers, their stats, and quick actions, at /studio."],
-            ["Generations", "every video your influencers have made, with status and view counts."],
-            ["Market", "open brand campaigns your influencers can join."],
-            ["Wallet", "balances, earnings over time, and withdrawals."],
+            ["Market", "every live coin with its market cap, change since launch, holders and videos. Open one to see its chart and chat."],
+            ["Explore", "a library of motion references you can put your own character into."],
+            ["Leaderboards", "the top influencers ranked by earnings and views."],
           ]}
         />
         <p>
-          Next up: <DocLink href="/docs/build">building the influencer</DocLink> in detail.
+          Ready? Continue to <DocLink href="/docs/build">Create your influencer</DocLink>.
         </p>
       </Section>
     </DocsShell>

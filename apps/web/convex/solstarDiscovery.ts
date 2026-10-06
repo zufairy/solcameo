@@ -9,7 +9,7 @@ export const latestVideos = query({
       if (!token) continue;
       const character = await ctx.db.get(token.characterId);
       if (!character || character.status !== "approved") continue;
-      visible.push({ id: episode._id, characterId: character._id, name: character.name, ticker: token.ticker, network: token.network, title: episode.title, videoUrl: episode.videoUrl, posterUrl: episode.posterUrl, createdAt: episode.createdAt, sample: episode.source === "sample" });
+      visible.push({ id: episode._id, characterId: character._id, name: character.name, ticker: token.ticker, network: token.network, title: episode.title, videoUrl: episode.videoUrl, posterUrl: episode.posterUrl, createdAt: episode.createdAt, sample: episode.source === "sample", engine: episode.engine ?? null });
     }
     return visible.sort((a, b) => b.createdAt - a.createdAt).slice(0, 30);
   },

@@ -43,7 +43,7 @@ const MAIN_ITEMS: NavItem[] = [
   { label: "Home", href: "/home", icon: HomeIcon },
   // "My Agents" is the control panel now (dashboard + agent chats); the old
   // /studio page still works for existing links but is no longer in the menu.
-  { label: "My Agents", href: "/control", icon: FolderOpen },
+  { label: "My Influencers", href: "/control", icon: FolderOpen },
   { label: "Marketplace", href: "/agents", icon: LayoutGrid },
   { label: "Leaderboards", href: "/tournament", icon: Trophy },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },

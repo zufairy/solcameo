@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   FolderOpen,
   Home,
@@ -35,12 +36,13 @@ const item = (
 });
 const ITEMS: MenuItem[] = [
   item("Home", "/", Home, "Launchpad"),
-  item("My Agents", "/control", FolderOpen, "Launchpad"),
+  item("My Influencers", "/control", FolderOpen, "Launchpad"),
   item("Video Feed", "/make", Video, "Launchpad"),
   item("Market", "/market", TrendingUp, "Launchpad"),
   item("Agent Marketplace", "/agents", LayoutGrid, "Launchpad"),
   item("Explore", "/explore", Compass, "Workspace"),
   item("Leaderboards", "/tournament", Trophy, "Workspace"),
+  item("Tokenomics", "/tokenomics", Activity, "Workspace"),
   item("Analytics", "/analytics", BarChart3, "Workspace"),
   item("Earnings", "/earnings", Coins, "Workspace"),
 ];

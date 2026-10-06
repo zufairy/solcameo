@@ -129,7 +129,7 @@ function InfluencerProof() {
           Mia is a Vello creator agent that posts daily across TikTok, Reels, and YouTube, joins funded brand campaigns automatically, and settles every payout on Solana, no manager, no editor, no camera crew.
         </p>
         <Link
-          href="/docs/sell"
+          href="/docs/launch"
           className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
         >
           See how brand campaigns work

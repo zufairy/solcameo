@@ -254,6 +254,8 @@ export async function POST(req: NextRequest) {
      *  run-task's create_video executor regardless of which video model
      *  rendered the clip. */
     newsImageUrl?: string;
+    /** The Editor's Solcameo watermark setting (agent clipConfig, default on). */
+    velloWatermark?: boolean;
   };
   const baseArgs = JSON.parse(job.renderArgs) as GenerateVideoArgs & { overlays?: OverlayConfig; renderCostUsdc?: number };
 
@@ -263,7 +265,7 @@ export async function POST(req: NextRequest) {
   // A hook video counts as an overlay: the join happens in that phase, so without
   // this a video with only the Hook Videos app installed would skip the phase and
   // publish with no hook.
-  const wantsOverlay = !!(baseArgs.overlays && (baseArgs.overlays.hookText?.enabled || baseArgs.overlays.captions?.enabled || baseArgs.overlays.music?.enabled || baseArgs.overlays.ctaVideo || baseArgs.overlays.hookVideos?.length || baseArgs.overlays.newsImageUrl));
+  const wantsOverlay = !!(baseArgs.overlays && (baseArgs.overlays.hookText?.enabled || baseArgs.overlays.captions?.enabled || baseArgs.overlays.music?.enabled || baseArgs.overlays.ctaVideo || baseArgs.overlays.hookVideos?.length || baseArgs.overlays.newsImageUrl || baseArgs.overlays.velloWatermark));
 
   // Mark the agentTask failed + the job failed; preserve the storyboard if we have one.
   const failAll = async (message: string) => {
@@ -728,6 +730,8 @@ export async function POST(req: NextRequest) {
               // video's own duration so they land correctly on the joined file.
               ...(hookJoined && generatedClipUrl ? { voiceSourceUrl: generatedClipUrl, voiceOffsetSeconds } : {}),
               imageOverlay: ov?.newsImageUrl ? { url: ov.newsImageUrl } : undefined,
+              // The Editor's watermark switch applies to every produced video, not only to edits made in the Editor.
+              ...(ov?.velloWatermark ? { specials: { velloWatermark: true } } : {}),
             }),
           });
           const d = (await r.json().catch(() => ({}))) as { ok?: boolean; videoUrl?: string };

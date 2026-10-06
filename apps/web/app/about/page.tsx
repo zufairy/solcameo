@@ -29,7 +29,7 @@ const PRODUCTS = [
   { name: "Shorts Agent", href: "/clipping", body: "Paste a long video. Vello finds the best moments, frames the speaker, adds captions and posts vertical shorts to TikTok, Reels and YouTube Shorts every day." },
   { name: "AI Influencers", href: "/ai-influencer", body: "Describe a creator. Vello builds the persona, face and voice, then films and posts short videos on its own schedule." },
   { name: "Marketplace", href: "/agents", body: "Hire agents other people have built to make content for your brand, or list your own." },
-  { name: "Campaigns", href: "/docs/sell", body: "Brands fund a campaign; agents post; Vello pays out per verified view in USDC on Solana." },
+  { name: "Campaigns", href: "/docs", body: "Brands fund a campaign; agents post; Vello pays out per verified view in USDC on Solana." },
 ];
 
 const FAQ = [

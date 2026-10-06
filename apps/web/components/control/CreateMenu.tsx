@@ -33,9 +33,12 @@ export function computeMenuPosition(btn: DOMRect): { top: number; left: number }
 /* ════════ "+" — create an agent or assemble a team ════════ */
 
 const OPTIONS = [
-  { id: "influencer", title: AGENT_TYPES.influencer.title, body: "An original persona that makes and posts its own videos.", Icon: AGENT_TYPES.influencer.Icon, tint: `border ${AGENT_TYPES.influencer.tile}`, glow: AGENT_TYPES.influencer.glow, href: AGENT_TYPES.influencer.href },
-  { id: "team", title: "Assemble a team", body: "Group AI Influencers into one chat that works together.", Icon: Users, tint: "border border-emerald-300/25 from-emerald-500/30 to-emerald-500/5 text-emerald-300", glow: "bg-emerald-500/20", href: "" },
+  { id: "influencer", title: AGENT_TYPES.influencer.title, body: "An original persona that makes and posts its own videos.", Icon: AGENT_TYPES.influencer.Icon, href: AGENT_TYPES.influencer.href },
+  { id: "team", title: "Assemble a team", body: "Group AI Influencers into one chat that works together.", Icon: Users, href: "" },
 ] as const;
+
+/** Frosted white glass tile for the menu icons: translucent fill, bright top edge, soft inner glow. */
+const GLASS_TILE = "relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/25 bg-white/[0.12] text-white backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-8px_14px_-8px_rgba(255,255,255,0.12),0_8px_18px_-8px_rgba(0,0,0,0.7)] transition-[background-color,border-color,box-shadow] duration-300 group-hover:border-white/45 group-hover:bg-white/[0.2] group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.6),inset_0_-8px_14px_-8px_rgba(255,255,255,0.2),0_8px_22px_-6px_rgba(255,255,255,0.22)]";
 
 export function CreateMenu({ agents, onTeamCreated }: { agents: Agent[]; onTeamCreated: (team: Team) => void }) {
   const router = useRouter();
@@ -105,7 +108,7 @@ export function CreateMenu({ agents, onTeamCreated }: { agents: Agent[]; onTeamC
             // Highest z-index on the page (dialogs here top out at z-[150]) — this
             // must always paint above everything, including the assemble-a-team
             // modal it can open underneath itself.
-            className="z-[200] w-[min(300px,calc(100vw-16px))] rounded-2xl border border-white/10 bg-[#17171a]/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+            className="z-[200] w-[min(300px,calc(100vw-16px))] rounded-2xl border border-white/15 bg-[#17171a]/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_60px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl backdrop-saturate-150"
           >
             <motion.div variants={STAGGER} initial="hidden" animate="show">
               {OPTIONS.map((o) => (
@@ -120,8 +123,12 @@ export function CreateMenu({ agents, onTeamCreated }: { agents: Agent[]; onTeamC
                   }}
                   className="group relative flex w-full items-center gap-3 overflow-hidden rounded-xl p-2.5 text-left transition-colors hover:bg-white/[0.06]"
                 >
-                  <span aria-hidden className={`pointer-events-none absolute -left-6 -top-8 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100 ${o.glow}`} />
-                  <span className={`relative grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] ${o.tint}`}><o.Icon className="size-[18px]" strokeWidth={1.9} /></span>
+                  <span aria-hidden className="pointer-events-none absolute -left-6 -top-8 size-24 rounded-full bg-white/20 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
+                  <span className={GLASS_TILE}>
+                    {/* diagonal sheen across the glass */}
+                    <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/35 via-white/5 to-transparent" />
+                    <o.Icon className="relative size-[19px] drop-shadow-[0_1px_4px_rgba(255,255,255,0.45)]" strokeWidth={1.6} />
+                  </span>
                   <span className="relative min-w-0 flex-1">
                     <span className="block text-[14px] font-semibold text-white">{o.title}</span>
                     <span className="block text-[12px] leading-snug text-zinc-500">{o.body}</span>

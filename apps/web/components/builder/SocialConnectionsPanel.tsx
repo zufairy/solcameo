@@ -6,6 +6,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { motion } from "framer-motion";
+import { CONNECT_BUTTON_CLASS } from "./connectButton";
 import { PlatformBadge } from "@/components/social/platform-icons";
 import { PixelIcon, hasPixelIcon } from "@/components/builder/onboarding/pixel-icons";
 
@@ -391,7 +392,7 @@ export default function SocialConnectionsPanel({ username, variant = "paper", ti
           const acct = connected[p.id];
           const isConnected = Boolean(acct);
           const needsPayment = p.id === "tiktok" && !isConnected && tiktokAddon !== undefined && !tiktokAddon.active;
-          const btn = "inline-flex items-center gap-1.5 rounded-[3px] bg-gradient-to-b from-white to-zinc-300 px-3 py-1.5 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_-2px_rgba(0,0,0,0.5)] transition-[filter] hover:brightness-95 active:brightness-90 disabled:opacity-60";
+          const btn = CONNECT_BUTTON_CLASS;
           return (
             <div key={p.id} className={`flex items-center justify-between py-1.5 ${theme.title}`}>
               <div className="flex items-center gap-2.5 min-w-0">

@@ -8,6 +8,7 @@ import { normalizeShowBible, resolveIdentityRefs } from "@/lib/builder/showBible
 import type { Id } from "@/convex/_generated/dataModel";
 import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, ImagePlus } from "lucide-react";
 import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
@@ -127,15 +128,24 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   // skills, memories or standing orders blended into the script or clip prompts.
   const [noPersona, setNoPersona] = useState(false);
   const engineId = engineOverride ?? (influencerDoc?.videoEngine as VideoEngineId | undefined) ?? DEFAULT_VIDEO_ENGINE;
-  // What this click costs: the chosen engine's price for the length the Director is set to, plus
-  // the storyboard image unless it is skipped. Provider price plus 10%; the server bills the same numbers.
-  const priceRange = useMemo(() => {
-    const engine = getVideoEngine(engineId);
+  // Quality and length for THIS video. Each engine sells its own set (Kie's price table), and the price is exact for
+  // the pair picked, so the quote on the button is what the render is billed.
+  const pricingSpec = KIE_VIDEO_PRICING[engineId];
+  const [qualityOverride, setQualityOverride] = useState<VideoQuality | null>(null);
+  const [secondsOverride, setSecondsOverride] = useState<number | null>(null);
+  const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
+  const seconds = useMemo(() => {
+    const options = pricingSpec?.durations ?? [];
+    if (secondsOverride && options.includes(secondsOverride)) return secondsOverride;
     const range = resolveDurationRange(influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds);
-    const board = skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC;
-    return { lo: board + videoCostForLength(engine, range.min), hi: board + videoCostForLength(engine, range.max) };
-  }, [engineId, influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds, skipStoryboard]);
-  const priceText = Math.abs(priceRange.hi - priceRange.lo) < 0.005 ? formatRetailUsd(priceRange.hi) : `${formatRetailUsd(priceRange.lo)} to ${formatRetailUsd(priceRange.hi)}`;
+    return options.find((d) => d >= range.min) ?? options[0] ?? range.min;
+  }, [pricingSpec, secondsOverride, influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds]);
+  // Provider price plus 10%, plus the storyboard image unless it is skipped. The server bills the same numbers.
+  const priceUsd = useMemo(() => {
+    const engine = getVideoEngine(engineId);
+    return (skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds, quality);
+  }, [engineId, seconds, quality, skipStoryboard]);
+  const priceText = formatRetailUsd(priceUsd);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadReferenceImage = useCallback(async (file: File) => {
@@ -256,6 +266,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
+              ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
               ...(skipStoryboard ? { skipStoryboard: true } : {}),
               ...(noPersona ? { noPersona: true } : {}),
             },
@@ -277,7 +288,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
       }
     })();
     setAttachedImage(null);
-  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast]);
+  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast, pricingSpec, quality, seconds]);
 
   const removeVideo = useCallback((id: string) => setVideos((prev) => prev.filter((v) => v.id !== id)), []);
   const retryVideo = useCallback((v: VideoAsset) => {
@@ -349,6 +360,14 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             </button>
             <ChipSelect value={engineId} onChange={(v) => setEngineOverride(v as VideoEngineId)} title="Video engine for this generation, defaults to the Director tab's pick"
               options={visibleEngines().map((e) => ({ value: e.id, label: e.label }))} />
+            {pricingSpec && (
+              <>
+                <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
+                  options={pricingSpec.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
+                <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
+                  options={pricingSpec.durations.map((d) => ({ value: String(d), label: `${d}s` }))} />
+              </>
+            )}
             <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard"
               title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image" />
             <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona"
@@ -371,7 +390,6 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
                       className="size-7 rounded-full border-2 border-lime-400/70 object-cover ring-2 ring-[#050506]" />
                   ))}
                 </div>
-                <span className="text-[9.5px] font-semibold uppercase tracking-wide text-zinc-500">→ Kie ref</span>
               </div>
             )}
             <PriceButton className="ml-auto" disabled={!canWrite || !prompt.trim() || isGenerating} busy={isGenerating} onClick={generate} priceUsd={null} priceText={priceText} pending={pendingCount}

@@ -61,8 +61,8 @@ export function Section({ title, count, dot, icon, open, onToggle, children }: {
 }
 
 /** Image option tile: square, thick dark ring, lime ring when selected (Higgsfield style). */
-export function Card({ label, image, selected, onClick, soon, showLabel, order = 0 }: {
-  label: string; image?: string; selected?: boolean; onClick?: () => void; soon?: boolean; showLabel?: boolean; order?: number;
+export function Card({ label, image, emoji, selected, onClick, soon, showLabel, order = 0 }: {
+  label: string; image?: string; emoji?: string; selected?: boolean; onClick?: () => void; soon?: boolean; showLabel?: boolean; order?: number;
 }) {
   return (
     <motion.button
@@ -74,6 +74,7 @@ export function Card({ label, image, selected, onClick, soon, showLabel, order =
       style={{ borderColor: selected ? LIME : SURFACE.ring, boxShadow: selected ? `0 0 0 1px ${LIME}55, 0 10px 28px -10px ${LIME}88` : undefined }}
     >
       {image && <img src={image} alt="" loading="lazy" decoding="async" className={`size-full object-cover transition-transform duration-500 group-hover:scale-[1.05] ${soon ? "opacity-45 saturate-50" : ""}`} />}
+      {!image && emoji && <span aria-hidden className="grid size-full place-items-center bg-gradient-to-b from-zinc-800 to-zinc-900 text-[34px]">{emoji}</span>}
       {soon && <span className="absolute inset-0 bg-black/45" />}
       {(showLabel || soon) && (
         <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pb-1 pt-5 text-center text-[12.5px] font-semibold" style={{ color: selected ? LIME : "#fff" }}>{soon ? "Soon" : label}</span>

@@ -172,8 +172,8 @@ function FeatureVideoCard({ title, href, video, onClick }: (typeof FEATURE_CARDS
 const INTEGRATIONS = [
   { title: "Opus 5.5 Integration", href: "/docs", video: "/menu/editor-example.mp4" },
   { title: "Facial Tracking", href: "/builder?type=clipping", video: "/menu/face-detect-sample.mp4" },
-  { title: "Campaigns", href: "/docs/sell", video: "/menu/clippers.mp4" },
-  { title: "Solana", href: "/docs/sell", video: "/menu/hero-bg.mp4" },
+  { title: "Campaigns", href: "/docs/launch", video: "/menu/clippers.mp4" },
+  { title: "Solana", href: "/docs/launch", video: "/menu/hero-bg.mp4" },
 ] as const;
 
 function IntegrationCard({ title, href, video, featured, onClick }: { title: string; href: string; video: string; featured?: boolean; onClick?: () => void }) {

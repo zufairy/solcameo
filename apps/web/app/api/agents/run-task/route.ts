@@ -39,6 +39,7 @@ import {
 import { resolveVideoDirectives } from "@/lib/builder/videoDirector";
 import { normalizeShowBible, normalizeRotationState, resolveBibleDirectives, resolveIdentityRefs } from "@/lib/builder/showBible";
 import { formatById } from "@/lib/builder/formatCatalog";
+import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { getVideoEngine, maxClipForModel, videoCostForLength, VIDEO_STORYBOARD_COST_USDC, resolveDurationRange, pickTargetSeconds } from "@/lib/builder/agentTypes";
 import { normalizeImageForKie, normalizeImagesForKie } from "@/lib/server/imageForKie";
 import { isDeadMediaUrl } from "@/lib/deadMediaHosts";
@@ -740,7 +741,7 @@ type VideoJobPayload = {
    *  render). finishAll charges this so every render bills the real amount. */
   renderCostUsdc?: number;
   aspectRatio?: "9:16" | "1:1" | "16:9";
-  resolution?: "720p" | "1080p";
+  resolution?: VideoQuality;
   videoModel: string;
   /** Videos tab "Skip storyboard" — render clips straight from the reference
    *  image(s), no storyboard guide image. */
@@ -1767,6 +1768,15 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       : undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = getVideoEngine((engineOverride ?? agentEngineTrimmed ?? catalogFormatEngine) as any);
+    // Render quality: the operator's pick for this video (Videos tab dropdown), else the Director's saved setting,
+    // else the engine's default. Only a quality the engine really sells is accepted, so billing and Kie agree.
+    const pricingSpec = KIE_VIDEO_PRICING[engine.id];
+    const pickQuality = (v: unknown): VideoQuality | undefined => (typeof v === "string" && pricingSpec?.qualities.includes(v as VideoQuality) ? (v as VideoQuality) : undefined);
+    const videoQuality: VideoQuality =
+      pickQuality(input.videoResolution)
+      ?? pickQuality((agent as unknown as { videoConfig?: { resolution?: string } })?.videoConfig?.resolution)
+      ?? pricingSpec?.defaultQuality
+      ?? "720p";
     // Build the STILL reference set for the video pipeline. Kie's image/video
     // models can't read GIFs (the display avatarUrl is often an animated GIF) or
     // data: URIs — so we use ONLY http(s) still frames: the minted avatarStills
@@ -1930,7 +1940,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     // is billed separately by the task's own cost below.
     const renderCostUsdc = directives.overlays.mainVideosOnly
       ? 0
-      : +((input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, finalDurationSeconds)).toFixed(4);
+      : +((input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, finalDurationSeconds, videoQuality)).toFixed(4);
 
     // Scene beats the script call already authored — mapped snake→camel and
     // threaded to the pipeline so it can skip the redundant planner round trip.
@@ -2021,7 +2031,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       // render covers the whole script and plays out complete.
       durationSeconds: finalDurationSeconds,
       aspectRatio: directives.aspectRatio,
-      resolution: (agent as unknown as { videoConfig?: { resolution?: "720p" | "1080p" } })?.videoConfig?.resolution ?? "720p",
+      resolution: videoQuality,
       videoModel: engine.kieModel,
       // Per-clip on-chain cost for THIS generation — charged by finishAll on
       // completion so every render bills the real amount, not a flat fee.
@@ -2065,6 +2075,8 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       knowledge: ctx.knowledge.map(k => ({ title: k.title, content: k.content })),
       overlays: {
         ...directives.overlays,
+        // The Editor's watermark switch (agent clipConfig, default on) applies to every produced video.
+        ...({ velloWatermark: (agent as { clipConfig?: { velloWatermark?: boolean } }).clipConfig?.velloWatermark !== false }),
         // The reference-image overlay (Specials tool doc, overlay-burn's
         // imageOverlay param): burns whenever THIS video has a photo to show —
         // the idea's own news photo, or an explicit operator one-off. Gated by
@@ -3268,6 +3280,7 @@ export async function POST(req: NextRequest) {
     // come through the internal path with no user session).
     delete (input as Record<string, unknown>).payerWallet;
     delete input._x402TaskId;
+    delete (input as Record<string, unknown>).fundingSource; // server-authored only, like payerWallet
     const provenPayer = !auth.internal && auth.provenWallet ? auth.provenWallet : undefined;
     if (provenPayer) (input as Record<string, unknown>).payerWallet = provenPayer;
 
@@ -3373,7 +3386,9 @@ export async function POST(req: NextRequest) {
           const seconds = typeof input.durationSeconds === "number"
             ? input.durationSeconds
             : configuredRange.max;
-          return (input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds);
+          const reserveSpec = KIE_VIDEO_PRICING[engine.id];
+          const reserveQuality = typeof input.videoResolution === "string" && reserveSpec?.qualities.includes(input.videoResolution as VideoQuality) ? (input.videoResolution as VideoQuality) : undefined;
+          return (input.skipStoryboard === true ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds, reserveQuality);
         } catch { return 0.75; }
       }
       const BASELINE: Record<string, number> = {
@@ -3448,9 +3463,12 @@ export async function POST(req: NextRequest) {
           // to veto a credit-funded render.
           const walletAvail = Math.max(0, balOk ? onChainUsdc - spent - reserved : 0);
           walletCoversTask = balOk && walletAvail >= estimatedCost;
+          // The agent pays for its own generations when its wallet covers the run (Higgsfield and Kie alike). Prepaid
+          // credits are only the fallback. Set before the task document is written so metering sees it.
+          if (walletCoversTask && taskType === "create_video") (input as Record<string, unknown>).fundingSource = "agent_wallet";
           const available = walletAvail + creditsUsdc;
           if (available < estimatedCost) {
-            const message = `This agent is out of funds. Available $${available.toFixed(2)} (wallet + credits), this task needs ~$${estimatedCost.toFixed(2)}. Add credits or top up the agent wallet to continue.`;
+            const message = `The agent wallet is short. It has $${available.toFixed(2)} available and this task needs about $${estimatedCost.toFixed(2)}. Add funds to the agent wallet to continue.`;
             return failPreflight(message, NextResponse.json({
               ok: false,
               error: "insufficient_funds",
@@ -3666,8 +3684,9 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: false, error: "sample_limit", message, taskId }, { status: 429 });
         }
       }
+      const walletFunded = (input as Record<string, unknown>).fundingSource === "agent_wallet";
       const holdCredits = Math.max(1, Math.ceil(estimatedCost * 100));
-      const hold = await convex.mutation(api.agentTasks.holdCredits, { id: taskId, credits: holdCredits, authSecret: secret })
+      const hold = walletFunded ? { ok: true as const, balanceCredits: 0 } : await convex.mutation(api.agentTasks.holdCredits, { id: taskId, credits: holdCredits, authSecret: secret })
         .catch((e) => { console.error("[run-task] credit hold failed:", e instanceof Error ? e.message : e); return null; });
       if (!hold?.ok && !walletCoversTask) {
         const have = Math.max(0, hold?.balanceCredits ?? 0);

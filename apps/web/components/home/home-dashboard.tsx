@@ -683,7 +683,7 @@ function AgentsSection({ agents, feed, loading, signedIn }: { agents: AgentDoc[]
   return (
     <div className="flex min-w-0 flex-col">
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
-        <span className="text-[19px] font-semibold text-white">My Agents {signedIn ? `(${rows.length})` : ""}</span>
+        <span className="text-[19px] font-semibold text-white">My Influencers {signedIn ? `(${rows.length})` : ""}</span>
       </div>
 
       {!signedIn && (
