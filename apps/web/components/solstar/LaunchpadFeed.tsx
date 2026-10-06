@@ -98,6 +98,19 @@ function CharacterPost({ row }: { row: MarketRow }) {
     </div>
   </article>;
 }
+/** Square still from a real AI-influencer video, used as the empty-state icon. Falls back to the rocket. */
+function EmptyArt({ slot }: { slot: number }) {
+  const feed = useQuery(api.clipJobs.globalVideoFeed, { limit: 8, kind: "ugc" });
+  const items = (Array.isArray(feed) ? [] : feed?.items ?? []).filter(v => v.posterUrl || v.videoUrl);
+  const item = items.length ? items[slot % items.length] : null;
+  if (!item) return <RocketIcon className="mb-4 size-6 text-[#d7ff00]" />;
+  return <div className="relative mb-4 size-16 overflow-hidden rounded-[6px] bg-white/[0.05] ring-1 ring-white/15 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)]">
+    {item.posterUrl
+      ? <img src={item.posterUrl} alt={`${item.agentName} video`} className="size-full object-cover" />
+      : <video src={`${item.videoUrl}#t=0.5`} muted playsInline preload="metadata" aria-label={`${item.agentName} video`} className="size-full object-cover" />}
+    <span aria-hidden className="absolute bottom-1 right-1 grid size-4 place-items-center rounded-[3px] bg-black/60 text-white backdrop-blur-sm"><VideoIcon className="size-2.5" /></span>
+  </div>;
+}
 function Discovery() {
   const [tab, setTab] = useState("launches");
   const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: "devnet", liveOnly: true });
@@ -109,7 +122,7 @@ function Discovery() {
       {[["launches", "New launches"], ["episodes", "Episodes"], ["previews", "Previews"]].map(([value, label]) => <Button key={value} role="tab" aria-selected={tab === value} variant="ghost" size="sm" onClick={() => setTab(value)} className={`h-8 rounded-md text-xs ${tab === value ? "bg-[#d7ff00]/10 text-[#d7ff00]" : "text-zinc-500"}`}>{label}</Button>)}
     </div>
     <div role="tabpanel" aria-label={tab} className="max-h-[calc(100dvh-164px)] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">
-      {rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><RocketIcon className="mb-4 size-6 text-[#d7ff00]" /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from confirmed devnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}
+      {rows === undefined ? <div className="space-y-4 p-6">{[0,1,2].map(i => <Skeleton key={i} className="h-48 w-full rounded-md" />)}</div> : rows.length ? rows.slice(0, 20).map(row => <CharacterPost key={row.characterId} row={row} />) : <div className="px-6 py-12"><EmptyArt slot={tab === "episodes" ? 0 : tab === "previews" ? 2 : 1} /><h2 className="text-lg font-semibold">{tab === "episodes" ? "The first episode starts here" : "Be part of the first launches"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{tab === "episodes" ? "Published episodes from confirmed devnet characters will appear here." : "Build a character, review its curve, and approve the on-chain launch from your wallet."}</p><Button nativeButton={false} render={<Link href="/create" />} size="sm" className="mt-5 h-8 rounded-md bg-[#d7ff00] text-black">Create an influencer <ArrowTopRightIcon /></Button></div>}
     </div>
     <p className="hidden px-6 py-4 text-[11px] text-zinc-500"><VideoIcon className="mr-1 inline" /> Watching is free. Devnet trades use test SOL; USD valuations are illustrative. Previews are unminted.</p>
   </>;

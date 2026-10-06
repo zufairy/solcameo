@@ -80,6 +80,7 @@ import type * as oracle from "../oracle.js";
 import type * as platformStats from "../platformStats.js";
 import type * as sampleRuns from "../sampleRuns.js";
 import type * as scheduledContent from "../scheduledContent.js";
+import type * as scheduledRecreations from "../scheduledRecreations.js";
 import type * as seriesEpisodes from "../seriesEpisodes.js";
 import type * as shareRedemptions from "../shareRedemptions.js";
 import type * as shares from "../shares.js";
@@ -189,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   platformStats: typeof platformStats;
   sampleRuns: typeof sampleRuns;
   scheduledContent: typeof scheduledContent;
+  scheduledRecreations: typeof scheduledRecreations;
   seriesEpisodes: typeof seriesEpisodes;
   shareRedemptions: typeof shareRedemptions;
   shares: typeof shares;

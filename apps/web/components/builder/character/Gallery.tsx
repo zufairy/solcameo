@@ -185,9 +185,9 @@ function Lightbox({ tile, picked, onClose, onPick }: { tile: Tile; picked: boole
   );
 }
 
-export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onSave, saving, error, prompt, historyLoading = false, saveLabel = "Save character" }: {
+export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onSave, saving, error, prompt, historyLoading = false, saveLabel = "Save character", fill = false }: {
   tiles: Tile[]; generating: boolean; pickedUrl: string | null;
-  saveLabel?: string; onPick: (t: Tile) => void; onDismiss: (id: string) => void; onSave: () => void; saving: boolean;
+  saveLabel?: string; /** Stretch to the parent height instead of a capped, sticky panel (onboarding). */ fill?: boolean; onPick: (t: Tile) => void; onDismiss: (id: string) => void; onSave: () => void; saving: boolean;
   error: string | null; prompt: string | null; historyLoading?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -219,7 +219,7 @@ export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onSav
   const showFeed = generating || (view ?? (tiles.length ? "history" : "explore")) === "history";
 
   return (
-    <div className="flex min-w-0 max-h-[calc(100vh-200px)] min-h-[560px] flex-col rounded-[32px] border border-white/[0.06] lg:sticky lg:top-4" style={{ background: SURFACE.panel }}>
+    <div className={`flex min-w-0 flex-col rounded-[32px] border border-white/[0.06] ${fill ? "h-[calc(100dvh-6.5rem)] min-h-[480px] lg:h-full lg:min-h-0" : "max-h-[calc(100vh-200px)] min-h-[560px] lg:sticky lg:top-4"}`} style={{ background: SURFACE.panel }}>
       <div className="flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-1.5">
           {([["explore", "Explore", <Compass key="c" className="size-4" />], ["history", "History", <History key="h" className="size-4" />]] as const).map(([id, label, icon]) => {

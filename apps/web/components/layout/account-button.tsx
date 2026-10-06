@@ -173,13 +173,10 @@ export function AccountButton({
           My Profile
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/control")}>
-          My Agents
+          My Influencers
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/generations")}>
           Generations
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/billing")}>
-          Billing & credits
         </DropdownMenuItem>
 
         {profile.isAdmin && (

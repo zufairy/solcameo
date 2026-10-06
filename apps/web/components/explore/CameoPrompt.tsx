@@ -14,11 +14,12 @@ const tokenOf = (name: string) => name.replace(/\s+/g, "").replace(/[^\w-]/g, ""
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
 
 /** Scene-direction box with @cameo mentions and a "magic" auto-written scenario. */
-export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onChange, onCast }: {
+export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "motion-transfer", value, onChange, onCast }: {
   mint: string;
   primaryName: string;
   primaryImage?: string;
   item: ReferenceVideo;
+  mode?: "motion-transfer" | "object-swap";
   value: string;
   onChange: (v: string) => void;
   /** Mentioned agents, in mention order, for the parent to attach as extra references. */
@@ -141,6 +142,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mintAddress: mint,
+          mode,
           title: item.title,
           description: item.description,
           category: item.category,

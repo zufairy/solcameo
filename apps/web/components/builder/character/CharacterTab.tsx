@@ -282,10 +282,10 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   return (
     <div className="min-h-full" style={GLASS_BG}>
-      <div className="mx-auto grid max-w-6xl gap-5 px-4 pb-8 pt-2 lg:grid-cols-[400px_1fr]">
+      <div className={`mx-auto grid max-w-6xl px-4 lg:grid-cols-[400px_1fr] ${onboarding ? "gap-3 py-3 lg:h-[calc(100dvh-3.5rem)]" : "gap-5 pb-8 pt-2"}`}>
         {/* LEFT: studio panel (same container for builder, saved influencer and Replicate) */}
-        <div className="flex h-[calc(100dvh-160px)] min-h-[480px] flex-col lg:sticky lg:top-4 lg:self-start overflow-hidden rounded-[32px] border border-white/[0.06]" style={{ background: SURFACE.panel }}>
-          <div className="px-5 pb-6 pt-2 text-center">
+        <div className={`flex min-h-[480px] flex-col overflow-hidden rounded-[32px] border border-white/[0.06] ${onboarding ? "h-[calc(100dvh-6.5rem)] lg:h-full lg:min-h-0" : "h-[calc(100dvh-160px)] lg:sticky lg:top-4 lg:self-start"}`} style={{ background: SURFACE.panel }}>
+          <div className={`px-5 pt-2 text-center ${onboarding ? "pb-3" : "pb-6"}`}>
             <div className="flex h-4 items-center justify-between text-[12px]">
               <span className="w-16" />
               <AnimatePresence>
@@ -299,7 +299,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
             <h2 className="text-[40px] font-black uppercase leading-[1.05] tracking-[0.04em] text-white" style={{ fontFamily: DISPLAY_FONT }}>AI Influencer</h2>
           </div>
 
-          <div className={`px-4 pb-2.5 ${onboarding ? "hidden" : ""}`}>
+          <div className={`px-4 ${savedCard ? "pb-5" : "pb-2.5"} ${onboarding ? "hidden" : ""}`}>
             <div className="grid grid-cols-2 rounded-2xl bg-black/40 p-1 text-[13px] font-semibold">
               {([["builder", "Influencer builder"], ["replicate", "Replicate"]] as const).map(([id, label]) => (
                 <button key={id} type="button" onClick={() => setMode(id)}
@@ -378,7 +378,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
             tiles={tiles} generating={generating} pickedUrl={effectivePicked}
             onPick={(t) => setPickedUrl(t.url ?? null)}
             onDismiss={(tid) => setTiles((prev) => prev.filter((t) => t.id !== tid))}
-            onSave={() => void save()} saving={saving} error={error} historyLoading={historyLoading} prompt={ready ? prompt : null} saveLabel={onboarding ? "Continue to coin details" : undefined}
+            onSave={() => void save()} saving={saving} error={error} historyLoading={historyLoading} prompt={ready ? prompt : null} saveLabel={onboarding ? "Continue to coin details" : undefined} fill={onboarding}
           />
         ) : (
           <MotionSide
@@ -409,12 +409,13 @@ function SavedCard({ character, agentName, onEdit }: { character: SavedCharacter
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto px-4 pb-3 [scrollbar-width:thin]">
+        <div className="px-1 pb-3 pt-1"><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">Your character</p><h3 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{agentName || "Your AI influencer"}</h3></div>
         <motion.div initial={{ scale: 0.97 }} animate={{ scale: 1 }} transition={SPRING} className="relative mx-auto w-full overflow-hidden rounded-[26px] ring-2 ring-lime-400/70 shadow-[0_24px_60px_-28px_rgba(163,230,53,0.5)]" style={{ aspectRatio: "1 / 1" }}>
           <img src={character.image.url} alt={agentName ? `${agentName} portrait` : "Your agent's character"} className="size-full object-cover object-[50%_25%] scale-[1.15]" />
           <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-black" style={{ background: LIME }}><Check className="size-3" strokeWidth={3.5} /> Saved</span>
           <span className="absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">{MODEL_LABEL[character.image.model]}</span>
         </motion.div>
-        <div className="px-1 pb-3 pt-5"><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">Your character</p><h3 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{agentName || "Your AI influencer"}</h3><p className="mt-4 text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">Character traits</p></div>
+        <div className="px-1 pb-3 pt-5"><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">Character traits</p></div>
         <div className="flex flex-wrap gap-1.5 px-1">
           {shown.map((t, i) => (
             <motion.span key={`${t}-${i}`} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.03 * i, ...SPRING }} className="rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[12px] text-zinc-200">{t}</motion.span>
@@ -441,8 +442,8 @@ function MotionSide({ runs, onDismiss, picked, onPick, character, replicate, onG
     <div className="relative min-w-0">
       <div className="mb-3 flex items-end justify-between">
         <div>
-          <h3 className="text-[24px] font-black uppercase leading-none tracking-[-0.01em] text-white" style={{ fontFamily: DISPLAY_FONT }}>Top video ideas</h3>
-          <p className="mt-1 text-[12.5px] text-zinc-500">{replicate ? "Pick a motion, then Generate on the left." : "Trending motions from the Higgsfield library. Pick one to put your influencer in it."}</p>
+          <h3 className="text-[36px] font-black uppercase leading-none tracking-[-0.01em] text-white sm:text-[44px]" style={{ fontFamily: DISPLAY_FONT }}>Top video ideas</h3>
+          <p className="mt-2 text-[14px] text-zinc-500">{replicate ? "Pick a motion, then Generate on the left." : "Trending motions from the Higgsfield library. Pick one to put your influencer in it."}</p>
         </div>
       </div>
       {runs.length > 0 && (
@@ -455,10 +456,10 @@ function MotionSide({ runs, onDismiss, picked, onPick, character, replicate, onG
       <AnimatePresence>
         {picked && !replicate && character && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={SPRING}
-            className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-md items-center gap-3 rounded-2xl border border-white/10 p-2 pr-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl" style={{ background: "rgba(27,28,30,0.92)" }}>
-            <img src={picked.thumbUrl ?? character} alt="" className="size-11 rounded-xl object-cover" />
+            className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-md items-center gap-3 rounded-md border border-white/10 p-2 pr-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl" style={{ background: "rgba(27,28,30,0.92)" }}>
+            <img src={picked.thumbUrl ?? character} alt="" className="size-11 rounded-[4px] object-cover" />
             <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-white">{picked.title}</span><span className="block text-[11px] text-zinc-500">with your AI influencer · 720p</span></span>
-            <button type="button" onClick={onGenerate} className="h-10 rounded-lg px-4 text-sm font-medium text-black" style={{ background: LIME }}>Generate</button>
+            <button type="button" onClick={onGenerate} className="h-10 rounded-[4px] px-4 text-sm font-medium text-black" style={{ background: LIME }}>Generate</button>
           </motion.div>
         )}
       </AnimatePresence>

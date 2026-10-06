@@ -6,7 +6,8 @@ import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { Download, Flame, Globe, Megaphone, Loader2, Shuffle } from "lucide-react";
-import { calloutCardBlob, CALLOUT_THEMES, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
+import { calloutCardBlob, CALLOUT_THEMES, isThemeId, type CalloutCardData, type CalloutThemeId } from "@/lib/client/calloutCard";
+import { CalloutArt } from "./CalloutArt";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -65,18 +66,31 @@ export function HomeCallouts() {
     setSending(true); setError("");
     try {
       if (!getCurrentSiwsToken()) await ensureSiwsViaRegistered();
-      const res = await fetch("/api/solstar/feed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: body.trim(), characterId }) });
+      const res = await fetch("/api/solstar/feed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: body.trim(), characterId, theme, ...(pools[characterId]?.available && pools[characterId]?.capSol ? { callCapSol: pools[characterId].capSol } : {}) }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error === "rate_limited" ? "Please wait before posting another callout." : data.error === "duplicate_message" ? "You already posted that message." : "Connect your wallet and sign in to post a callout.");
       setPosted(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not post callout."); } finally { setSending(false); }
   }
-  const obs = characterId ? pools[characterId] : undefined;
-  const cardData: CalloutCardData = {
-    name: selected?.name ?? "Your agent", ticker: selected?.ticker ?? "TICKER", imageUrl: selected?.imageUrl, body: body.trim(), cap: usd(cap(characterId), true),
-    changePct: obs?.available ? obs.changeSinceLaunchPct ?? null : null,
-    points: (obs?.points ?? []).slice(-40).map(p => p.price),
-  };
+  const rowById = new Map((rows ?? []).map(r => [r.characterId as string, r]));
+  /** Everything the share card shows, from live pool data. `callCapSol` turns the headline into the gain since the call. */
+  function buildCard(id: string, text: string, who: { name: string; ticker: string; imageUrl?: string }, callCapSol?: number, caller?: string): CalloutCardData {
+    const o = pools[id], row = rowById.get(id);
+    const capNow = o?.available ? o.capSol : undefined;
+    const sinceCall = callCapSol && capNow ? (capNow / callCapSol - 1) * 100 : null;
+    const volumeSol = o?.appVolume24hLamports ? Number(o.appVolume24hLamports) / 1e9 : undefined;
+    return {
+      name: who.name, ticker: who.ticker, imageUrl: who.imageUrl, body: text, cap: usd(cap(id), true),
+      changePct: sinceCall ?? (o?.available ? o.changeSinceLaunchPct ?? null : null),
+      label: sinceCall != null ? "SINCE CALL" : "SINCE LAUNCH",
+      points: (o?.points ?? []).slice(-40).map(p => p.price),
+      volume: volumeSol != null && rate ? usd(volumeSol * rate, true) : undefined,
+      followers: row?.followers,
+      calledAt: callCapSol && rate ? usd(callCapSol * rate, true) : undefined,
+      caller,
+    };
+  }
+  const cardData = buildCard(characterId, body.trim(), { name: selected?.name ?? "Your agent", ticker: selected?.ticker ?? "TICKER", imageUrl: selected?.imageUrl });
   const shareUrl = typeof window !== "undefined" && selected ? `${window.location.origin}/market/${selected.characterId}` : "https://solcameo.com";
   const shareText = `I just called out $${selected?.ticker ?? ""} on Solcameo: "${body.trim().slice(0, 180)}"`;
   async function shareToX() {
@@ -101,7 +115,11 @@ export function HomeCallouts() {
     <section aria-label="Callouts" className="flex min-h-0 min-w-0 flex-col @3xl:overflow-y-auto @3xl:overscroll-contain">
     <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Megaphone className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Callouts</h2><Button onClick={() => { setError(""); setPosted(false); setNote(""); shuffleTheme(); setOpen(true); }} className="ml-auto flex h-8 items-center gap-2 rounded-md border border-white/15 bg-[#d7ff00] px-4 text-xs font-semibold text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-colors hover:bg-[#e3ff5c]"><Megaphone className="size-4" />New callout</Button></div>
     <div className="max-h-[360px] min-h-[180px] overflow-y-auto @3xl:max-h-none @3xl:flex-1 @3xl:overflow-visible">
-      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 border-b border-white/5 px-5 py-4"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-xs">{c.wallet?.slice(0, 2)}</span><div className="min-w-0 flex-1"><div className="flex gap-2 text-xs"><span className="font-medium text-zinc-200">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div><p className="my-2 whitespace-pre-wrap break-words text-sm leading-6">{c.body}</p><Link href={`/market/${c.characterId}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.025] p-3"><img src={c.imageUrl} alt="" className="size-10 rounded-md object-cover" /><div className="min-w-0"><p className="truncate text-sm font-medium">{c.name}</p><p className="text-xs text-zinc-500">${c.ticker}</p></div><div className="ml-auto text-right"><p className="text-[10px] text-zinc-500">Current market cap</p><p className="text-sm tabular-nums text-[#d7ff00]">{usd(cap(String(c.characterId)), true)}</p></div></Link></div></motion.article>)}
+      {callouts === undefined ? <p className="p-6 text-sm text-zinc-500">Loading callouts…</p> : !callouts.length ? <p className="p-6 text-sm text-zinc-500">Call out an agent and start the conversation.</p> : callouts.map(c => <motion.article key={c.id} initial={reduced ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 border-b border-white/5 px-5 py-5 @md:flex-row">
+        <Link href={`/market/${c.characterId}`} aria-label={`Open ${c.name} market`} className="block w-full shrink-0 @md:w-[190px]"><CalloutArt theme={isThemeId(c.theme) ? c.theme : "colosseum"} data={buildCard(String(c.characterId), c.body, { name: c.name, ticker: c.ticker, imageUrl: c.imageUrl }, c.callCapSol, c.wallet)} /></Link>
+        <div className="min-w-0 flex-1"><div className="flex items-center gap-2 text-xs"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-[10px] font-semibold">{c.wallet?.slice(0, 2)}</span><span className="font-medium text-zinc-200">{c.wallet}</span><time className="text-zinc-500">{formatRelativeTime(now, c.createdAt)}</time></div><p className="my-3 whitespace-pre-wrap break-words text-[15px] leading-6">{c.body}</p>
+          <Link href={`/market/${c.characterId}`} className="flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.025] p-3 transition-colors hover:bg-white/[0.05]"><img src={c.imageUrl} alt="" className="size-11 rounded-[8px] object-cover" /><div className="min-w-0"><p className="truncate text-sm font-bold uppercase tracking-wide">{c.name}</p><p className="text-xs text-zinc-500">${c.ticker}</p></div><div className="ml-auto text-right"><p className="text-[10px] text-zinc-500">Market cap</p><p className="text-sm tabular-nums text-white">{usd(cap(String(c.characterId)), true)}</p></div></Link></div>
+      </motion.article>)}
     </div>
     </section>
     <section aria-label="Trending tokens" className="min-h-0 min-w-0 @3xl:overflow-y-auto @3xl:overscroll-contain"><div className="sticky top-0 z-10 flex h-14 items-center gap-3 border-y border-white/10 bg-[#17191b]/90 px-5 backdrop-blur-xl @3xl:border-t-0"><span className="grid size-8 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Flame className="size-4" /></span><h2 className="text-[15px] font-semibold text-white">Trending</h2><span className="ml-auto text-[11px] text-zinc-500">Ranked by 24h volume · change since launch</span></div>
@@ -118,32 +136,40 @@ export function HomeCallouts() {
       })}
     </section>
     </div>
-    <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="border-white/15 bg-[#181a1c]/95 text-white backdrop-blur-2xl sm:max-w-xl"><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="text-zinc-500">{posted ? "Share your call and the card with your followers." : "Choose an agent and share your take with the community."}</DialogDescription>
-      <CalloutCard3D data={cardData} burst={posted} theme={theme} />
-      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Card theme">
-        {CALLOUT_THEMES.map(t => <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => setTheme(t.id)} className={`flex h-8 items-center gap-2 rounded-[6px] px-3 text-xs font-medium transition-colors ${theme === t.id ? "bg-white/[0.12] text-white" : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"}`}><span aria-hidden className="size-2.5 rounded-full" style={{ background: t.accent }} />{t.label}</button>)}
-        <button type="button" onClick={shuffleTheme} aria-label="Random theme" title="Random theme" className="ml-auto grid size-8 place-items-center rounded-[6px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white"><Shuffle className="size-4" /></button>
-      </div>
-      {!posted ? <>
-        <Select value={characterId} onValueChange={v => setCharacterId(v ?? "")}>
-          <SelectTrigger className="h-12 w-full gap-3 rounded-[8px] border-white/10 bg-white/5 px-3">
-            <SelectValue placeholder="Choose an agent">{(v: string | null) => { const r = rows?.find(x => x.characterId === v); return r ? <AgentOption r={r} /> : <span className="text-zinc-500">Choose an agent</span>; }}</SelectValue>
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} sideOffset={6} className="max-h-[22rem] rounded-[8px] border border-white/10 bg-[#17191b] p-1">
-            {rows?.map(r => <SelectItem key={r.characterId} value={r.characterId} className="rounded-[6px] py-2 pl-2"><AgentOption r={r} /></SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Textarea value={body} onChange={e => setBody(e.target.value)} maxLength={280} rows={3} placeholder="What’s your call?" className="resize-none border-white/20 bg-white/[0.025] text-base" /><p className="text-right text-xs tabular-nums text-zinc-500">{280 - body.length}</p>
-        {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-        <Button disabled={!selected || !body.trim() || sending} onClick={() => void send()} className="ml-auto bg-[#d7ff00] text-black hover:bg-[#e4ff59]">{sending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}{sending ? "Posting…" : selected ? `Call $${selected.ticker}` : "Post callout"}</Button>
-      </> : <>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => void shareToX()} className="bg-white text-black hover:bg-zinc-200"><svg viewBox="0 0 24 24" className="size-4 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>Share on X</Button>
-          <Button variant="outline" onClick={() => void saveCard()} className="border-white/15 bg-white/5"><Download className="size-4" />Save card</Button>
-          <Button variant="ghost" onClick={closeDialog} className="ml-auto text-zinc-400">Done</Button>
+    <Dialog open={open} onOpenChange={value => { if (sending) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <div className="h-[min(72dvh,640px)] min-h-[420px]"><CalloutCard3D data={cardData} burst={posted} theme={theme} /></div>
+        <div className="flex min-w-0 flex-col gap-4 md:py-1">
+          <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Pick an agent, pick a look, make your call."}</DialogDescription></div>
+          <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Template</p>
+            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Card theme">
+              {CALLOUT_THEMES.map(t => <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => setTheme(t.id)} className={`flex h-8 items-center gap-2 rounded-[6px] px-3 text-xs font-medium transition-colors ${theme === t.id ? "bg-white/[0.12] text-white" : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"}`}><span aria-hidden className="size-2.5 rounded-full" style={{ background: t.accent }} />{t.label}</button>)}
+              <button type="button" onClick={shuffleTheme} aria-label="Random template" title="Random template" className="ml-auto grid size-8 place-items-center rounded-[6px] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white"><Shuffle className="size-4" /></button>
+            </div></div>
+          {!posted ? <>
+            <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Agent</p>
+              <Select value={characterId} onValueChange={v => setCharacterId(v ?? "")}>
+                <SelectTrigger className="h-12 w-full gap-3 rounded-[8px] border-white/10 bg-white/5 px-3">
+                  <SelectValue placeholder="Choose an agent">{(v: string | null) => { const r = rows?.find(x => x.characterId === v); return r ? <AgentOption r={r} /> : <span className="text-zinc-500">Choose an agent</span>; }}</SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} sideOffset={6} className="max-h-[22rem] rounded-[8px] border border-white/10 bg-[#17191b] p-1">
+                  {rows?.map(r => <SelectItem key={r.characterId} value={r.characterId} className="rounded-[6px] py-2 pl-2"><AgentOption r={r} /></SelectItem>)}
+                </SelectContent>
+              </Select></div>
+            <div><p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Your call</p>
+              <Textarea value={body} onChange={e => setBody(e.target.value)} maxLength={280} rows={4} placeholder="What’s your call?" className="resize-none border-white/20 bg-white/[0.025] text-base" /><p className="mt-1 text-right text-xs tabular-nums text-zinc-500">{280 - body.length}</p></div>
+            {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+            <Button disabled={!selected || !body.trim() || sending} onClick={() => void send()} className="mt-auto h-11 w-full bg-[#d7ff00] text-black hover:bg-[#e4ff59]">{sending ? <Loader2 className="size-4 animate-spin" /> : <Megaphone className="size-4" />}{sending ? "Posting…" : selected ? `Call $${selected.ticker}` : "Post callout"}</Button>
+          </> : <>
+            <div className="mt-auto flex flex-wrap items-center gap-2">
+              <Button onClick={() => void shareToX()} className="bg-white text-black hover:bg-zinc-200"><svg viewBox="0 0 24 24" className="size-4 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>Share on X</Button>
+              <Button variant="outline" onClick={() => void saveCard()} className="border-white/15 bg-white/5"><Download className="size-4" />Save card</Button>
+              <Button variant="ghost" onClick={closeDialog} className="ml-auto text-zinc-400">Done</Button>
+            </div>
+            {note && <p role="status" className="text-xs text-zinc-400">{note}</p>}
+          </>}
         </div>
-        {note && <p role="status" className="text-xs text-zinc-400">{note}</p>}
-      </>}
+      </div>
     </DialogContent></Dialog>
   </div>;
 }

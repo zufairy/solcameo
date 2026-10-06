@@ -16,7 +16,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (body.characterId !== undefined && !isConvexIdString(body.characterId)) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
 
   try {
-    const res = await convexClient().mutation(api.solstarFeed.postChat, { wallet, body: text, authSecret: secret, ...(body.characterId ? { characterId: body.characterId as Id<"ssCharacters"> } : {}) });
+    const res = await convexClient().mutation(api.solstarFeed.postChat, { wallet, body: text, authSecret: secret, ...(body.characterId ? { characterId: body.characterId as Id<"ssCharacters"> } : {}), ...(typeof body.theme === "string" ? { theme: body.theme } : {}), ...(typeof body.callCapSol === "number" ? { callCapSol: body.callCapSol } : {}) });
     return NextResponse.json(res);
   } catch (e) {
     return errorResponse(e);

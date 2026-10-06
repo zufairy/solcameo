@@ -125,7 +125,7 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
 
   return (
     <div>
-      <div className="columns-2 gap-2.5 sm:columns-3 xl:columns-4">
+      <div className="columns-2 gap-1 sm:columns-3 xl:columns-4">
         {items.slice(0, visibleCount).map((m, i) => {
           const on = selectedId === m.id;
           return (
@@ -134,19 +134,19 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
               onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover((h) => (h === m.id ? null : h))}
               initial={{ opacity: 0, y: reduced ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: reduced ? 0 : (i % 10) * 0.035 }}
               whileHover={{ y: -2 }} aria-pressed={on} title={m.title}
-              className="group relative mb-2.5 block w-full overflow-hidden rounded-[18px] border-[2.5px] bg-black text-left outline-none"
+              className="group relative mb-1 block w-full overflow-hidden rounded-[4px] border-2 bg-black text-left outline-none"
               style={{ borderColor: on ? LIME : SURFACE.ring, boxShadow: on ? `0 0 0 1px ${LIME}55, 0 10px 28px -10px ${LIME}88` : undefined, aspectRatio: "9 / 16" }}
             >
               {hover === m.id
                 ? <video src={m.previewUrl} poster={m.thumbUrl} autoPlay muted loop playsInline className="size-full object-cover" />
                 : m.thumbUrl ? <img src={m.thumbUrl} alt="" loading="lazy" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-zinc-600"><Film className="size-6" /></div>}
-              {hover !== m.id && <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-black/55 text-white backdrop-blur"><Play className="size-3 fill-white" /></span>}
+              {m.duration > 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-[3px] bg-black/60 px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums text-white backdrop-blur">{Math.round(m.duration)}s</span>}
+              {hover !== m.id && !on && <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-[4px] bg-black/55 text-white backdrop-blur"><Play className="size-3 fill-white" /></span>}
               <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2.5 pb-2 pt-8 text-[11.5px] font-semibold leading-tight text-white">
                 <span className="line-clamp-2">{m.title}</span>
-                {m.duration > 0 && <span className="mt-0.5 block text-[10px] font-medium text-zinc-400">{Math.round(m.duration)}s</span>}
               </span>
               <AnimatePresence>
-                {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute left-2 top-2 grid size-6 place-items-center rounded-full text-black" style={{ background: LIME }}><Check className="size-3.5" strokeWidth={3.5} /></motion.span>}
+                {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-[4px] text-black" style={{ background: LIME }}><Check className="size-3.5" strokeWidth={3.5} /></motion.span>}
               </AnimatePresence>
             </motion.button>
           );
@@ -169,9 +169,9 @@ export function MotionLibrary({ selectedId, onSelect }: { selectedId?: string | 
 export function RunsGrid({ runs, onDismiss }: { runs: MotionRun[]; onDismiss: (id: string) => void }) {
   if (!runs.length) return null;
   return (
-    <div className="columns-2 gap-2.5 sm:columns-3 xl:columns-4">
+    <div className="columns-2 gap-1 sm:columns-3 xl:columns-4">
       {runs.map((r) => (
-        <div key={r.id} className="group relative mb-2.5 overflow-hidden rounded-[18px] border border-white/10 bg-black" style={{ aspectRatio: "9 / 16" }}>
+        <div key={r.id} className="group relative mb-1 overflow-hidden rounded-[4px] border border-white/10 bg-black" style={{ aspectRatio: "9 / 16" }}>
           {r.url ? (
             <>
               <video src={r.url} poster={r.poster} controls playsInline loop className="size-full object-cover" />

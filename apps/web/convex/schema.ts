@@ -75,6 +75,8 @@ export default defineSchema({
     wallet: v.optional(v.string()), body: v.string(),
     tokenId: v.optional(v.id("ssTokens")), characterId: v.optional(v.id("ssCharacters")),
     amountLamports: v.optional(v.string()), side: v.optional(v.union(v.literal("buy"), v.literal("sell"))),
+    /** Callout share-card template and the market cap (SOL) when the call was made. */
+    theme: v.optional(v.string()), callCapSol: v.optional(v.number()),
     network: v.union(v.literal("paper"), v.literal("devnet"), v.literal("mainnet")), createdAt: v.number(),
   }).index("by_created", ["createdAt"]).index("by_wallet_kind_created", ["wallet", "kind", "createdAt"]).index("by_kind_created", ["kind", "createdAt"]),
   contentControlSettings: defineTable({
@@ -1390,6 +1392,29 @@ export default defineSchema({
     lastStripeEventId: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_mint_addon", ["mintAddress", "addon"]),
+
+  // Explore "Schedule": a motion-transfer render queued for later. A per-minute cron submits
+  // due rows to Higgsfield, then polls submitted rows until the video lands.
+  scheduledRecreations: defineTable({
+    mintAddress: v.string(),
+    referenceId: v.string(),
+    referenceTitle: v.string(),
+    referencePoster: v.optional(v.string()),
+    videoUrl: v.string(),
+    imageUrls: v.array(v.string()),
+    prompt: v.string(),
+    mode: v.union(v.literal("motion-transfer"), v.literal("object-swap")),
+    resolution: v.union(v.literal("480p"), v.literal("720p"), v.literal("1080p")),
+    runAt: v.number(),
+    repeat: v.union(v.literal("once"), v.literal("daily"), v.literal("weekly")),
+    remaining: v.number(),
+    status: v.union(v.literal("scheduled"), v.literal("running"), v.literal("submitted"), v.literal("completed"), v.literal("failed"), v.literal("cancelled")),
+    requestId: v.optional(v.string()),
+    resultUrl: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_mint", ["mintAddress", "createdAt"]).index("by_status_runAt", ["status", "runAt"]),
 
   userCredits: defineTable({
     ownerWallet: v.string(),

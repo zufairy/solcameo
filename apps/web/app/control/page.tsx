@@ -350,7 +350,7 @@ function ControlPanel() {
 
   return (
     <AppHeaderShell>
-      <div className="h-full min-h-0 flex-1 overflow-hidden bg-background">{body}</div>
+      <div className="h-full min-h-0 flex-1 overflow-hidden bg-[#202326]">{body}</div>
     </AppHeaderShell>
   );
 }

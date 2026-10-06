@@ -363,6 +363,22 @@ export const runAnalyticsSync = internalAction({
   },
 });
 
+/** Per-minute driver for explore "Schedule": submits due renders and finishes completed ones. */
+export const runScheduledRecreations = internalAction({
+  args: {},
+  handler: async (): Promise<{ ok: boolean }> => {
+    const res = await appFetch(`/api/explore/schedule/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.INTERNAL_CRON_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_CRON_SECRET } : {}),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+    return { ok: !!res?.ok };
+  },
+});
+
 /**
  * CLAIM KEEPER driver — mirrors the runDueOracle cron→Next-route pattern. POSTs to
  * the internal-secret-gated `/api/oracle/claim` route (runtime=nodejs), which
@@ -681,6 +697,7 @@ crons.interval("sync clipper views + earnings", { hours: 6 }, internal.crons.syn
 crons.interval("sync analytics views", { minutes: 5 }, internal.crons.runAnalyticsSync, {});
 
 // /agents hero totals (views, volume, videos) — full-table walk, so hourly.
+crons.interval("scheduled explore recreations", { minutes: 1 }, internal.crons.runScheduledRecreations, {});
 crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.refresh, {});
 
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});

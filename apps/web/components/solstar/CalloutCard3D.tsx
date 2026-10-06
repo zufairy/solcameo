@@ -45,7 +45,7 @@ export default function CalloutCard3D({ data, burst, theme }: { data: CalloutCar
     };
     redraw.current();
 
-    const cw = 4.4, ch = cw * CARD_H / CARD_W;
+    const ch = 4.8, cw = ch * CARD_W / CARD_H;
     const card = new THREE.Group();
     const face = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }));
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(cw + 0.5, ch + 0.5), new THREE.MeshBasicMaterial({ color: themeById(themeRef.current).accent3d, transparent: true, opacity: 0.12, side: THREE.DoubleSide }));
@@ -97,7 +97,7 @@ export default function CalloutCard3D({ data, burst, theme }: { data: CalloutCar
     el.addEventListener("pointermove", onMove);
     const onLeave = () => { mouse.tx = 0; mouse.ty = 0; };
     el.addEventListener("pointerleave", onLeave);
-    const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.position.z = Math.max(7.2, 4.4 / (w / h) * 1.55); camera.updateProjectionMatrix(); };
+    const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; const half = Math.tan((camera.fov * Math.PI) / 360); camera.position.z = Math.max((ch / 2) / half, (cw / 2) / (half * (w / h))) * 1.14; camera.updateProjectionMatrix(); };
     resize();
     const ro = new ResizeObserver(resize); ro.observe(el);
     const clock = new THREE.Clock();
@@ -136,5 +136,5 @@ export default function CalloutCard3D({ data, burst, theme }: { data: CalloutCar
       redraw.current = () => {}; fire.current = () => {}; restyle.current = () => {};
     };
   }, []);
-  return <div ref={host} className="relative h-[250px] w-full overflow-hidden rounded-[6px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.07),transparent_70%)]" aria-label="Callout card preview" />;
+  return <div ref={host} className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[10px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08),transparent_70%)]" aria-label="Callout card preview" />;
 }

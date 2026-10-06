@@ -281,7 +281,11 @@ function InfluencerOnboardingContent({
     <div className="flex h-dvh flex-col overflow-hidden bg-[#090a0b] font-sans text-zinc-100">
       <header className="z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-[#090a0b]/95 px-3 backdrop-blur-xl sm:gap-6 sm:px-5">
         <Button nativeButton={false} render={<Link href="/control" />} aria-label="Back to Control" variant="ghost" size="icon-sm" className="shrink-0 text-zinc-400"><ArrowLeft className="size-4" /></Button>
-        <span className="hidden shrink-0 text-xs font-medium text-zinc-200 lg:inline">Create influencer</span>
+        <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-200">
+          {/* eslint-disable-next-line @next/next/no-img-element -- small brand mark */}
+          <img src="/brand/solcameo-mark.png" alt="" aria-hidden className="size-5 object-contain" />
+          <span className="hidden lg:inline">Create influencer</span>
+        </span>
         <nav aria-label="Creation steps" className="min-w-0 flex-1">
           <ol className="mx-auto flex max-w-lg items-center justify-center gap-1 sm:gap-3">
             {STEPS.map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined} className="flex min-w-0 items-center gap-1 sm:gap-3">

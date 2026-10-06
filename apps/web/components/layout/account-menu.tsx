@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { QRCodeSVG } from "qrcode.react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useWallets as usePrivySolanaWallets } from "@privy-io/react-auth/solana";
 import {
@@ -14,6 +15,7 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
+  ArrowDownLeft,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -63,15 +65,34 @@ export function AccountMenu() {
     [privyWallets, user],
   );
   const embedded = !!privyWallet && isEmbeddedWallet(privyWallet);
+  const { wallet: adapterWallet } = useWallet();
+  // The real wallet behind the session: name and logo come from the wallet itself (Phantom, Solflare, Jupiter, …).
+  const standard = (privyWallet as { standardWallet?: { name?: string; icon?: string } } | undefined)?.standardWallet;
+  const clientType = privyWallet?.walletClientType;
   const walletName = embedded
     ? "Solcameo"
-    : (privyWallet?.meta?.name ?? "Wallet");
+    : (standard?.name ?? adapterWallet?.adapter.name ?? privyWallet?.meta?.name ?? (clientType ? clientType.charAt(0).toUpperCase() + clientType.slice(1) : "External wallet"));
+  const walletIcon = embedded ? "/brand/solcameo-mark.png" : (standard?.icon ?? adapterWallet?.adapter.icon ?? null);
   const network = getNetwork();
   const dollars = sol != null && usd ? sol * usd : null;
 
   const [open, setOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
-  const [tab, setTab] = useState<"send" | "activity">("send");
+  const [tab, setTab] = useState<"send" | "receive" | "activity">("send");
+  // Incoming deposits: the balance subscription is on chain, so any increase is a real receive.
+  const [received, setReceived] = useState<number | null>(null);
+  const lastSol = useRef<number | null>(null);
+  useEffect(() => {
+    if (sol == null) return;
+    const before = lastSol.current;
+    lastSol.current = sol;
+    if (before != null && sol - before > 0.000001) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reflects an external on-chain change
+      setReceived(sol - before);
+      const timer = setTimeout(() => setReceived(null), 12000);
+      return () => clearTimeout(timer);
+    }
+  }, [sol]);
   const [copied, setCopied] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
 
@@ -246,8 +267,13 @@ export function AccountMenu() {
           </div>
 
           <div className="flex items-center gap-3 border-t border-white/[0.07] px-4 py-3">
-            <span className="grid size-8 place-items-center rounded-lg bg-white/[0.05] text-[#c9b8ff]">
-              <Wallet className="size-4" />
+            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/[0.06] ring-1 ring-white/10">
+              {walletIcon ? (
+                // eslint-disable-next-line @next/next/no-img-element -- wallet-standard icons are data URIs
+                <img src={walletIcon} alt="" className="size-6 object-contain" />
+              ) : (
+                <Wallet className="size-4 text-zinc-300" />
+              )}
             </span>
             <div className="min-w-0">
               <p className="text-xs text-zinc-500">Connected with</p>
@@ -260,7 +286,7 @@ export function AccountMenu() {
           <div className="border-t border-white/[0.07] px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="inline-flex rounded-lg border border-white/10 p-0.5" role="tablist">
-                {(["send", "activity"] as const).map((t) => (
+                {(["send", "receive", "activity"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -341,6 +367,40 @@ export function AccountMenu() {
                   </p>
                 )}
               </form>
+            ) : tab === "receive" ? (
+              <div className="mt-3 flex flex-col items-center text-center">
+                <div className="rounded-xl bg-white p-2.5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.8)]">
+                  <QRCodeSVG value={address} size={150} level="M" bgColor="#ffffff" fgColor="#0b0c0e" marginSize={0} />
+                </div>
+                <p className="mt-2.5 text-xs text-zinc-500">
+                  Scan or send SOL on {network === "mainnet-beta" ? "Solana mainnet" : `Solana ${network}`} to this address
+                </p>
+                <button
+                  type="button"
+                  onClick={copy}
+                  className="mt-2 flex max-w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-zinc-200 transition-colors hover:bg-white/[0.07]"
+                >
+                  <span className="truncate">{address}</span>
+                  {copied ? <Check className="size-3.5 shrink-0 text-[#d7ff00]" /> : <Copy className="size-3.5 shrink-0" />}
+                </button>
+                {received != null && (
+                  <p role="status" className="mt-2.5 flex items-center gap-2 rounded-lg bg-[#d7ff00]/10 px-3 py-1.5 text-xs text-[#d7ff00]">
+                    <ArrowDownLeft className="size-3.5" /> Received {received.toFixed(4)} SOL
+                  </p>
+                )}
+                {!isMainnet() && (
+                  <button
+                    type="button"
+                    onClick={() => void airdrop()}
+                    disabled={airdropping}
+                    className="mt-2.5 flex h-8 items-center gap-2 rounded-lg bg-white/[0.08] px-3.5 text-xs font-medium text-white hover:bg-white/[0.12] disabled:opacity-50"
+                  >
+                    {airdropping && <Loader2 className="size-3.5 animate-spin" />}
+                    Get 1 devnet SOL
+                  </button>
+                )}
+                {airdropError && <p className="mt-2 text-xs text-amber-300">{airdropError}</p>}
+              </div>
             ) : (
               <ul className="mt-3 divide-y divide-white/[0.06]">
                 {activity === null ? (
@@ -382,9 +442,8 @@ export function AccountMenu() {
               <div className="grid gap-0.5 px-2 pb-2 text-[13px]">
                 {[
                   ["My profile", "/profile"],
-                  ["My agents", "/control"],
+                  ["My Influencers", "/control"],
                   ["Generations", "/generations"],
-                  ["Billing & credits", "/billing"],
                   ...(profile?.isAdmin ? [["Admin panel", "/admin"]] : []),
                 ].map(([label, href]) => (
                   <button
@@ -433,6 +492,11 @@ export function AccountMenu() {
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-3 flex justify-center">
+              <div className="rounded-xl bg-white p-2.5">
+                <QRCodeSVG value={address} size={132} level="M" bgColor="#ffffff" fgColor="#0b0c0e" marginSize={0} />
+              </div>
+            </div>
             <p className="text-xs text-zinc-500">Your wallet address</p>
             <p className="mt-1 break-all font-mono text-sm text-white">{address}</p>
             <button

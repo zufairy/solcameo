@@ -43,7 +43,7 @@ export async function recordFeedEvent(ctx: MutationCtx, args: FeedEventArgs): Pr
 }
 
 export const postChat = mutation({
-  args: { wallet: v.string(), body: v.string(), authSecret: v.string(), characterId: v.optional(v.id("ssCharacters")) },
+  args: { wallet: v.string(), body: v.string(), authSecret: v.string(), characterId: v.optional(v.id("ssCharacters")), theme: v.optional(v.string()), callCapSol: v.optional(v.number()) },
   handler: async (ctx, a) => {
     assertSecret(a.authSecret);
     if (a.wallet.length < 32 || a.wallet.length > 44) throw new Error("invalid_wallet");
@@ -67,7 +67,10 @@ export const postChat = mutation({
       if (!token) throw new Error("token_not_found");
       linked = { characterId: character._id, tokenId: token._id, network: token.network };
     }
-    await ctx.db.insert("ssFeed", { kind: "chat", wallet, body, ...linked, createdAt: now });
+    const THEMES = ["colosseum", "solana", "lambo", "bullrun", "neon"];
+    const theme = a.characterId && a.theme && THEMES.includes(a.theme) ? a.theme : undefined;
+    const callCapSol = a.characterId && typeof a.callCapSol === "number" && Number.isFinite(a.callCapSol) && a.callCapSol > 0 && a.callCapSol < 1e12 ? a.callCapSol : undefined;
+    await ctx.db.insert("ssFeed", { kind: "chat", wallet, body, ...linked, ...(theme ? { theme } : {}), ...(callCapSol ? { callCapSol } : {}), createdAt: now });
     return { ok: true as const };
   },
 });
@@ -83,6 +86,7 @@ function publicRow(r: Doc<"ssFeed">) {
     wallet: r.wallet === undefined ? undefined : shortWallet(r.wallet),
     body: r.body, tokenId: r.tokenId, characterId: r.characterId,
     amountLamports: r.amountLamports, side: r.side, network: r.network, createdAt: r.createdAt,
+    theme: r.theme, callCapSol: r.callCapSol,
   };
 }
 

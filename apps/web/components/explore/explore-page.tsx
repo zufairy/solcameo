@@ -15,6 +15,8 @@ import {
   Play,
   Search,
   ChevronRight,
+  ChevronDown,
+  CalendarClock,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -35,6 +37,8 @@ import {
 } from "@/components/ui/dialog";
 import { CATEGORIES, type ReferenceVideo } from "@/lib/explore/feed";
 import { VideoStackIcon } from "./video-stack-icon";
+import { AgentOption } from "./AgentOption";
+import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
 import {
   estimateGenerationUsd,
   formatGenerationUsd,
@@ -49,17 +53,6 @@ type Feed = {
   total: number;
   refreshedAt?: string;
 };
-/** Influencer row: portrait, bold all-caps name, ticker chip. */
-function AgentOption({ name, ticker, avatarUrl }: { name: string; ticker?: string; avatarUrl?: string }) {
-  return (
-    <span className="flex min-w-0 items-center gap-3">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {avatarUrl ? <img src={avatarUrl} alt="" className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-white/15" /> : <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/10 text-sm font-bold">{name.slice(0, 1).toUpperCase()}</span>}
-      <span className="truncate text-[15px] font-extrabold uppercase tracking-wide text-white">{name}</span>
-      {ticker && <span className="shrink-0 rounded-md bg-[#d7ff00]/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#d7ff00]">${ticker}</span>}
-    </span>
-  );
-}
 const GREEN =
   "rounded-lg bg-[#d7ff00] text-black shadow-none hover:bg-[#e4ff59]";
 
@@ -68,11 +61,13 @@ function ReferenceCard({
   saved,
   onSave,
   onOpen,
+  onSchedule,
 }: {
   item: ReferenceVideo;
   saved: boolean;
   onSave: () => void;
   onOpen: () => void;
+  onSchedule: () => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const [preview, setPreview] = useState(false);
@@ -149,9 +144,19 @@ function ReferenceCard({
           </span>
         </span>
       </button>
+      <div className="absolute right-2 top-2 flex items-center gap-1.5">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={`Schedule ${item.title}`}
+        title="Schedule for later"
+        onClick={onSchedule}
+        className="size-8 rounded-full border border-white/20 bg-black/20 backdrop-blur-xl hover:bg-white/20"
+      >
+        <CalendarClock className="size-4 text-white" />
+      </Button>
       <motion.div
         animate={saved && !reduced ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-        className="absolute right-2 top-2"
       >
         <Button
           variant="ghost"
@@ -166,6 +171,7 @@ function ReferenceCard({
           />
         </Button>
       </motion.div>
+      </div>
     </article>
   );
 }
@@ -175,12 +181,14 @@ function Generator({
   primaryName,
   item,
   resolution,
+  mode,
   onBusy,
 }: {
   mint: string;
   primaryName: string;
   item: ReferenceVideo;
   resolution: GenjutsuResolution;
+  mode: GenMode;
   onBusy: (busy: boolean) => void;
 }) {
   const [portrait, setPortrait] = useState<string>();
@@ -242,7 +250,7 @@ function Generator({
         </p>
       )}
       {portrait && (
-        <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} value={prompt} onChange={setPrompt} onCast={setCast} />
+        <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
       <Button
@@ -252,7 +260,7 @@ function Generator({
         }
         onClick={() =>
           void start({
-            mode: "motion-transfer",
+            mode,
             videoUrl: item.videoUrl,
             imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8),
             prompt,
@@ -321,6 +329,9 @@ export function ExplorePage({ initial }: { initial: Feed }) {
   const [mint, setMint] = useState("");
   const [generating, setGenerating] = useState(false);
   const [resolution, setResolution] = useState<GenjutsuResolution>("720p");
+  const [mode, setMode] = useState<GenMode>("motion-transfer");
+  const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
+  const [scheduleItem, setScheduleItem] = useState<ReferenceVideo | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
   const [mediaError, setMediaError] = useState(false);
@@ -377,8 +388,15 @@ export function ExplorePage({ initial }: { initial: Feed }) {
     window.addEventListener("storage", restore);
     return () => window.removeEventListener("storage", restore);
   }, []);
+  const inPrice = (i: ReferenceVideo) => {
+    if (price === "any") return true;
+    const p = estimateGenerationUsd(i.duration, resolution);
+    if (p === null) return false;
+    return price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20;
+  };
   const visible = items.filter(
     (i) =>
+      inPrice(i) &&
       (category === "All" || i.category === category) &&
       `${i.title} ${i.description}`
         .toLowerCase()
@@ -505,12 +523,27 @@ export function ExplorePage({ initial }: { initial: Feed }) {
               </Button>
             ))}
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              ["Model", mode, (v: string) => setMode(v as GenMode), [["motion-transfer", "Genjutsu · Motion transfer"], ["object-swap", "Genjutsu · Object swap"]]],
+              ["Quality", resolution, (v: string) => setResolution(v as GenjutsuResolution), GENJUTSU_RESOLUTIONS.map((r) => [r, r])],
+              ["Price", price, (v: string) => setPrice(v as typeof price), [["any", "Any price"], ["u5", "Under $5"], ["5-10", "$5 to $10"], ["10-20", "$10 to $20"], ["o20", "$20 and up"]]],
+            ] as Array<[string, string, (v: string) => void, string[][]]>).map(([label, value, set, opts]) => (
+              <label key={label} className="relative">
+                <span className="sr-only">{label}</span>
+                <select value={value} onChange={(e) => set(e.target.value)} aria-label={label} className="h-9 cursor-pointer appearance-none rounded-lg border border-white/10 bg-white/[0.05] py-0 pl-3 pr-8 text-xs font-medium text-zinc-200 outline-none backdrop-blur-xl transition-colors hover:bg-white/[0.09] focus-visible:ring-2 focus-visible:ring-[#d7ff00]/50 [color-scheme:dark]">
+                  {opts.map(([v, l]) => <option key={v} value={v}>{label}: {l}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 size-3.5 text-zinc-500" />
+              </label>
+            ))}
           <p className="text-sm font-medium tracking-tight text-white/50">
             <span className="tabular-nums text-white/80">
               {initial.total.toLocaleString()}
             </span>{" "}
             videos available
           </p>
+          </div>
         </div>
         <div className="columns-2 gap-3 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6">
           {visible.map((item) => (
@@ -520,6 +553,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
               saved={saved.includes(item.id)}
               onSave={() => toggleSave(item)}
               onOpen={() => openReference(item)}
+              onSchedule={() => setScheduleItem(item)}
             />
           ))}
         </div>
@@ -602,6 +636,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                 saved
                 onSave={() => toggleSave(item)}
                 onOpen={() => openReference(item)}
+              onSchedule={() => setScheduleItem(item)}
               />
             ))}
           </motion.div>
@@ -813,6 +848,7 @@ export function ExplorePage({ initial }: { initial: Feed }) {
                       primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? "Character"}
                       item={selected}
                       resolution={resolution}
+                      mode={mode}
                       onBusy={setGenerating}
                     />
                   ) : (
@@ -830,6 +866,14 @@ export function ExplorePage({ initial }: { initial: Feed }) {
           )}
         </DialogContent>
       </Dialog>
+      <ScheduleDialog
+        item={scheduleItem}
+        agents={agents}
+        initialMint={mint}
+        mode={mode}
+        resolution={resolution}
+        onClose={() => setScheduleItem(null)}
+      />
     </main>
   );
 }

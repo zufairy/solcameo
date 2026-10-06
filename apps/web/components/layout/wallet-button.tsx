@@ -11,7 +11,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import flashAvatar from "@/assets/flash.jpeg";
-import { ChevronDown, Copy, LogOut, ExternalLink, Wallet, Sparkles, Swords, CreditCard } from "lucide-react";
+import { ChevronDown, Copy, LogOut, ExternalLink, Wallet, Sparkles, Swords } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { useFullSignOut } from "@/providers/wallet-provider";
 import { PRIVY_ENABLED } from "@/lib/privy";
@@ -132,15 +132,11 @@ function ConnectedPill({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => router.push("/studio")}>
             <Sparkles className="size-3.5 mr-2 text-white" />
-            My Agents
+            My Influencers
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/wallet")}>
             <Wallet className="size-3.5 mr-2 text-zinc-400" />
             Wallet
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/billing")}>
-            <CreditCard className="size-3.5 mr-2 text-zinc-400" />
-            Billing & credits
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => navigator.clipboard.writeText(address)}>

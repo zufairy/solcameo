@@ -1543,3 +1543,24 @@ html.light body *, html.dark body * {
 }
 .glass3d:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.5), 0 28px 50px -22px rgba(0,0,0,1); }
 @media (prefers-reduced-motion: reduce) { .glass3d { transition: none; } .glass3d:hover { transform: none; } }
+
+/* Callout share cards in the feed: each template has its own idle motion layered over the drawn card. */
+.callout-art { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s; box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9); }
+.callout-art:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 26px 50px -22px rgba(0, 0, 0, 0.95); }
+.callout-art::before, .callout-art::after { content: ""; position: absolute; pointer-events: none; }
+/* Colosseum: a slow gold glint sweeps across. */
+.callout-art[data-theme="colosseum"]::after { inset: -20% -60%; background: linear-gradient(105deg, transparent 42%, rgba(255, 214, 140, 0.28) 50%, transparent 58%); animation: callout-glint 5.5s ease-in-out infinite; }
+/* Solana: the gradient edge breathes. */
+.callout-art[data-theme="solana"]::after { inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px rgba(20, 241, 149, 0.55), inset 0 0 60px rgba(153, 69, 255, 0.35); animation: callout-breathe 4s ease-in-out infinite; }
+/* Lamborghini: two speed streaks fly past. */
+.callout-art[data-theme="lambo"]::after { inset: 0; background: linear-gradient(100deg, transparent 0 40%, rgba(255, 212, 0, 0.55) 42% 44%, transparent 46% 100%), linear-gradient(100deg, transparent 0 50%, rgba(255, 255, 255, 0.4) 51% 52%, transparent 53% 100%); background-size: 220% 100%; animation: callout-streak 3.6s cubic-bezier(0.5, 0, 0.2, 1) infinite; mix-blend-mode: screen; }
+/* Bull run: a green pulse rises from the bottom. */
+.callout-art[data-theme="bullrun"]::after { inset: 0; background: radial-gradient(120% 50% at 50% 110%, rgba(52, 211, 153, 0.4), transparent 70%); animation: callout-rise 3.4s ease-in-out infinite; }
+/* After hours: a scanline drifts down the card. */
+.callout-art[data-theme="neon"]::after { left: 0; right: 0; top: 0; height: 18%; background: linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.22), transparent); animation: callout-scan 4.2s linear infinite; }
+@keyframes callout-glint { 0%, 55% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+@keyframes callout-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes callout-streak { 0%, 35% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
+@keyframes callout-rise { 0%, 100% { opacity: 0.35; transform: translateY(8%); } 50% { opacity: 1; transform: translateY(0); } }
+@keyframes callout-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(560%); } }
+@media (prefers-reduced-motion: reduce) { .callout-art::after { animation: none !important; } .callout-art { transition: none; } }
