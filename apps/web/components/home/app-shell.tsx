@@ -16,7 +16,6 @@ import {
   BookOpen,
   HelpCircle,
   BarChart3,
-  Crown,
   Images,
   Users,
   RefreshCw,
@@ -51,7 +50,6 @@ const MAIN_ITEMS: NavItem[] = [
 ];
 const BOTTOM_ITEMS: NavItem[] = [
   { label: "Billing", href: "/billing", icon: CreditCard },
-  { label: "Pricing", href: "/pricing", icon: Crown },
   { label: "Docs", href: "/docs", icon: BookOpen },
   { label: "Help center", icon: HelpCircle, onClick: () => window.dispatchEvent(new Event("vello:open-live-chat")) },
 ];

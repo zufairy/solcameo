@@ -102,7 +102,6 @@ export function AgentCreationGate({ children, allowResume = false }: { children:
 
           <footer className="relative flex shrink-0 items-center gap-4 px-6 py-4 text-[13px] font-medium">
             <Link href="/control" className="text-[#141413] underline-offset-4 hover:underline">My Agents</Link>
-            {!mint && authenticated && !error && <Link href="/pricing" className="text-[#141413]/55 underline-offset-4 hover:text-[#141413] hover:underline">Upgrade plan</Link>}
           </footer>
         </motion.section>
       </div>

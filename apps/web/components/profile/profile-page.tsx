@@ -14,7 +14,7 @@ import { SettingsShell, Panel, Kpi, blurIn } from "@/components/settings/setting
 import flashAvatar from "@/assets/flash.jpeg";
 import {
   Check, Copy, ChevronRight, Wallet, Bot, User, Pencil, Eye, Film, Users as UsersIcon,
-  Camera, Loader2, X, CreditCard,
+  Camera, Loader2, X,
 } from "lucide-react";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -344,7 +344,6 @@ export function ProfilePage() {
             <p className="mt-1 text-[12px] text-white/40">Each influencer after your first carries a one-time mint fee plus a monthly fee, billed in USDC from your wallet.</p>
           </div>
           <div className="h-px bg-white/[0.06]" />
-          <Row icon={CreditCard} label="View plans & pricing" href="/pricing" />
         </Panel>
       </motion.div>
     </SettingsShell>

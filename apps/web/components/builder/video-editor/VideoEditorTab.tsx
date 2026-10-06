@@ -4161,9 +4161,6 @@ export function VideoEditorTab({ mintAddress, sessionId, onRunClipping, onViewRe
                     </div>
                   </div>
                 )}
-                {creditNotice.required !== undefined && (
-                  <a href="/pricing" className="mt-3 inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-950 shadow-[0_4px_14px_rgba(255,255,255,0.25)] transition hover:bg-white/90">Add credits <ArrowUpRight className="size-3" /></a>
-                )}
               </div>
               <button type="button" onClick={() => setCreditNotice(null)} aria-label="Dismiss" className="rounded-md p-0.5 text-white/60 transition hover:bg-white/15 hover:text-white"><X className="size-4" /></button>
             </div>

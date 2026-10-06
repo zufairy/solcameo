@@ -71,12 +71,6 @@ function Navigation({ slug }: { slug: string }) {
             })}
           </div>
 
-          <Link
-            href="/pricing"
-            className="hidden rounded-lg px-3 py-1.5 text-[13px] font-medium text-neutral-600 transition-colors hover:text-neutral-900 sm:inline-flex"
-          >
-            Pricing
-          </Link>
           <div className="rounded-xl bg-[#17191d]/95 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
             {walletOnly ? <WalletButton /> : <AccountButton />}
           </div>

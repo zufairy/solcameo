@@ -7,7 +7,7 @@ import { canonicalUrl } from "@/lib/seo";
 export const revalidate = 3600;
 
 const PAGES: Array<[string, number]> = [
-  ["/", 1], ["/market", 0.9], ["/explore", 0.9], ["/create", 0.9], ["/how-it-works", 0.9], ["/clipping", 0.6], ["/agents", 0.8], ["/pricing", 0.7],
+  ["/", 1], ["/market", 0.9], ["/explore", 0.9], ["/create", 0.9], ["/how-it-works", 0.9], ["/clipping", 0.6], ["/agents", 0.8],
   ["/about", 0.6], ["/docs", 0.6], ["/tokenomics", 0.6], ["/blog", 0.6], ["/vs/opusclip", 0.5], ["/vs/klap", 0.5], ["/vs/munch", 0.5], ["/vs/vizard", 0.5],
 ];
 

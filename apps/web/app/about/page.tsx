@@ -147,9 +147,6 @@ export default function AboutPage() {
           <Link href="/builder" className="rounded-lg bg-white px-5 py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90">
             Try Vello free
           </Link>
-          <Link href="/pricing" className="rounded-lg border border-white/15 px-5 py-3 text-[14px] font-medium text-white/80 transition-colors hover:bg-white/[0.06]">
-            See pricing
-          </Link>
         </div>
       </div>
     </main>

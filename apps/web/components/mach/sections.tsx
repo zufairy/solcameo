@@ -69,7 +69,6 @@ const NAV_LINKS = [
   { label: "Build", href: "/studio/build" },
   { label: "Influencers", href: "/agents" },
   { label: "Invest", href: "/market" },
-  { label: "Pricing", href: "/pricing" },
 ];
 
 /* Sign-in entry point for the cinematic landing. Rather than a bespoke modal

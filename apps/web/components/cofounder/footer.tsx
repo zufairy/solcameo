@@ -24,7 +24,6 @@ const COL_ONE = [
     label: "Funding Opportunities",
     href: "mailto:syakir@vello.gg?subject=Investment%20Enquiry&body=Hi%20Vello%20team%2C%0A%0AI%27d%20like%20to%20talk%20about%20investing%20in%20Vello.%0A%0A",
   },
-  { label: "Pricing", href: "/pricing" },
   { label: "Careers", href: "/hiring" },
 ];
 const COL_TWO = [
