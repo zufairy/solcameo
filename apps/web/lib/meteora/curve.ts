@@ -18,6 +18,10 @@ import {
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { ANTI_SNIPER_LEVELS, dbcOptionsSchema, type DbcOptions } from "./options";
 import { CREATOR_TRADING_FEE_PERCENTAGE, TRADING_FEE_BPS } from "./feePolicy";
+const MONTH_SECONDS = 30 * 86_400;
+/** SOLCAMEO allocation (see lib/tokenomics/platformToken.ts): 15% team vesting, 12% treasury + 10% rewards leftover. */
+export const PLATFORM_TEAM_TOKENS = 150_000_000;
+export const PLATFORM_LEFTOVER_TOKENS = 220_000_000;
 export function buildDbcCurve(input: DbcOptions, profile: "influencer" | "platform" = "influencer") {
   // The trading fee is flat for every coin, whatever an older stored option says.
   const o = { ...dbcOptionsSchema.parse(input), feeBps: profile === "platform" ? 100 : TRADING_FEE_BPS as number };
@@ -29,7 +33,8 @@ export function buildDbcCurve(input: DbcOptions, profile: "influencer" | "platfo
       tokenQuoteDecimal: 9,
       tokenAuthorityOption: TokenAuthorityOption.Immutable,
       totalTokenSupply: 1_000_000_000,
-      leftover: profile === "platform" ? 0 : 1000,
+      // Platform: treasury (12%) + holder rewards (10%) are released to the platform wallet after graduation.
+      leftover: profile === "platform" ? PLATFORM_LEFTOVER_TOKENS : 1000,
     },
     fee: {
       baseFeeParams: {
@@ -65,13 +70,22 @@ export function buildDbcCurve(input: DbcOptions, profile: "influencer" | "platfo
       creatorPermanentLockedLiquidityPercentage:
         o.economy === "sustainable-v1" ? 50 : 100,
     },
-    lockedVesting: {
-      totalLockedVestingAmount: 0,
-      numberOfVestingPeriod: 0,
-      cliffUnlockAmount: 0,
-      totalVestingDuration: 0,
-      cliffDurationFromMigrationTime: 0,
-    },
+    // Platform: the 15% team allocation vests on chain, 12-month cliff after graduation, then monthly over 36 months.
+    lockedVesting: profile === "platform"
+      ? {
+          totalLockedVestingAmount: PLATFORM_TEAM_TOKENS,
+          numberOfVestingPeriod: 36,
+          cliffUnlockAmount: 0,
+          totalVestingDuration: 36 * MONTH_SECONDS,
+          cliffDurationFromMigrationTime: 12 * MONTH_SECONDS,
+        }
+      : {
+          totalLockedVestingAmount: 0,
+          numberOfVestingPeriod: 0,
+          cliffUnlockAmount: 0,
+          totalVestingDuration: 0,
+          cliffDurationFromMigrationTime: 0,
+        },
     activationType: ActivationType.Timestamp,
   };
   const caps = {

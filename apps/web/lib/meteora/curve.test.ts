@@ -7,9 +7,10 @@ import { CREATOR_TRADING_FEE_PERCENTAGE, FEE_SPLIT_PERCENT } from "./feePolicy";
 describe("Meteora DBC economics", () => {
   it("builds the separate platform preset without influencer launch taxes", () => {
     const c = buildDbcCurve(PLATFORM_DBC, "platform");
-    expect(PLATFORM_DBC).toMatchObject({ initialCapSol: 20, graduationCapSol: 600, antiSniper: false, dynamicFee: true, autopilot: false });
+    expect(PLATFORM_DBC).toMatchObject({ initialCapSol: 20, graduationCapSol: 600, antiSniper: true, antiSniperLevel: "standard", dynamicFee: true, autopilot: false });
     expect(c.tokenUpdateAuthority).toBe(1);
-    expect(Number(c.poolFees.baseFee.cliffFeeNumerator.toString())).toBe(10_000_000);
+    // Anti-sniper: the launch fee starts at 30% and decays to the 1% trading fee.
+    expect(Number(c.poolFees.baseFee.cliffFeeNumerator.toString())).toBe(300_000_000);
     expect(c.creatorTradingFeePercentage).toBe(100);
     expect(c.creatorPermanentLockedLiquidityPercentage).toBe(100);
     expect(c.partnerLiquidityPercentage).toBe(0);

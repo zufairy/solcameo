@@ -39,5 +39,5 @@ export const ANTI_SNIPER_LEVELS = {
  * Full permanent liquidity locking is Solcameo's deliberate protection choice. */
 export const PLATFORM_DBC = dbcOptionsSchema.parse({
   economy: "creator-only", shape: "classic", initialCapSol: 20, graduationCapSol: 600,
-  feeBps: 100, antiSniper: false, dynamicFee: true, autopilot: false,
+  feeBps: 100, antiSniper: true, antiSniperLevel: "standard", dynamicFee: true, autopilot: false,
 });

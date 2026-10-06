@@ -8,11 +8,11 @@ export const TOKEN_SYMBOL = "SOLCAMEO";
 export const TOTAL_SUPPLY = 1_000_000_000;
 
 export const ALLOCATION = [
-  { key: "public", label: "Fair launch (bonding curve)", pct: 60, note: "Sold to the public on the curve. No presale, no private round.", color: "#d7ff00" },
-  { key: "team", label: "Team", pct: 15, note: "12-month cliff, then linear vesting over 36 months.", color: "#7dd3fc" },
-  { key: "treasury", label: "Treasury", pct: 12, note: "Held in a multisig for grants, listings and partnerships.", color: "#c4b5fd" },
-  { key: "rewards", label: "Holder rewards", pct: 10, note: "Paid to tier holders over 3 years, capped per year.", color: "#fda4af" },
-  { key: "liquidity", label: "Liquidity", pct: 3, note: "Seeded into the pool and permanently locked.", color: "#fcd34d" },
+  { key: "public", label: "Fair launch (bonding curve)", pct: 53, note: "Sold to the public on the curve. No presale, no private round.", color: "#d7ff00" },
+  { key: "team", label: "Team", pct: 15, note: "Vests on chain: 12-month cliff after graduation, then monthly over 36 months.", color: "#7dd3fc" },
+  { key: "treasury", label: "Treasury", pct: 12, note: "Released to the platform wallet at graduation, for grants, listings and partnerships.", color: "#c4b5fd" },
+  { key: "rewards", label: "Holder rewards", pct: 10, note: "Released to the platform wallet at graduation, paid to tier holders over 3 years, capped per year.", color: "#fda4af" },
+  { key: "liquidity", label: "Liquidity", pct: 10, note: "Seeded into the graduated pool and permanently locked.", color: "#fcd34d" },
 ] as const;
 
 export type TierKey = "none" | "bronze" | "silver" | "gold" | "diamond";
