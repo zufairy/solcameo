@@ -157,7 +157,7 @@ export function AccountButton({
       />
       <DropdownMenuContent
         align={fullWidth ? "start" : "end"}
-        className="w-60 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-2xl ring-0 backdrop-blur-2xl"
+        className="w-60 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-[#17191d]/95 text-white shadow-2xl ring-0 backdrop-blur-2xl"
         style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" }}
       >
         <div className="px-2 py-1.5">

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import brandLogo from "@/assets/solcameo-dark.png";
+import brandLogo from "@/assets/solcameo-light.png";
 import { AccountButton } from "@/components/layout/account-button";
 import { WalletButton } from "@/components/layout/wallet-button";
 import {
@@ -77,7 +77,9 @@ function Navigation({ slug }: { slug: string }) {
           >
             Pricing
           </Link>
-          {walletOnly ? <WalletButton /> : <AccountButton light />}
+          <div className="rounded-xl bg-[#17191d]/95 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+            {walletOnly ? <WalletButton /> : <AccountButton />}
+          </div>
         </div>
       </nav>
     </header>
