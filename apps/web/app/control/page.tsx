@@ -300,7 +300,7 @@ function ControlPanel() {
             {!current && (
               <motion.div
                 key="dashboard"
-                className="min-w-0 flex-1 overflow-y-auto"
+                className="flex min-w-0 flex-1 flex-col overflow-y-auto"
                 initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, filter: "blur(6px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, filter: "blur(6px)" }}

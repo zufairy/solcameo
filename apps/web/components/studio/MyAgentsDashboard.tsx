@@ -386,7 +386,7 @@ function NoAgentsIllustration() {
 }
 
 function EmptyDashboard() {
-  return <motion.div {...blurIn(0.08)} className="flex min-h-[420px] flex-col items-center justify-center px-4 py-10 text-center">
+  return <motion.div {...blurIn(0.08)} className="flex w-full flex-col items-center justify-center text-center">
     <NoAgentsIllustration />
     <h2 className="mt-9 max-w-xl text-balance text-[2.1rem] font-black uppercase leading-[0.95] tracking-[-0.035em] text-white sm:text-5xl">Your influencers<br />start here</h2>
     <p className="mt-4 max-w-md text-balance text-[15px] leading-6 text-zinc-500">One character. One coin. One agent.</p>
@@ -517,6 +517,17 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
   const hasAccount = authenticated || connected;
   const loading = authLoading || (creatorWallets.length > 0 && rawDocs === undefined);
 
+  // No influencers yet: the empty state owns the whole pane, centred both ways (no header or side column).
+  if (hasAccount && !loading && docs.length === 0) {
+    return (
+      <Shell>
+        <div className={`flex min-h-[480px] flex-1 items-center justify-center px-6 py-10 text-white ${embedded ? "bg-[#202326]" : "bg-[#090a0b]"}`}>
+          <EmptyDashboard />
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell>
       <div className={`min-h-full text-white ${embedded ? "bg-[#202326]" : "bg-[#090a0b]"}`}>
@@ -633,7 +644,6 @@ export function MyAgentsDashboard({ embedded = false, onChat }: { embedded?: boo
               </div>
             )}
 
-            {hasAccount && !loading && docs.length === 0 && <EmptyDashboard />}
 
             {hasAccount && !loading && filtered.length > 0 && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
