@@ -2525,4 +2525,21 @@ export default defineSchema({
      *  the counter ticks between hourly refreshes. Reset to 0 on refresh. */
     viewsDelta: v.optional(v.number()),
   }).index("by_key", ["key"]),
+
+  /** One row per weekly SOLCAMEO reward epoch (Monday 00:00 UTC). Money amounts are integer micro-USDC. Rows are
+   *  immutable once planned; execution only stamps the status and the on-chain burn signature. */
+  platformTokenEpochs: defineTable({
+    epochStart: v.number(),
+    epochEnd: v.number(),
+    settledMicro: v.number(),
+    revenueMicro: v.number(),
+    buybackMicro: v.number(),
+    opsMicro: v.number(),
+    treasuryMicro: v.number(),
+    truncated: v.boolean(),
+    status: v.union(v.literal("planned"), v.literal("burned")),
+    burnTokens: v.optional(v.string()),
+    burnSig: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_epoch", ["epochStart"]),
 });

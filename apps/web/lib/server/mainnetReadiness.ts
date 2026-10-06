@@ -92,6 +92,18 @@ export async function mainnetReadiness(): Promise<{ ready: boolean; network: str
       add(checks, "vault", info?.executable ? "ok" : "fail", info?.executable ? "Agent vault program is deployed on mainnet" : "Agent vault program is NOT deployed on this network");
     } catch { add(checks, "vault", "warn", "Could not verify the agent vault program"); }
   }
+  const tokenMint = process.env.SOLCAMEO_TOKEN_MINT?.trim();
+  if (!tokenMint) add(checks, "token.mint", "warn", "SOLCAMEO_TOKEN_MINT is unset: holder discounts and the token section of /tokenomics stay inert until the token launches");
+  else {
+    let mintOk = false;
+    try { mintOk = !!connection && !!(await connection.getAccountInfo(new PublicKey(tokenMint), "confirmed")); } catch { mintOk = false; }
+    add(checks, "token.mint", mintOk ? "ok" : "fail", mintOk ? `SOLCAMEO mint ${tokenMint} exists on this network` : "SOLCAMEO_TOKEN_MINT does not exist on this network");
+    for (const name of ["SOLCAMEO_TEAM_WALLET", "SOLCAMEO_TREASURY_WALLET", "SOLCAMEO_REWARDS_WALLET"]) {
+      let ok = false; try { ok = !!new PublicKey(process.env[name] ?? ""); } catch { ok = false; }
+      add(checks, `token.${name.toLowerCase()}`, ok ? "ok" : "warn", ok ? `${name} set` : `${name} unset: the /tokenomics page cannot show those balances`);
+    }
+    add(checks, "token.treasurySigner", parseSecret(process.env.SOLCAMEO_TREASURY_SECRET) ? "ok" : "warn", parseSecret(process.env.SOLCAMEO_TREASURY_SECRET) ? "SOLCAMEO_TREASURY_SECRET valid (needed for burns)" : "SOLCAMEO_TREASURY_SECRET missing: burns cannot be executed");
+  }
   if (process.env.X402_ENABLED === "true" && process.env.X402_NETWORK && !process.env.X402_NETWORK.includes("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")) add(checks, "x402", "fail", "X402 is enabled on a non-mainnet network");
 
   return { ready: !checks.some((c) => c.level === "fail"), network, checks };
