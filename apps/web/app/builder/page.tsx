@@ -2,6 +2,7 @@
 
 import { InfluencerOnboarding } from "@/components/solcameo/InfluencerOnboarding";
 import { AgentCreationGate } from "@/components/agents/agent-creation-gate";
+import { BrandSplash, BlurReveal } from "@/components/brand/BrandSplash";
 
 import { inferAgentTypeFromPrompt } from "@/lib/builder/agentIntent";
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
@@ -11,7 +12,6 @@ import {
   ArrowLeft,
   ArrowUp,
   Loader2,
-  Zap,
   Plus,
   GitBranch,
   Workflow,
@@ -6188,28 +6188,7 @@ function BuilderPageInner() {
 }
 
 function BuilderSplash() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-black flex-col gap-4">
-      <motion.div
-        className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.35)]"
-        animate={{
-          scale: [1, 1.05, 1],
-          boxShadow: [
-            "0 0 30px rgba(59,130,246,0.25)",
-            "0 0 55px rgba(99,102,241,0.45)",
-            "0 0 30px rgba(59,130,246,0.25)",
-          ],
-        }}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
-        <Zap className="w-8 h-8 text-white" fill="currentColor" />
-      </motion.div>
-      <div className="flex items-center gap-2 text-sm text-white/40">
-        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-        Loading builder...
-      </div>
-    </div>
-  );
+  return <BrandSplash label="Loading builder" />;
 }
 
 /** Reads `?mint=` and keys <BuilderPageInner> by it, so switching agents from
@@ -6225,8 +6204,8 @@ function BuilderSplash() {
 function BuilderPageKeyed() {
   const searchParams = useSearchParams();
   const mintKey = searchParams.get("mint")?.trim() || "new";
-  if (mintKey === "new") return <InfluencerOnboarding />;
-  return <AgentCreationGate allowResume><BuilderPageInner key={mintKey} /></AgentCreationGate>;
+  if (mintKey === "new") return <BlurReveal><InfluencerOnboarding /></BlurReveal>;
+  return <BlurReveal><AgentCreationGate allowResume><BuilderPageInner key={mintKey} /></AgentCreationGate></BlurReveal>;
 }
 
 export default function BuilderPage() {

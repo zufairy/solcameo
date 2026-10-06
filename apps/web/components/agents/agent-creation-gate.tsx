@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Loader2, LockKeyhole } from "lucide-react";
+import { ArrowUpRight, LockKeyhole } from "lucide-react";
+import { BrandSplash } from "@/components/brand/BrandSplash";
 import { useMyAgents } from "@/lib/client/useMyAgents";
 import { useAgentQuota } from "@/hooks/use-agent-quota";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -19,7 +20,7 @@ export function AgentCreationGate({ children, allowResume = false }: { children:
   // A queued clip link survives the "pick an agent" step: owned-agent links carry it.
   const queued = !mint ? searchParams.get("q")?.trim() : "";
   const queuedSuffix = queued ? `&type=clipping&q=${encodeURIComponent(queued)}` : "";
-  if (loading || pending) return <div className="grid min-h-[70vh] place-items-center"><Loader2 className="size-5 animate-spin text-zinc-400" aria-label="Checking agent access" /></div>;
+  if (loading || pending) return <BrandSplash label="Checking access" fullscreen={false} />;
   if (authenticated && quota && (mint ? quota.agents.some(a => a.mintAddress === mint) : quota.canCreate)) return children;
   const title = !authenticated ? "Sign in to create your agent" : error ? "Could not check agent access" : mint ? "Agent unavailable" : queued ? "Pick an agent for this video" : "Agent limit reached";
   const used = quota?.agentCount ?? 0;
