@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { authorizeCharacterOwner } from "@/lib/server/characterAuth";
 import { assertPublicHttpUrl } from "@/lib/server/downloader";
 import { callClaudeText, callGeminiVision } from "@/lib/server/kie-claude";
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
     .filter((c) => c.token);
   if (!cast.length) return NextResponse.json({ error: "No cast" }, { status: 400 });
 
+  const billing = await beginAgentGeneration(req, a.mint, "llm_message");
+  if (billing.error) return billing.error;
+
   const system = body.mode === "object-swap" ? SYSTEM_SWAP : SYSTEM_MOTION;
   const shots = await Promise.all(cast.map((c) => (c.imageUrl ? toDataUrl(c.imageUrl) : Promise.resolve(null))));
   const seen = cast.map((c, i) => ({ ...c, data: shots[i] }));
@@ -88,6 +92,7 @@ export async function POST(req: NextRequest) {
     if (missing.length) out = `Replace the subject with ${missing.join(" and ")}. ${out}`.slice(0, 380);
     return NextResponse.json({ prompt: out }, { headers: { "Cache-Control": "no-store" } });
   } catch {
+    await billing.refund();
     return NextResponse.json({ error: "Couldn't write a prompt right now. Try again." }, { status: 502 });
   }
 }

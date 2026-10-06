@@ -16,6 +16,7 @@ import {
   Search,
   ChevronRight,
   CalendarClock,
+  Upload,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -210,6 +211,7 @@ function Generator({
   model,
   xConnected,
   onBusy,
+  uploadedFile,
 }: {
   mint: string;
   primaryName: string;
@@ -219,7 +221,10 @@ function Generator({
   model: ExploreModel;
   xConnected: boolean;
   onBusy: (busy: boolean) => void;
+  uploadedFile?: File;
 }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [portrait, setPortrait] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -238,12 +243,30 @@ function Generator({
     | undefined;
   const engineState = engineTask ? engineStatus?.[engineTask] : undefined;
   const engineRunning = engineStarting || (!!engineTask && (!engineState || engineState.status === "pending" || engineState.status === "running"));
-  const busy = model.kind === "genjutsu" ? run?.status === "pending" : engineRunning;
+  const busy = uploading || (model.kind === "genjutsu" ? run?.status === "pending" : engineRunning);
   const resultUrl = model.kind === "genjutsu" ? run?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
   const failure = model.kind === "genjutsu" ? (run?.status === "error" ? run.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
   useEffect(() => {
     onBusy(busy);
   }, [busy, onBusy]);
+  async function startMotion() {
+    if (!portrait) return;
+    setUploadError(""); setUploading(true);
+    try {
+      let videoUrl = item.videoUrl;
+      if (uploadedFile) {
+        const form = new FormData(); form.set("mintAddress", mint); form.set("file", uploadedFile);
+        const response = await fetch("/api/character/motion-upload", { method: "POST", body: form });
+        const data = await response.json();
+        if (!response.ok || !data.url) throw new Error(data.error || "Could not upload your video");
+        videoUrl = data.url;
+      }
+      await start({ mode, videoUrl, imageUrls: [portrait, ...cast.map(c => c.avatarUrl)].slice(0, 8), prompt, resolution: resolution as GenjutsuResolution, title: item.title,
+        ...(uploadedFile ? {} : { poster: item.thumbUrl, explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map(c => c.token)], autoPost: xConnected && autoPost } }),
+      });
+    } catch (e) { setUploadError(e instanceof Error ? e.message : "Could not upload your video"); }
+    finally { setUploading(false); }
+  }
   async function startEngine() {
     if (!portrait || !model.engine) return;
     setEngineError("");
@@ -329,7 +352,7 @@ function Generator({
         <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
-      {portrait && xConnected && model.kind === "genjutsu" && (
+      {portrait && !uploadedFile && xConnected && model.kind === "genjutsu" && (
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs transition-colors hover:bg-white/[0.07] has-[:checked]:border-[#d7ff00]/40 has-[:checked]:bg-[#d7ff00]/[0.06]">
           <input type="checkbox" checked={autoPost} disabled={busy} onChange={(e) => setAutoPost(e.target.checked)} className="peer sr-only" />
           <span aria-hidden="true" className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border border-white/30 bg-black/30 text-transparent transition-colors peer-checked:border-[#d7ff00] peer-checked:bg-[#d7ff00] peer-checked:text-black peer-focus-visible:ring-2 peer-focus-visible:ring-[#d7ff00]/60"><Check className="size-3" strokeWidth={3.5} /></span>
@@ -344,16 +367,7 @@ function Generator({
         onClick={() =>
           model.kind === "engine"
             ? void startEngine()
-            : void start({
-                mode,
-                videoUrl: item.videoUrl,
-                imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8),
-                prompt,
-                resolution: resolution as GenjutsuResolution,
-                title: item.title,
-                poster: item.thumbUrl,
-                explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token)], autoPost: xConnected && autoPost },
-              })
+            : void startMotion()
         }
       >
         {busy ? (
@@ -373,9 +387,9 @@ function Generator({
         {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes a 10% Solcameo fee. ` : ""}
         Keep this popup open while rendering. {model.kind === "genjutsu" ? "Finished videos are saved to your agent’s motion library." : "Track the render in your agent’s activity."}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
-      {failure && (
+      {(failure || uploadError) && (
         <p role="alert" className="text-sm text-red-400">
-          {failure}
+          {failure || uploadError}
         </p>
       )}
       {resultUrl && (
@@ -434,7 +448,14 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
   const [savedItems, setSavedItems] = useState<ReferenceVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File>();
+  const [uploadError, setUploadError] = useState("");
   const [selected, setSelected] = useState<ReferenceVideo | null>(null);
+  const customVideo = selected?.id.startsWith("upload:") ?? false;
+  useEffect(() => {
+    const url = customVideo ? selected?.videoUrl : undefined;
+    return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
+  }, [customVideo, selected?.videoUrl]);
   const [mint, setMint] = useState("");
   const [generating, setGenerating] = useState(false);
   const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
@@ -586,6 +607,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
   }
   function openReference(item: ReferenceVideo) {
     setFavoritesOpen(false);
+    setUploadedFile(undefined); setUploadError("");
     setSelected(item);
     setMediaError(false);
     setCopied(false);
@@ -663,7 +685,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto max-w-[1600px]"
       >
-        <div className="mb-5 flex items-center gap-3">
+        <div className="mb-5 flex flex-wrap items-center gap-3">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-3 size-4 text-white/40" />
             <Input
@@ -689,6 +711,10 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
               {saved.length}
             </motion.span>
           </Button>
+          <Button className={`h-10 ${GREEN}`} onClick={() => {
+            setUploadedFile(undefined); setUploadError(""); setMediaError(false);
+            setSelected({ id: "upload:new", title: "Replicate a Video", description: "Upload your video, add a prompt, and bring your Cameo influencer into the scene.", videoUrl: "", previewUrl: "", duration: 0, category: "Other" });
+          }}><VideoStackIcon className="size-4" /> Replicate a Video</Button>
         </div>
         <h1 className="sr-only">Explore video references</h1>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -838,7 +864,19 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
               </DialogDescription>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
-                  <ReferencePlayer
+                  {customVideo && <label className="mb-4 flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center hover:bg-white/10">
+                    <Upload className="size-6 text-[#d7ff00]" />
+                    <span className="text-sm">{uploadedFile?.name || "Upload your own video"}</span>
+                    <span className="text-xs text-zinc-400">4–30 seconds · up to 150 MB</span>
+                    <input type="file" accept="video/*" disabled={generating} className="sr-only" aria-label="Upload your own video" onChange={e => {
+                      const file = e.target.files?.[0]; if (!file) return; e.target.value = "";
+                      if (!file.type.startsWith("video/") || file.size > 150 * 1024 * 1024) { setUploadError("Choose a video under 150 MB."); return; }
+                      setUploadError(""); setMediaError(false); setUploadedFile(file);
+                      setSelected(current => current ? { ...current, id: `upload:${Date.now()}`, videoUrl: URL.createObjectURL(file), duration: 0 } : current);
+                    }} />
+                  </label>}
+                  {uploadError && <p role="alert" className="mb-3 text-xs text-red-400">{uploadError}</p>}
+                  {selected.videoUrl && <ReferencePlayer
                     key={selected.id}
                     src={selected.videoUrl}
                     poster={selected.thumbUrl}
@@ -852,7 +890,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       )
                     }
                     className="max-h-[56dvh]"
-                  />
+                  />}
                   {mediaError && (
                     <p role="alert" className="mt-3 text-xs text-red-400">
                       This original is unavailable from the source. Choose
@@ -873,7 +911,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       {selected.sourceName} <ArrowUpRight className="size-3" />
                     </a>
                   )}
-                  <div className="mt-3 flex gap-2">
+                  {!customVideo && <div className="mt-3 flex gap-2">
                     <Button
                       variant="outline"
                       onClick={() => void copy()}
@@ -896,6 +934,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       <ArrowUpRight className="size-4" />
                     </a>
                   </div>
+                  }
                   {copyError && (
                     <>
                       <p role="alert" className="mt-2 text-xs text-red-400">
@@ -978,7 +1017,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       </SelectContent>
                     </Select>
                   </label>
-                  {mint && !mediaError ? (
+                  {mint && !mediaError && (!customVideo || !!uploadedFile) ? (
                     <Generator
                       key={`${mint}:${selected.id}`}
                       mint={mint}
@@ -989,6 +1028,7 @@ export function ExplorePage({ initial, short }: { initial: Feed; short?: Short }
                       model={model}
                       xConnected={!!agents?.find((a) => a.mintAddress === mint)?.connectedPlatforms?.includes("x")}
                       onBusy={setGenerating}
+                      uploadedFile={customVideo ? uploadedFile : undefined}
                     />
                   ) : (
                     <p className="text-sm text-zinc-400">
