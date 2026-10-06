@@ -27,6 +27,7 @@ import { ShellAccount } from "./shell-account";
 import { ShellSearch } from "./shell-search";
 import { ShellProvider } from "./shell-context";
 import { OnchainUpdates } from "@/components/solstar/OnchainUpdates";
+import { ErrorBoundary } from "@/components/error/error-boundary";
 import { TickerStrip } from "@/components/solstar/TickerStrip";
 import { playUiTick } from "@/lib/client/uiSound";
 
@@ -225,9 +226,9 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
             {!isMarketTerminal && <ShellAnnouncement autoClose={isControl} />}
             <TopBar terminal={isMarketTerminal} />
-            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && !isControl && <TickerStrip />}
+            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && !isControl && <ErrorBoundary fallback={null}><TickerStrip /></ErrorBoundary>}
             <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : pathname === "/" ? "overflow-y-auto overscroll-contain [container-type:size]" : "overflow-y-auto overscroll-contain"}`}>
-              {children}
+              <ErrorBoundary>{children}</ErrorBoundary>
             </div>
           </SidebarInset>
         </SidebarProvider>

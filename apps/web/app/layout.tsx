@@ -188,7 +188,7 @@ export default function RootLayout({
                   <div className="flex min-h-screen flex-col overflow-x-clip">
                     <ShellGate>{children}</ShellGate>
                   </div>
-                  <AgentFundingGate />
+                  <ErrorBoundary fallback={null}><AgentFundingGate /></ErrorBoundary>
                 </SolanaWalletProvider>
               </SupabaseAuthProvider>
             </ConvexClientProvider>

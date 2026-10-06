@@ -39,6 +39,8 @@ export function ErrorState({
   // staying debuggable locally.
   const isDev = process.env.NODE_ENV !== "production";
   const detail = description ?? (isDev ? error?.message : undefined);
+  // Production keeps the headline friendly, but the short technical reason stays one click away so a crash can be reported and fixed.
+  const technical = error ? [error.name, error.message].filter(Boolean).join(": ").slice(0, 300) + (error.digest ? ` (digest ${error.digest})` : "") : "";
 
   return (
     <div
@@ -69,6 +71,12 @@ export function ErrorState({
         )}
         {error?.digest && (
           <p className="text-[10px] font-mono text-zinc-600">ref: {error.digest}</p>
+        )}
+        {technical && (
+          <details className="mx-auto max-w-md pt-1 text-left">
+            <summary className="cursor-pointer text-center text-[11px] text-zinc-600 hover:text-zinc-400">Technical details</summary>
+            <p className="mt-1 break-words rounded-md bg-black/30 p-2 font-mono text-[10px] leading-4 text-zinc-500">{technical}</p>
+          </details>
         )}
       </div>
       <div className="flex items-center gap-2">
