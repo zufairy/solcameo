@@ -8,7 +8,7 @@ interface Props {
   /** Optional compact variant for panel-level boundaries */
   compact?: boolean;
   /** Custom fallback instead of default ErrorState */
-  fallback?: React.ReactNode;
+  fallback?: React.ReactNode | ((error: Error) => React.ReactNode);
 }
 
 interface State {
@@ -39,7 +39,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       // Check `!== undefined` (not truthiness) so an explicit `fallback={null}`
       // suppresses the error UI entirely — e.g. an isolated background worker
       // whose failure should render NOTHING, not the default error card.
-      if (this.props.fallback !== undefined) return this.props.fallback;
+      if (this.props.fallback !== undefined) return typeof this.props.fallback === "function" ? this.props.fallback(this.state.error) : this.props.fallback;
       return (
         <ErrorState
           error={this.state.error}

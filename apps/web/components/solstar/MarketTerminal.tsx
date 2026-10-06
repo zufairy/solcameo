@@ -37,12 +37,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ErrorBoundary } from "@/components/error/error-boundary";
+import { PanelErrorBoundary } from "./feedShared";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { DEFAULT_DBC } from "@/lib/meteora/options";
-import { PAPER_VIRTUAL_TOKENS } from "@/lib/solstar/economics";
+import { PAPER_VIRTUAL_SOL, PAPER_VIRTUAL_TOKENS } from "@/lib/solstar/economics";
 import { marketCapLamports, priceLamportsPerToken } from "@/lib/solstar/market";
 import { getReadRpcUrl, getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
 import { TerminalChart } from "./TerminalChart";
@@ -81,14 +82,16 @@ export function MarketTerminal({
 }) {
   return (
     <ErrorBoundary
-      fallback={
+      fallback={(error) => (
         <div className="p-10 text-zinc-400">
           Market data is unavailable.{" "}
           <Link href="/market" className="text-emerald-300">
             Return to market
           </Link>
+          <button type="button" onClick={() => window.location.reload()} className="ml-3 text-zinc-300 underline underline-offset-2">Reload</button>
+          {error.message && <p className="mt-3 max-w-xl break-words font-mono text-[11px] text-zinc-600">{error.message.slice(0, 200)}</p>}
         </div>
-      }
+      )}
     >
       <Terminal key={characterId} characterId={characterId} />
     </ErrorBoundary>
@@ -306,10 +309,11 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
       </div>
     );
   const { character, token, stats, episodes, trades } = data;
-  const pool = {
-    solReserve: BigInt(token.solReserve),
-    tokenReserve: BigInt(token.tokenReserve),
-  };
+  // Live coins price from the pool, not these reserves; a record with a zero reserve must never take the page down.
+  const reservesOk = BigInt(token.tokenReserve) > 0n && BigInt(token.solReserve) > 0n;
+  const pool = reservesOk
+    ? { solReserve: BigInt(token.solReserve), tokenReserve: BigInt(token.tokenReserve) }
+    : { solReserve: PAPER_VIRTUAL_SOL, tokenReserve: PAPER_VIRTUAL_TOKENS };
   const price = priceLamportsPerToken(pool).toString();
   const cap = marketCapLamports(pool, PAPER_VIRTUAL_TOKENS).toString();
   const volume = stats
@@ -397,7 +401,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </Button>
           </div>
           {communityTab === "chat" ? (
-            <div className="min-h-0 flex-1 overflow-hidden"><MarketCharacterChat characterId={characterId} agentName={character.name} agentImageUrl={character.referenceImageUrl} /></div>
+            <div className="min-h-0 flex-1 overflow-hidden"><PanelErrorBoundary message="Chat is unavailable right now."><MarketCharacterChat characterId={characterId} agentName={character.name} agentImageUrl={character.referenceImageUrl} /></PanelErrorBoundary></div>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {events.length ? (
@@ -436,7 +440,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
 
             </div>
           )}
-          <MarketInfluencerAbout name={character.name} ticker={token.ticker} category={character.category} bio={character.bio} imageUrl={character.referenceImageUrl} />
+          <PanelErrorBoundary message="Profile is unavailable right now."><MarketInfluencerAbout name={character.name} ticker={token.ticker} category={character.category} bio={character.bio} imageUrl={character.referenceImageUrl} /></PanelErrorBoundary>
         </aside>
         <section
           className={`${mobilePanel === "chart" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto overscroll-contain lg:block`}
@@ -581,6 +585,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                 ? "Vello paper ledger"
                 : "Confirmed app trades · observed pool prices"}
             </div>
+            <PanelErrorBoundary message="The chart is unavailable right now.">
             <TerminalChart
               supplyTokens={dbc?.supplyTokens}
               points={
@@ -602,6 +607,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               connectionError={!!poolError}
               source={token.network === "paper" ? "paper" : "chain"}
             />
+            </PanelErrorBoundary>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4">
             <div className="flex gap-4">
@@ -842,8 +848,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
           className={`${mobilePanel === "trade" ? "flex" : "hidden"} market-sidebar-text min-h-0 flex-col overflow-hidden border-l border-white/10 lg:flex`}
         >
           {/* The ticket stays pinned so amount, presets and the trade button never scroll away. */}
-          <div className="shrink-0"><TradeTicket token={token} /></div>
+          <div className="shrink-0"><PanelErrorBoundary message="Trading is unavailable right now."><TradeTicket token={token} /></PanelErrorBoundary></div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <PanelErrorBoundary message="Market stats are unavailable right now.">
           <MarketAboutCard
             name={character.name}
             ticker={token.ticker}
@@ -856,6 +863,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             points={dbc?.points?.map((p) => ({ time: p.time, price: p.price }))}
             formatLamports={formatCompactSol}
           />
+          </PanelErrorBoundary>
           {publicKey?.toBase58() === character.ownerWallet && <SocialLinksForm characterId={characterId} xUrl={character.xUrl} websiteUrl={character.websiteUrl} />}
           {(token.network === "paper" || token.state === "pending") &&
             !token.dbcPool &&
@@ -917,8 +925,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </a>
             </div>
           )}
-          {token.dbcPool && <FlywheelPanel characterId={characterId} />}
-          <AgentFundSlide characterId={characterId} name={character.name} />
+          {token.dbcPool && <PanelErrorBoundary message="Creator fees are unavailable right now."><FlywheelPanel characterId={characterId} /></PanelErrorBoundary>}
+          <PanelErrorBoundary message="Agent wallet is unavailable right now."><AgentFundSlide characterId={characterId} name={character.name} /></PanelErrorBoundary>
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[13px] font-semibold text-white">Top holders</h2>
@@ -943,8 +951,8 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               <Loader2 className="size-4 animate-spin text-zinc-600" />
             )}
           </div>
-          <XFeedPanel xUrl={character.xUrl} name={character.name} />
-          <MarketLiveCam characterId={characterId} name={character.name} imageUrl={character.referenceImageUrl} />
+          <PanelErrorBoundary message="X feed is unavailable right now."><XFeedPanel xUrl={character.xUrl} name={character.name} /></PanelErrorBoundary>
+          <PanelErrorBoundary message="Live cam is unavailable right now."><MarketLiveCam characterId={characterId} name={character.name} imageUrl={character.referenceImageUrl} /></PanelErrorBoundary>
           </MarketInfoCarousel>
         </aside>
       </div>

@@ -46,3 +46,22 @@ describe("official platform launch persistence", () => {
     expect((await t.query(api.platformLaunch.get, { network: "mainnet", authSecret: "test" }))?.state).toBe("draft");
   });
 });
+
+describe("platform token market listing", () => {
+  it("lists with positive reserves (the market page prices from them) and repairs a zeroed record", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.platformLaunch.draft, draft);
+    const a = { network: "devnet", wallet: "owner", authSecret: "test", mint: "mint", config: "config" };
+    await t.mutation(api.platformLaunch.update, { ...a, action: "finalize", pool: "pool", signature: "sig" });
+    const made = await t.mutation(api.platformLaunch.linkListing, { network: "devnet", authSecret: "test" });
+    const token = await t.run(async ctx => ctx.db.query("ssTokens").first());
+    expect(token!.tokenReserve > 0n && token!.solReserve > 0n).toBe(true);
+    expect((await t.query(api.platformLaunch.listing, { network: "devnet", authSecret: "test" }))).toEqual({ characterId: made.characterId, needsRepair: false });
+    // A record created by the earlier version had zero reserves.
+    await t.run(async ctx => ctx.db.patch(token!._id, { solReserve: 0n, tokenReserve: 0n }));
+    expect((await t.query(api.platformLaunch.listing, { network: "devnet", authSecret: "test" }))?.needsRepair).toBe(true);
+    await t.mutation(api.platformLaunch.linkListing, { network: "devnet", authSecret: "test" });
+    const fixed = await t.run(async ctx => ctx.db.get(token!._id));
+    expect(fixed!.tokenReserve > 0n && fixed!.solReserve > 0n).toBe(true);
+  });
+});

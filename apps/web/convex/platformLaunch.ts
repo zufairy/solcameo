@@ -64,7 +64,7 @@ export const listing = query({
     guard(a.authSecret);
     const network = a.network === "devnet" ? "devnet" : "mainnet";
     const token = await ctx.db.query("ssTokens").withIndex("by_network_ticker", q => q.eq("network", network).eq("ticker", "SOLCAMEO")).first();
-    return token?.state === "live" ? { characterId: token.characterId as string } : null;
+    return token?.state === "live" ? { characterId: token.characterId as string, needsRepair: token.tokenReserve <= 0n || token.solReserve <= 0n } : null;
   },
 });
 
@@ -79,7 +79,9 @@ export const linkListing = mutation({
     const existing = await ctx.db.query("ssTokens").withIndex("by_network_ticker", q => q.eq("network", network).eq("ticker", "SOLCAMEO")).first();
     if (existing) {
       if (existing.mint !== row.mint) throw new Error("ticker_in_use");
-      if (existing.state !== "live" || existing.dbcPool !== row.pool) await ctx.db.patch(existing._id, { state: "live", dbcPool: row.pool, dbcConfig: row.config });
+      // The market page prices from these reserves and throws on a zero token reserve, so a record created with zeros is repaired.
+      const reserves = existing.tokenReserve <= 0n || existing.solReserve <= 0n ? { solReserve: PAPER_VIRTUAL_SOL, tokenReserve: PAPER_VIRTUAL_TOKENS } : {};
+      if (existing.state !== "live" || existing.dbcPool !== row.pool || Object.keys(reserves).length) await ctx.db.patch(existing._id, { state: "live", dbcPool: row.pool, dbcConfig: row.config, ...reserves });
       return { characterId: existing.characterId as string, created: false as const };
     }
     const now = Date.now();

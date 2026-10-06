@@ -46,11 +46,14 @@ export function CharAvatar({
 /** Catches Convex query failures; mirrors MarketErrorBoundary. */
 export class PanelErrorBoundary extends Component<
   { children: ReactNode; message: string },
-  { failed: boolean; attempt: number }
+  { failed: boolean; attempt: number; detail: string }
 > {
-  state = { failed: false, attempt: 0 };
-  static getDerivedStateFromError() {
-    return { failed: true };
+  state = { failed: false, attempt: 0, detail: "" };
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: true, detail: error instanceof Error ? error.message.slice(0, 160) : "" };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("[PanelErrorBoundary]", this.props.message, error);
   }
   retry = () => this.setState((s) => ({ failed: false, attempt: s.attempt + 1 }));
   render() {
@@ -58,6 +61,7 @@ export class PanelErrorBoundary extends Component<
       return (
         <div role="alert" className="flex flex-col items-center gap-3 p-8 text-center">
           <p className="text-sm font-medium">{this.props.message}</p>
+          {this.state.detail && <p className="max-w-full break-words text-[11px] text-zinc-500">{this.state.detail}</p>}
           <button
             type="button"
             onClick={this.retry}
