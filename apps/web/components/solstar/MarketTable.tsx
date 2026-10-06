@@ -38,7 +38,6 @@ import { ErrorBoundary } from "@/components/error/error-boundary";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useMarketWatchlist } from "./market-watchlist";
-import { PlatformTokenPin } from "./PlatformTokenPin";
 export type MarketRow = FunctionReturnType<
   typeof api.solstarMarket.listMarket
 >[number];
@@ -187,10 +186,11 @@ function Market() {
     () => [...new Set(rows?.map((r) => r.category).filter(Boolean))].sort(),
     [rows],
   );
+  // The SOLCAMEO platform token always shows, first, as a normal card; filters and sorting apply to everything else.
   const visible = rows?.filter(
     (r) =>
-      r.ticker !== "SOLCAMEO" && // pinned above the list instead
-      (!graduatedOnly ||
+      r.ticker === "SOLCAMEO" ||
+      ((!graduatedOnly ||
         ["graduated", "migrated"].includes(r.state) ||
         pools[r.characterId]?.migrated) &&
       (!category || r.category === category) &&
@@ -198,8 +198,8 @@ function Market() {
       (!minVideos || r.videosPosted > 0) &&
       (launched === "any" || !now || now - r.createdAt <= (launched === "24h" ? 86_400_000 : 604_800_000)) &&
       (!activeOnly || Number(pools[r.characterId]?.appVolume24hLamports ?? 0) > 0) &&
-      (!gainersOnly || (pools[r.characterId]?.changeSinceLaunchPct ?? 0) > 0),
-  );
+      (!gainersOnly || (pools[r.characterId]?.changeSinceLaunchPct ?? 0) > 0)),
+  )?.sort((a, b) => Number(b.ticker === "SOLCAMEO") - Number(a.ticker === "SOLCAMEO"));
   const activeFilters = [!!category, minVideos, graduatedOnly, watchOnly, launched !== "any", activeOnly, gainersOnly].filter(Boolean).length;
   const resetFilters = () => {
     setCategory(""); setMinVideos(false); setGraduatedOnly(false); setWatchOnly(false);
@@ -425,7 +425,6 @@ function Market() {
           `}</style>
         </p>
       </div>
-      <PlatformTokenPin />
       {rows === undefined ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
