@@ -26,7 +26,7 @@ import {
   Wallet, Briefcase, ChevronRight, Compass, RefreshCw, Search, ArrowUpRight,
   Settings, Trash2, DollarSign, GalleryHorizontal, Scissors, ImagePlus, Clapperboard, Video, BookOpen, Lightbulb,
   Lock, Rocket, ImageUp, Play,
-  UserRound,
+  UserRound, Link2,
 } from "lucide-react";
 import { getAccountExplorerUrl } from "@/lib/solana/network";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -219,6 +219,11 @@ function formatPostEta(scheduledFor: number): string {
   if (diff < 86_400_000) return `in ${Math.round(diff / 3_600_000)}h`;
   return `in ${Math.round(diff / 86_400_000)}d`;
 }
+
+/** The Agent wallet card surface, reused so Connections and Autopilot read as the same family. */
+const GLASS_CARD = "relative overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.055] p-4 backdrop-blur-2xl shadow-[0_18px_50px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)]";
+/** Frosted white glass icon tile. */
+const FROST_TILE = "relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0.68)_55%,rgba(255,255,255,0.84))] text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),inset_0_-1px_0_rgba(0,0,0,0.08),0_6px_16px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/70 before:to-transparent";
 
 function SectionHeading({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
   return (
@@ -3576,7 +3581,19 @@ function ClipperHomeCockpit(props: {
 
           {/* Connections, compact social-connection row */}
           {(mintAddress || props.sessionId) && (
-            <SocialConnectionsPanel username={mintAddress || props.sessionId || ""} variant="dark" title="Connections" bare />
+            <div className={GLASS_CARD}>
+              <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/25" />
+              <div className="flex items-center gap-2.5">
+                <div className={FROST_TILE}><Link2 className="relative size-4" strokeWidth={2} aria-hidden /></div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-white">Connections</p>
+                  <p className="truncate text-[10.5px] text-zinc-500">Link socials so your agent can post</p>
+                </div>
+              </div>
+              <div className="mt-4 border-t border-white/[0.08] pt-2">
+                <SocialConnectionsPanel username={mintAddress || props.sessionId || ""} variant="dark" bare hideHeader />
+              </div>
+            </div>
           )}
 
           {/* Skills, hidden per request. */}
@@ -3718,12 +3735,14 @@ function ClipperHomeCockpit(props: {
               ? "only when you run it"
               : (hb?.cron ?? "").replace(/^every_/, "every ").replace(/_/g, " ");
             return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
+            <div className={GLASS_CARD}>
+              <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/25" />
               {/* Plain-language autopilot row: one toggle, one sentence, one
                   expand for the full schedule editor. */}
               <div className="flex items-center gap-3">
-                <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${hbOn ? "bg-lime-400/15 text-lime-300" : "bg-white/[0.06] text-zinc-500"}`}>
-                  <Activity className="size-4" />
+                <span className={`${FROST_TILE} ${hbOn ? "" : "opacity-70"}`}>
+                  <Activity className="relative size-4" strokeWidth={2} />
+                  {hbOn && <span aria-hidden className="absolute right-1 top-1 size-1.5 rounded-full bg-lime-500 shadow-[0_0_6px_rgba(132,204,22,0.9)]" />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13.5px] font-semibold text-white">Autopilot</p>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { VideoStack } from "./VideoStack3D";
-import { ArrowRight, Film } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Copy, Film } from "lucide-react";
 
 type Preview = { id: string; title: string; src: string; poster?: string };
 
@@ -95,6 +96,15 @@ export default function EmptyVideoStack({ onGenerate }: { onGenerate: () => void
         Open Director
         <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
       </button>
+      <div className="mt-2.5">
+        <Link
+          href="/explore"
+          className="inline-flex h-10 items-center gap-2 rounded-[3px] border border-white/15 bg-white/[0.05] px-5 text-[13px] font-semibold text-zinc-100 backdrop-blur-xl transition-colors hover:border-white/30 hover:bg-white/[0.1]"
+        >
+          <Copy className="size-4" strokeWidth={2} />
+          Replicate using Genjutsu
+        </Link>
+      </div>
     </section>
   );
 }
