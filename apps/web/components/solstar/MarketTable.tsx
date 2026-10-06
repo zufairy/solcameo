@@ -38,6 +38,7 @@ import { ErrorBoundary } from "@/components/error/error-boundary";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useMarketWatchlist } from "./market-watchlist";
+import { PlatformTokenPin } from "./PlatformTokenPin";
 export type MarketRow = FunctionReturnType<
   typeof api.solstarMarket.listMarket
 >[number];
@@ -423,6 +424,7 @@ function Market() {
           `}</style>
         </p>
       </div>
+      <PlatformTokenPin />
       {rows === undefined ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
