@@ -220,7 +220,7 @@ export function Gallery({ tiles, generating, pickedUrl, onPick, onDismiss, onShi
   const showFeed = generating || (view ?? (tiles.length ? "history" : "explore")) === "history";
 
   return (
-    <div className={`flex min-w-0 flex-col rounded-[32px] border border-white/[0.06] ${fill ? "h-[calc(100dvh-6.5rem)] min-h-[480px] lg:h-full lg:min-h-0" : "max-h-[calc(100vh-200px)] min-h-[560px] lg:sticky lg:top-4"}`} style={{ background: SURFACE.panel }}>
+    <div className={`flex min-w-0 flex-col rounded-[32px] border border-white/[0.06] ${fill ? "h-[calc(100dvh-6.5rem)] min-h-[480px] lg:h-full lg:min-h-0" : "h-[calc(100dvh-192px)] min-h-[560px] lg:sticky lg:top-10 lg:self-start"}`} style={{ background: SURFACE.panel }}>
       <div className="flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-1.5">
           {([["explore", "Explore", <Compass key="c" className="size-4" />], ["history", "History", <History key="h" className="size-4" />]] as const).map(([id, label, icon]) => {

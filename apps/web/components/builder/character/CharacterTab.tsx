@@ -309,9 +309,9 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
   return (
     <div className="min-h-full" style={GLASS_BG}>
-      <div className={`mx-auto grid max-w-6xl px-4 lg:grid-cols-[400px_1fr] ${onboarding ? "gap-3 py-3 lg:h-[calc(100dvh-3.5rem)]" : "gap-5 pb-8 pt-2"}`}>
+      <div className={`mx-auto grid max-w-6xl px-4 lg:grid-cols-[400px_1fr] ${onboarding ? "gap-3 py-3 lg:h-[calc(100dvh-3.5rem)]" : "gap-5 pb-8 pt-10"}`}>
         {/* LEFT: studio panel (same container for builder, saved influencer and Replicate) */}
-        <div className={`flex min-h-[480px] flex-col overflow-hidden rounded-[32px] border border-white/[0.06] ${onboarding ? "h-[calc(100dvh-6.5rem)] lg:h-full lg:min-h-0" : "h-[calc(100dvh-160px)] lg:sticky lg:top-4 lg:self-start"}`} style={{ background: SURFACE.panel }}>
+        <div className={`flex min-h-[480px] flex-col overflow-hidden rounded-[32px] border border-white/[0.06] ${onboarding ? "h-[calc(100dvh-6.5rem)] lg:h-full lg:min-h-0" : "h-[calc(100dvh-192px)] lg:sticky lg:top-10 lg:self-start"}`} style={{ background: SURFACE.panel }}>
           <div className={`px-5 pt-2 text-center ${onboarding ? "pb-3" : "pb-6"}`}>
             <div className="flex h-4 items-center justify-between text-[12px]">
               <span className="w-16" />
