@@ -7,11 +7,10 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { MarketCharacterChat } from "./MarketCharacterChat";
 import { MarketInfoCarousel } from "./MarketInfoCarousel";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useConvexConnectionState } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  ArrowLeft,
   Copy,
   ExternalLink,
   Loader2,
@@ -20,6 +19,8 @@ import {
 } from "lucide-react";
 import { PumpFeePayout } from "@/components/solcameo/PumpFeePayout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -91,7 +92,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const { publicKey } = useUnifiedSolanaWallet();
   const formatSol = (lamports: string) => formatUsdEstimate(lamports, usd);
   const formatCompactSol = formatSol;
-  const connection = useConvexConnectionState();
   const watch = useMarketWatchlist();
   const params = useSearchParams();
   const [mobilePanel, setMobilePanel] = useState<
@@ -103,7 +103,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const [tab, setTab] = useState(
     params.get("tab") === "videos" ? "videos" : "holders",
   );
-  const [minutes, setMinutes] = useState(1);
+  const [minutes, setMinutes] = useState(5);
   const [mcap, setMcap] = useState(true);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
@@ -364,29 +364,6 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   }
   return (
     <main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#181a1c] text-zinc-300">
-      <div className="flex items-center justify-between shrink-0 border-b border-white/10 px-4 py-2 text-[11px] text-zinc-500">
-        <Link
-          href="/market"
-          className="flex items-center gap-1.5 hover:text-white"
-        >
-          <ArrowLeft className="size-3.5" />
-          Explore influencers
-        </Link>
-        <span className="flex items-center gap-2">
-          <span
-            className={`size-1.5 rounded-full ${connection.isWebSocketConnected ? "bg-emerald-300" : "bg-amber-400"}`}
-          />
-          {poolError
-            ? "Pool reconnecting"
-            : connection.isWebSocketConnected
-              ? "Connected"
-              : "Reconnecting"}{" "}
-          ·{" "}
-          {token.network === "paper"
-            ? "Paper preview · no mint"
-            : `Solana ${token.network}`}
-        </span>
-      </div>
       <div
         className="flex shrink-0 border-b border-white/10 p-1 lg:hidden"
         role="group"
@@ -435,7 +412,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </Button>
           </div>
           {communityTab === "chat" ? (
-            <div className="min-h-0 flex-1 overflow-hidden"><MarketCharacterChat characterId={characterId} /></div>
+            <div className="min-h-0 flex-1 overflow-hidden"><MarketCharacterChat characterId={characterId} agentName={character.name} agentImageUrl={character.referenceImageUrl} /></div>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {events.length ? (
@@ -615,35 +592,23 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           </header>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-            <div className="flex gap-1">
-              {[1, 5, 60, 240, 1440].map((m) => (
-                <Button
-                  key={m}
-                  size="sm"
-                  variant="ghost"
-                  aria-pressed={minutes === m}
-                  className={
-                    minutes === m ? "text-emerald-300" : "text-zinc-500"
-                  }
-                  onClick={() => setMinutes(m)}
-                >
-                  {m < 60 ? `${m}m` : m < 1440 ? `${m / 60}h` : "D"}
-                </Button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setMcap(!mcap)}
-                className="text-zinc-400"
-              >
-                Price /{" "}
-                <span className={mcap ? "text-emerald-300" : "text-white"}>
-                  {mcap ? "MCap" : "Price"}
-                </span>
-              </Button>
-              <span className="py-1 text-xs text-emerald-300">USD</span>
+            <Tabs value={String(minutes)} onValueChange={(v) => setMinutes(Number(v))}>
+              <TabsList aria-label="Chart interval" className="h-8 bg-white/[0.04]">
+                {[1, 5, 15, 60, 240, 1440].map((m) => (
+                  <TabsTrigger key={m} value={String(m)} className="px-2.5 text-xs tabular-nums">
+                    {m < 60 ? `${m}m` : m < 1440 ? `${m / 60}h` : "1D"}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2">
+              <Tabs value={mcap ? "mcap" : "price"} onValueChange={(v) => setMcap(v === "mcap")}>
+                <TabsList aria-label="Chart metric" className="h-8 bg-white/[0.04]">
+                  <TabsTrigger value="price" className="px-3 text-xs">Price</TabsTrigger>
+                  <TabsTrigger value="mcap" className="px-3 text-xs">MCap</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Badge variant="outline" className="h-6 rounded-[5px] border-white/10 px-2 text-[11px] text-zinc-300">USD</Badge>
             </div>
           </div>
           <div className="border-b border-white/10">
@@ -675,6 +640,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               }
               minutes={minutes}
               mcap={mcap}
+              symbol={token.ticker}
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4">

@@ -6,7 +6,13 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { Send, Loader2, Clapperboard, ImagePlus, X } from "lucide-react";
+import { ArrowUp, Loader2, Clapperboard, ImagePlus, MessageSquare, X, ChevronDown } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -58,7 +64,24 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
     document.body,
   );
 }
-export function MarketCharacterChat({ characterId }: { characterId: string }) {
+const dayLabel = (t: number) => {
+  const d = new Date(t), today = new Date();
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((start(today) - start(d)) / 86400000);
+  return diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+const TINTS = ["bg-sky-500/20 text-sky-300", "bg-violet-500/20 text-violet-300", "bg-amber-500/20 text-amber-300", "bg-rose-500/20 text-rose-300", "bg-teal-500/20 text-teal-300", "bg-fuchsia-500/20 text-fuchsia-300"];
+const tintFor = (name: string) => TINTS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % TINTS.length];
+
+export function MarketCharacterChat({
+  characterId,
+  agentName = "Agent",
+  agentImageUrl,
+}: {
+  characterId: string;
+  agentName?: string;
+  agentImageUrl?: string;
+}) {
   const { authenticated, login, accessToken } = useSupabaseAuth();
   const [before, setBefore] = useState<number>();
   const live = useQuery(api.communityChat.list, {
@@ -227,17 +250,16 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
     }
   }
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#111315]">
+    <div className="flex h-full min-h-0 flex-col bg-[#101214]">
       <div
         ref={viewport}
         onScroll={() => {
           const el = viewport.current;
           if (!el) return;
-          follow.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+          follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
           if (el.scrollTop < 40 && !follow.current) loadOlder();
         }}
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-color:rgba(255,255,255,0.12)_transparent] [scrollbar-width:thin]"
         role="log"
         aria-label="Public community chat"
       >
@@ -246,81 +268,123 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
             type="button"
             onClick={loadOlder}
             disabled={loadingHistory}
-            className="w-full py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+            className="mx-auto mb-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 disabled:opacity-60"
           >
+            {loadingHistory ? <Loader2 className="size-3 animate-spin" /> : <ChevronDown className="size-3 rotate-180" />}
             {loadingHistory ? "Loading history…" : "Load earlier messages"}
           </button>
         )}
         {rows === undefined ? (
-          <Loader2 className="size-4 animate-spin text-zinc-500" />
-        ) : !rows.length ? (
-          <p className="text-xs leading-5 text-zinc-500">
-            Start the conversation. Share questions and ideas for the next
-            video. The agent reviews community messages at the top of each hour.
-          </p>
-        ) : (
-          rows.map((m) => (
-            <motion.div
-              key={m._id}
-              initial={reduced ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`rounded-lg p-2.5 ${m.role === "agent" ? "border border-[#d7ff00]/20 bg-[#d7ff00]/5" : "bg-white/[.025]"}`}
-            >
-              <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
-                <span
-                  className={
-                    m.role === "agent"
-                      ? "font-medium text-[#d7ff00]"
-                      : "text-zinc-500"
-                  }
-                >
-                  {m.role === "agent" ? "Agent · hourly reply" : m.author}
-                </span>
-                <time className="text-zinc-600">
-                  {new Date(m.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </time>
+          <div className="space-y-4" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex gap-2.5">
+                <Skeleton className="size-8 shrink-0 rounded-full bg-white/[0.06]" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-24 bg-white/[0.06]" />
+                  <Skeleton className="h-10 w-full rounded-xl bg-white/[0.05]" />
+                </div>
               </div>
-              {m.imageUrl && (
-                <button
-                  type="button"
-                  onClick={() => setZoomed(m.imageUrl!)}
-                  aria-label="View image full screen"
-                  className="mb-1.5 block cursor-zoom-in overflow-hidden rounded-[6px] ring-1 ring-white/10 transition hover:ring-white/30"
+            ))}
+          </div>
+        ) : !rows.length ? (
+          <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 text-center">
+            <span className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-300">
+              <MessageSquare className="size-5" />
+            </span>
+            <p className="mt-4 text-sm font-medium text-white">Start the conversation</p>
+            <p className="mt-1.5 max-w-[240px] text-xs leading-5 text-zinc-500">
+              Share questions and ideas for the next video. {agentName} reviews messages at the top of each hour.
+            </p>
+          </div>
+        ) : (
+          rows.map((m, i) => {
+            const prev = rows[i - 1];
+            const newDay = !prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt);
+            const grouped = !newDay && prev?.role === m.role && prev?.author === m.author && m.createdAt - prev.createdAt < 5 * 60000;
+            const agent = m.role === "agent";
+            return (
+              <div key={m._id}>
+                {newDay && (
+                  <div className="my-3 flex items-center gap-3 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                    <Separator className="flex-1 bg-white/[0.06]" />
+                    {dayLabel(m.createdAt)}
+                    <Separator className="flex-1 bg-white/[0.06]" />
+                  </div>
+                )}
+                <motion.div
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`flex gap-2.5 ${grouped ? "mt-1" : "mt-3.5"}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded chat media */}
-                  <img
-                    src={m.imageUrl}
-                    alt="Shared in chat"
-                    loading="lazy"
-                    className="max-h-52 w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
-                  />
-                </button>
-              )}
-              {m.body && (
-                <p className="whitespace-pre-wrap break-words text-xs leading-5 text-zinc-300">
-                  {m.body}
-                </p>
-              )}
-            </motion.div>
-          ))
+                  <div className="w-8 shrink-0">
+                    {!grouped && (
+                      <Avatar size="default" className="size-8">
+                        {agent && agentImageUrl && <AvatarImage src={agentImageUrl} alt={agentName} className="object-cover" />}
+                        <AvatarFallback className={`text-[11px] font-semibold ${agent ? "bg-[#d7ff00]/15 text-[#d7ff00]" : tintFor(m.author)}`}>
+                          {(agent ? agentName : m.author.replace(/^Fan\s*/, "")).slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {!grouped && (
+                      <div className="mb-1 flex items-center gap-2 text-[11px]">
+                        <span className={`font-semibold ${agent ? "text-white" : "text-zinc-300"}`}>{agent ? agentName : m.author}</span>
+                        {agent && (
+                          <Badge variant="outline" className="h-4 rounded-[4px] border-[#d7ff00]/30 bg-[#d7ff00]/10 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-[#d7ff00]">
+                            Agent
+                          </Badge>
+                        )}
+                        <time className="text-zinc-600" dateTime={new Date(m.createdAt).toISOString()}>
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </time>
+                      </div>
+                    )}
+                    <div
+                      className={`w-fit max-w-full rounded-2xl px-3 py-2 ring-1 ${agent ? "rounded-tl-md bg-gradient-to-br from-white/[0.09] to-white/[0.03] ring-white/[0.14]" : "rounded-tl-md bg-white/[0.04] ring-white/[0.06]"}`}
+                    >
+                      {m.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setZoomed(m.imageUrl!)}
+                          aria-label="View image full screen"
+                          className={`block cursor-zoom-in overflow-hidden rounded-[10px] ring-1 ring-white/10 transition hover:ring-white/30 ${m.body ? "mb-2" : ""}`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded chat media */}
+                          <img
+                            src={m.imageUrl}
+                            alt="Shared in chat"
+                            loading="lazy"
+                            className="max-h-56 w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
+                          />
+                        </button>
+                      )}
+                      {m.body && (
+                        <p className="whitespace-pre-wrap break-words text-[13px] leading-[1.45] text-zinc-200">{m.body}</p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })
         )}
       </div>
       {live?.plot && (
-        <details className="border-t border-white/10 px-3 py-3">
-          <summary className="flex cursor-pointer items-center gap-2 text-xs text-[#d7ff00]">
-            <Clapperboard className="size-3.5" />
+        <details className="group mx-3 mb-2 rounded-xl border border-white/10 bg-white/[0.03] open:bg-white/[0.045]">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-zinc-200 [&::-webkit-details-marker]:hidden">
+            <Clapperboard className="size-3.5 text-[#d7ff00]" />
             Next video plot
+            <Badge variant="outline" className="ml-1 h-4 rounded-[4px] border-white/10 px-1.5 text-[9px] font-medium text-zinc-400">
+              Proposal
+            </Badge>
+            <ChevronDown className="ml-auto size-3.5 text-zinc-500 transition-transform group-open:rotate-180" />
           </summary>
-          <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-zinc-400">
-            {live.plot}
-          </p>
-          <p className="mt-2 text-[10px] text-zinc-600">
-            Community-inspired proposal · not yet generated
-          </p>
+          <div className="max-h-40 overflow-y-auto px-3 pb-3">
+            <p className="whitespace-pre-wrap text-xs leading-5 text-zinc-400">{live.plot}</p>
+            <p className="mt-2 text-[10px] text-zinc-600">Community-inspired proposal · not yet generated</p>
+          </div>
         </details>
       )}
       <form
@@ -340,47 +404,69 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
           setDragging(false);
           attach(e.dataTransfer.files[0]);
         }}
-        className="border-t border-white/10 p-3"
+        className="p-3 pt-1"
       >
         {error && (
-          <p role="alert" className="mb-2 text-xs text-red-300">
+          <p role="alert" className="mb-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
             {error}
           </p>
         )}
-        <div
-          className={`rounded-xl border bg-white/[.03] transition-colors focus-within:border-white/25 ${dragging ? "border-[#d7ff00]/60 bg-[#d7ff00]/5" : "border-white/10"}`}
+        <InputGroup
+          className={`rounded-2xl border-white/10 bg-white/[0.035] transition-colors dark:bg-white/[0.035] ${dragging ? "border-[#d7ff00]/60 bg-[#d7ff00]/5" : ""}`}
         >
           <AnimatePresence initial={false}>
             {preview && (
-              <motion.div
-                initial={reduced ? false : { opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="relative m-2 mb-0 w-fit">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
-                  <img
-                    src={preview}
-                    alt="Attached image"
-                    className="h-20 rounded-[6px] object-cover ring-1 ring-white/10"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove image"
-                    onClick={() => {
-                      setFile(null);
-                      if (fileInput.current) fileInput.current.value = "";
-                    }}
-                    className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-zinc-300 ring-1 ring-white/20 hover:text-white"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-              </motion.div>
+              <InputGroupAddon align="block-start" className="p-0">
+                <motion.div
+                  initial={reduced ? false : { opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="w-full overflow-hidden"
+                >
+                  <div className="relative m-2.5 mb-0 w-fit">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
+                    <img src={preview} alt="Attached image" className="h-20 rounded-[10px] object-cover ring-1 ring-white/10" />
+                    <button
+                      type="button"
+                      aria-label="Remove image"
+                      onClick={() => {
+                        setFile(null);
+                        if (fileInput.current) fileInput.current.value = "";
+                      }}
+                      className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-zinc-300 ring-1 ring-white/20 hover:text-white"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                </motion.div>
+              </InputGroupAddon>
             )}
           </AnimatePresence>
-          <div className="flex items-end gap-1.5 p-1.5">
+          <InputGroupTextarea
+            ref={textarea}
+            aria-label="Community message"
+            value={input}
+            maxLength={1000}
+            rows={1}
+            disabled={busy}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            onPaste={(e) => {
+              const pasted = [...e.clipboardData.files].find((f) => IMAGE_TYPES.includes(f.type));
+              if (pasted) {
+                e.preventDefault();
+                attach(pasted);
+              }
+            }}
+            placeholder="Share an idea…"
+            className="max-h-28 min-h-10 px-3 text-[13px] leading-5 placeholder:text-zinc-500"
+          />
+          <InputGroupAddon align="block-end">
             <input
               ref={fileInput}
               type="file"
@@ -388,63 +474,38 @@ export function MarketCharacterChat({ characterId }: { characterId: string }) {
               className="hidden"
               onChange={(e) => attach(e.target.files?.[0])}
             />
-            <button
-              type="button"
-              aria-label="Attach image"
-              title="Attach image"
-              disabled={busy}
-              onClick={() =>
-                authenticated ? fileInput.current?.click() : login()
-              }
-              className="grid size-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
-            >
-              <ImagePlus className="size-4" />
-            </button>
-            <textarea
-              ref={textarea}
-              aria-label="Community message"
-              value={input}
-              maxLength={1000}
-              rows={1}
-              disabled={busy}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  void send();
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <InputGroupButton
+                    aria-label="Attach image"
+                    size="icon-xs"
+                    disabled={busy}
+                    onClick={() => (authenticated ? fileInput.current?.click() : login())}
+                    className="text-zinc-400 hover:text-white"
+                  />
                 }
-              }}
-              onPaste={(e) => {
-                const pasted = [...e.clipboardData.files].find((f) =>
-                  IMAGE_TYPES.includes(f.type),
-                );
-                if (pasted) {
-                  e.preventDefault();
-                  attach(pasted);
-                }
-              }}
-              placeholder="Share an idea…"
-              className="max-h-28 min-h-8 flex-1 resize-none bg-transparent py-1.5 text-xs leading-5 text-zinc-200 outline-none placeholder:text-zinc-500 disabled:opacity-60"
-            />
-            <button
+              >
+                <ImagePlus />
+              </TooltipTrigger>
+              <TooltipContent>Attach image · PNG, JPEG or WebP</TooltipContent>
+            </Tooltip>
+            <span className="ml-1 text-[10px] tabular-nums text-zinc-600">{input.length > 800 ? `${1000 - input.length} left` : "Enter to send"}</span>
+            <InputGroupButton
               type={authenticated ? "submit" : "button"}
               aria-label={authenticated ? "Send message" : "Sign in"}
+              variant="default"
+              size="icon-xs"
               disabled={busy || (authenticated && !input.trim() && !file)}
               onClick={authenticated ? undefined : login}
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#d7ff00] text-black transition active:scale-95 hover:bg-[#e4ff59] disabled:bg-white/10 disabled:text-zinc-500"
+              className="ml-auto size-7 rounded-full bg-[#d7ff00] text-black hover:bg-[#e4ff59] disabled:bg-white/10 disabled:text-zinc-500"
             >
-              {busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Send className="size-3.5" />
-              )}
-            </button>
-          </div>
-        </div>
+              {busy ? <Loader2 className="animate-spin" /> : <ArrowUp />}
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       </form>
-      <AnimatePresence>
-        {zoomed && <Lightbox src={zoomed} onClose={() => setZoomed(null)} />}
-      </AnimatePresence>
+      <AnimatePresence>{zoomed && <Lightbox src={zoomed} onClose={() => setZoomed(null)} />}</AnimatePresence>
     </div>
   );
 }

@@ -173,18 +173,21 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, value, onCh
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">Scene direction <span className="text-zinc-600">· type @ for another agent, or add an image</span></span>
-        <div className="flex items-center gap-1.5">
-        <button type="button" disabled={uploading || cast.length >= 7} onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/10 disabled:opacity-50">
-          {uploading ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}Add image
-        </button>
-        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
-        <button type="button" disabled={busy} onClick={() => void magic({ keepDraft: userWrote(value) })}
-          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/10 disabled:opacity-60">
-          {busy && <Loader2 className="size-3 animate-spin" />}Magic prompt
-        </button>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="block text-xs text-zinc-300">Scene direction</span>
+          <span className="mt-0.5 block text-[11px] text-zinc-600">Type @ for another agent, or add an image</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button type="button" aria-label="Add image" title="Add image" disabled={uploading || cast.length >= 7} onClick={() => fileRef.current?.click()}
+            className="grid size-7 place-items-center rounded-full border border-white/25 bg-gradient-to-b from-white/[0.2] to-white/[0.07] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-xl transition-colors hover:from-white/[0.28] hover:to-white/[0.1] disabled:opacity-50">
+            {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
+          </button>
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
+          <button type="button" disabled={busy} onClick={() => void magic({ keepDraft: userWrote(value) })}
+            className="inline-flex h-7 items-center gap-1 rounded-full px-3 text-[11px] font-semibold border border-white/25 bg-gradient-to-b from-white/[0.2] to-white/[0.07] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-xl transition-colors hover:from-white/[0.28] hover:to-white/[0.1] disabled:opacity-50">
+            {busy && <Loader2 className="size-3 animate-spin" />}Magic prompt
+          </button>
         </div>
       </div>
 

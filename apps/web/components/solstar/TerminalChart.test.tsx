@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ create: vi.fn(), setData: vi.fn(), update: vi.fn(), fit: vi.fn(), remove: vi.fn() }));
 vi.mock("lightweight-charts", () => ({
-  CandlestickSeries: "candles", HistogramSeries: "volume", ColorType: { Solid: "solid" },
+  CandlestickSeries: "candles", HistogramSeries: "volume", ColorType: { Solid: "solid" }, CrosshairMode: { Normal: 0 }, LineStyle: { Dashed: 2, Dotted: 1 },
   createChart: m.create,
 }));
 import { TerminalChart } from "./TerminalChart";
@@ -13,7 +13,8 @@ it("updates live candles without rebuilding the chart or resetting the user's ti
   m.create.mockReturnValue({
     addSeries: (kind: string) => ({ setData: kind === "candles" ? m.setData : vi.fn(), update: kind === "candles" ? m.update : vi.fn(), applyOptions: vi.fn() }),
     priceScale: () => ({ applyOptions: vi.fn() }),
-    timeScale: () => ({ subscribeVisibleLogicalRangeChange: vi.fn(), getVisibleLogicalRange: () => null, fitContent: m.fit }),
+    timeScale: () => ({ subscribeVisibleLogicalRangeChange: vi.fn(), getVisibleLogicalRange: () => null, setVisibleLogicalRange: m.fit, scrollToRealTime: vi.fn() }),
+    subscribeCrosshairMove: vi.fn(),
     remove: m.remove,
   });
   const root = createRoot(document.createElement("div"));
