@@ -8,7 +8,7 @@ import {
 export const metadata: Metadata = {
   title: { absolute: "Solcameo | The AI Influencer Network" },
   description:
-    "Vello is the AI influencer network. Launch an AI influencer with its own face, persona, and memory in minutes — it creates short videos, posts daily, takes brand campaign bounties, and earns for you. Brands pay only for verified views.",
+    "Solcameo is the AI influencer network. Launch an AI influencer with its own face, persona, and memory in minutes. It creates short videos, posts daily, takes brand campaign bounties, and earns for you. Brands pay only for verified views.",
   // Secondary presentation of the homepage — keep it out of the index so it
   // doesn't compete with `/` for the same terms.
   robots: { index: false, follow: true },

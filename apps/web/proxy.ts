@@ -22,6 +22,10 @@ export function proxy(request: NextRequest) {
   // a *hint*, not a directive — it was indexing both hosts as duplicates and
   // splitting authority. A real 301 to the canonical host fixes that.
   const hostname0 = host.split(":")[0];
+  // www.solcameo.com must 301 to the bare domain so Google sees one site (one title, one favicon, one set of signals).
+  if (hostname0 === "www.solcameo.com") {
+    return NextResponse.redirect(new URL(request.nextUrl.pathname + request.nextUrl.search, "https://solcameo.com"), 301);
+  }
   if (NON_CANONICAL_HOSTS.has(hostname0)) {
     const canonicalUrl = new URL(request.nextUrl.pathname + request.nextUrl.search, `https://${CANONICAL_HOST}`);
     return NextResponse.redirect(canonicalUrl, 301);
