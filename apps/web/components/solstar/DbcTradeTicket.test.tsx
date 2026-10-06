@@ -241,7 +241,7 @@ it("uses the token balance for the sell slider and reserves SOL when choosing bu
 });
 
 const clickEnding = async (text: string) => {
-  const button = [...host.querySelectorAll("button")].find((b) => b.textContent?.endsWith(text))!;
+  const button = host.querySelector(`button[aria-label="Switch amount currency to ${text}"]`) as HTMLButtonElement;
   expect(button).toBeTruthy();
   await act(async () => button.click());
 };
@@ -265,7 +265,7 @@ it("lets a buy amount be typed in USD and keeps the SOL amount in step", async (
 });
 it("keeps USD disabled until a SOL price is known", async () => {
   await render();
-  expect([...host.querySelectorAll("button")].find((b) => b.textContent?.endsWith("USD"))?.disabled).toBe(true);
+  expect((host.querySelector('button[aria-label="Switch amount currency to USD"]') as HTMLButtonElement | null)?.disabled).toBe(true);
 });
 it("fades the confirmation notice away after a few seconds", async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
