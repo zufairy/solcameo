@@ -41,8 +41,8 @@ function Pair({ left, right, leftValue, rightValue }: { left: string; right: str
 }
 
 /** Phantom-style "About" card: bio, price change per timeframe, buys vs sells, and social links. */
-export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, points, formatLamports, showLinks = true }: {
-  name: string; ticker: string; bio: string; xUrl?: string; websiteUrl?: string; showLinks?: boolean;
+export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, points, formatLamports, showLinks = true, showAbout = true }: {
+  name: string; ticker: string; bio: string; xUrl?: string; websiteUrl?: string; showLinks?: boolean; showAbout?: boolean;
   trades: Trade[] | undefined; points: Point[] | undefined; formatLamports: (lamports: string) => string;
 }) {
   const [frame, setFrame] = useState<(typeof FRAMES)[number]["id"]>("1h");
@@ -67,9 +67,11 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
 
   const chipCls = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-white/25 hover:text-white";
   return (
-    <section aria-label={`About ${name}`} className="mx-3 mb-3 rounded-[14px] border border-white/[0.09] bg-[#0b0c0e] p-4">
+    <section aria-label={`${showAbout ? "About" : "Market activity for"} ${name}`} className="mx-3 mb-3 rounded-[14px] border border-white/[0.09] bg-[#0b0c0e] p-4">
+      {showAbout && <>
       <h2 className="text-[17px] font-semibold tracking-tight text-white">About {name}</h2>
       <p className={`mt-1.5 text-[13px] leading-5 text-zinc-400 ${expanded ? "" : "line-clamp-2"}`}>{bio || `${name} is an AI character on Solcameo.`}</p>
+      </>}
 
       <div className="mt-3.5 grid grid-cols-4 gap-1.5" role="tablist" aria-label="Timeframe">
         {FRAMES.map((f, i) => {
@@ -107,7 +109,7 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
           <svg viewBox="0 0 24 24" className="size-3.5 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
         </a>
       </div>}
-      {(bio?.length ?? 0) > 90 && (
+      {showAbout && (bio?.length ?? 0) > 90 && (
         <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-3 block rounded-lg bg-white/[0.06] px-3.5 py-1.5 text-[12px] font-semibold text-zinc-300 transition-colors hover:text-white">
           {expanded ? "View less" : "View more"}
         </button>

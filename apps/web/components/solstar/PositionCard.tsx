@@ -54,7 +54,7 @@ export function PositionCard({ mint, ticker, network }: { mint?: string; ticker:
 
   const shell = "mx-3 mt-3 overflow-hidden rounded-[4px] border border-white/[0.09] bg-[linear-gradient(135deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]";
   if (pos === undefined) return <div className={`${shell} flex items-center gap-2 px-3 py-2.5 text-[11.5px] text-zinc-500`}>{error ? error : <><Loader2 className="size-3.5 animate-spin" />Reading your position…</>}</div>;
-  if (pos === null || (pos.tokens <= 0 && pos.trades.length === 0 && pos.heldTokens <= 0)) return <div className={`${shell} px-3 py-2.5 text-[11.5px] leading-4 text-zinc-500`}>No position in ${ticker} yet. Entry price and P&amp;L show here after your first buy.</div>;
+  if (pos === null || (pos.tokens <= 0 && pos.trades.length === 0 && pos.heldTokens <= 0)) return null;
 
   const holding = pos.heldTokens > 0;
   const stats = [

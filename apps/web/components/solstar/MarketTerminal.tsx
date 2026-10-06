@@ -111,7 +111,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     params.get("tab") === "videos" ? "videos" : "holders",
   );
   const [minutes, setMinutes] = useState(0.25);
-  const [mcap, setMcap] = useState(true);
+  const [mcap, setMcap] = useState(false);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
   const [dbc, setDbc] = useState<{
@@ -850,6 +850,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             xUrl={character.xUrl}
             websiteUrl={character.websiteUrl}
             showLinks={false}
+            showAbout={false}
             trades={chain?.trades}
             points={dbc?.points?.map((p) => ({ time: p.time, price: p.price }))}
             formatLamports={formatCompactSol}
