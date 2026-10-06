@@ -87,7 +87,7 @@ export async function confirmSignature(
       // Single candidate sweep failed (429/suspended/timeout) — ignore and retry;
       // "pending" is returned only after the whole window elapses with no success.
     }
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 700));
   }
   return "pending";
 }
@@ -134,7 +134,20 @@ export async function sendFundingTransfer(params: {
   // devnet RPC) returns null — NOT 0 — so we never false-block a wallet that
   // actually has SOL. If the read failed we skip this pre-check and let the real
   // send surface the genuine reason (see the pre-simulation + downstream error).
-  const solBal = await readSolBalanceOrNull(publicKey);
+  // The reads below are independent, so start them together instead of one after another: the wallet prompt
+  // only waits for the slowest single round trip rather than the sum of all of them.
+  const usdcMintKey = token === "USDC" ? new PublicKey(getUsdcMint()) : null;
+  const solBalP = readSolBalanceOrNull(publicKey);
+  const senderAccountP = usdcMintKey
+    ? getAssociatedTokenAddress(usdcMintKey, publicKey).then((ata) => rpcTry(RPC_CANDIDATES, async (conn) => getAccount(conn, ata, "confirmed")).then(() => null, (e: unknown) => e))
+    : Promise.resolve(null);
+  const blockhashP = rpcTry(RPC_CANDIDATES, async (conn) => {
+    const [genesis, latest] = await Promise.all([mainnet ? conn.getGenesisHash() : Promise.resolve(""), conn.getLatestBlockhash("confirmed")]);
+    if (mainnet && genesis !== "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d") throw new Error("RPC network mismatch. Deposit was not started.");
+    return latest;
+  });
+  blockhashP.catch(() => undefined); // surfaced when awaited below; never an unhandled rejection
+  const solBal = await solBalP;
   const feeHeadroom = token === "USDC" ? 0.0025 : 0.001;
   if (shouldBlockForSol(solBal, feeHeadroom)) {
     throw new Error(mainnet ? "Your connected wallet needs SOL for network fees and the first USDC account. Deposit a little SOL, then retry." : `You need a little devnet SOL to cover network fees (you have ${(solBal ?? 0).toFixed(4)} SOL). Get some free at faucet.solana.com, then try again.`);
@@ -148,9 +161,8 @@ export async function sendFundingTransfer(params: {
     const toAta = await getAssociatedTokenAddress(usdcMint, recipient);
 
     // The operator must actually hold devnet USDC (their token account must exist).
-    try {
-      await rpcTry(RPC_CANDIDATES, async (conn) => getAccount(conn, fromAta, "confirmed"));
-    } catch (e) {
+    {
+      const e = await senderAccountP;
       if (e instanceof TokenAccountNotFoundError) {
         if (mainnet) throw new Error("Your connected wallet has no Solana USDC. Add USDC, then retry.");
         throw new Error("Your wallet has no devnet USDC yet. Get some free at faucet.circle.com (Solana Devnet), then try again — or fund with SOL instead.");
@@ -184,10 +196,7 @@ export async function sendFundingTransfer(params: {
   // "confirmed" is the freshest blockhash with the full ~60-90s validity window.
   // "finalized" is ~30s stale and can EXPIRE while the user reads the wallet
   // prompt — the signed tx then silently fails to land (no deduction).
-  const { blockhash, lastValidBlockHeight } = await rpcTry(RPC_CANDIDATES, async (conn) => {
-    if (mainnet && await conn.getGenesisHash() !== "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d") throw new Error("RPC network mismatch. Deposit was not started.");
-    return conn.getLatestBlockhash("confirmed");
-  });
+  const { blockhash, lastValidBlockHeight } = await blockhashP;
 
   // Build a LEGACY transaction — the SAME format the app's working invest flow
   // (InvestPanel / share-purchase-dialog) uses. A v0 VersionedTransaction here
