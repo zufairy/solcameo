@@ -43,6 +43,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { LiveDbcLaunch } from "./LiveDbcLaunch";
+import { playLaunchSound, unlockLaunchAudio } from "@/lib/client/launchSound";
 import { Notice } from "./Notice";
 import dynamic from "next/dynamic";
 import { Loader2 as Spinner, Wand2 } from "lucide-react";
@@ -156,6 +157,15 @@ function InfluencerOnboardingContent({
   const reduced = useReducedMotion();
   const [autoLaunch, setAutoLaunch] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  // Audio can only start after a gesture, so unlock it on the first tap/click anywhere on this page.
+  useEffect(() => {
+    const unlock = () => unlockLaunchAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+  }, []);
+  // The celebration (sound here, confetti below) runs exactly when the modal opens.
+  useEffect(() => { if (createdId) playLaunchSound(); }, [createdId]);
   const { authenticated, login, profile } = useSupabaseAuth();
   const [writing, setWriting] = useState(false);
   const [storyError, setStoryError] = useState("");
@@ -699,20 +709,23 @@ function InfluencerOnboardingContent({
         }}
       >
         <DialogContent className="overflow-hidden rounded-3xl border-white/10 bg-[#202326] p-8 text-center text-white">
+          <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-56 w-3/4 -translate-x-1/2 rounded-full bg-[#d7ff00]/20 blur-3xl" />
           <motion.div
-            initial={{ scale: reduced ? 1 : 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="mx-auto mb-5 grid size-20 place-items-center rounded-2xl bg-[#d7ff00]/10"
+            initial={{ scale: reduced ? 1 : 0.6, opacity: 0, rotate: reduced ? 0 : -6 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 220, damping: 16 }}
+            className="relative mx-auto mb-5 grid size-24 place-items-center rounded-[28px] border border-[#d7ff00]/30 bg-[#d7ff00]/10 shadow-[0_0_60px_-10px_rgba(215,255,0,0.5)]"
           >
+            {!reduced && <span aria-hidden className="absolute inset-0 animate-ping rounded-[28px] border border-[#d7ff00]/30 [animation-duration:2.4s]" />}
             {character && (
               <img
                 src={character.image.url}
                 alt=""
-                className="size-16 rounded-xl object-cover"
+                className="relative size-[84px] rounded-[22px] object-cover"
               />
             )}
           </motion.div>
+          <span className="relative mx-auto mb-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-300"><span className="size-1.5 rounded-full bg-emerald-400" />{launchMode === "live" ? `Live on ${liveReadiness.network === "mainnet" ? "mainnet" : "devnet"}` : "Preview ready"}</span>
           <DialogTitle className="text-2xl tracking-tight">
             {concept.name} is ready<span className="text-[#d7ff00]">.</span>
           </DialogTitle>

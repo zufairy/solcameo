@@ -7,14 +7,15 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { getNetworkLabel } from "@/lib/solana/network";
 import { Button } from "@/components/ui/button";
 import { motion, useReducedMotion } from "framer-motion";
-import { Loader2, CheckCircle2, Rocket } from "lucide-react";
+import { Loader2, CheckCircle2, Rocket, Check } from "lucide-react";
+import { unlockLaunchAudio } from "@/lib/client/launchSound";
 import type { DbcOptions } from "@/lib/meteora/options";
 import { Notice } from "./Notice";
 
 const LAUNCH_STEPS = [
-  { title: "Approve your curve", body: "Sign once so Meteora can lock in your launch settings." },
-  { title: "Create token and pool", body: "Sign again to mint your coin and open its market." },
-  { title: "Live on Solana", body: "Your character is trading and ready to make videos." },
+  { title: "Approve curve", hint: "Tap Approve in your wallet to lock in your launch settings." },
+  { title: "Create token", hint: "Approve once more to mint your coin and open its market." },
+  { title: "Go live", hint: "Your character is trading and ready to make videos." },
 ];
 type Pending = {
   mintSecret: number[];
@@ -217,58 +218,62 @@ export function LiveDbcLaunch({
     autoStarted.current = true;
     void launch();
   }, [autoStart, publicKey, signTransaction, preflight, launch]);
+  const complete = launchStep >= 2;
+  const instruction = error ? "" : status || (busy ? "Opening your wallet…" : !publicKey ? "Connect your wallet to begin. You will approve twice." : LAUNCH_STEPS[Math.min(launchStep, 2)].hint);
   return (
-    <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate space-y-5 overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/[0.09] via-[#202326]/90 to-[#17191c]/95 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl">
-      <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-[#d7ff00]/10 blur-3xl" />
-      <div className="flex items-center gap-3.5">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-[#d7ff00]/25 bg-[#d7ff00]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"><Rocket className="size-5 text-[#d7ff00]" /></span>
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#d7ff00]/80">Launch</p>
-          <h3 className="text-[19px] font-semibold leading-tight tracking-tight text-white">Your next chapter starts here</h3>
-          <p className="mt-0.5 text-[12.5px] text-zinc-400">Two wallet approvals. Your character, live on Solana.</p>
+    <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sticky top-4 z-20 isolate overflow-hidden rounded-3xl border border-white/[0.12] bg-gradient-to-b from-white/[0.07] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_80px_-40px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+      <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-48 w-3/4 -translate-x-1/2 rounded-full bg-[#d7ff00]/[0.09] blur-3xl" />
+      <div className="flex items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#d7ff00]/25 bg-[#d7ff00]/10"><Rocket className="size-4 text-[#d7ff00]" /></span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold leading-tight tracking-tight text-white">Launch your coin</h3>
+          <p className="text-xs text-zinc-500">Two quick wallet approvals</p>
         </div>
+        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] text-zinc-400"><span className={`size-1.5 rounded-full ${preflight?.ready ? "bg-emerald-400" : preflight ? "bg-amber-400" : "bg-zinc-600 animate-pulse"}`} />{getNetworkLabel()}</span>
       </div>
-      <ol className="relative space-y-1" aria-label="Launch progress">
-        <span aria-hidden className="absolute bottom-6 left-[17px] top-6 w-px bg-gradient-to-b from-[#d7ff00]/40 via-white/10 to-white/5" />
+
+      {/* One row: the current step glows, everything else fades back. */}
+      <ol className="mt-6 flex items-start" aria-label="Launch progress">
         {LAUNCH_STEPS.map((step, index) => {
-          const done = index < launchStep, current = index === launchStep;
+          const done = index < launchStep || (complete && index === 2), current = index === launchStep && !done;
           return (
-            <motion.li key={step.title} initial={reduced ? false : { opacity: 0, y: 14, filter: "blur(6px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.55, delay: reduced ? 0 : 0.25 + index * 0.4, ease: [0.22, 1, 0.36, 1] }}
-              aria-current={current ? "step" : undefined}
-              className={`relative flex items-start gap-3.5 rounded-xl border px-2.5 py-2.5 transition-colors duration-500 ${current ? "border-[#d7ff00]/25 bg-[#d7ff00]/[0.05]" : done ? "border-transparent" : "border-transparent opacity-70"}`}>
-              <span className={`relative z-10 grid size-[26px] shrink-0 place-items-center rounded-full border text-[11px] font-bold tabular-nums transition-colors duration-500 ${done ? "border-[#d7ff00] bg-[#d7ff00] text-black" : current ? "border-[#d7ff00]/60 bg-[#14170a] text-[#d7ff00]" : "border-white/15 bg-[#17191c] text-zinc-500"}`}>
-                {done ? <CheckCircle2 className="size-3.5" strokeWidth={3} /> : index + 1}
-              </span>
-              <span className="min-w-0 pt-0.5">
-                <span className={`block text-[13.5px] font-semibold leading-tight ${current || done ? "text-white" : "text-zinc-300"}`}>{step.title}</span>
-                <span className="mt-0.5 block text-[12px] leading-5 text-zinc-500">{step.body}</span>
-              </span>
-            </motion.li>
+            <li key={step.title} aria-current={current ? "step" : undefined} className="relative flex min-w-0 flex-1 flex-col items-center text-center">
+              {index > 0 && <span aria-hidden className="absolute right-1/2 top-[17px] h-px w-full bg-white/10"><motion.span className="absolute inset-y-0 left-0 bg-[#d7ff00]" initial={false} animate={{ width: index <= launchStep ? "100%" : "0%" }} transition={{ duration: reduced ? 0 : 0.6, ease: "easeOut" }} /></span>}
+              <motion.span
+                initial={false}
+                animate={{ opacity: done || current ? 1 : 0.35, scale: current ? 1.08 : 1 }}
+                transition={{ duration: reduced ? 0 : 0.5 }}
+                className={`relative z-10 grid size-[34px] place-items-center rounded-full border text-[13px] font-bold tabular-nums transition-colors duration-500 ${done ? "border-[#d7ff00] bg-[#d7ff00] text-black" : current ? "border-[#d7ff00]/70 bg-[#0d0f10] text-[#d7ff00] shadow-[0_0_0_4px_rgba(215,255,0,0.1),0_0_28px_-2px_rgba(215,255,0,0.55)]" : "border-white/15 bg-[#0d0f10] text-zinc-400"}`}
+              >
+                {current && busy && !reduced && <span aria-hidden className="absolute inset-0 animate-ping rounded-full border border-[#d7ff00]/40" />}
+                {done ? <Check className="size-4" strokeWidth={3} /> : index + 1}
+              </motion.span>
+              <motion.span initial={false} animate={{ opacity: done || current ? 1 : 0.35 }} transition={{ duration: reduced ? 0 : 0.5 }} className={`mt-2.5 px-1 text-[12px] font-medium leading-tight ${current ? "text-white" : done ? "text-zinc-300" : "text-zinc-500"}`}>{step.title}</motion.span>
+            </li>
           );
         })}
       </ol>
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="text-zinc-300">{getNetworkLabel()} launch</span>
-        <span className="text-[#d7ff00]">{preflight?.ready ? "RPC verified" : preflight ? "Needs attention" : "Checking network…"}</span>
+
+      {/* One plain-language instruction for whatever happens next. */}
+      <div className="mt-5 min-h-[44px] rounded-2xl border border-white/[0.08] bg-black/25 px-4 py-3" role="status" aria-live="polite">
+        <p className="flex items-center gap-2.5 text-[13px] leading-5 text-zinc-200">
+          {busy && <Loader2 className="size-3.5 shrink-0 animate-spin text-[#d7ff00]" />}
+          <span>{instruction}</span>
+        </p>
       </div>
-      {preflight?.balanceLamports != null && <p className="text-xs text-zinc-400">Wallet balance: {(preflight.balanceLamports / 1e9).toFixed(4)} SOL</p>}
-      {preflight?.error && <Notice tone="warn">{preflight.error}</Notice>}
-      {(!preflight?.ready || preflight.balanceLamports === 0) && <div className="flex items-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
-            <p className="text-sm leading-6 text-zinc-400">
-        Two wallet approvals: your curve configuration, then your token and
-        pool. SOL is used for account rent and network fees. No token purchase
-        is included.
-      </p>
+
+      {preflight?.balanceLamports != null && <p className="mt-3 text-center text-[11px] text-zinc-500">Wallet balance {(preflight.balanceLamports / 1e9).toFixed(4)} SOL · covers fees and rent, no token purchase</p>}
+      {preflight?.error && <div className="mt-3"><Notice tone="warn">{preflight.error}</Notice></div>}
+      {(!preflight?.ready || preflight.balanceLamports === 0) && <div className="mt-3 flex items-center justify-center gap-3"><Button variant="outline" size="sm" disabled={busy} onClick={() => setCheck(v => v + 1)}>Check again</Button>{getNetworkLabel() === "Devnet" && <a href="https://faucet.solana.com" target="_blank" rel="noreferrer" className="text-xs text-[#d7ff00] underline">Get devnet SOL</a>}</div>}
       <Button
         disabled={busy || (!!publicKey && (!preflight?.ready || preflight.balanceLamports === 0))}
-        onClick={() => publicKey ? void launch() : setVisible(true)}
-        className="w-full bg-[#d7ff00] text-zinc-950 hover:bg-[#e4ff59]"
+        onClick={() => { unlockLaunchAudio(); if (publicKey) void launch(); else setVisible(true); }}
+        className="mt-4 h-12 w-full rounded-xl bg-[#d7ff00] text-[15px] font-semibold text-zinc-950 shadow-[0_10px_28px_-10px_rgba(215,255,0,0.55)] hover:bg-[#e4ff59]"
       >
         {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
         {busy ? "Launching…" : !publicKey ? "Connect Solana wallet" : `Launch on ${getNetworkLabel().toLowerCase()}`}
       </Button>
-      {status && <Notice tone="info" role="status">{status}</Notice>}
-      {error && <Notice tone="error" title="Launch needs attention">{error} Keep this tab open; your launch progress is saved.</Notice>}
+      {error && <div className="mt-3"><Notice tone="error" title="Launch needs attention">{error} Keep this tab open; your launch progress is saved.</Notice></div>}
     </motion.div>
   );
 }
