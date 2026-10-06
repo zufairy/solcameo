@@ -6,7 +6,7 @@ import { ArrowUpRight, BadgeCheck } from "lucide-react";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 
 type Snapshot = {
-  available: boolean; name?: string; ticker?: string; mint?: string; pool?: string; image?: string;
+  available: boolean; characterId?: string | null; name?: string; ticker?: string; mint?: string; pool?: string; image?: string;
   capSol?: number | null; changeSinceLaunchPct?: number | null; progress?: number; reserveSol?: number; targetSol?: number; migrated?: boolean;
 };
 
@@ -38,10 +38,11 @@ export function PlatformTokenPin() {
   const change = data.changeSinceLaunchPct;
   const up = (change ?? 0) >= 0;
   const progress = Math.round((data.progress ?? 0) * 100);
+  const market = data.characterId ? `/market/${data.characterId}` : "/tokenomics";
   return (
     <section aria-label="SOLCAMEO platform token" className="mb-4 overflow-hidden rounded-xl border border-[#d7ff00]/35 bg-[linear-gradient(135deg,rgba(215,255,0,0.08),rgba(255,255,255,0.02)_45%,rgba(255,255,255,0.04))] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.9)]">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-4 p-4 sm:p-5">
-        <Link href="/tokenomics" className="flex min-w-0 items-center gap-3.5">
+        <Link href={market} className="flex min-w-0 items-center gap-3.5">
           {data.image ? <img src={data.image} alt="" className="size-12 shrink-0 rounded-xl border border-white/15 object-cover" /> : <span className="size-12 shrink-0 rounded-xl bg-white/10" />}
           <span className="min-w-0">
             <span className="flex items-center gap-2">
@@ -61,7 +62,7 @@ export function PlatformTokenPin() {
         </dl>
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/tokenomics" className="inline-flex h-9 items-center rounded-[3px] border border-white/15 bg-white/[0.06] px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/10">Tokenomics</Link>
-          <a href={`https://www.meteora.ag/dbc/${encodeURIComponent(data.pool)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-3.5 text-[13px] font-semibold text-black transition-colors hover:bg-[#e4ff59]">Trade <ArrowUpRight className="size-3.5" /></a>
+          <Link href={market} className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-3.5 text-[13px] font-semibold text-black transition-colors hover:bg-[#e4ff59]">Buy / Sell <ArrowUpRight className="size-3.5" /></Link>
         </div>
       </div>
     </section>

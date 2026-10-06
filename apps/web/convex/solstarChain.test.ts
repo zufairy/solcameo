@@ -56,6 +56,16 @@ it("replaces holders as a set and exposes the newest swaps first", async () => {
   expect(await t.query(api.solstarChain.syncState, { authSecret: secret, characterId })).toMatchObject({ lastTime: 2 });
 });
 
+it("answers one wallet's position and history in a single reactive query", async () => {
+  const { t, characterId } = await setup();
+  await t.mutation(api.solstarChain.ingest, base(characterId as never, [swap("a", "A", "buy", 100, 1, 1), swap("b", "B", "buy", 5, 0.5, 2), swap("c", "A", "sell", 40, 0.6, 3)], { priceSol: 0.012, supplyRaw: "1000000000000000", decimals: 6, slot: 1, holders: [{ wallet: "A", units: "60000000", supplyPct: 1, isPool: false }] }));
+  const mine = (await t.query(api.solstarChain.positionOf, { characterId, wallet: "A" }))!;
+  expect(mine.priceSol).toBe(0.012);
+  expect(mine.heldUnits).toBe("60000000");
+  expect(mine.position).toMatchObject({ openTokens: 60, trades: 2 });
+  expect(mine.swaps.map((s) => s.signature)).toEqual(["c", "a"]); // newest first, only this wallet
+  expect((await t.query(api.solstarChain.positionOf, { characterId, wallet: "nobody" }))!.position).toBeNull();
+});
 it("rejects writes without the internal secret", async () => {
   const { t, characterId } = await setup();
   await expect(t.mutation(api.solstarChain.ingest, { ...base(characterId as never, []), authSecret: "nope" })).rejects.toThrow(/unauthorized/);

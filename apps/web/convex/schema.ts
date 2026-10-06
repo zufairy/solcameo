@@ -2596,7 +2596,7 @@ export default defineSchema({
     characterId: v.id("ssCharacters"), signature: v.string(), wallet: v.string(),
     side: v.union(v.literal("buy"), v.literal("sell")),
     units: v.number(), sol: v.number(), priceSol: v.number(), time: v.number(),
-  }).index("by_signature", ["signature"]).index("by_character_time", ["characterId", "time"]),
+  }).index("by_signature", ["signature"]).index("by_character_time", ["characterId", "time"]).index("by_character_wallet_time", ["characterId", "wallet", "time"]),
   /** Average-cost position per wallet, maintained as swaps are ingested in time order. */
   ssChainPositions: defineTable({
     characterId: v.id("ssCharacters"), wallet: v.string(),

@@ -102,3 +102,21 @@ export const recentSwaps = query({
     return rows.map(({ signature, wallet, side, units, sol, priceSol, time }) => ({ signature, wallet, side, units, sol, priceSol, time }));
   },
 });
+
+/** One wallet's position in one coin, with its own swap history. Reactive, so the panel updates the instant a trade lands. */
+export const positionOf = query({
+  args: { characterId: v.id("ssCharacters"), wallet: v.string() },
+  handler: async (ctx, { characterId, wallet }) => {
+    const state = await ctx.db.query("ssChainState").withIndex("by_character", (q) => q.eq("characterId", characterId)).unique();
+    if (!state) return null;
+    const position = await ctx.db.query("ssChainPositions").withIndex("by_character_wallet", (q) => q.eq("characterId", characterId).eq("wallet", wallet)).unique();
+    const holder = (await ctx.db.query("ssChainHolders").withIndex("by_character", (q) => q.eq("characterId", characterId)).take(40)).find((h) => h.wallet === wallet);
+    const swaps = await ctx.db.query("ssChainSwaps").withIndex("by_character_wallet_time", (q) => q.eq("characterId", characterId).eq("wallet", wallet)).order("desc").take(30);
+    return {
+      priceSol: state.priceSol, decimals: state.decimals, syncedAt: state.syncedAt,
+      heldUnits: holder?.units ?? null,
+      position: position ? { openTokens: position.openTokens, costBasisSol: position.costBasisSol, realizedSol: position.realizedSol, spentSol: position.spentSol, receivedSol: position.receivedSol, trades: position.trades } : null,
+      swaps: swaps.map(({ signature, side, units, sol, priceSol, time }) => ({ signature, side, units, sol, priceSol, time })),
+    };
+  },
+});

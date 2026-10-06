@@ -189,6 +189,7 @@ function Market() {
   );
   const visible = rows?.filter(
     (r) =>
+      r.ticker !== "SOLCAMEO" && // pinned above the list instead
       (!graduatedOnly ||
         ["graduated", "migrated"].includes(r.state) ||
         pools[r.characterId]?.migrated) &&

@@ -55,6 +55,8 @@ export async function handleDbcLaunch(req: NextRequest, platform = false) {
   const finalize = async (a: { characterId: Id<"ssCharacters">; wallet: string; mint: string; config: string; pool: string; network: "devnet" | "mainnet"; launchSignature: string; economy: "creator-only" | "sustainable-v1"; treasuryWallet?: string; authSecret: string }) => {
     if (!platform) return convexClient().mutation(api.solstarCreate.finalizeDbcLaunch, a);
     await convexClient().mutation(api.platformLaunch.update, { network, wallet, authSecret: secret, action: "finalize", mint: a.mint, config: a.config, pool: a.pool, signature: a.launchSignature });
+    // List the live token on the market so the normal market page and trade box work for it.
+    await convexClient().mutation(api.platformLaunch.linkListing, { network, authSecret: secret }).catch(() => undefined);
   };
   if (!dbcReadiness().ready)
     return NextResponse.json({ error: dbcReadiness().reason }, { status: 503 });

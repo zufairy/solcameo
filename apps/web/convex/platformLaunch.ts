@@ -55,3 +55,43 @@ export const update = mutation({
     }
   },
 });
+
+/** The market listing (character + token record) that lets the live SOLCAMEO token use the normal market page and trade box. */
+export const listing = query({
+  args: { network: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    guard(a.authSecret);
+    const network = a.network === "devnet" ? "devnet" : "mainnet";
+    const token = await ctx.db.query("ssTokens").withIndex("by_network_ticker", q => q.eq("network", network).eq("ticker", "SOLCAMEO")).first();
+    return token?.state === "live" ? { characterId: token.characterId as string } : null;
+  },
+});
+
+/** Create (once) the character and token records for the live platform token. Safe to call repeatedly. */
+export const linkListing = mutation({
+  args: { network: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    guard(a.authSecret);
+    const network = a.network === "devnet" ? "devnet" as const : "mainnet" as const;
+    const row = await ctx.db.query("platformTokenLaunches").withIndex("by_network", q => q.eq("network", network)).unique();
+    if (!row || row.state !== "live" || !row.mint || !row.pool || !row.config) throw new Error("platform_token_not_live");
+    const existing = await ctx.db.query("ssTokens").withIndex("by_network_ticker", q => q.eq("network", network).eq("ticker", "SOLCAMEO")).first();
+    if (existing) {
+      if (existing.mint !== row.mint) throw new Error("ticker_in_use");
+      if (existing.state !== "live" || existing.dbcPool !== row.pool) await ctx.db.patch(existing._id, { state: "live", dbcPool: row.pool, dbcConfig: row.config });
+      return { characterId: existing.characterId as string, created: false as const };
+    }
+    const now = Date.now();
+    const characterId = await ctx.db.insert("ssCharacters", {
+      ownerWallet: row.wallet, name: row.name, bio: row.description, referenceImageUrl: row.image, category: "Tech", status: "approved",
+      rightsAttested: true, rightsReviewed: true, createdAt: now, idempotencyKey: `platform-token-${network}`,
+    });
+    const tokenId = await ctx.db.insert("ssTokens", {
+      characterId, network, name: row.name, ticker: "SOLCAMEO", description: row.description, economy: "creator-only",
+      dbcConfig: row.config, dbcPool: row.pool, mint: row.mint, ...(row.signature ? { launchSignature: row.signature } : {}),
+      state: "live", solReserve: 0n, tokenReserve: 0n, createdAt: now,
+    });
+    await ctx.db.insert("ssBudgets", { tokenId, network, fundedLamports: 0n, reservedLamports: 0n, spentLamports: 0n });
+    return { characterId: characterId as string, created: true as const };
+  },
+});

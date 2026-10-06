@@ -27,7 +27,7 @@ const human = (units: bigint, decimals: number) =>
 export function TradeTicket({ token }: { token: Token }) {
   return token.dbcPool ? (
     <>
-      <PositionCard mint={token.mint ?? undefined} ticker={token.ticker} network={token.network} />
+      <PositionCard characterId={token.characterId} ticker={token.ticker} network={token.network} />
       <DbcTradeTicket characterId={token.characterId} ticker={token.ticker} network={token.network} mint={token.mint ?? undefined} />
     </>
   ) : <PaperTradeTicket token={token} />;

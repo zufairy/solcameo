@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const maxDuration = 20;
 
 type Snapshot = {
-  available: true; name: string; ticker: string; mint: string; pool: string; image: string;
+  available: true; characterId: string | null; name: string; ticker: string; mint: string; pool: string; image: string;
   capSol: number | null; changeSinceLaunchPct: number | null; progress: number; reserveSol: number; targetSol: number; migrated: boolean; checkedAt: number;
 };
 const TTL_MS = 3000;
@@ -23,6 +23,7 @@ async function compute(): Promise<Snapshot | null> {
   const network = dbcReadiness().network;
   const row = await convexClient().query(api.platformLaunch.get, { network, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
   if (!row || row.state !== "live" || !row.pool || !row.mint || !row.config) return null;
+  const listing = await convexClient().query(api.platformLaunch.listing, { network, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" }).catch(() => null);
   const connection = dbcConnection();
   const client = new DynamicBondingCurveClient(connection, "confirmed");
   const poolKey = new PublicKey(row.pool);
@@ -46,7 +47,7 @@ async function compute(): Promise<Snapshot | null> {
   const reserveSol = Number(pool.poolState.quoteReserve.toString()) / 1e9;
   const targetSol = Number(config.migrationQuoteThreshold.toString()) / 1e9;
   return {
-    available: true, name: row.name, ticker: row.ticker, mint: row.mint, pool: row.pool, image: row.image,
+    available: true, characterId: listing?.characterId ?? null, name: row.name, ticker: row.ticker, mint: row.mint, pool: row.pool, image: row.image,
     capSol, changeSinceLaunchPct: capSol != null && launchCap > 0 ? (capSol / launchCap - 1) * 100 : null,
     progress: pool.poolState.isMigrated ? 1 : Math.min(1, targetSol > 0 ? reserveSol / targetSol : 0), reserveSol, targetSol,
     migrated: !!pool.poolState.isMigrated, checkedAt: Date.now(),
