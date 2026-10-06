@@ -39,6 +39,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { LiveDbcLaunch } from "./LiveDbcLaunch";
 import { LaunchOverlay, type LaunchPhase } from "./LaunchOverlay";
 import { LaunchReady } from "./LaunchReady";
+import { LaunchCostCard } from "./LaunchCostCard";
 import { playLaunchSound, unlockLaunchAudio } from "@/lib/client/launchSound";
 import { Notice } from "./Notice";
 import dynamic from "next/dynamic";
@@ -611,6 +612,7 @@ function InfluencerOnboardingContent({
                     creatorImage={profile?.image}
                     coinImage={character?.image.url}
                   />
+                  {launchMode === "live" && <LaunchCostCard />}
                   <div role="note" className="flex items-start gap-3 rounded-none border-2 border-black bg-white p-4 text-black shadow-[5px_5px_0_0_#d7ff00,5px_5px_0_2px_#000]">
                     <span aria-hidden="true" className="text-3xl leading-none">{launchMode === "live" ? "⚠️" : "🧪"}</span>
                     <div className="min-w-0">

@@ -9,6 +9,7 @@ vi.mock("@/providers/supabase-auth-provider", () => ({ useSupabaseAuth: () => ({
 vi.mock("@/lib/client/siwsIdentity", () => ({ ensureSiwsViaRegistered: mocks.signed }));
 vi.mock("@/components/builder/character/CharacterTab", () => ({ CharacterTab: ({ onCharacterReady }: { onCharacterReady: (value: unknown) => void }) => <button onClick={() => onCharacterReady({ version: 1, image: { url: "https://images.example/portrait.jpg", model: "soul2" }, candidates: [], selection: {}, tier: "normal", model: "soul2", prompt: "Original character", updatedAt: 1 })}>Use generated portrait</button> }));
 vi.mock("./LiveDbcLaunch", () => ({ LiveDbcLaunch: () => <button>Approve on-chain mint</button> }));
+vi.mock("./LaunchCostCard", () => ({ LaunchCostCard: () => null }));
 vi.mock("./LaunchReady", () => ({ LaunchReady: () => null }));
 vi.mock("./DbcEconomics", () => ({ DbcEconomics: () => <div>Curve economics</div> }));
 import { InfluencerOnboarding } from "./InfluencerOnboarding";

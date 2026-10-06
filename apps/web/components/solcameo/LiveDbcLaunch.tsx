@@ -28,6 +28,12 @@ type Pending = {
 };
 /** True only when the balance is known and too small to cover the launch (unknown is left to the server check). */
 const lowSol = (lamports: number | null | undefined) => typeof lamports === "number" && lamports < LAUNCH_MIN_LAMPORTS.pool;
+/** Launch progress survives closed tabs and reloads: localStorage first, session storage as a fallback. */
+const store = {
+  get: (k: string) => { try { return localStorage.getItem(k) ?? sessionStorage.getItem(k); } catch { return null; } },
+  set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { sessionStorage.setItem(k, v); } },
+  remove: (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } try { sessionStorage.removeItem(k); } catch { /* ignore */ } },
+};
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 async function call(body: unknown, endpoint = "/api/meteora/launch") {
@@ -90,11 +96,11 @@ export function LiveDbcLaunch({
     setBusy(true);
     setError("");
     const key = `vello-dbc-${platform ? "platform" : "agent"}-${characterId}-${publicKey.toBase58()}`;
-    const save = (v: Pending) => sessionStorage.setItem(key, JSON.stringify(v));
+    const save = (v: Pending) => store.set(key, JSON.stringify(v));
     try {
       if (!await ensureSiwsViaRegistered()) throw new Error("Verify your wallet before minting.");
       let pending: Pending | null = JSON.parse(
-        sessionStorage.getItem(key) ?? "null",
+        store.get(key) ?? "null",
       );
       if (pending) {
         const encoded = pending.receipt.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
@@ -106,7 +112,8 @@ export function LiveDbcLaunch({
         setStatus("Building your Meteora configuration…");
         const mint = Keypair.generate(),
           config = Keypair.generate();
-        const recovered = platform ? await callLaunch({ action: "recover", characterId, options, mint: mint.publicKey.toBase58() }) : null;
+        // Ask the server what already happened on chain, so a lost tab never strands a paid launch.
+        const recovered = await callLaunch({ action: "recover", characterId, options, mint: mint.publicKey.toBase58() });
         if (recovered?.mode === "complete") { onComplete(); return; }
         const prepared = recovered?.mode === "resume" ? recovered : await callLaunch({
           action: "prepare",
@@ -197,7 +204,7 @@ export function LiveDbcLaunch({
           }
         }
         if (result?.complete) {
-          sessionStorage.removeItem(key);
+          store.remove(key);
           setLaunchStep(2);
           setStatus("Your Meteora pool is confirmed.");
           onComplete();

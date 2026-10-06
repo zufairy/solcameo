@@ -37,13 +37,13 @@ it("continues into both wallet approvals automatically after the network check",
     if (url.startsWith("/api/meteora/readiness")) return new Response(JSON.stringify({ ready: true, balanceLamports: 100000000 }));
     const body = JSON.parse(init!.body as string); stages.push(body.action);
     const prepared = { transaction: "AQ==", receipt: "receipt" };
-    return new Response(JSON.stringify(body.action === "submit" ? { signature: "confirmed-signature" } : body.action === "confirm" && ++confirmations === 2 ? { complete: true } : prepared));
+    return new Response(JSON.stringify(body.action === "recover" ? { mode: "none" } : body.action === "submit" ? { signature: "confirmed-signature" } : body.action === "confirm" && ++confirmations === 2 ? { complete: true } : prepared));
   }));
   const host = document.createElement("div"); const root = createRoot(host);
   await act(async () => { root.render(<LiveDbcLaunch characterId="coin" options={DEFAULT_DBC} autoStart onComplete={m.complete} />); });
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
   expect(m.sign).toHaveBeenCalledTimes(2);
-  expect(stages).toEqual(["prepare", "refresh", "submit", "confirm", "refresh", "submit", "confirm"]);
+  expect(stages).toEqual(["recover", "prepare", "refresh", "submit", "confirm", "refresh", "submit", "confirm"]);
   expect(m.complete).toHaveBeenCalledTimes(1);
   await act(async () => root.unmount());
 });
