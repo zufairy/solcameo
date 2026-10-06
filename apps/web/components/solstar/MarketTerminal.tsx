@@ -310,8 +310,10 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     solReserve: BigInt(token.solReserve),
     tokenReserve: BigInt(token.tokenReserve),
   };
-  const price = priceLamportsPerToken(pool).toString();
-  const cap = marketCapLamports(pool, PAPER_VIRTUAL_TOKENS).toString();
+  // A coin with no recorded reserves must not take the whole page down; the live pool numbers fill these in.
+  const hasReserves = pool.tokenReserve > 0n;
+  const price = hasReserves ? priceLamportsPerToken(pool).toString() : "0";
+  const cap = hasReserves ? marketCapLamports(pool, PAPER_VIRTUAL_TOKENS).toString() : "0";
   const volume = stats
     ? (BigInt(stats.buyVolume) + BigInt(stats.sellVolume)).toString()
     : null;
