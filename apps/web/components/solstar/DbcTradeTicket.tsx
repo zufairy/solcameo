@@ -249,6 +249,18 @@ export function DbcTradeTicket({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteKey, quoteRevision, wallet, compatible, busy, pending, characterId, getFreshToken]);
 
+  // The position card's "Sell 25% / Close position" buttons fill this ticket; the wallet still approves the swap.
+  useEffect(() => {
+    const onPrefill = (event: Event) => {
+      const { side: s, percent } = (event as CustomEvent<{ side: "sell"; percent: number }>).detail;
+      if (s !== "sell" || !balance) return;
+      setSide("sell");
+      setAmount(human((balance.tokens * BigInt(Math.min(100, Math.max(1, Math.round(percent))))) / 100n, balance.decimals));
+      setMessage("");
+    };
+    window.addEventListener("solcameo:trade-prefill", onPrefill);
+    return () => window.removeEventListener("solcameo:trade-prefill", onPrefill);
+  }, [balance]);
   function allocate(value: number) {
     setAmount(human((available * BigInt(value)) / 100n, decimals));
     setMessage("");
