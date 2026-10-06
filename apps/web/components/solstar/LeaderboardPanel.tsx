@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAccountExplorerUrl } from "@/lib/solana/network";
-import { Trophy } from "lucide-react";
+import { ArrowUpRight, Trophy } from "lucide-react";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { compact } from "@/lib/client/calloutCard";
@@ -25,7 +25,7 @@ function ProfileAvatar({ wallet, image }: { wallet: string; image?: string }) {
     <img src={custom ? image : "/brand/solcameo-mark.png"} alt="" onError={custom ? () => setFailedImage(image) : undefined} className={custom ? "size-full object-cover" : "size-[22px] object-contain"} style={custom ? undefined : { transform: variant.transform }} />
   </span>;
 }
-export function LeaderboardPanel() {
+export function LeaderboardPanel({ standalone = false }: { standalone?: boolean } = {}) {
   const [metric, setMetric] = useState<"traders" | "views" | "earners">("traders");
   const [period, setPeriod] = useState<LeaderboardPeriod>("all");
   const [snapshots, setSnapshots] = useState<Record<string, LeaderboardResponse>>({});
@@ -57,7 +57,7 @@ export function LeaderboardPanel() {
   const views = data?.views?.slice(0, 12);
   const loading = data === null && !error;
   return <section aria-label="Leaderboard" className="min-h-0 min-w-0 @3xl:overflow-y-auto @3xl:overscroll-contain">
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-y border-white/10 feed-glass-header px-4 @3xl:border-t-0"><span className="grid size-7 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Trophy className="size-4" /></span><h2 className="text-sm font-semibold tracking-tight text-white">Leaderboard</h2><span className="ml-auto text-[11px] text-zinc-500">{metric === "views" ? "Tracked views" : `${data?.network ?? ""} · RPC`}</span></div>
+    <div className="sticky top-0 z-10 flex items-center gap-3 border-y border-white/10 feed-glass-header px-4 @3xl:border-t-0"><span className="grid size-7 place-items-center rounded-[9px] border border-white/20 bg-gradient-to-b from-white/[0.18] to-white/[0.04] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_-4px_rgba(0,0,0,0.6)] backdrop-blur-xl" aria-hidden="true"><Trophy className="size-4" /></span><h2 className="text-sm font-semibold tracking-tight text-white">Leaderboard</h2>{standalone ? <span className="ml-auto text-[11px] text-zinc-500">{metric === "views" ? "Tracked views" : `${data?.network ?? ""} · RPC`}</span> : <Link href="/leaderboard" aria-label="Open leaderboard" title="Open leaderboard" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"><ArrowUpRight className="size-4" /></Link>}</div>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-3 py-2">
       <div role="group" aria-label="Leaderboard ranking" className="inline-flex rounded-lg border border-white/10 bg-white/[0.025] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         {([["traders", "Traders"], ["views", "Views"], ["earners", "Earners"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={metric === value} onClick={() => setMetric(value)} className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${metric === value ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{label}</button>)}

@@ -227,3 +227,31 @@ export async function postX(
     };
   }
 }
+
+/** Tweet id from an x.com / twitter.com status URL. */
+export function tweetIdFromUrl(url: string): string | undefined {
+  return url.match(/(?:x|twitter)\.com\/[^/]+\/status\/(\d+)/)?.[1];
+}
+
+/**
+ * Live view count straight from the X API (v2 tweet lookup, public_metrics.impression_count).
+ * App-only bearer token, so it works for any public post — no per-agent OAuth needed.
+ */
+export async function fetchXPostViews(tweetId: string): Promise<{ ok: true; views: number; raw: Record<string, number> } | { ok: false; reason: string }> {
+  const bearer = process.env.X_BEARER_TOKEN;
+  if (!bearer) return { ok: false, reason: "x_bearer_not_configured" };
+  try {
+    const res = await fetch(`https://api.x.com/2/tweets/${encodeURIComponent(tweetId)}?tweet.fields=public_metrics`, {
+      headers: { Authorization: `Bearer ${bearer}` },
+      signal: AbortSignal.timeout(10000),
+      cache: "no-store",
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, reason: `x_api_${res.status}` };
+    const metrics = body?.data?.public_metrics as Record<string, number> | undefined;
+    if (!metrics || typeof metrics.impression_count !== "number") return { ok: false, reason: "x_api_no_metrics" };
+    return { ok: true, views: Math.max(0, Math.floor(metrics.impression_count)), raw: metrics };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? `x_api_${e.message}` : "x_api_error" };
+  }
+}

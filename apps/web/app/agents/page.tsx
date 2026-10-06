@@ -1754,7 +1754,8 @@ function RotatingRole() {
 }
 
 export default function AgentsPage() {
-  const rawAgents = useQuery(api.influencers.listAll);
+  // Mainnet only: hide agents that are not minted and live on mainnet.
+  const rawAgents = useQuery(api.influencers.listAll, { liveNetwork: "mainnet" });
   // Stable reference so the filter/stat memos don't recompute every render.
   const agents = useMemo(() => rawAgents ?? [], [rawAgents]);
   const stats = useQuery(api.influencers.getMarketStats);
@@ -1765,6 +1766,26 @@ export default function AgentsPage() {
   // baseline + live delta, see convex/platformStats.ts). null until the
   // first refresh has run.
   const platformTotals = useQuery(api.platformStats.live);
+  // Realtime on-chain trading volume (SOL) across every live mainnet pool, polled and refreshed on each confirmed trade.
+  const solUsd = useSolUsd();
+  const [trading, setTrading] = useState<{ volumeSol: number } | null>(null);
+  useEffect(() => {
+    let active = true, busy = false;
+    const refresh = async () => {
+      if (busy || document.hidden) return;
+      busy = true;
+      try {
+        const res = await fetch("/api/solstar/volume", { cache: "no-store" });
+        if (res.ok) { const data = await res.json(); if (active && typeof data.volumeSol === "number") setTrading({ volumeSol: data.volumeSol }); }
+      } catch { /* keep the last known volume */ } finally { busy = false; }
+    };
+    void refresh();
+    const timer = setInterval(refresh, 15000);
+    window.addEventListener("solcameo:trade-confirmed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
+  const tradingVolumeUsd = trading && solUsd != null ? trading.volumeSol * solUsd : 0;
   // Videos produced per agent — counted client-side from the already-loaded video
   // feed (clips + UGC), so the hire cards that aren't for-hire can show a real
   // "videos generated" number instead of an empty rate. No extra query. The feed
@@ -1902,7 +1923,7 @@ export default function AgentsPage() {
     platformTotals ? pick(platformTotals) : null;
   const heroStats = [
     { label: "Total Views Generated", value: heroStat((t) => t.totalViews.toLocaleString("en-US")) },
-    { label: "Total Volume", value: heroStat((t) => `$${t.totalVolumeUsdc.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`) },
+    { label: "Total Volume", value: heroStat((t) => `$${(t.totalVolumeUsdc + tradingVolumeUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`) },
     { label: "Videos Generated", value: heroStat((t) => t.videosGenerated.toLocaleString("en-US")) },
   ];
 

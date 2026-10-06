@@ -1,10 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { ExternalLink } from "lucide-react";
 import { getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
 import type { PlatformTokenState } from "@/app/api/tokenomics/platform/route";
 import { ALLOCATION, BUYBACK_SPLIT, REVENUE_SPLIT, TIERS, TOKEN_SYMBOL, TOTAL_SUPPLY } from "@/lib/tokenomics/platformToken";
+
+const CycleScene = dynamic(() => import("./CycleScene").then((m) => m.CycleScene), { ssr: false });
 
 const LIME = "#d7ff00";
 const card = "rounded-2xl border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
@@ -38,30 +41,53 @@ function Pill({ s }: { s: "Live" | "Operator-run" | "Planned" }) {
 
 function Donut() {
   const R = 52, C = 2 * Math.PI * R;
-  let acc = 0;
+  const arcs = ALLOCATION.map((a, i) => ({ a, off: (ALLOCATION.slice(0, i).reduce((n, x) => n + x.pct, 0) / 100) * C, len: (a.pct / 100) * C }));
   return (
     <svg viewBox="0 0 140 140" className="size-44 shrink-0 -rotate-90" role="img" aria-label="Token allocation">
       <circle cx="70" cy="70" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-      {ALLOCATION.map((a) => {
-        const len = (a.pct / 100) * C, off = (acc / 100) * C; acc += a.pct;
-        return <circle key={a.key} cx="70" cy="70" r={R} fill="none" stroke={a.color} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 1.5)} ${C}`} strokeDashoffset={-off} />;
-      })}
+      {arcs.map(({ a, off, len }) => <circle key={a.key} cx="70" cy="70" r={R} fill="none" stroke={a.color} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 1.5)} ${C}`} strokeDashoffset={-off} />)}
     </svg>
   );
 }
 
+/** The revenue loop: a 3D ring on one side, the six steps on the other. Steps auto-advance until the reader takes over. */
 function CycleDiagram({ reduced }: { reduced: boolean | null }) {
+  const [active, setActive] = useState(0);
+  const [manual, setManual] = useState(false);
+  const [labels, setLabels] = useState<{ x: number; y: number; front: number }[] | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (manual || reduced) return;
+    const t = setInterval(() => setActive((a) => (a + 1) % CYCLE.length), 3600);
+    return () => clearInterval(t);
+  }, [manual, reduced]);
+  const pick = (i: number) => { setManual(true); setActive(i); };
   return (
-    <ol className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {CYCLE.map((c, i) => (
-        <motion.li key={c.t} initial={reduced ? false : { opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ delay: i * 0.06, duration: 0.4 }} className={`${card} relative`}>
-          <span className="absolute -top-3 left-4 grid size-6 place-items-center rounded-full text-[11px] font-bold text-black" style={{ background: LIME }}>{i + 1}</span>
-          <h4 className="mt-1 text-sm font-semibold text-white">{c.t}</h4>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-white/55">{c.d}</p>
-          {i === CYCLE.length - 1 && <p className="mt-2 text-[11px] font-medium" style={{ color: LIME }}>↻ back to step 1: more value attracts more creators</p>}
-        </motion.li>
-      ))}
-    </ol>
+    <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      <ol className="space-y-2" onMouseLeave={() => setManual(false)}>
+        {CYCLE.map((c, i) => (
+          <li key={c.t}>
+            <button type="button" onClick={() => pick(i)} onMouseEnter={() => pick(i)} onFocus={() => pick(i)} aria-current={active === i ? "step" : undefined}
+              className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors ${active === i ? "border-[#d7ff00]/35 bg-[#d7ff00]/[0.06]" : "border-white/10 bg-white/[0.025] hover:bg-white/[0.05]"}`}>
+              <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-colors ${active === i ? "text-black" : "bg-white/10 text-white/60"}`} style={active === i ? { background: LIME } : undefined}>{i + 1}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-white">{c.t}</span>
+                <span className={`block overflow-hidden text-[12.5px] leading-relaxed text-white/55 transition-all duration-300 ${active === i ? "mt-1 max-h-24 opacity-100" : "max-h-0 opacity-0"}`}>{c.d}{i === CYCLE.length - 1 ? " Then it loops back to step 1: more value attracts more creators." : ""}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div ref={box} className={`${card} relative min-h-[300px] overflow-hidden p-0 lg:min-h-[420px]`}>
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400/[0.06] blur-[90px]" />
+        <CycleScene active={active} onLabels={setLabels} className="absolute inset-0" />
+        {labels?.map((p, i) => (
+          <button key={i} type="button" onClick={() => pick(i)} aria-label={`Step ${i + 1}: ${CYCLE[i].t}`} className="absolute -translate-x-1/2 -translate-y-[170%] rounded-full border px-2 py-0.5 text-[10.5px] font-semibold tabular-nums transition-colors"
+            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, opacity: p.front, borderColor: active === i ? LIME : "rgba(255,255,255,0.18)", color: active === i ? "#000" : "rgba(255,255,255,0.7)", background: active === i ? LIME : "rgba(0,0,0,0.5)" }}>{i + 1}</button>
+        ))}
+        <p className="pointer-events-none absolute bottom-3 left-4 right-4 text-center text-[11px] text-white/40">Glowing particles are revenue moving round the loop. Red marks where supply is burned.</p>
+      </div>
+    </div>
   );
 }
 

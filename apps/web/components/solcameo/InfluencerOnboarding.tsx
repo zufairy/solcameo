@@ -343,7 +343,6 @@ function InfluencerOnboardingContent({
             </li>)}
           </ol>
         </nav>
-        <Badge variant="outline" className="shrink-0 gap-1.5 border-white/10 bg-white/[0.025] text-[10px] font-normal text-zinc-400"><span className="size-1 rounded-full bg-[#d7ff00]" />{liveReadiness.network === "mainnet" ? "Mainnet" : "Devnet"}</Badge>
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {step === 0 ? (
@@ -686,31 +685,31 @@ function InfluencerOnboardingContent({
                 </div>
               )}
             </section>
-            <aside className="h-fit overflow-hidden rounded-2xl border border-white/10 bg-[#202326] lg:sticky lg:top-8">
+            <aside className="h-fit overflow-hidden rounded-none border-2 border-black bg-white text-black shadow-[5px_5px_0_0_#d7ff00,5px_5px_0_2px_#000] lg:sticky lg:top-8">
               {character && (
                 <img
                   src={character.image.url}
                   alt="Your selected AI influencer"
-                  className="aspect-square w-full object-cover object-top"
+                  className="aspect-square w-full border-b-2 border-black object-cover object-top"
                 />
               )}
               <div className="p-5">
-                <p className="text-xs text-zinc-500">Coin preview</p>
-                <h2 className="mt-2 text-lg font-semibold">
+                <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider"><span aria-hidden className="text-base leading-none">🪙</span>Coin preview</p>
+                <h2 className="mt-2 text-xl font-black uppercase leading-tight tracking-tight">
                   {concept.name || "Your character"}
                 </h2>
-                <p className="mt-1 font-mono text-sm text-[#d7ff00]">
+                <p className="mt-1.5 inline-block border-2 border-black bg-black px-2 py-0.5 font-mono text-sm font-bold text-[#d7ff00]">
                   ${concept.ticker || "TICKER"}
                 </p>
                 {concept.bio && (
-                  <p className="mt-3 break-words text-sm leading-6 text-zinc-500">
+                  <p className="mt-3 break-words text-sm font-medium leading-6 text-black/70">
                     {concept.bio}
                   </p>
                 )}
-                {step >= 2 && <dl className="mt-5 space-y-3 border-t border-white/10 pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${dbcOptions.feeBps / 100}%`], ["Anti-sniper", dbcOptions.antiSniper ? `On · ${dbcOptions.antiSniperLevel}` : "Off"], ["Dynamic fee", dbcOptions.dynamicFee ? "On" : "Off"], ["Autopilot content", dbcOptions.autopilot ? "On" : "Off"], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="text-zinc-500">{label}</dt><dd className="text-zinc-200">{value}</dd></div>)}</dl>}
+                {step >= 2 && <dl className="mt-5 space-y-2.5 border-t-2 border-black pt-4 text-xs">{[["Opens at", `${dbcOptions.initialCapSol} SOL cap`], ["Graduates at", `${dbcOptions.graduationCapSol} SOL cap`], ["Supply", "1 billion"], ["Trading fee", `${dbcOptions.feeBps / 100}%`], ["Anti-sniper", dbcOptions.antiSniper ? `On · ${dbcOptions.antiSniperLevel}` : "Off"], ["Dynamic fee", dbcOptions.dynamicFee ? "On" : "Off"], ["Autopilot content", dbcOptions.autopilot ? "On" : "Off"], ["Locked liquidity", "100%"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="font-medium text-black/60">{label}</dt><dd className="font-bold text-black">{value}</dd></div>)}</dl>}
                 <Badge
                   variant="outline"
-                  className="mt-4 border-white/10 text-zinc-500"
+                  className="mt-4 rounded-none border-2 border-black bg-transparent px-2 font-bold uppercase text-black"
                 >
                   {concept.category}
                 </Badge>

@@ -111,6 +111,11 @@ export function errorResponse(e: unknown): NextResponse {
   if (INVALID_ID_MARKERS.some((m) => msg.includes(m))) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
+  // A secret mismatch between this app and Convex must read as a configuration problem, not a transient outage.
+  if (msg.includes("unauthorized")) {
+    console.error("[solstar] INTERNAL_CRON_SECRET mismatch between the app and Convex:", e);
+    return NextResponse.json({ error: "server_misconfigured" }, { status: 503 });
+  }
   console.error("[solstar] unhandled route error:", e);
   return NextResponse.json({ error: "internal_error" }, { status: 500 });
 }

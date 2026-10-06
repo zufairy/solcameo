@@ -223,9 +223,9 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           </Sidebar>}
           <SidebarDividerToggle />
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
-            {!isMarketTerminal && <ShellAnnouncement />}
+            {!isMarketTerminal && <ShellAnnouncement autoClose={isControl} />}
             <TopBar terminal={isMarketTerminal} />
-            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && <TickerStrip />}
+            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && !isControl && <TickerStrip />}
             <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : pathname === "/" ? "overflow-y-auto overscroll-contain [container-type:size]" : "overflow-y-auto overscroll-contain"}`}>
               {children}
             </div>
@@ -237,10 +237,16 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
 }
 
 /** Reveals after three seconds on the current page, without shifting the sidebar. */
-function ShellAnnouncement() {
+function ShellAnnouncement({ autoClose = false }: { autoClose?: boolean }) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const reduced = useReducedMotion();
+  // On the control page the notice shows briefly, then folds away on its own.
+  useEffect(() => {
+    if (!autoClose || !visible) return;
+    const timer = window.setTimeout(() => setDismissed(true), 5000);
+    return () => window.clearTimeout(timer);
+  }, [autoClose, visible]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try { setVisible(!sessionStorage.getItem("solcameo-announcement-dismissed")); }

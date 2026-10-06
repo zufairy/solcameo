@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function TokenomicsPage() {
   return (
     <AppHeaderShell flat>
-      <div className="min-h-full bg-black"><PlatformTokenSection /><TokenomicsLive /></div>
+      <div className="min-h-full bg-black"><TokenomicsLive /><PlatformTokenSection /></div>
     </AppHeaderShell>
   );
 }

@@ -1,6 +1,7 @@
-export type LeaderboardPeriod = "all" | "24h" | "7d" | "30d";
-export const LEADERBOARD_PERIODS: Record<LeaderboardPeriod, string> = { all: "All time", "24h": "24 hours", "7d": "7 days", "30d": "30 days" };
+export type LeaderboardPeriod = "all" | "24h" | "7d" | "30d" | "month";
+export const LEADERBOARD_PERIODS: Record<LeaderboardPeriod, string> = { all: "All time", "24h": "24 hours", "7d": "7 days", "30d": "30 days", month: "This month" };
 export function periodStart(period: LeaderboardPeriod, now = Date.now()) {
+  if (period === "month") { const d = new Date(now); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); }
   return period === "all" ? 0 : now - (period === "24h" ? 1 : period === "7d" ? 7 : 30) * 86400000;
 }
 export type RpcTrade = { signature: string; wallet: string; mint: string; side: "buy" | "sell"; units: number; sol: number; networkFeeSol: number; time: number; slot?: number };

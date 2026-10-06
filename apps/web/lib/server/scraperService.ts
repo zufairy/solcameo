@@ -13,6 +13,7 @@
  */
 
 import { getPostAnalytics, resolveUsername } from "./uploadPost";
+import { fetchXPostViews, tweetIdFromUrl } from "./xApi";
 
 export type ScrapePlatform = "tiktok" | "instagram" | "youtube";
 
@@ -63,6 +64,14 @@ export async function fetchUploadPostViews(args: {
 }): Promise<ScrapeResult> {
   const { platform } = args;
   try {
+    // X posts: read impressions straight from the X API (realtime), falling back to upload-post only if it can't.
+    if ((platform === "x" || platform === "twitter") && args.postUrl) {
+      const tweetId = tweetIdFromUrl(args.postUrl);
+      if (tweetId) {
+        const r = await fetchXPostViews(tweetId);
+        if (r.ok) return { ok: true, views: r.views, raw: r.raw, postUrl: args.postUrl, platformPostId: tweetId };
+      }
+    }
     // 1) by request_id (the async-upload handle captured at post time)
     if (args.requestId) {
       const a = await getPostAnalytics({ requestId: args.requestId, platform });

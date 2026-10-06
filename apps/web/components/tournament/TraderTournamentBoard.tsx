@@ -24,7 +24,7 @@ const WINDOWS: { id: LeaderboardPeriod; label: string }[] = [
   { id: "30d", label: "30D" },
   { id: "all", label: "All" },
 ];
-const WINDOW_LABEL: Record<LeaderboardPeriod, string> = { "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", all: "All time" };
+const WINDOW_LABEL: Record<LeaderboardPeriod, string> = { "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", month: "This month", all: "All time" };
 
 type Ranked = TraderRank & { rank: number; pnl: number };
 type CoinTotal = TraderCoin & { traders: number; winners: number };
@@ -72,6 +72,25 @@ export function TraderTournamentBoard() {
     window.addEventListener("solcameo:trade-confirmed", refresh);
     return () => { controller.abort(); clearInterval(interval); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("solcameo:trade-confirmed", refresh); };
   }, [period, retry]);
+
+  // Everyone who traded a Solcameo coin since the 1st of the month (UTC), not only those with a closed sale.
+  const [participants, setParticipants] = useState<number | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      if (document.hidden) return;
+      try {
+        const response = await fetch("/api/solstar/leaderboard?period=month&metric=traders", { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as LeaderboardResponse;
+        if (!controller.signal.aborted) setParticipants(new Set(result.traders.map(t => t.wallet)).size);
+      } catch { /* keep the last count */ }
+    };
+    void load();
+    const interval = setInterval(() => void load(), 60_000);
+    window.addEventListener("solcameo:trade-confirmed", load);
+    return () => { controller.abort(); clearInterval(interval); window.removeEventListener("solcameo:trade-confirmed", load); };
+  }, []);
 
   const rows = useMemo<Ranked[]>(() => (data?.traders ?? [])
     .filter((row) => row.complete && row.pnlSol !== null && (row.closedTrades ?? 0) > 0)
@@ -129,14 +148,10 @@ export function TraderTournamentBoard() {
                     <Stat label="Coins" value={data ? String(coins.length) : "—"} />
                   </div>
                   <div className="mt-6 flex flex-wrap items-center gap-2 text-[11.5px] text-white/50">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${data && !error ? "border-white/15 bg-white/[0.05] text-white/80" : "border-white/10 text-white/40"}`}>
-                      <span className="relative flex size-1.5">
-                        {data && !error && !reduced && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />}
-                        <span className={`relative size-1.5 rounded-full ${data && !error ? "bg-emerald-400" : "bg-white/30"}`} />
-                      </span>
-                      {data && !error ? `On-chain · ${network}` : error ? "RPC unavailable" : "Reading chain…"}
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 tabular-nums text-white/80">
+                      <span className="size-1.5 rounded-full bg-emerald-400" />
+                      {participants == null ? "Counting participants…" : `${participants.toLocaleString("en-US")} participant${participants === 1 ? "" : "s"} this month`}
                     </span>
-                    {data && <span className="tabular-nums">{totals.winners} in profit · net {sol(totals.net, true)} SOL</span>}
                   </div>
                 </div>
                 <div className="relative h-[240px] sm:h-full sm:min-h-[300px]">

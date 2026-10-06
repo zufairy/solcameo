@@ -38,9 +38,17 @@ async function escrowByMint(ctx: QueryCtx): Promise<Map<string, number>> {
 }
 
 export const listAll = query({
-  args: {},
-  handler: async (ctx) => {
-    const docs = await ctx.db.query("influencers").order("desc").collect();
+  // liveNetwork: only agents whose Solstar token is minted and live on that network.
+  args: { liveNetwork: v.optional(v.union(v.literal("devnet"), v.literal("mainnet"))) },
+  handler: async (ctx, { liveNetwork }) => {
+    let docs = await ctx.db.query("influencers").order("desc").collect();
+    if (liveNetwork) {
+      const tokens = await Promise.all(docs.map((d) => (d.solstarTokenId ? ctx.db.get(d.solstarTokenId) : null)));
+      docs = docs.filter((_, i) => {
+        const t = tokens[i];
+        return !!t && t.network === liveNetwork && !!t.mint && ["live", "graduated", "migrated"].includes(t.state);
+      });
+    }
     const escrow = await escrowByMint(ctx); // real TVL, consistent with listByCreator(s)/getMarketStats
     // Omit agentWalletSecret (private) and followerHistory (up to 200 samples per
     // agent — only the server needs it for the 24h delta) from the public payload.
