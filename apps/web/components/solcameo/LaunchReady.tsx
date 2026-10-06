@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Check, Copy, Plus, Rocket, Wallet } from "lucide-react";
+import { ArrowRight, Check, Copy, Plus, Rocket, Wallet, Zap, LockKeyhole, Video } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import DepositModal from "@/components/builder/DepositModal";
@@ -68,12 +68,10 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
     if (!wallet) return;
     try { await navigator.clipboard.writeText(wallet); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard may be blocked */ }
   }, [wallet]);
-  const videosPerDollar = Math.max(1, Math.floor(1 / FIRST_VIDEO_USD));
 
   return <>
     <Dialog open={open && !depositOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[460px] overflow-hidden rounded-[28px] border border-white/10 bg-[#101215]/95 p-0 text-center text-white sm:max-w-[460px]">
-        <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[120%] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(215,255,0,0.22),transparent_65%)]" />
+      <DialogContent className="max-w-[460px] border-0 bg-transparent p-0 text-center text-white shadow-none ring-0 sm:max-w-[460px]">
         <div className="relative px-7 pb-7 pt-9">
           <motion.div
             initial={{ scale: reduced ? 1 : 0.6, opacity: 0, rotate: reduced ? 0 : -6 }}
@@ -84,8 +82,8 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
             {!reduced && <span aria-hidden className="absolute -inset-1 animate-ping rounded-[30px] border border-[#d7ff00]/30 [animation-duration:2.6s]" />}
             {imageUrl
               ? <img src={imageUrl} alt="" className="size-full rounded-[28px] object-cover shadow-[0_0_60px_-8px_rgba(215,255,0,0.55)] ring-2 ring-[#d7ff00]/40" />
-              : <div className="grid size-full place-items-center rounded-[28px] bg-white/10"><Rocket className="size-8 text-[#d7ff00]" /></div>}
-            <span className="absolute -bottom-1.5 -right-1.5 grid size-8 place-items-center rounded-full bg-[#d7ff00] text-black shadow-[0_6px_18px_-4px_rgba(215,255,0,0.8)] ring-4 ring-[#101215]"><Check className="size-4" strokeWidth={3} /></span>
+              : <div className={`grid size-full place-items-center rounded-[28px] ${GLASS}`}><Rocket className="size-8 text-[#d7ff00]" /></div>}
+            <span className={`absolute -bottom-1.5 -right-1.5 grid size-8 place-items-center rounded-xl text-[#d7ff00] ${GLASS}`}><Check className="size-4" strokeWidth={3} /></span>
           </motion.div>
 
           <DialogTitle className="text-[26px] font-semibold tracking-tight">{name} is ready<span className="text-[#d7ff00]">.</span></DialogTitle>
@@ -95,10 +93,9 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
               : <>Your preview coin is created. Fund {name}&apos;s wallet so it can make its first video.</>}
           </DialogDescription>
 
-          <motion.div initial={reduced ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }} className={`relative mt-6 overflow-hidden rounded-[18px] p-4 text-left ${GLASS}`}>
-            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/[0.12] to-transparent" />
+          <motion.div initial={reduced ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }} className="relative mt-6 py-4 text-left">
             <div className="relative flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/20 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"><Wallet className="size-[18px] text-white" strokeWidth={1.75} /></span>
+              <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${GLASS}`}><Wallet className="size-[18px] text-white" strokeWidth={1.75} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Agent wallet</p>
                 <button type="button" onClick={copy} disabled={!wallet} aria-label="Copy agent wallet address" className="mt-0.5 flex items-center gap-1.5 font-mono text-[13px] text-zinc-200 transition-colors hover:text-white disabled:opacity-60">
@@ -117,15 +114,18 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
               </button>
             ) : (
               <button type="button" onClick={() => setDepositOpen(true)} disabled={!wallet} className="group relative mt-4 flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-md border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.06)_55%,rgba(255,255,255,0.12))] text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-1px_0_rgba(0,0,0,0.25),0_14px_30px_-14px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-gradient-to-b before:from-white/[0.2] before:to-transparent hover:border-white/40 hover:bg-white/[0.14] active:scale-[0.98] disabled:opacity-50">
-                <span className="grid size-6 place-items-center rounded-full bg-[#d7ff00] text-black shadow-[0_0_18px_rgba(215,255,0,0.55)] transition-transform duration-200 group-hover:rotate-90"><Plus className="size-4" strokeWidth={3} /></span>
+                <span className={`grid size-6 place-items-center rounded-md text-[#d7ff00] transition-transform duration-200 group-hover:rotate-90 ${GLASS}`}><Plus className="size-4" strokeWidth={3} /></span>
                 Add funds
               </button>
             )}
           </motion.div>
 
           <ul className="mt-4 grid grid-cols-3 gap-2 text-[11.5px] leading-4 text-zinc-400">
-            {[["💸", `$1 covers ${videosPerDollar} videos`], ["⚡", "Funded agents start right away"], ["🔓", "Withdraw unused funds anytime"]].map(([icon, text]) => (
-              <li key={text} className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-2 py-2.5"><span aria-hidden className="block text-base leading-none">{icon}</span><span className="mt-1.5 block">{text}</span></li>
+            {[{ Icon: Video, text: "Fund influencer for first video" }, { Icon: Zap, text: "Funded agents start right away" }, { Icon: LockKeyhole, text: "Withdraw unused funds anytime" }].map(({ Icon, text }) => (
+              <li key={text} className="flex flex-col items-center px-1 py-2">
+                <span aria-hidden className={`grid size-9 place-items-center rounded-xl text-white ${GLASS}`}><Icon className="size-4" strokeWidth={1.75} /></span>
+                <span className="mt-2 block">{text}</span>
+              </li>
             ))}
           </ul>
 
