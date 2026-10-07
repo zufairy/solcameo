@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Globe } from "lucide-react";
 
 type Trade = { wallet: string; side: string; lamports: string; createdAt: number };
@@ -47,7 +47,8 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
 }) {
   const [frame, setFrame] = useState<(typeof FRAMES)[number]["id"]>("1h");
   const [expanded, setExpanded] = useState(false);
-  const [now] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 10_000); return () => clearInterval(timer); }, []);
   const safe = (u?: string) => (u && u.startsWith("https://") ? u : undefined);
   const x = safe(xUrl), site = safe(websiteUrl);
 
@@ -67,7 +68,7 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
 
   const chipCls = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-white/25 hover:text-white";
   return (
-    <section aria-label={`${showAbout ? "About" : "Market activity for"} ${name}`} className="mx-3 mb-3 rounded-[14px] border border-white/[0.09] bg-[#0b0c0e] p-4">
+    <section aria-label={`${showAbout ? "About" : "Market activity for"} ${name}`} className="mb-3 px-4 py-2">
       {showAbout && <>
       <h2 className="text-[17px] font-semibold tracking-tight text-white">About {name}</h2>
       <p className={`mt-1.5 text-[13px] leading-5 text-zinc-400 ${expanded ? "" : "line-clamp-2"}`}>{bio || `${name} is an AI character on Solcameo.`}</p>
@@ -79,7 +80,7 @@ export function MarketAboutCard({ name, ticker, bio, xUrl, websiteUrl, trades, p
           const on = frame === f.id;
           return (
             <button key={f.id} type="button" role="tab" aria-selected={on} onClick={() => setFrame(f.id)}
-              className={`rounded-lg border px-1 py-2 text-center transition-colors ${on ? "border-white/20 bg-white/[0.07]" : "border-white/[0.08] bg-transparent hover:bg-white/[0.04]"}`}>
+              className={`px-1 py-2 text-center transition-colors ${on ? "text-white" : "text-zinc-400 hover:text-white"}`}>
               <span className="block text-[12px] text-zinc-400">{f.label}</span>
               <span className={`mt-0.5 inline-flex items-center gap-0.5 text-[13px] font-semibold tabular-nums ${c == null ? "text-zinc-600" : c >= 0 ? "text-emerald-400" : "text-orange-400"}`}>
                 {c != null && (c >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />)}

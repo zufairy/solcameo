@@ -1661,3 +1661,14 @@ export const earningsTimeSeries = query({
     });
   },
 });
+
+/** Public wallet identity for a market character. The coin mint can differ
+ * from the agent's internal mintAddress; never expose the signing secret. */
+export const walletForMarket = query({
+  args: { characterId: v.id("ssCharacters"), mint: v.optional(v.string()) },
+  handler: async (ctx, { characterId, mint }) => {
+    const linked = await ctx.db.query("influencers").withIndex("by_solstar_character", q => q.eq("solstarCharacterId", characterId)).first();
+    const agent = linked ?? (mint ? await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mint)).first() : null);
+    return agent ? { mintAddress: agent.mintAddress, agentWallet: agent.agentWallet } : null;
+  },
+});

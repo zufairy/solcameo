@@ -314,3 +314,19 @@ describe("characterForRoute (ticker URLs)", () => {
     expect(await t.query(api.solstarMarket.characterForRoute, { id: "yumelyn_vello" })).toBeNull();
   });
 });
+
+describe("market agent wallet identity", () => {
+  it("resolves a linked agent with an internal ID different from the coin mint without exposing its key", async () => {
+    const t = await seeded();
+    const token = await t.run(ctx => ctx.db.query("ssTokens").first());
+    await t.run(async ctx => {
+      await ctx.db.insert("influencers", {
+        mintAddress: "INTERNAL_AGENT_ID", solstarCharacterId: token!.characterId,
+        agentWallet: "AGENT_WALLET", agentWalletSecret: "PRIVATE_SECRET",
+        creatorWallet: "W", name: "Agent", handle: "agent", avatarUrl: "x", niche: "n", language: "en",
+        archetype: "a", description: "d", personality: { warmth: 1, humor: 1, authority: 1, boldness: 1 }, tvl: 0, monthlyEarnings: 0, sharePrice: 1, totalShares: 1, availableShares: 1,
+      });
+    });
+    expect(await t.query(api.influencers.walletForMarket, { characterId: token!.characterId, mint: "COIN_MINT" })).toEqual({ mintAddress: "INTERNAL_AGENT_ID", agentWallet: "AGENT_WALLET" });
+  });
+});

@@ -132,8 +132,8 @@ function PaperTradeTicket({ token }: { token: Token }) {
   }
   const disabled = token.network !== "paper" || token.state !== "paper";
   return (
-    <div className="space-y-4 border-b border-white/10 p-4">
-      <div className="flex rounded-lg border border-white/10 p-1">
+    <div className="space-y-4 p-4">
+      <div className="flex gap-1">
         {(["buy", "sell"] as const).map((s) => (
           <Button
             key={s}

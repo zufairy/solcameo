@@ -29,12 +29,12 @@ vi.mock("@/providers/supabase-auth-provider", () => ({
   useSupabaseAuth: () => ({ login: m.login, getFreshToken: m.auth }),
 }));
 vi.mock("@/lib/client/useSolUsd", () => ({ useSolUsd: () => m.rate }));
-vi.mock("@solana/wallet-adapter-react", () => {
+vi.mock("@/lib/solana/failoverConnection", () => {
   const connection = {
     getBalance: m.balance,
     getParsedTokenAccountsByOwner: m.tokens,
   };
-  return { useConnection: () => ({ connection }) };
+  return { failoverConnection: () => connection };
 });
 vi.mock("@/lib/client/siwsIdentity", () => ({
   ensureSiwsViaRegistered: m.ensure,

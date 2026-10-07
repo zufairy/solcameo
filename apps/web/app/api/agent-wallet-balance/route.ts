@@ -16,12 +16,12 @@ const USDC_DECIMALS = 6;
 // rate-limiting the shared devnet Helius key (429 storm).
 const CACHE = new Map<string, { v: { sol: number; usdc: number }; t: number }>();
 const INFLIGHT = new Map<string, Promise<{ sol: number; usdc: number }>>();
-const TTL_MS = 10_000;
+const TTL_MS = 3_000;
 
 async function readBalance(wallet: string, fresh = false): Promise<{ sol: number; usdc: number }> {
   const c = CACHE.get(wallet);
   if (!fresh && c && Date.now() - c.t < TTL_MS) return c.v;
-  let p = fresh ? undefined : INFLIGHT.get(wallet);
+  let p = INFLIGHT.get(wallet);
   if (!p) {
     p = (async () => {
       // Failover over public devnet → Helius (Helius key suspended 2026-08 → 403):
@@ -46,7 +46,7 @@ async function readBalance(wallet: string, fresh = false): Promise<{ sol: number
           })(),
         ]);
         return { sol: solLamports / LAMPORTS_PER_SOL, usdc: usdcVal };
-      });
+      }, 3000);
       return { sol, usdc };
     })()
       .then((v) => { CACHE.set(wallet, { v, t: Date.now() }); return v; })

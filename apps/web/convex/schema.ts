@@ -541,6 +541,7 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
   })
     .index("by_mint", ["mintAddress"])
+    .index("by_solstar_character", ["solstarCharacterId"])
     .index("by_creator", ["creatorWallet"])
     // Per-minute heartbeat cron reads only DUE agents (enabled + nextFireAt ≤ now)
     // through this index instead of scanning the whole table.

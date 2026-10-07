@@ -927,7 +927,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
           )}
           {token.dbcPool && <FlywheelPanel characterId={characterId} />}
-          <AgentFundSlide mint={token.mint} name={character.name} />
+          <AgentFundSlide characterId={characterId} mint={token.mint} name={character.name} />
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[13px] font-semibold text-white">Top holders</h2>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { useSolUsd } from "@/lib/client/useSolUsd";
+
+import type { Id } from "@/convex/_generated/dataModel";
 
 type Balance = { sol: number; usdc: number };
 const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -14,31 +16,42 @@ const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigi
  * Carousel page: the agent's real wallet. Balances are read from the chain (SOL and USDC), the same wallet the builder
  * shows and the one generations are paid from. Funding opens the deposit dialog, which can send USDC, SOL, or swap SOL into USDC.
  */
-export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) {
-  const agent = useQuery(api.influencers.getByMint, mint ? { mintAddress: mint } : "skip");
-  const account = useQuery(api.agentAccount.getWithNav, mint ? { mintAddress: mint } : "skip");
+export function AgentFundSlide({ characterId, mint, name }: { characterId: Id<"ssCharacters">; mint?: string; name: string }) {
+  const agent = useQuery(api.influencers.walletForMarket, { characterId, mint });
+  const agentMint = agent?.mintAddress;
+  const account = useQuery(api.agentAccount.getWithNav, agentMint ? { mintAddress: agentMint } : "skip");
   const solUsd = useSolUsd();
   const wallet = agent?.agentWallet as string | undefined;
-  const [balance, setBalance] = useState<Balance | null>(null);
+  const [snapshot, setBalance] = useState<(Balance & { wallet: string }) | null>(null);
+  const balance = snapshot?.wallet === wallet ? snapshot : null;
+  const request = useRef<AbortController | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async (fresh = false) => {
     if (!wallet) return;
+    if (request.current && !request.current.signal.aborted) return;
+    const controller = new AbortController();
+    request.current = controller;
     try {
-      const res = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(wallet)}${fresh ? "&fresh=1" : ""}`, { cache: "no-store" });
+      const res = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(wallet)}${fresh ? "&fresh=1" : ""}`, { cache: "no-store", signal: controller.signal });
       const data = (await res.json()) as { ok?: boolean; sol?: number; usdc?: number };
       if (!data.ok) throw new Error("unavailable");
-      setBalance({ sol: data.sol ?? 0, usdc: data.usdc ?? 0 }); setFailed(false);
-    } catch { setFailed(true); }
+      if (!controller.signal.aborted) { setBalance({ wallet, sol: data.sol ?? 0, usdc: data.usdc ?? 0 }); setFailed(false); }
+    } catch { if (!controller.signal.aborted) setFailed(true); }
+    finally { if (request.current === controller) request.current = null; }
   }, [wallet]);
   useEffect(() => {
     if (!wallet) return;
-    void load(); // eslint-disable-line react-hooks/set-state-in-effect
-    const timer = setInterval(() => { if (!document.hidden) void load(); }, 5_000);
-    const onFunded = () => { void load(true); setTimeout(() => void load(true), 4000); };
+    void load(true); // eslint-disable-line react-hooks/set-state-in-effect
+    const timer = setInterval(() => { if (!document.hidden) void load(true); }, 5_000);
+    let followUp: ReturnType<typeof setTimeout> | undefined;
+    const onFunded = () => { void load(true); clearTimeout(followUp); followUp = setTimeout(() => void load(true), 4000); };
+    const onFocus = () => { if (!document.hidden) void load(true); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("solcameo:trade-confirmed", onFunded);
-    return () => { clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", onFunded); };
+    return () => { request.current?.abort(); clearTimeout(followUp); clearInterval(timer); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); window.removeEventListener("solcameo:trade-confirmed", onFunded); };
   }, [wallet, load]);
 
   const tab = account?.unsettledTabUsdc ?? 0;
@@ -52,7 +65,7 @@ export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) 
           <p className="truncate text-[11px] text-zinc-500">{name}’s wallet · on-chain</p>
           <p className="font-sans text-[26px] font-semibold leading-none tracking-tight tabular-nums text-white">{total != null ? usd(total) : failed ? "Unavailable" : "—"}</p>
           <p className="mt-1 text-[10px] tabular-nums text-zinc-500">
-            {balance ? `${usd(balance.usdc)} USDC · ${balance.sol.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL${solValue != null ? ` (${usd(solValue)})` : ""}` : failed ? "Could not read the chain. Retrying…" : "Reading the chain…"}
+            {balance ? `${usd(balance.usdc)} USDC · ${balance.sol.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL${solValue != null ? ` (${usd(solValue)})` : ""}` : failed ? "Could not read the chain. Retrying…" : agent === null ? "No agent wallet linked to this market." : "Reading the chain…"}
           </p>
         </div>
         <button type="button" onClick={() => setOpen(true)} disabled={!wallet}
@@ -67,7 +80,7 @@ export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) 
           {wallet && <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" aria-label="View wallet on Solscan" className="text-zinc-500 hover:text-white"><ExternalLink className="size-3" /></a>}
         </span>
       </div>
-      <FundAgentDialog open={open} onOpenChange={setOpen} mintAddress={mint} agentWallet={wallet} agentName={name} />
+      <FundAgentDialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) void load(true); }} mintAddress={agentMint} agentWallet={wallet} agentName={name} />
     </div>
   );
 }

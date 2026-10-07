@@ -1,7 +1,7 @@
 "use client";
 import { getNetwork, getTxExplorerUrl } from "@/lib/solana/network";
-import { useEffect, useRef, useState } from "react";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -42,7 +42,7 @@ export function DbcTradeTicket({
 }) {
   const { publicKey, signTransaction, connecting } = useUnifiedSolanaWallet();
   const { login, getFreshToken } = useSupabaseAuth();
-  const { connection } = useConnection();
+  const connection = useMemo(() => failoverConnection(), []);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState("1");
@@ -491,10 +491,9 @@ export function DbcTradeTicket({
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
-        <div aria-hidden className={`pointer-events-none absolute -top-16 left-1/2 h-32 w-3/4 -translate-x-1/2 rounded-full blur-3xl transition-colors duration-500 ${side === "buy" ? "bg-[#d7ff00]/[0.08]" : "bg-rose-500/[0.10]"}`} />
+      <div className="relative p-3">
         <div className="relative flex items-center gap-2">
-          <div className="relative grid flex-1 grid-cols-2 rounded-xl border border-white/[0.07] bg-black/40 p-1" role="group" aria-label="Trade direction">
+          <div className="relative grid flex-1 grid-cols-2 gap-1" role="group" aria-label="Trade direction">
             {(["buy", "sell"] as const).map((sd) => (
               <button
                 key={sd}

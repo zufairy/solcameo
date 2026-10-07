@@ -24,7 +24,7 @@ export async function rpcTry<T>(
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        fn(new Connection(url, "confirmed")),
+        fn(new Connection(url, { commitment: "confirmed", disableRetryOnRateLimit: true })),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("RPC timeout")), timeoutMs); }),
       ]);
     } catch (e) {
@@ -42,7 +42,8 @@ export function rpcCandidates(network?: ReturnType<typeof getNetwork>): string[]
   // The browser path keeps the shared public endpoint as a last resort behind the dedicated one, so a hiccup (or a
   // rate limit on the public Helius key) can't stop a transfer from landing.
   const publicUrl = n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : n === "testnet" ? "https://api.testnet.solana.com" : "https://api.devnet.solana.com";
-  return [...new Set([...getRpcCandidates(n), publicUrl])];
+  const browserRelay = typeof window !== "undefined" ? [`${window.location.origin}/api/solana-rpc?network=${n}`] : [];
+  return [...new Set([...browserRelay, ...getRpcCandidates(n), publicUrl])];
 }
 
 /** Race independent RPC reads. A stale/null response must not win when a
