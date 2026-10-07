@@ -162,6 +162,11 @@ export interface GenerateVideoArgs {
    * referencing up to 3 images — pass the avatar + extra angle/pose shots.
    */
   referenceImageUrls?: string[];
+  /**
+   * @tagged cast members: every one rides to the video model as its own reference image, named in the reference map,
+   * so each tagged character keeps its face. Distinct from referenceImageUrls (the agent's own extra angles).
+   */
+  castRefs?: { token: string; imageUrl: string }[];
   /** The campaign's product image — used as 1 of the 3 Veo reference images. */
   productImageUrl?: string;
   /** Extra product angle/detail shots (productImageUrl is always first when
@@ -832,6 +837,13 @@ function buildHumanVisualStyle(args: GenerateVideoArgs): string {
   });
 }
 
+/** Names the @tagged cast so the model knows each one is a separate person with their own reference photo. */
+function castPromptBlock(args: { castRefs?: { token: string }[] }): string {
+  const names = (args.castRefs ?? []).map((c) => c.token.replace(/[^\w-]/g, "")).filter(Boolean);
+  if (!names.length) return "";
+  return `CAST: ${names.map((n) => `@${n}`).join(", ")} ${names.length > 1 ? "are" : "is"} tagged in the brief. Each is a separate person with their own attached reference photo. Show every one of them on screen as a distinct person with the exact face, hair and look from their own photo, next to the main character. Never merge, swap or skip them.`;
+}
+
 function buildReferenceMapBlock(entries: Array<{ slot: number; label: string; role: string }>): string {
   return entries.map((entry) => `Reference @Image${entry.slot}: ${entry.role} — ${entry.label}`).join("\n");
 }
@@ -1059,7 +1071,7 @@ Plus light room tone.`
     ? `End on a settled, intentional final frame with motion still finishing naturally.`
     : `End with motion mid-flow so the next clip continues cleanly.`;
 
-  const engineBlock = (opts?.extraBlocks ?? []).filter(Boolean).join("\n");
+  const engineBlock = [...(opts?.extraBlocks ?? []), castPromptBlock(args)].filter(Boolean).join("\n");
 
   // BUDGET-FIT ASSEMBLY. The old builder concatenated everything and let
   // capPromptForModel tail-truncate whatever blew past Kie's 5000-char limit —
@@ -1436,6 +1448,7 @@ Continue the monologue FORWARD from there. Do NOT restate, paraphrase, summarise
       hasCharacterId: false, // Omni character registry removed — image refs only
     }),
     ...(opts?.extraBlocks ?? []),
+    castPromptBlock(args),
   ].filter(Boolean).join("\n");
 
   // Persona identity kernel — the constant per-render signal that makes every
@@ -3006,7 +3019,8 @@ export function buildGrokChainPlan(args: GenerateVideoArgs, beats: StoryBeat[]):
   const productImages = [args.productImageUrl, ...(args.productImageUrls ?? [])]
     .filter((u): u is string => typeof u === "string" && isHttpImageUrl(u))
     .filter((value, index, arr) => arr.indexOf(value) === index);
-  const refImages = [args.avatarUrl, ...productImages, ...(args.referenceImageUrls ?? [])]
+  const castImages = (args.castRefs ?? []).map((c) => c.imageUrl).filter((u) => isHttpImageUrl(u) && !/\.gif(\?|#|$)/i.test(u));
+  const refImages = [args.avatarUrl, ...castImages, ...productImages, ...(args.referenceImageUrls ?? [])]
     .filter((u): u is string => typeof u === "string" && isHttpImageUrl(u))
     .filter((value, index, arr) => arr.indexOf(value) === index)
     .slice(0, 3);
@@ -3014,6 +3028,10 @@ export function buildGrokChainPlan(args: GenerateVideoArgs, beats: StoryBeat[]):
   const productSlots = productImages.map((u) => refImages.indexOf(u) + 1).filter((slot) => slot > 0);
   const refBlock = buildReferenceMapBlock([
     { slot: 1, label: "the person / presenter — first frame + identity lock", role: "Character" },
+    ...(args.castRefs ?? []).flatMap((c) => {
+      const slot = refImages.indexOf(c.imageUrl) + 1;
+      return slot > 1 ? [{ slot, role: "Character", label: `cast member @${c.token.replace(/[^\w-]/g, "")}: keep this exact face, hair and look wherever @${c.token.replace(/[^\w-]/g, "")} appears` }] : [];
+    }),
     ...productSlots.map((slot, i) => ({
       slot,
       label: productDesc
@@ -4187,6 +4205,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   // including its art style (cartoon stays cartoon).
   const charRefs = resolveCharacterRefs(args.avatarUrl, [
     ...(args.avatarUrls ?? []),
+    ...(args.castRefs ?? []).map((c) => c.imageUrl),
     ...(args.referenceImageUrls ?? []),
   ]);
   const refImages = charRefs.refs;
@@ -4363,6 +4382,20 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   }
 
   const canonicalStill = primaryStill ?? args.avatarUrl;
+  // Tagged cast: one reference per @tagged character (never the main character's own image), in the order they were tagged.
+  const castList: { token: string; imageUrl: string }[] = (() => {
+    const seen = new Set<string>([canonicalStill]);
+    const out: { token: string; imageUrl: string }[] = [];
+    for (const c of args.castRefs ?? []) {
+      const url = (c?.imageUrl ?? "").trim();
+      if (!/^https?:\/\//i.test(url) || /\.gif(\?|#|$)/i.test(url) || seen.has(url)) continue;
+      seen.add(url);
+      out.push({ token: (c.token ?? "").replace(/[^\w-]/g, "").slice(0, 40) || "cast", imageUrl: url });
+      if (out.length >= 3) break;
+    }
+    return out;
+  })();
+  const castRow = (slot: number, c: { token: string }) => ({ slot, role: "Character", label: `cast member @${c.token}: keep this exact face, hair and look wherever @${c.token} appears; never swap it with another person` });
   const storyboardRefForSeedance = isHttpImageUrl(storyboardImageUrl) ? storyboardImageUrl : undefined;
   const productRefForSeedance = isHttpImageUrl(args.productImageUrl) ? args.productImageUrl : undefined;
   // Lead strategy (see GenerateVideoArgs.seedanceLead): Seedance's lead input
@@ -4455,16 +4488,22 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   const seedanceIsPro = is15ProModel(videoModel);
   const seedanceStoryboardRef = seedanceIsPro ? undefined : storyboardRefForSeedance;
   const seedanceStyleRef = seedanceIsPro ? refImages.find((u) => isHttpImageUrl(u)) : undefined;
-  const seedanceReferenceImages = Array.from(new Set((
+  const seedanceBaseImages = Array.from(new Set((
     seedanceStoryboardLead
       ? [seedanceKeyframeUrl || undefined, seedanceStyleRef, seedanceStoryboardRef, productRefForSeedance]
       : [canonicalStill, seedanceStyleRef, seedanceStoryboardRef, productRefForSeedance]
   ).filter((u): u is string => Boolean(u))));
+  // Tagged cast follows the lead image so every tagged face reaches the model (1.5 Pro keeps two images, 2.0 up to nine).
+  const seedanceReferenceImages = castList.length
+    ? Array.from(new Set([seedanceBaseImages[0], ...castList.map((c) => c.imageUrl), ...seedanceBaseImages.slice(1)].filter((u): u is string => Boolean(u))))
+    : seedanceBaseImages;
   // Reference-map rows derived FROM the actual list above (same order, same
   // slots) — labeling slots the list doesn't carry (or vice versa) points the
   // model at the wrong attached image.
   const seedanceRefRows = seedanceReferenceImages.map((u, i) => {
     const slot = i + 1;
+    const castMember = castList.find((c) => c.imageUrl === u);
+    if (castMember) return castRow(slot, castMember);
     if (u === seedanceKeyframeUrl) return { slot, label: "the OPENING FRAME — the video starts on exactly this frame and animates forward from it; keep its art style, character design and palette for the whole video", role: "Scene" };
     if (u === canonicalStill && !seedanceStoryboardLead) return {
       slot,
@@ -4503,7 +4542,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   // realistic people instead of the cartoon); the art-style ref rides second.
   const grokStylizedLead = isStylizedAnimationFormat(args) && isHttpImageUrl(seedanceKeyframeUrl) ? seedanceKeyframeUrl : undefined;
   const grokStyleRef = isStylizedAnimationFormat(args) ? refImages.find((u) => isHttpImageUrl(u)) : undefined;
-  const grokReferenceImages = Array.from(new Set((
+  const grokReferenceImagesBase = Array.from(new Set((
     grokStylizedLead
       ? [grokStylizedLead, grokStyleRef, grokRefForProduct]
       : isStylizedAnimationFormat(args)
@@ -4512,7 +4551,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
       ? [grokRefForStoryboard, canonicalStill, grokRefForProduct]
       : [canonicalStill, grokRefForStoryboard, grokRefForProduct]
   ).filter((u): u is string => Boolean(u)))).slice(0, 3);
-  const grokReferenceBlock = grokStylizedLead
+  const grokReferenceBlockBase = grokStylizedLead
     ? buildReferenceMapBlock([
         { slot: 1, label: "the OPENING FRAME — the video starts on exactly this frame and animates forward from it; keep its art style, character design and palette for the whole video", role: "Scene" },
         ...(grokStyleRef ? [{ slot: 2, label: "art-style / character-design reference — match its illustrated style; never show this image itself on screen", role: "Character" }] : []),
@@ -4535,6 +4574,17 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
         ...(grokRefForStoryboard ? [{ slot: 2, label: "portrait storyboard / scene guide for shot order", role: "Scene" }] : []),
         ...(grokRefForProduct ? [{ slot: grokRefForStoryboard ? 3 : 2, label: "product / brand anchor", role: "Product" }] : []),
       ]);
+
+  // Tagged cast: the lead frame stays first, then every tagged face (Grok takes three images in all).
+  const grokReferenceImages = castList.length
+    ? Array.from(new Set([grokReferenceImagesBase[0], ...castList.map((c) => c.imageUrl)].filter((u): u is string => Boolean(u)))).slice(0, 3)
+    : grokReferenceImagesBase;
+  const grokReferenceBlock = castList.length
+    ? buildReferenceMapBlock([
+        { slot: 1, role: grokStylizedLead || grokAnchorLeads ? "Scene" : "Character", label: grokStylizedLead || grokAnchorLeads ? "the OPENING FRAME: the video starts on exactly this frame and animates forward from it" : "canonical character anchor; first-frame identity lock" },
+        ...castList.slice(0, Math.max(0, grokReferenceImages.length - 1)).map((c, i) => castRow(i + 2, c)),
+      ])
+    : grokReferenceBlockBase;
 
   // ── Storyboard phase boundary ── for the chunked render we stop here and hand
   // the storyboard back; the VIDEO phase runs in the next sub-300s invocation.
@@ -4582,8 +4632,8 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   // branch that includes it even if skipsStoryboardImage would otherwise drop it.
   const preferStartFrame = !!args.formatId && formatRequiresStartFrame(args.formatId) && !!storyboardImageUrl;
   const veoRefCandidates = (skipsStoryboardImage(videoModel) && !preferStartFrame
-    ? [primaryStill, args.productImageUrl]
-    : [primaryStill, storyboardImageUrl, args.productImageUrl])
+    ? [primaryStill, ...castList.map((c) => c.imageUrl), args.productImageUrl]
+    : [primaryStill, ...castList.map((c) => c.imageUrl), storyboardImageUrl, args.productImageUrl])
     .filter(isUsable)
     .filter((u, i, arr) => arr.indexOf(u) === i) // de-dupe
     .slice(0, 3);
@@ -4802,8 +4852,9 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
                         : "canonical character reference photo; keep face/wardrobe/mood fixed",
                       role: "Character",
                     },
-                    ...(storyboardImageUrl ? [{ slot: 2, label: "storyboard / scene guide for the shot flow", role: "Scene" }] : []),
-                    ...(isHttpImageUrl(args.productImageUrl) ? [{ slot: storyboardImageUrl ? 3 : 2, label: "product / brand anchor", role: "Product" }] : []),
+                    ...castList.map((c, k) => castRow(2 + k, c)),
+                    ...(storyboardImageUrl ? [{ slot: 2 + castList.length, label: "storyboard / scene guide for the shot flow", role: "Scene" }] : []),
+                    ...(isHttpImageUrl(args.productImageUrl) ? [{ slot: 2 + castList.length + (storyboardImageUrl ? 1 : 0), label: "product / brand anchor", role: "Product" }] : []),
                   ]),
                 ] : undefined,
               }),
@@ -4823,6 +4874,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
             // which is exactly the "looks AI-generated" complaint — the prompt
             // below pins this photo as the opening-frame/environment anchor.
             isHttpImageUrl(canonicalStill) ? canonicalStill : undefined,
+            ...castList.map((c) => c.imageUrl),
             isHttpImageUrl(storyboardImageUrl) ? storyboardImageUrl : undefined,
             isHttpImageUrl(args.productImageUrl) ? args.productImageUrl : undefined,
           ].filter((url): url is string => Boolean(url))));

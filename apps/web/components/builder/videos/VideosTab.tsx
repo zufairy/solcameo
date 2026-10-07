@@ -263,7 +263,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             title: `Video: ${p.slice(0, 60)}`,
             input: {
               topic: cast.length ? `${p}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : p,
-              ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
+              ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
               ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),

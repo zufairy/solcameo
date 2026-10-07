@@ -19,6 +19,8 @@ const videoPayload = v.object({
   characterBible: v.optional(v.string()),
   avatarUrl: v.string(),
   referenceImageUrls: v.array(v.string()),
+  // @tagged cast members (Explore / Videos prompt): each name with its portrait, so the render keeps every face.
+  castRefs: v.optional(v.array(v.object({ token: v.string(), imageUrl: v.string() }))),
   // The campaign's product image — used as 1 of the 3 Veo reference images.
   productImageUrl: v.optional(v.string()),
   // All campaign images (cover + attachments) — extra storyboard references (≤5).

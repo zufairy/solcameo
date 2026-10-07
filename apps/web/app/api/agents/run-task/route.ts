@@ -729,6 +729,8 @@ type VideoJobPayload = {
   characterBible?: string;
   avatarUrl: string;
   referenceImageUrls: string[];
+  /** @tagged cast members with their portraits (see GenerateVideoArgs.castRefs). */
+  castRefs?: { token: string; imageUrl: string }[];
   /** Campaign product image — 1 of the 3 Veo reference images. */
   productImageUrl?: string;
   /** All campaign images (cover + attachments) — extra storyboard references (≤5). */
@@ -1867,9 +1869,16 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       : operatorRefOnly ? []
       : stills.slice(1, 3);
     // @mentioned cameos from the Videos tab prompt box ride along as extra character references.
-    const mentionRefs = (Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])
+    // Each tagged cast member arrives as { token, imageUrl }; the portraits ride to the video model by name.
+    const castInput = (Array.isArray(input.mentionCast) ? input.mentionCast : [])
+      .map((c) => (c && typeof c === "object" ? c as { token?: unknown; imageUrl?: unknown } : {}))
+      .map((c) => ({ token: typeof c.token === "string" ? c.token.replace(/[^\w-]/g, "").slice(0, 40) : "", imageUrl: typeof c.imageUrl === "string" ? c.imageUrl.trim() : "" }))
+      .filter((c) => c.token && /^https:\/\/\S{1,2000}$/.test(c.imageUrl))
+      .slice(0, 3);
+    const mentionRefs = [...castInput.map((c) => c.imageUrl), ...(Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])]
       .filter((u): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim()))
       .map((u) => u.trim())
+      .filter((u, i, all) => all.indexOf(u) === i)
       .slice(0, 2);
     const extraRefs = mentionRefs.length ? [...mentionRefs, ...baseExtraRefs].slice(0, 2) : baseExtraRefs;
     if (operatorRefOnly) stills = [];
@@ -1898,7 +1907,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       ? campaign.campaignImageUrls
       : inputImagesRaw;
 
-    const [normPrimaryRef, normExtraRefs, normStills, normProduct, normCampaign, normWebRefs] = await Promise.all([
+    const [normPrimaryRef, normExtraRefs, normStills, normProduct, normCampaign, normWebRefs, normCast] = await Promise.all([
       normalizeImageForKie(primaryRef),
       normalizeImagesForKie(extraRefs),
       normalizeImagesForKie(stills),
@@ -1908,6 +1917,8 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       // DOWNLOADS and re-hosts each one as a Kie-safe public .png, so a dead or
       // hotlink-protected URL just drops out instead of failing the render.
       normalizeImagesForKie(liveWebImageUrls),
+      // Tagged cast portraits get the same Kie-safe public PNG treatment, keeping their order and names.
+      Promise.all(castInput.map(async (c) => ({ token: c.token, imageUrl: (await normalizeImageForKie(c.imageUrl)) ?? c.imageUrl }))),
     ]);
 
     // Character refs: keep the original URL if normalization couldn't help (so we
@@ -1974,6 +1985,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       characterBible: ctx.draft?.characterBible,
       avatarUrl: refPrimary,
       referenceImageUrls: refExtra,
+      ...(normCast.length ? { castRefs: normCast } : {}),
       skipStoryboard: input.skipStoryboard === true,
       productImageUrl,
       // Learn-tab frames + live-search reference images appended as extra

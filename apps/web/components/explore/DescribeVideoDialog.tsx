@@ -8,6 +8,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AgentOption } from "./AgentOption";
+import { RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
@@ -69,7 +70,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           title: `Video: ${text.slice(0, 60)}`,
           input: {
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
-            ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
             videoEngine: engineId,
             ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
             ...(skipStoryboard ? { skipStoryboard: true } : {}),
@@ -96,7 +97,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(next) => { if (!running) onOpenChange(next); }}>
+      <Dialog open={open} onOpenChange={(next) => { if (!starting) onOpenChange(next); }}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-6 text-white backdrop-blur-2xl sm:max-w-3xl">
           <div>
             <DialogTitle className="text-xl tracking-tight">Describe your video</DialogTitle>
@@ -161,10 +162,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               </div>
 
               {running && !videoUrl && (
-                <div className="flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.03] p-4 text-sm text-zinc-300">
-                  <Loader2 className="size-4 animate-spin text-[#d7ff00]" />
-                  <span>{starting ? "Starting the render…" : "Rendering your video. This can take a few minutes, you can leave this open."}</span>
-                </div>
+                <RenderProgress stage={starting ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
               )}
               {videoUrl && (
                 <div className="space-y-3">

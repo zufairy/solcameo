@@ -41,6 +41,7 @@ import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
+import { RenderProgress } from "./RenderProgress";
 import { DescribeVideoDialog } from "./DescribeVideoDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
@@ -211,6 +212,7 @@ function Generator({
   model,
   xConnected,
   onBusy,
+  onClose,
   uploadedFile,
 }: {
   mint: string;
@@ -221,6 +223,7 @@ function Generator({
   model: ExploreModel;
   xConnected: boolean;
   onBusy: (busy: boolean) => void;
+  onClose?: () => void;
   uploadedFile?: File;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -246,9 +249,13 @@ function Generator({
   const busy = uploading || (model.kind === "genjutsu" ? run?.status === "pending" : engineRunning);
   const resultUrl = model.kind === "genjutsu" ? run?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
   const failure = model.kind === "genjutsu" ? (run?.status === "error" ? run.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
+  // The popup is locked only while the payment goes through. Once the render is queued it runs in the background, so the
+  // popup can be closed and the video is waiting in My agents.
+  const paying = uploading || engineStarting;
+  const rendering = !paying && busy;
   useEffect(() => {
-    onBusy(busy);
-  }, [busy, onBusy]);
+    onBusy(paying);
+  }, [paying, onBusy]);
   async function startMotion() {
     if (!portrait) return;
     setUploadError(""); setUploading(true);
@@ -287,7 +294,7 @@ function Generator({
             videoResolution: resolution,
             durationSeconds: engineSeconds(model, item.duration),
             skipStoryboard: true,
-            ...(cast.length ? { mentionRefImageUrls: cast.map((c) => c.avatarUrl).slice(0, 2) } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
           },
           triggeredBy: "explore",
         }),
@@ -359,6 +366,9 @@ function Generator({
           <span><span className="block text-sm font-semibold text-white">Auto-post to X when it&apos;s ready</span><span className="mt-0.5 block text-zinc-400">We write a viral caption in your influencer&apos;s voice and publish it to the connected X account.</span></span>
         </label>
       )}
+      {(paying || rendering) && (
+        <RenderProgress stage={paying ? "paying" : "rendering"} amount={estimate !== null ? formatGenerationUsd(estimate) : undefined} agentName={primaryName} onClose={onClose} />
+      )}
       <Button
         className={`h-11 w-full ${GREEN}`}
         disabled={
@@ -372,7 +382,7 @@ function Generator({
       >
         {busy ? (
           <>
-            <Loader2 className="size-4 animate-spin" /> Generating…
+            <Loader2 className="size-4 animate-spin" /> {paying ? "Paying…" : "Rendering…"}
           </>
         ) : (
           <>
@@ -385,7 +395,7 @@ function Generator({
       </Button>
       <p className="text-[11px] text-zinc-500">
         {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (10% or $1, whichever is higher). ` : ""}
-        Keep this popup open while rendering. {model.kind === "genjutsu" ? "Finished videos are saved to your agent’s motion library." : "Track the render in your agent’s activity."}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
+        Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
       {(failure || uploadError) && (
         <p role="alert" className="text-sm text-red-400">
@@ -1096,6 +1106,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                       model={model}
                       xConnected={!!agents?.find((a) => a.mintAddress === mint)?.connectedPlatforms?.includes("x")}
                       onBusy={setGenerating}
+                      onClose={() => setSelected(null)}
                       uploadedFile={customVideo ? uploadedFile : undefined}
                     />
                   ) : (
