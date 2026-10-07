@@ -19,7 +19,9 @@ import { getRpcCandidates, getUsdcMint } from "@/lib/solana/network";
 const WSOL = "So11111111111111111111111111111111111111112";
 /** SOL the wallet must keep after swapping: the swap's own network fee, a possible USDC account rent, and headroom. */
 export const SOL_RESERVE_LAMPORTS = 12_000_000;
-export const SWAP_SLIPPAGE_BPS = 50;
+export const SWAP_SLIPPAGE_BPS = 30;
+/** Retry once with room for the price to move if the tight first attempt reverts. */
+const SWAP_RETRY_SLIPPAGE_BPS = 100;
 /** Extra USDC asked for so slippage and pool fees never leave the charge a few cents short. */
 const SHORTFALL_BUFFER = 0.012;
 const maxSwapUsd = () => Number(process.env.AGENT_SWAP_MAX_USD ?? 50);
@@ -70,11 +72,11 @@ export type SwapResult = { ok: true; signature: string; router: string } | { ok:
  * mode that can pay the network fee for a wallet holding no SOL (JupiterZ market makers cover it free, otherwise
  * Jupiter takes it out of the swap amount, up to 10%, and only for trades of roughly $10 or more).
  */
-async function swapTokens(agent: { wallet: string; secret: string }, swap: { inputMint: string; outputMint: string; amount: number; ultra?: boolean }, connection: Connection): Promise<SwapResult> {
+async function swapTokens(agent: { wallet: string; secret: string }, swap: { inputMint: string; outputMint: string; amount: number; ultra?: boolean; slippageBps?: number }, connection: Connection): Promise<SwapResult> {
   const signer = loadKeypair(readAgentSecret(agent.secret));
   if (signer.publicKey.toBase58() !== agent.wallet) return { ok: false, reason: "wallet_key_mismatch" };
   if (key()) {
-    const q = new URLSearchParams({ inputMint: swap.inputMint, outputMint: swap.outputMint, amount: String(swap.amount), taker: agent.wallet, ...(swap.ultra ? {} : { slippageBps: String(SWAP_SLIPPAGE_BPS) }) });
+    const q = new URLSearchParams({ inputMint: swap.inputMint, outputMint: swap.outputMint, amount: String(swap.amount), taker: agent.wallet, ...(swap.ultra ? {} : { slippageBps: String(swap.slippageBps ?? SWAP_SLIPPAGE_BPS) }) });
     const orderRes = await fetch(`https://api.jup.ag/swap/v2/order?${q}`, { headers: headers(), signal: AbortSignal.timeout(15_000), cache: "no-store" });
     const order = (await orderRes.json().catch(() => ({}))) as { transaction?: string; requestId?: string; router?: string; errorMessage?: string };
     if (!orderRes.ok || !order.transaction || !order.requestId) return { ok: false, reason: order.errorMessage ?? "order_failed" };
@@ -87,7 +89,7 @@ async function swapTokens(agent: { wallet: string; secret: string }, swap: { inp
   // Keyless: the Metis router through the free endpoint; we land the transaction on our own RPC, so the wallet pays its own fee.
   const quoteRes = await fetch(`https://lite-api.jup.ag/swap/v1/quote?${new URLSearchParams({ inputMint: swap.inputMint, outputMint: swap.outputMint, amount: String(swap.amount), slippageBps: String(SWAP_SLIPPAGE_BPS), restrictIntermediateTokens: "true" })}`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
   if (!quoteRes.ok) return { ok: false, reason: "quote_failed" };
-  const swapRes = await post("https://lite-api.jup.ag/swap/v1/swap", { quoteResponse: await quoteRes.json(), userPublicKey: agent.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true });
+  const swapRes = await post("https://lite-api.jup.ag/swap/v1/swap", { quoteResponse: await quoteRes.json(), userPublicKey: agent.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 200_000, priorityLevel: "high" } } });
   const built = (await swapRes.json().catch(() => ({}))) as { swapTransaction?: string; lastValidBlockHeight?: number };
   if (!swapRes.ok || !built.swapTransaction) return { ok: false, reason: "swap_build_failed" };
   const tx = VersionedTransaction.deserialize(Buffer.from(built.swapTransaction, "base64"));
@@ -126,7 +128,11 @@ async function doTopUp(mintAddress: string, requiredUsd: number): Promise<TopUpO
     if (plan.enough) return { ok: true, swapped: false };
     if (!plan.canSwap) return { ok: false, reason: plan.reason, ...(plan.solNeeded ? { solNeeded: plan.solNeeded } : {}) };
 
-    const swap = await swapTokens({ wallet: agent.agentWallet, secret: agent.agentWalletSecret }, { inputMint: WSOL, outputMint: getUsdcMint("mainnet-beta"), amount: plan.lamports }, new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed"));
+    const connection = new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed");
+    const input = { wallet: agent.agentWallet, secret: agent.agentWalletSecret };
+    const leg = { inputMint: WSOL, outputMint: getUsdcMint("mainnet-beta"), amount: plan.lamports };
+    let swap = await swapTokens(input, leg, connection);
+    if (!swap.ok && ["swap_reverted", "quote_failed", "order_failed", "swap_build_failed"].includes(swap.reason)) swap = await swapTokens(input, { ...leg, slippageBps: SWAP_RETRY_SLIPPAGE_BPS }, connection);
     if (!swap.ok) return { ok: false, reason: swap.reason };
     // The swap landed; confirm the USDC really arrived before anything is charged against it.
     let after: number | null = usdc;
@@ -231,5 +237,18 @@ async function doEnsureGas(mintAddress: string, keepUsdc: number): Promise<GasOu
     return { ok: true, swapped: true, signature: swap.signature };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message.slice(0, 120) : "gas_swap_error" };
+  }
+}
+
+/** Plain-language reason a SOL top-up did not happen, for the 402 the user sees. */
+export function swapFailureMessage(failure: { reason: string; solNeeded?: number } | null, requiredUsd: number): string {
+  const need = `$${requiredUsd.toFixed(2)}`;
+  switch (failure?.reason) {
+    case "no_sol": return `This agent wallet needs ${need} USDC, or at least 0.02 SOL so it can swap to USDC itself. Fund it and try again.`;
+    case "not_enough_sol": return `This agent wallet needs ${need} in USDC. Its SOL is not enough to swap that much${failure.solNeeded ? ` (about ${failure.solNeeded.toFixed(3)} SOL needed)` : ""}. Fund it and try again.`;
+    case "over_limit": return `This job needs ${need}, more than the automatic SOL swap allows. Deposit USDC to this agent wallet.`;
+    case "no_price": case "quote_failed": case "order_failed": case "swap_build_failed": return "Could not get a SOL to USDC price from Jupiter right now. Try again in a moment.";
+    case "swap_reverted": case "swap_landed_but_usdc_short": return "The SOL to USDC swap did not complete. Nothing was charged. Try again.";
+    default: return `Deposit USDC or SOL to this agent wallet to generate (${need} needed).`;
   }
 }

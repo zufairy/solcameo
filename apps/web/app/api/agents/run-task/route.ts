@@ -14,7 +14,7 @@ import {
   type AgentDirectives,
 } from "@/lib/server/agentDirectives";
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
-import { topUpAgentFromSol } from "@/lib/server/solSwap";
+import { topUpAgentFromSol, swapFailureMessage } from "@/lib/server/solSwap";
 import { isJoinableCampaign, isJoinableUgcCampaign } from "@/lib/campaignLifecycle";
 import {
   isConfigured as socialConfigured,
@@ -3418,19 +3418,22 @@ export async function POST(req: NextRequest) {
     if (walletBilling && !skipBalanceCheck) {
       try {
         agentWallet = await refreshAgentFunds(mintAddress);
+        let swapFailure: { reason: string; solNeeded?: number } | null = null;
         let account = await convex.query(api.agentAccount.get, { mintAddress });
         let available = account ? spendableUsdc(account) : 0;
         // Short on USDC but holding SOL: swap just the shortfall at the live best price, then re-read the balance.
         if (account && account.status !== "suspended" && available < estimatedCost) {
           const required = estimatedCost * 1.05 + Math.max(0, account.escrowUsdc - available);
-          if ((await topUpAgentFromSol(mintAddress, required)).ok) {
+          const topUp = await topUpAgentFromSol(mintAddress, required);
+          if (!topUp.ok) swapFailure = topUp;
+          if (topUp.ok) {
             await refreshAgentFunds(mintAddress);
             account = await convex.query(api.agentAccount.get, { mintAddress });
             available = account ? spendableUsdc(account) : 0;
           }
         }
         if (!account || account.status === "suspended" || available < estimatedCost) {
-          return failPreflight("Deposit USDC or SOL to this agent to continue.", NextResponse.json({ ok: false, error: "insufficient_funds", code: "needs_funding", mintAddress, agentWallet, available, required: estimatedCost, message: "Deposit USDC to this agent wallet to generate." }, { status: 402 }));
+          return failPreflight("Deposit USDC or SOL to this agent to continue.", NextResponse.json({ ok: false, error: "insufficient_funds", code: "needs_funding", mintAddress, agentWallet, available, required: estimatedCost, message: swapFailureMessage(swapFailure, estimatedCost) }, { status: 402 }));
         }
         (input as Record<string, unknown>).fundingSource = "agent_wallet";
       } catch {

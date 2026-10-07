@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getNetwork } from "@/lib/solana/network";
@@ -30,7 +30,11 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
 }) {
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const { connection } = useConnection();
-  const [token, setToken] = useState<FundToken>("USDC");
+  const [mode, setMode] = useState<"USDC" | "SOL" | "SWAP">("USDC");
+  const token: FundToken = mode === "SOL" ? "SOL" : "USDC";
+  const swap = mode === "SWAP";
+  const [quote, setQuote] = useState<{ inSol: number; maxSol: number; solUsd: number; slippageBps: number } | null>(null);
+  const [quoting, setQuoting] = useState(false);
   const [amount, setAmount] = useState("");
   const [mine, setMine] = useState<Funds | null>(null);
   const [agent, setAgent] = useState<Funds | null>(null);
@@ -62,8 +66,57 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, publicKey, agentWallet]);
 
-  const available = token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
+  const available = swap ? (mine && quote ? Math.max(0, mine.sol - 0.008) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
   const presets = token === "USDC" ? [1, 5, 10, 25] : [0.05, 0.1, 0.25, 0.5];
+
+  // Price the swap as the amount changes: how much SOL it costs to deliver exactly this much USDC.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the stale quote when the inputs change
+    if (!open || !swap || !(num >= 0.5)) { setQuote(null); return; }
+    let active = true;
+    setQuoting(true);
+    const timer = setTimeout(() => {
+      fetch("/api/agents/fund-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quote", usdc: num }) })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "Could not price this swap."); if (active) { setQuote(d); setError(""); } })
+        .catch((e) => { if (active) { setQuote(null); setError(e instanceof Error ? e.message : "Could not price this swap."); } })
+        .finally(() => { if (active) setQuoting(false); });
+    }, 400);
+    return () => { active = false; clearTimeout(timer); };
+  }, [open, swap, num]);
+
+  // When the wallet holds SOL but not enough USDC for the amount needed, start on the swap tab so it just works.
+  useEffect(() => {
+    if (!open || !mine || mode !== "USDC") return;
+    const need = suggestedUsdc ?? 0;
+    if (need > 0 && mine.usdc < need && mine.sol > 0.02) setMode("SWAP"); // eslint-disable-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mine?.usdc, mine?.sol]);
+
+  const swapAndFund = async () => {
+    if (!publicKey || !signTransaction) { setError("Connect your wallet first."); setStep("error"); return; }
+    if (!agentWallet) { setError("The agent wallet is still being set up. Try again in a moment."); setStep("error"); return; }
+    if (!(num >= 0.5)) { setError("The minimum swap is $0.50."); setStep("error"); return; }
+    if (mine && quote && mine.sol < quote.maxSol + 0.008) { setError(`You need about ${(quote.maxSol + 0.008).toFixed(4)} SOL (the swap plus network fees); your wallet has ${mine.sol.toFixed(4)} SOL.`); setStep("error"); return; }
+    setStep("approving"); setError("");
+    try {
+      const res = await fetch("/api/agents/fund-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "build", usdc: num, payer: publicKey.toBase58(), agentWallet }) });
+      const built = await res.json();
+      if (!res.ok) throw new Error(built.error ?? "Could not prepare the swap.");
+      const tx = VersionedTransaction.deserialize(Uint8Array.from(atob(built.transaction), (c) => c.charCodeAt(0)));
+      const signed = await signTransaction(tx);
+      const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 5 });
+      setSig(signature); setStep("confirming");
+      const status = await confirmSignature(connection, signature);
+      if (status !== "confirmed") throw new Error("The swap was sent but has not confirmed yet. Check it on the explorer, then refresh.");
+      setStep("done");
+      window.dispatchEvent(new Event("solcameo:trade-confirmed"));
+      void loadBalances();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Swap failed";
+      if (/user rejected|user denied|rejected the request|request.*reject/i.test(message)) { setStep("idle"); return; }
+      setError(message); setStep("error");
+    }
+  };
 
   const transfer = async () => {
     if (!publicKey || !signTransaction) { setError("Connect your wallet first."); setStep("error"); return; }
@@ -113,7 +166,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Your wallet</p>
-            <p className="mt-1 text-sm font-semibold tabular-nums text-white">{money(token === "USDC" ? mine?.usdc : mine?.sol, token)}</p>
+            <p className="mt-1 text-sm font-semibold tabular-nums text-white">{money(swap || token === "SOL" ? mine?.sol : mine?.usdc, swap || token === "SOL" ? "SOL" : "USDC")}</p>
             <p className="mt-0.5 font-mono text-[10px] text-zinc-600">{publicKey ? short(publicKey.toBase58()) : "Not connected"}</p>
           </div>
           <ArrowRight className="size-4 text-zinc-500" />
@@ -127,24 +180,24 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
         {step === "done" ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
             <span className="mx-auto grid size-9 place-items-center rounded-full bg-white text-black"><Check className="size-5" strokeWidth={3} /></span>
-            <p className="mt-3 text-sm font-semibold text-white">Sent {amount} {token} (3% platform fee, 97% to the agent wallet)</p>
+            <p className="mt-3 text-sm font-semibold text-white">{swap ? `Swapped ${quote ? quote.inSol.toFixed(4) : ""} SOL and sent $${amount} USDC to the agent wallet` : `Sent ${amount} ${token} (3% platform fee, 97% to the agent wallet)`}</p>
             {sig && <a href={getTxExplorerUrl(sig)} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs text-zinc-400 underline underline-offset-2 hover:text-white">View transaction <ExternalLink className="size-3" /></a>}
             <button type="button" onClick={() => onOpenChange(false)} className={`${CONNECT_BUTTON_CLASS} mt-4 w-full justify-center !py-2`}>Done</button>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-1 rounded-lg border border-white/10 p-0.5" role="tablist" aria-label="Token">
-              {(["USDC", "SOL"] as const).map((t) => (
-                <button key={t} type="button" role="tab" aria-selected={token === t} disabled={busy} onClick={() => { setToken(t); setAmount(""); setStep("idle"); }}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors ${token === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{t}</button>
+              {(["USDC", "SOL", "SWAP"] as const).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={mode === t} disabled={busy} onClick={() => { setMode(t); setAmount(""); setStep("idle"); setError(""); }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors ${mode === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{t === "SWAP" ? "SOL → USDC" : t}</button>
               ))}
             </div>
             <div>
               <div className="relative">
-                <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" aria-label={`Amount in ${token}`} disabled={busy}
+                <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" aria-label={swap ? "USDC to receive" : `Amount in ${token}`} disabled={busy}
                   className="h-12 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 pr-28 text-lg tabular-nums text-white outline-none placeholder:text-zinc-600 focus:border-white/25" />
                 <span className="absolute right-3 top-3.5 flex items-center gap-2 text-xs text-zinc-500">
-                  <button type="button" disabled={busy || available == null} onClick={() => available != null && setAmount((Math.floor(available * 10000) / 10000).toString())} className="rounded bg-white/[0.07] px-1.5 py-0.5 text-zinc-300 hover:text-white disabled:opacity-40">Max</button>
+                  {!swap && <button type="button" disabled={busy || available == null} onClick={() => available != null && setAmount((Math.floor(available * 10000) / 10000).toString())} className="rounded bg-white/[0.07] px-1.5 py-0.5 text-zinc-300 hover:text-white disabled:opacity-40">Max</button>}
                   {token}
                 </span>
               </div>
@@ -154,13 +207,25 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
                 ))}
               </div>
             </div>
+            {swap && (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-5 text-zinc-300">
+                {quote ? (
+                  <>
+                    <p>Swap <span className="font-semibold text-white">≈ {quote.inSol.toFixed(4)} SOL</span> (≈ ${(quote.inSol * quote.solUsd).toFixed(2)}) into <span className="font-semibold text-white">${num.toFixed(2)} USDC</span>, delivered straight to the agent wallet.</p>
+                    <p className="text-zinc-500">Best Jupiter route · slippage {(quote.slippageBps / 100).toFixed(2)}% (at most {quote.maxSol.toFixed(4)} SOL) · no Solcameo fee</p>
+                  </>
+                ) : (
+                  <p className="text-zinc-400">{quoting ? "Getting the best Jupiter price…" : num > 0 && num < 0.5 ? "The minimum swap is $0.50." : "Enter the USDC amount the agent needs. We work out the SOL for you."}</p>
+                )}
+              </div>
+            )}
             {faucet && mine && mine.usdc < 1 && (
               <p className="text-[11px] text-zinc-500">No devnet USDC yet? <a href={faucet} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-white">Get free test USDC</a>.</p>
             )}
             {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
-            <button type="button" onClick={() => void transfer()} disabled={busy || !agentWallet || !(num > 0)} className={`${CONNECT_BUTTON_CLASS} w-full justify-center !py-2.5 !text-[12.5px]`}>
+            <button type="button" onClick={() => void (swap ? swapAndFund() : transfer())} disabled={busy || !agentWallet || !(num > 0) || (swap && (!quote || quoting))} className={`${CONNECT_BUTTON_CLASS} w-full justify-center !py-2.5 !text-[12.5px]`}>
               {busy && <Loader2 className="size-3.5 animate-spin" />}
-              {step === "approving" ? "Approve in your wallet…" : step === "confirming" ? "Confirming on Solana…" : `Transfer ${num > 0 ? `${amount} ${token}` : ""} to the agent`}
+              {step === "approving" ? "Approve in your wallet…" : step === "confirming" ? "Confirming on Solana…" : swap ? `Swap ${quote ? `${quote.inSol.toFixed(4)} SOL` : "SOL"} → $${num > 0 ? num.toFixed(2) : "0.00"} USDC` : `Transfer ${num > 0 ? `${amount} ${token}` : ""} to the agent`}
             </button>
           </>
         )}

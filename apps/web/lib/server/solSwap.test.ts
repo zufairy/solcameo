@@ -12,9 +12,9 @@ describe("planTopUp (is the agent's SOL enough once swapped?)", () => {
     const plan = planTopUp({ ...base, requiredUsd: 1.0, usdcBalance: 0.4, solLamports: 1 * SOL });
     expect(plan).toMatchObject({ enough: false, canSwap: true });
     if (plan.enough || !plan.canSwap) throw new Error("expected a swap");
-    // short $0.60 (+1.2% buffer) at $150/SOL, with 0.5% slippage headroom
+    // short $0.60 (+1.2% buffer) at $150/SOL, with 0.3% slippage headroom
     expect(plan.usdcTarget).toBeCloseTo(0.6072, 4);
-    expect(plan.lamports).toBeCloseTo(Math.ceil((0.6072 / 150) * 1e9 * 1.005), -2);
+    expect(plan.lamports).toBeCloseTo(Math.ceil((0.6072 / 150) * 1e9 * 1.003), -2);
     expect(plan.lamports).toBeLessThan(0.01 * SOL);
   });
   it("never spends the SOL reserve that pays the swap's own network fee", () => {
@@ -49,5 +49,15 @@ describe("planGasTopUp (can the agent pay its own network fee?)", () => {
     expect(plan({ solLamports: 0, usdcBalance: 12, keepUsdc: 2 })).toEqual({ ok: false, reason: "usdc_too_low" });
     expect(plan({ solLamports: 2_000_000, usdcBalance: 2.5, keepUsdc: 2 })).toEqual({ ok: false, reason: "usdc_too_low" });
     expect(plan({ solUsd: null })).toEqual({ ok: false, reason: "no_price" });
+  });
+});
+
+describe("swapFailureMessage", () => {
+  it("tells the user what to do for each way a SOL top-up can fail", async () => {
+    const { swapFailureMessage } = await import("./solSwap");
+    expect(swapFailureMessage({ reason: "no_sol" }, 3)).toContain("0.02 SOL");
+    expect(swapFailureMessage({ reason: "not_enough_sol", solNeeded: 0.1 }, 3)).toContain("0.100 SOL");
+    expect(swapFailureMessage({ reason: "no_price" }, 3)).toContain("Jupiter");
+    expect(swapFailureMessage(null, 3)).toContain("$3.00");
   });
 });
