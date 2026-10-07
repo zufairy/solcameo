@@ -19,7 +19,7 @@ export interface ReferenceVideo {
   page?: number;
 }
 export const FEED = "https://cms.higgsfield.ai/higgsfield-multiplier/video-explore/v2";
-export const CATEGORIES = ["All", "Trending", "Movie", "Crypto", "Dance", "Performance", "Music", "Comedy", "Sports", "Fashion", "Action", "Lifestyle", "Other"];
+export const CATEGORIES = ["All", "Trending", "Movie", "Crypto", "Dance", "Performance", "Music", "Comedy", "Sports", "Fashion", "Action", "Lifestyle", "Cars", "Other"];
 /** How many of the feed's top (trending-sorted) references count as "Trending". */
 export const TRENDING_TOP = 150;
 /** Topic tags found in a reference's title and description. The feed carries no tags, so these are matched from the text. */
@@ -29,6 +29,7 @@ const TOPICS: ReadonlyArray<readonly [string, RegExp]> = [
   ["Music", /\b(music|guitar|piano|drum|drummer|dj|singer|singing|concert|band|violin|saxophone|rapper|rap|karaoke)\b/i],
   ["Comedy", /\b(funny|comed(y|ian)|meme|prank|joke|laugh|skit|reaction|awkward|silly)\b/i],
   ["Sports", /\b(sport|soccer|football|basketball|boxing|boxer|gym|workout|fitness|skate|skateboard|surf|tennis|athlete|yoga|parkour|golf|baseball|mma)\b/i],
+  ["Cars", /\b(cars?|supercars?|sports? car|race car|racing|drift(ing)?|automobile|vehicle|truck|suv|motorcycle|motorbike|lamborghini|ferrari|porsche|tesla|mustang|bmw|mercedes|corvette|mclaren|bugatti)\b/i],
   ["Fashion", /\b(fashion|runway|catwalk|outfit|makeup|beauty|streetwear|couture|lookbook|dress)\b/i],
 ];
 export function topicsOf(item: { title?: string; description?: string }): string[] {

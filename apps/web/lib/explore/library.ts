@@ -1,6 +1,7 @@
 import references from "@/lib/explore/references.json";
 import short from "@/lib/explore/short-references.json";
 import { FEED, normalizeFeed, inCategory, type ReferenceVideo } from "@/lib/explore/feed";
+import { referenceEstimate } from "@/lib/explore/models";
 import { getObjectText, putImage, r2ImageConfigured } from "@/lib/server/imageStorage";
 
 /**
@@ -116,22 +117,38 @@ export async function getLibrary(): Promise<Library> {
   return memory ?? loading;
 }
 
-export interface LibraryQuery { q?: string; category?: string; min?: number; max?: number; cursor?: number; limit?: number }
+export type LibraryPrice = "any" | "u5" | "5-10" | "10-20" | "o20";
+export type LibrarySort = "trending" | "shortest" | "cheapest";
+export interface LibraryQuery { q?: string; category?: string; min?: number; max?: number; price?: LibraryPrice; sort?: LibrarySort; cursor?: number; limit?: number }
 
-/** One page of matches. `cursor` is 1-based: the position in the filtered list to start from. */
-export function queryLibrary(lib: Library, { q = "", category = "All", min = 0, max = 0, cursor = 1, limit = PAGE }: LibraryQuery) {
+function inPrice(price: LibraryPrice, estimate: number | null): boolean {
+  if (price === "any") return true;
+  if (estimate === null) return false;
+  return price === "u5" ? estimate < 5 : price === "5-10" ? estimate >= 5 && estimate < 10 : price === "10-20" ? estimate >= 10 && estimate < 20 : estimate >= 20;
+}
+
+/**
+ * One page of matches. `cursor` is 1-based: the position in the filtered list to start from. Every filter and the
+ * sort run here over the whole library, so each page is full of real matches and the client never has to walk
+ * thousands of non-matching rows to fill the screen.
+ */
+export function queryLibrary(lib: Library, { q = "", category = "All", min = 0, max = 0, price = "any", sort = "trending", cursor = 1, limit = PAGE }: LibraryQuery) {
   const needle = q.trim().toLowerCase();
-  const matches: ReferenceVideo[] = [];
+  let matches: Array<{ item: ReferenceVideo; cost: number | null }> = [];
   for (let i = 0; i < lib.items.length; i++) {
     const item = lib.items[i];
     if (!inCategory(item, category, i)) continue;
     if (min && item.duration < min) continue;
     if (max && item.duration >= max) continue;
     if (needle && !lib.hay[i].includes(needle)) continue;
-    matches.push(item);
+    const cost = price === "any" && sort !== "cheapest" ? null : referenceEstimate(item);
+    if (!inPrice(price, cost)) continue;
+    matches.push({ item, cost });
   }
+  if (sort === "shortest") matches = matches.sort((a, b) => a.item.duration - b.item.duration);
+  else if (sort === "cheapest") matches = matches.sort((a, b) => (a.cost ?? Infinity) - (b.cost ?? Infinity));
   const offset = Math.max(0, cursor - 1);
-  const items = matches.slice(offset, offset + limit);
+  const items = matches.slice(offset, offset + limit).map((m) => m.item);
   const end = offset + items.length;
   return { items, next: end < matches.length ? end + 1 : null, total: matches.length, libraryTotal: lib.items.length, building: lib.seed, builtAt: lib.builtAt };
 }

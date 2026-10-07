@@ -41,6 +41,7 @@ import type * as contentIdeas from "../contentIdeas.js";
 import type * as contentRewardMeasurements from "../contentRewardMeasurements.js";
 import type * as controlPanel from "../controlPanel.js";
 import type * as crons from "../crons.js";
+import type * as describeVideo from "../describeVideo.js";
 import type * as devTeamSchedule from "../devTeamSchedule.js";
 import type * as devWipe from "../devWipe.js";
 import type * as distributions from "../distributions.js";
@@ -159,6 +160,7 @@ declare const fullApi: ApiFromModules<{
   contentRewardMeasurements: typeof contentRewardMeasurements;
   controlPanel: typeof controlPanel;
   crons: typeof crons;
+  describeVideo: typeof describeVideo;
   devTeamSchedule: typeof devTeamSchedule;
   devWipe: typeof devWipe;
   distributions: typeof distributions;

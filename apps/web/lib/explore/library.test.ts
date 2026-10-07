@@ -103,3 +103,23 @@ describe("queryLibrary", () => {
     expect(queryLibrary(lib, { q: "no such thing" })).toMatchObject({ items: [], next: null, total: 0 });
   });
 });
+
+describe("queryLibrary price and sort", () => {
+  const lib = (() => {
+    const items = [30, 4, 12, 7, 22].map((d, i) => ({ id: `v${i}`, title: `Clip ${d}`, description: "", previewUrl: "", videoUrl: "", duration: d, category: "Other" })) as never[];
+    return { builtAt: 1, total: 5, items, hay: items.map(() => "clip"), seed: false } as Parameters<typeof queryLibrary>[0];
+  })();
+  it("sorts the whole library by length, not just the loaded page", () => {
+    expect(queryLibrary(lib, { sort: "shortest" }).items.map((i) => i.duration)).toEqual([4, 7, 12, 22, 30]);
+  });
+  it("sorts cheapest first (cost grows with length)", () => {
+    expect(queryLibrary(lib, { sort: "cheapest" }).items.map((i) => i.duration)).toEqual([4, 7, 12, 22, 30]);
+  });
+  it("filters by price on the server, and the price buckets partition the library", async () => {
+    const { referenceEstimate } = await import("./models");
+    const buckets = (["u5", "5-10", "10-20", "o20"] as const).map((price) => queryLibrary(lib, { price }));
+    expect(buckets.reduce((n, b) => n + b.total, 0)).toBe(queryLibrary(lib, {}).total);
+    for (const i of buckets[0].items) expect(referenceEstimate(i)!).toBeLessThan(5);
+    for (const i of buckets[3].items) expect(referenceEstimate(i)!).toBeGreaterThanOrEqual(20);
+  });
+});

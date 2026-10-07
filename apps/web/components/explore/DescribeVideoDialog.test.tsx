@@ -23,19 +23,21 @@ vi.mock("@/components/builder/FundAgentDialog", () => ({ FundAgentDialog: ({ ope
 vi.mock("@/components/builder/generate/MentionTextarea", () => ({
   MentionTextarea: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => <textarea aria-label="Prompt" value={value} onChange={(e) => onChange(e.target.value)} />,
 }));
+vi.mock("@/hooks/use-solana-wallet", () => ({ useUnifiedSolanaWallet: () => ({ publicKey: null, signTransaction: undefined }) }));
+vi.mock("@/lib/client/usdcClient", () => ({ sendUsdc: vi.fn() }));
 import { DescribeVideoDialog } from "./DescribeVideoDialog";
 
 let root: Root; let host: HTMLDivElement;
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 const agents = [{ mintAddress: "mint1", name: "Nova", coinTicker: "NOVA", avatarUrl: "https://cdn.test/n.png", agentWallet: "Wallet1" }];
 
-async function mount(fetchBody: unknown, status = 200) {
+async function mount(fetchBody: unknown, status = 200, list: typeof agents | never[] = agents) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const fetchMock = vi.fn(async () => new Response(JSON.stringify(fetchBody), { status }));
   vi.stubGlobal("fetch", fetchMock);
   m.query.mockReturnValue(undefined);
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-  await act(async () => root.render(<DescribeVideoDialog open onOpenChange={() => undefined} agents={agents} />));
+  await act(async () => root.render(<DescribeVideoDialog open onOpenChange={() => undefined} agents={list as typeof agents} />));
   const box = host.querySelector("textarea")!;
   await act(async () => { const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!; set.call(box, "A day in Tokyo"); box.dispatchEvent(new Event("input", { bubbles: true })); });
   return fetchMock;
@@ -57,4 +59,24 @@ it("opens the fund dialog when the agent wallet cannot pay", async () => {
   await act(async () => { generateButton().click(); });
   expect(host.textContent).toContain("Fund dialog");
   expect(host.textContent).toContain("wallet");
+});
+
+it("offers posting to X only for an agent with X connected, and sends it with the render", async () => {
+  const fetchMock = await mount({ ok: true, taskId: "task1" }, 200, [{ ...agents[0], connectedPlatforms: ["x"] }] as never);
+  const toggle = Array.from(host.querySelectorAll("label")).find((l) => /Post to X/.test(l.textContent ?? ""))!.querySelector("input")!;
+  await act(async () => { toggle.click(); });
+  await act(async () => { generateButton().click(); });
+  const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+  expect(body.input.autoPost).toEqual({ platforms: ["x"] });
+});
+it("does not offer X when the agent has not connected it", async () => {
+  await mount({ ok: true }, 200);
+  expect(host.textContent).not.toContain("Post to X");
+});
+it("makes a video without an influencer: the form shows, and it needs a reference image before it can be paid for", async () => {
+  await mount({ ok: true }, 200, []);
+  expect(host.textContent).toContain("No influencer");
+  expect(host.textContent).toContain("Add a reference image");
+  expect(host.textContent).not.toContain("Skip storyboard");
+  expect(Array.from(host.querySelectorAll("button")).some((b) => /\$/.test(b.textContent ?? "") && !b.disabled)).toBe(false);
 });

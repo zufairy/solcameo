@@ -836,9 +836,10 @@ function buildPostCaption(opts: { hook: string; scriptCaption?: string; topic: s
 async function generatePostCaption(
   agent: AgentDoc,
   ctx: AgentContext,
-  opts: { topic: string; hook: string; scriptText: string; campaignContext?: string },
+  opts: { topic: string; hook: string; scriptText: string; campaignContext?: string; platform?: "x" },
 ): Promise<string> {
-  const fallback = stripHashtags(opts.hook || opts.topic || "").slice(0, 300);
+  const fallback = stripHashtags(opts.hook || opts.topic || "").slice(0, opts.platform === "x" ? 240 : 300);
+  const limit = opts.platform === "x" ? 240 : 300;
   try {
     const system = buildAgentSystemPrompt(agent, ctx);
     const user = `Write the SOCIAL CAPTION for the short video you just made${opts.topic ? ` about: ${opts.topic}` : ""}.
@@ -846,19 +847,21 @@ async function generatePostCaption(
 WHAT THE VIDEO SAYS (base the caption on THIS, not generic):
 ${(opts.scriptText || opts.hook || "").slice(0, 700)}
 ${opts.campaignContext ? `\nThis is a PAID promotion — the caption MUST sell the product and drive action. Product context:\n${opts.campaignContext.slice(0, 500)}\n` : ""}
-Rules for a high-converting caption, in ${agent.language || "the agent's language"} and voice:
-- First line is a scroll-stopping HOOK tied to the video's payoff (curiosity or a concrete benefit).
-- 1-3 short, punchy lines — native, easy to read, no fluff.
-- End with ONE clear CALL TO ACTION (e.g. comment a word, follow for more, try it${opts.campaignContext ? ", check it out" : ""}).
+Rules for a caption built to travel, in ${agent.language || "the agent's language"} and voice:
+- Line 1 is a pattern-interrupt HOOK: a bold, specific claim, a surprising detail or a curiosity gap that only the video resolves. Never open with filler like "Check this out", "New video" or "Here is".
+- Name the concrete payoff or the one striking detail from the video (a number, a twist, a "wait for it"), so it reads as about THIS video and nothing else.
+- Keep an open loop: make people need to watch to the end to get it.
+- Close with ONE engagement trigger that invites a reply (a sharp either/or question or "reply with X"), not a generic "follow for more"${opts.campaignContext ? "; for this promotion the trigger should push people to check the product out" : ""}.
+- Plain, conversational, short lines. At most one emoji, and only if it adds meaning.${opts.platform === "x" ? "\n- This is for X: it must read well as a single post, under 240 characters, with no links." : ""}
 - ABSOLUTELY NO hashtags. No hashtag list, not even one.
-- No "link in bio" unless a link truly exists. Under 300 characters.
+- No "link in bio" unless a link truly exists. Under ${limit} characters.
 
 Return ONLY JSON: { "caption": "..." }`;
     const gen = await runReasoningStep(system, user);
     const cap = (gen && typeof gen === "object" && typeof (gen as { caption?: unknown }).caption === "string")
       ? (gen as { caption: string }).caption
       : "";
-    const cleaned = stripHashtags(cap).slice(0, 300);
+    const cleaned = stripHashtags(cap).slice(0, limit);
     return cleaned || fallback;
   } catch {
     return fallback;
@@ -1937,11 +1940,15 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     // already produced (videoScript returns a `caption` field) instead of a second
     // LLM round-trip to generatePostCaption. Empty falls through to buildPostCaption
     // (local, no LLM) in the autoPost builder below — so this costs zero extra calls.
-    const autoPostCaption = effectiveAutoPost
-      ? (typeof (scriptResult as Record<string, unknown>)?.caption === "string"
-          ? String((scriptResult as Record<string, unknown>).caption).trim()
-          : "")
-      : "";
+    // Exact-output renders (the Explore describe box) send the user's prompt verbatim, so the script's "caption" is just
+    // that prompt. Posting it as-is is not a caption, so those get a written, viral one instead.
+    const scriptCaption = typeof (scriptResult as Record<string, unknown>)?.caption === "string" ? String((scriptResult as Record<string, unknown>).caption).trim() : "";
+    const autoPostPlatforms = Array.isArray((effectiveAutoPost as { platforms?: unknown } | undefined)?.platforms) ? ((effectiveAutoPost as { platforms: unknown[] }).platforms).map(String) : [];
+    const xOnly = autoPostPlatforms.length > 0 && autoPostPlatforms.every((p) => p === "x");
+    const autoPostCaption = !effectiveAutoPost ? ""
+      : input.exactOutput === true || !scriptCaption
+        ? await generatePostCaption(agent, ctx, { topic, hook: hookText ?? "", scriptText: typeof input.topic === "string" ? input.topic : topic, ...(xOnly ? { platform: "x" as const } : {}) }).catch(() => scriptCaption)
+        : scriptCaption;
 
     // The FINAL rendered length (fitted script, else the Director's rolled length).
     const finalDurationSeconds = ((scriptResult as Record<string, unknown>)._fittedSeconds as number | undefined) ?? directives.durationSeconds;

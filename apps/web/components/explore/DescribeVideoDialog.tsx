@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
-import { AlertCircle, ImagePlus, Loader2, RotateCcw, Wand2, X } from "lucide-react";
+import { AlertCircle, Download, ImagePlus, Loader2, RotateCcw, UserRound, Wand2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -16,10 +16,24 @@ import { pickableVideoEngine, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, select
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
+import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
+import { sendUsdc } from "@/lib/client/usdcClient";
 
-export type DescribeAgent = { mintAddress: string; name: string; coinTicker?: string; avatarUrl?: string; agentWallet?: string | null; videoEngine?: string };
+/** The "no influencer" choice: the video is paid for straight from the user's own wallet. */
+const NONE = "__none__";
+
+export type DescribeAgent = { mintAddress: string; name: string; coinTicker?: string; avatarUrl?: string; agentWallet?: string | null; videoEngine?: string; connectedPlatforms?: string[] };
 
 type Status = Record<string, { status: string; videoUrl?: string; error?: string; paid?: boolean }>;
+
+function NoInfluencerOption() {
+  return (
+    <span className="flex items-center gap-3">
+      <span className="grid size-10 shrink-0 place-items-center rounded-[8px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
+      <span className="min-w-0 text-left"><span className="block text-sm font-semibold">No influencer</span><span className="block text-[11px] text-zinc-500">Pay from your wallet</span></span>
+    </span>
+  );
+}
 
 /** Explore's "Describe your video": pick an influencer, write a prompt, choose engine, quality and length, and render it from the agent's wallet. */
 export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }: {
@@ -29,8 +43,12 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   defaultMint?: string;
 }) {
   const [picked, setPicked] = useState(defaultMint ?? "");
-  const mint = picked || defaultMint || agents?.[0]?.mintAddress || "";
+  const noInfluencer = picked === NONE || (agents !== undefined && !agents.length);
+  const mint = noInfluencer ? "" : picked || defaultMint || agents?.[0]?.mintAddress || "";
   const agent = agents?.find((a) => a.mintAddress === mint);
+  const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  // Signature of a payment that was sent but not yet applied, so a retry reuses it instead of paying twice.
+  const paidSig = useRef<string | undefined>(undefined);
   const [prompt, setPrompt] = useState("");
   const [cast, setCast] = useState<Mention[]>([]);
   const [engineOverride, setEngineOverride] = useState<VideoEngineId | null>(null);
@@ -40,6 +58,9 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [aspectPick, setAspectPick] = useState<VideoAspect>("9:16");
   const [skipStoryboard, setSkipStoryboard] = useState(true);
   const [noPersona, setNoPersona] = useState(true);
+  // Posting is a public act, so it is opt-in per video.
+  const [postToX, setPostToX] = useState(false);
+  const xConnected = !!agent?.connectedPlatforms?.includes("x");
   // A picture to base the video on (a face, a product, a scene). Icon-only upload, stored the same way the builder stores its own.
   const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
   const resolveStorageUrl = useMutation(api.clipStorage.resolveStorageUrl);
@@ -52,14 +73,14 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [fundOpen, setFundOpen] = useState(false);
   const [fundWallet, setFundWallet] = useState<string | undefined>();
 
-  const engineId = engineOverride ?? pickableVideoEngine(agent?.videoEngine);
+  const engineId = engineOverride ?? pickableVideoEngine(noInfluencer ? undefined : agent?.videoEngine);
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
   const aspect = aspectFor(engineId, aspectPick);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
   const lengths = videoLengthOptions(engineId);
   const seconds = secondsOverride && lengths.includes(secondsOverride) ? secondsOverride : (lengths[0] ?? 5);
   // Provider price plus the Solcameo fee, plus the storyboard image unless skipped. The server bills the same numbers.
-  const priceUsd = useMemo(() => (skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(getVideoEngine(engineId), seconds, quality), [engineId, seconds, quality, skipStoryboard]);
+  const priceUsd = (skipStoryboard || noInfluencer ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(getVideoEngine(engineId), seconds, quality);
 
   const status = useQuery(api.agentTasks.generationStatus, task ? { ids: [task] } : "skip") as Status | undefined;
   const state = task ? status?.[task] : undefined;
@@ -88,11 +109,37 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
     finally { setUploading(false); }
   }
 
+  /** No influencer: price it, send the USDC from the user's own wallet, then render once the payment is verified. */
+  async function generateStandalone(text: string) {
+    if (!attached) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
+    if (!publicKey || !signTransaction) throw new Error("Connect your wallet to pay for this video.");
+    const payload = { prompt: text, referenceImageUrl: attached, videoEngine: engineId, quality, seconds, aspect, payer: publicKey.toBase58() };
+    const call = async (paymentSignature?: string) => {
+      const res = await fetch("/api/explore/describe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, ...(paymentSignature ? { paymentSignature } : {}) }) });
+      return { res, data: (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; code?: string; owedUsd?: number; treasury?: string } };
+    };
+    let { res, data } = await call(paidSig.current);
+    if (res.status === 402 && data.code === "payment_required" && data.treasury && data.owedUsd) {
+      const pay = await sendUsdc({ publicKey, signTransaction, toPubkey: data.treasury, amountUsdc: data.owedUsd, priorSignature: paidSig.current });
+      if (!pay.ok) {
+        // A transfer that was sent but not confirmed is kept, so the next click checks it instead of paying again.
+        paidSig.current = pay.unconfirmed ? pay.signature : undefined;
+        throw new Error(pay.unconfirmed ? `${pay.error} Click Generate again to check it.` : pay.error);
+      }
+      paidSig.current = pay.signature;
+      ({ res, data } = await call(pay.signature));
+    }
+    if (!res.ok || !data.taskId) throw new Error(data.error ?? `Request failed (${res.status})`);
+    paidSig.current = undefined; // the render has started; this payment is spent
+    setTask(data.taskId as Id<"agentTasks">);
+  }
+
   async function generate() {
     const text = prompt.trim();
-    if (!text || !mint || running) return;
+    if (!text || (!mint && !noInfluencer) || running) return;
     setError(""); setTask(null); setStarting(true);
     try {
+      if (noInfluencer) { await generateStandalone(text); return; }
       const res = await fetch("/api/agents/run-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,6 +158,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
             ...(skipStoryboard ? { skipStoryboard: true } : {}),
             ...(noPersona ? { noPersona: true } : {}),
             ...(noPersona && skipStoryboard ? { exactOutput: true } : {}),
+            ...(postToX && xConnected ? { autoPost: { platforms: ["x"] } } : {}),
           },
           triggeredBy: "explore",
         }),
@@ -137,27 +185,23 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
         <DialogContent className="max-h-[92dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-6 text-white backdrop-blur-2xl sm:max-w-3xl">
           <div>
             <DialogTitle className="text-xl tracking-tight">Describe your video</DialogTitle>
-            <DialogDescription className="mt-1 text-zinc-500">Tell your influencer what to film. It renders from the agent&apos;s own wallet, and the price is shown before you generate.</DialogDescription>
+            <DialogDescription className="mt-1 text-zinc-500">Pick an influencer to film it, or make a video without one. The price is shown before you generate.</DialogDescription>
           </div>
 
           {agents === undefined ? (
             <p className="flex items-center gap-2 py-6 text-xs text-zinc-400"><Loader2 className="size-4 animate-spin" /> Loading your influencers…</p>
-          ) : !agents.length ? (
-            <div className="rounded-[10px] border border-white/10 bg-white/[0.03] p-6 text-center">
-              <p className="text-sm text-zinc-300">You need an influencer to make a video.</p>
-              <Link href="/create" className="mt-3 inline-flex h-9 items-center rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]">Create an influencer</Link>
-            </div>
           ) : (
             <div className="space-y-4">
               <label className="block text-xs font-medium text-zinc-400">
                 Influencer
-                <Select value={mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); reset(); }}>
+                <Select value={noInfluencer ? NONE : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
                   <SelectTrigger aria-label="Your influencer" className="mt-2 h-14 w-full border-white/10 bg-white/5 px-2.5 text-white">
                     <SelectValue placeholder="Choose an influencer">
-                      {(value: string | null) => { const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
+                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
+                    <SelectItem value={NONE} className="min-h-14 py-1.5 pl-2"><NoInfluencerOption /></SelectItem>
                     {agents.map((a) => (
                       <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
                     ))}
@@ -201,11 +245,13 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                     options={lengths.map((d) => ({ value: String(d), label: `${d}s` }))} />
                   <ChipSelect value={aspect} onChange={(v) => setAspectPick(v as VideoAspect)} title="Video size: portrait, landscape or square"
                     options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
-                  <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />
-                  <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />
-                  <PriceButton className="ml-auto" disabled={!prompt.trim() || !mint || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
-                    title={running ? "Rendering…" : "Charged from the agent's wallet. Includes the Solcameo fee."} />
+                  {!noInfluencer && <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />}
+                  {!noInfluencer && <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />}
+                  {!noInfluencer && xConnected && <ChipCheck checked={postToX} onChange={setPostToX} label="Post to X" title="When the video is ready, post it to your connected X account with a caption written to get replies and shares" />}
+                  <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !noInfluencer) || (noInfluencer && !attached) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
+                    title={running ? "Rendering…" : noInfluencer ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
                 </div>
+                {noInfluencer && !attached && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
                 {failure && (
                   <p role="alert" className="mt-3 flex items-start gap-2 text-[12px] text-red-300"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{failure}</p>
                 )}
@@ -218,12 +264,14 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                 <div className="space-y-3">
                   <BlurRevealVideo src={videoUrl} className="mx-auto max-w-sm" />
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Link href={`/builder?type=influencer&mint=${encodeURIComponent(mint)}`} className="inline-flex h-9 items-center rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]">Open in builder</Link>
+                    {noInfluencer
+                      ? <a href={videoUrl} download target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]"><Download className="size-3.5" /> Download</a>
+                      : <Link href={`/builder?type=influencer&mint=${encodeURIComponent(mint)}`} className="inline-flex h-9 items-center rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]">Open in builder</Link>}
                     <button type="button" onClick={() => { reset(); setPrompt(""); }} className={`${CHIP} h-9 px-3.5`}><RotateCcw className="size-3.5" /> Describe another</button>
                   </div>
                 </div>
               )}
-              {!running && !videoUrl && !failure && <p className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Wand2 className="size-3" /> The price is charged from {agent?.name ?? "the agent"}&apos;s wallet when the render starts.</p>}
+              {!running && !videoUrl && !failure && <p className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Wand2 className="size-3" /> {noInfluencer ? "Your wallet asks you to approve the USDC payment, then the render starts." : `The price is charged from ${agent?.name ?? "the agent"}'s wallet when the render starts.`}</p>}
             </div>
           )}
         </DialogContent>

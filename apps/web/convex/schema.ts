@@ -100,6 +100,12 @@ export default defineSchema({
     /** Set when this is a reply to another reply (Reddit-style nesting). */
     parentId: v.optional(v.id("ssCalloutReplies")),
   }).index("by_callout_created", ["calloutId", "createdAt"]).index("by_wallet_created", ["wallet", "createdAt"]),
+  /** One row per paid describe-box video made without an influencer; the signature is the payment that bought it. */
+  describeVideoRuns: defineTable({
+    account: v.string(), txSignature: v.string(), amountUsd: v.number(), taskId: v.optional(v.id("agentTasks")),
+    /** Set instead of taskId when the paid render is a motion-transfer job at the video provider. */
+    requestId: v.optional(v.string()), createdAt: v.number(),
+  }).index("by_signature", ["txSignature"]).index("by_account", ["account", "createdAt"]).index("by_request", ["requestId"]),
   /** Chat under a made video. `videoKey` is the video's URL, which every surface already has and which never changes. */
   ssVideoComments: defineTable({
     videoKey: v.string(), characterId: v.optional(v.id("ssCharacters")), wallet: v.string(), body: v.string(), createdAt: v.number(),

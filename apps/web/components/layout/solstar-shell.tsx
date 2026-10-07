@@ -121,7 +121,7 @@ function RailCreate() {
           tooltip="Create"
           className={CREATE_CLASS}
         >
-          <Plus className="relative size-4 shrink-0 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]" strokeWidth={3} />
+          <Plus className="relative size-4 shrink-0 text-zinc-950 group-data-[collapsible=icon]:text-white group-data-[collapsible=icon]:drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]" strokeWidth={3} />
           <span className="group-data-[collapsible=icon]:hidden">Create</span>
         </SidebarMenuButton>
       </SidebarMenuItem>

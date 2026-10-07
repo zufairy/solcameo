@@ -73,9 +73,12 @@ function ReferenceCard({
   onOpen,
   onSchedule,
   estimate,
+  priority = false,
 }: {
   item: ReferenceVideo;
   saved: boolean;
+  /** First cards on screen: load their image immediately. */
+  priority?: boolean;
   onSave: () => void;
   onOpen: () => void;
   /** Only Genjutsu renders can be scheduled, so this is absent for the other models. */
@@ -95,11 +98,9 @@ function ReferenceCard({
   return (
     <motion.article
       ref={card}
-      initial={{ opacity: 0, y: reduced ? 0 : 24, filter: reduced ? "blur(0px)" : "blur(10px)" }}
-      animate={visible && imageReady
-        ? { opacity: 1, y: 0, filter: "blur(0px)" }
-        : { opacity: 0, y: reduced ? 0 : 24, filter: reduced ? "blur(0px)" : "blur(10px)" }}
-      transition={{ duration: reduced ? 0 : 0.65, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: reduced ? 0 : 12 }}
+      animate={visible && imageReady ? { opacity: 1, y: 0 } : { opacity: 0, y: reduced ? 0 : 12 }}
+      transition={{ duration: reduced ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
       className="group relative mb-3 break-inside-avoid overflow-hidden rounded-lg border border-white/10 bg-white/5"
     >
       <button
@@ -121,7 +122,8 @@ function ReferenceCard({
           <img
             src={item.thumbUrl}
             alt=""
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             onLoad={() => setImageReady(true)}
             onError={() => setImageReady(true)}
@@ -141,7 +143,7 @@ function ReferenceCard({
             muted
             loop
             playsInline
-            preload={preview ? "none" : "metadata"}
+            preload={preview ? "auto" : "metadata"}
             onLoadedData={event => { if (!preview) event.currentTarget.currentTime = 0.01; }}
             onError={stop}
             className="absolute inset-0 size-full object-cover"
@@ -504,8 +506,10 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const resolution = model.defaultQuality;
   // Price is evaluated per card because each source uses its own generation model.
   const bounds = LENGTH_BOUNDS[length] ?? LENGTH_BOUNDS.any;
-  const remote = !!query.trim() || category !== "All" || (!!bounds && (bounds.min > 0 || bounds.max > 0) && length !== "u5");
-  const filterKey = `${query.trim().toLowerCase()}|${category}|${bounds ? `${bounds.min}-${bounds.max}` : "none"}|${length === "u5"}`;
+  // Everything the library can answer is filtered and sorted on the server over the whole library, so each page is full
+  // of real matches instead of the client walking thousands of non-matching rows to fill the screen.
+  const remote = !!query.trim() || category !== "All" || (!!bounds && (bounds.min > 0 || bounds.max > 0)) || price !== "any" || sort !== "trending";
+  const filterKey = `${query.trim().toLowerCase()}|${category}|${bounds ? `${bounds.min}-${bounds.max}` : "none"}|${price}|${sort}`;
   // The downloaded library only holds Genjutsu references; other models live in the built-in prompt list, so do not keep walking it.
   const libraryIsGenjutsuOnly = modelFilter !== "any" && modelFilter !== "genjutsu";
   const [limit, setLimit] = useState(REVEAL);
@@ -672,6 +676,8 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   function loadBatch(cursor: number): Promise<Feed & { error?: string }> {
     const params = new URLSearchParams({ cursor: String(cursor) });
     if (remote && bounds) {
+      if (price !== "any") params.set("price", price);
+      if (sort !== "trending") params.set("sort", sort);
       if (query.trim()) params.set("q", query.trim());
       if (category !== "All") params.set("category", category);
       if (bounds.min > 0) params.set("min", String(bounds.min));
@@ -737,7 +743,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
         setError("");
         setLoading(false);
       } else {
-        setItems(PROMPT_REFERENCES);
+        // Keep the current cards on screen until the first filtered page arrives, so changing a filter never blanks the grid.
         setNext(null);
         void fetchBatch(1, true);
       }
@@ -833,9 +839,10 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
           </div>
         </div>
         <div className="columns-2 gap-3 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6">
-          {shown.map((item) => (
+          {shown.map((item, index) => (
             <ReferenceCard
               key={item.id}
+              priority={index < 8}
               item={item}
               saved={saved.includes(item.id)}
               onSave={() => toggleSave(item)}
@@ -1138,7 +1145,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
       <DescribeVideoDialog
         open={describeOpen}
         onOpenChange={setDescribeOpen}
-        agents={agents?.map((a) => ({ mintAddress: a.mintAddress, name: a.name, coinTicker: a.coinTicker, avatarUrl: a.avatarUrl, agentWallet: a.agentWallet, videoEngine: a.videoEngine }))}
+        agents={agents?.map((a) => ({ mintAddress: a.mintAddress, name: a.name, coinTicker: a.coinTicker, avatarUrl: a.avatarUrl, agentWallet: a.agentWallet, videoEngine: a.videoEngine, connectedPlatforms: a.connectedPlatforms }))}
         defaultMint={fixedMint}
       />
       <ScheduleDialog

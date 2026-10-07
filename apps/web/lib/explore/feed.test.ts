@@ -34,3 +34,12 @@ describe("category tabs", () => {
     expect(inCategory({ title: "x", category: "Other" }, "Trending", TRENDING_TOP)).toBe(false);
   });
 });
+
+describe("Cars category", () => {
+  it("is a tab and matches car topics from the text", async () => {
+    const { CATEGORIES, inCategory } = await import("./feed");
+    expect(CATEGORIES).toContain("Cars");
+    expect(inCategory({ title: "Drifting a Lamborghini at night", description: "" }, "Cars")).toBe(true);
+    expect(inCategory({ title: "Girl dancing", description: "carries a card" }, "Cars")).toBe(false);
+  });
+});

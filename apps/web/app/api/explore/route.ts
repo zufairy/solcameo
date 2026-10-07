@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CATEGORIES } from "@/lib/explore/feed";
-import { PAGE, getLibrary, queryLibrary } from "@/lib/explore/library";
+import { PAGE, getLibrary, queryLibrary, type LibraryPrice, type LibrarySort } from "@/lib/explore/library";
+
+const PRICES: LibraryPrice[] = ["any", "u5", "5-10", "10-20", "o20"];
+const SORTS: LibrarySort[] = ["trending", "shortest", "cheapest"];
 
 /**
  * The reference library, filtered on our side. The whole upstream feed is indexed ahead of time (see
@@ -16,8 +19,10 @@ export async function GET(req: NextRequest) {
   if (!CATEGORIES.includes(category)) return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   const min = Number(sp.get("min") ?? 0), max = Number(sp.get("max") ?? 0);
   if (![min, max].every((n) => Number.isFinite(n) && n >= 0 && n <= 120)) return NextResponse.json({ error: "Invalid length" }, { status: 400 });
+  const price = (sp.get("price") ?? "any") as LibraryPrice, sort = (sp.get("sort") ?? "trending") as LibrarySort;
+  if (!PRICES.includes(price) || !SORTS.includes(sort)) return NextResponse.json({ error: "Invalid filter" }, { status: 400 });
   try {
-    const result = queryLibrary(await getLibrary(), { q, category, min, max, cursor, limit: PAGE });
+    const result = queryLibrary(await getLibrary(), { q, category, min, max, price, sort, cursor, limit: PAGE });
     // A library that is still being built answers from the bundled index, so keep that short lived at the edge.
     const maxAge = result.building ? 15 : 120;
     return NextResponse.json({ ...result, scanned: 0 }, { headers: { "Cache-Control": `public, max-age=${maxAge}, stale-while-revalidate=600` } });
