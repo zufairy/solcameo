@@ -15,6 +15,7 @@ const SETTLE_THRESHOLD_USDC = Number(process.env.VELLO_SETTLE_THRESHOLD_USDC ?? 
 const TREASURY = generationCollectionWallet();
 
 export type SettleResult =
+  | { status: "credited"; coveredUsdc: number }
   | { status: "skipped"; reason: string }
   | { status: "accruing"; tabUsdc: number; reason: string }
   | { status: "settled"; amountUsdc: number; txSignature: string; tabUsdc: number };
@@ -48,7 +49,7 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
 
     // 2) Decide whether to sweep on-chain now.
     // `immediate` is the pay-before-generate path: whatever is on the tab moves on-chain now, however small.
-    if (tabUsdc <= 0 || (!opts.immediate && tabUsdc < (opts.threshold ?? SETTLE_THRESHOLD_USDC))) return { status: "accruing", tabUsdc, reason: "below threshold" };
+    if (!opts.immediate && (tabUsdc <= 0 || tabUsdc < (opts.threshold ?? SETTLE_THRESHOLD_USDC))) return { status: "accruing", tabUsdc, reason: "below threshold" };
     if (!TREASURY) return { status: "accruing", tabUsdc, reason: "no treasury configured" };
 
     // 3) Book the settlement in Convex (collapses unsettled rows into a
@@ -57,6 +58,7 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
     //    the booked-unpaid fee is held out of spendable by the reconcile guard
     //    until the sweep lands. It inserts a feeSettlements row with NO txSignature.
     const settled = await convex.mutation(api.usage.settleTab, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+    if ("credited" in settled && settled.credited) return { status: "credited", coveredUsdc: settled.coveredUsdc };
     if (!settled.settled) return { status: "accruing", tabUsdc, reason: "nothing to settle" };
 
     // 3a) CLAIM the row (per-row compare-and-set lock) BEFORE moving any USDC, so a

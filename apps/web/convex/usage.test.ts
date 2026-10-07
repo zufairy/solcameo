@@ -164,6 +164,24 @@ describe("recordUsage", () => {
 });
 
 describe("settleTab", () => {
+  it.each([0.4, 0.9])("consumes a %s refund credit once and preserves the remainder", async (credit) => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 100);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usageLedger", { mintAddress: MINT, service: "clip_refund_credit", qty: 1, unitPriceUsdc: -credit, costUsdc: -credit, at: Date.now() });
+      const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", MINT)).unique();
+      await ctx.db.patch(account!._id, { unsettledTabUsdc: -credit });
+    });
+    await t.mutation(api.usage.recordUsage, { mintAddress: MINT, service: "render", qty: 1, authSecret: SECRET });
+    const result = await t.mutation(api.usage.settleTab, { mintAddress: MINT, authSecret: SECRET });
+    expect(result).toMatchObject({ settled: false, credited: true, coveredUsdc: 0.4 });
+    expect(await t.mutation(api.usage.settleTab, { mintAddress: MINT, authSecret: SECRET })).toEqual({ settled: false });
+    const tail = await t.run(ctx => ctx.db.query("usageLedger").withIndex("by_mint_settled", q => q.eq("mintAddress", MINT).eq("settledBatchId", undefined)).collect());
+    expect(tail.reduce((sum, row) => sum + row.costUsdc, 0)).toBeCloseTo(0.4 - credit, 6);
+    expect((await t.query(api.agentAccount.get, { mintAddress: MINT }))!.unsettledTabUsdc).toBeCloseTo(0.4 - credit, 6);
+  });
+
   it("settles two unsettled rows: reduces the tab + stamps settledBatchId, WITHOUT debiting the mirror (chain=truth)", async () => {
     const t = convexTest(schema, modules);
     await seedAccount(t);

@@ -8,6 +8,13 @@ import { payForCharge, payOrBatch, BATCH_SETTLE_USDC } from "./generationPayment
 beforeEach(() => vi.resetAllMocks());
 
 describe("payForCharge", () => {
+  it("accepts atomically applied refund credits but rejects an empty settlement", async () => {
+    m.settle.mockResolvedValue({ status: "credited", coveredUsdc: 0.4 });
+    expect(await payForCharge("agent")).toEqual({ ok: true, credited: true });
+    m.settle.mockResolvedValue({ status: "accruing", tabUsdc: 0, reason: "nothing to settle" });
+    expect(await payForCharge("agent")).toEqual({ ok: false, reason: "nothing to settle" });
+  });
+
   it("settles the whole tab immediately and reports the on-chain signature", async () => {
     m.settle.mockResolvedValue({ status: "settled", amountUsdc: 1.2, txSignature: "SIG", tabUsdc: 0 });
     expect(await payForCharge("agent")).toEqual({ ok: true, txSignature: "SIG" });

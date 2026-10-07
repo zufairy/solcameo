@@ -24,6 +24,12 @@ beforeEach(() => {
 });
 
 describe("settleAgentEconomics", () => {
+  it("applies refund credit even when the reconciled tab is negative without sweeping", async () => {
+    h.mutation.mockImplementation(async (name: string) => name === "reconcile" ? { ok: true, unsettledTabUsdc: -0.5 } : { settled: false, credited: true, coveredUsdc: 0.4 });
+    expect(await settleAgentEconomics("mint", { immediate: true })).toEqual({ status: "credited", coveredUsdc: 0.4 });
+    expect(h.sweep).not.toHaveBeenCalled();
+  });
+
   it("batches a tiny tab below the configured threshold", async () => {
     expect(await settleAgentEconomics("mint")).toMatchObject({ status: "accruing", reason: "below threshold" });
     expect(h.sweep).not.toHaveBeenCalled();

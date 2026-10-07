@@ -613,7 +613,21 @@ export const settleTab = mutation({
       .take(SETTLE_TAB_MAX_ROWS);
 
     const amount = +unsettled.reduce((s, u) => s + u.costUsdc, 0).toFixed(6);
-    if (amount <= 0) return { settled: false as const };
+    if (amount <= 0) {
+      const coveredUsdc = +unsettled.reduce((sum, row) => sum + Math.max(0, row.costUsdc), 0).toFixed(6);
+      if (coveredUsdc <= 0) return { settled: false as const };
+      // Atomically consume refund credits. Preserve the audit rows and carry
+      // unused credit forward, so the same credit cannot fund another run twice.
+      const now = Date.now();
+      const marker = `refund-credit:${unsettled.find((row) => row.costUsdc > 0)!._id}`;
+      for (const row of unsettled) await ctx.db.patch(row._id, { settledBatchId: marker });
+      if (amount < 0) await ctx.db.insert("usageLedger", {
+        mintAddress, service: "clip_refund_credit", qty: 1,
+        unitPriceUsdc: amount, costUsdc: amount, idemKey: `${marker}:remaining`, at: now,
+      });
+      // The net tail remains unchanged; no USDC transfer is owed for this batch.
+      return { settled: false as const, credited: true as const, coveredUsdc };
+    }
 
     const now = Date.now();
     const settlementId = await ctx.db.insert("feeSettlements", {

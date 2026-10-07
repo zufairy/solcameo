@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 
-export type PaymentResult = { ok: true; txSignature: string } | { ok: false; reason: string };
+export type PaymentResult = { ok: true; credited: true } | { ok: true; txSignature: string } | { ok: false; reason: string };
 
 /** One settlement at a time per agent, so two quick generations never both try to sweep the same tab. */
 const queues = new Map<string, Promise<unknown>>();
@@ -16,6 +16,7 @@ export async function payForCharge(mintAddress: string): Promise<PaymentResult> 
   queues.set(mintAddress, run);
   try {
     const result = await run;
+    if (result.status === "credited") return { ok: true, credited: true };
     if (result.status === "settled") return { ok: true, txSignature: result.txSignature };
     return { ok: false, reason: "reason" in result ? result.reason : "payment_not_settled" };
   } finally {
