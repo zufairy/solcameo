@@ -69,11 +69,13 @@ function RecapLine({ children, onEdit, label }: { children: ReactNode; onEdit?: 
 
 export default function ShowPlanRecap({
   bible,
+  identityImageUrl,
   onEdit,
   onRedo,
   advanced,
 }: {
   bible: ShowBible;
+  identityImageUrl?: string;
   /** Open the wizard at the given content step (1 premise, 2 formats, 3 tunables, 4 voice, 5 cadence). */
   onEdit: (step: number) => void;
   /** Restart the wizard from scratch. */
@@ -91,7 +93,7 @@ export default function ShowPlanRecap({
   const voiceBits = [tone, language].filter(Boolean).join(", ");
   // The locked identity reference (wizard face pick or any locked visual ref):
   // the same image every render anchors to, shown as the plan's circular avatar.
-  const faceUrl = (bible.visualRefs ?? []).find((r) => r.locked)?.url;
+  const faceUrl = (bible.visualRefs ?? []).find((r) => r.locked && r.role === "style" && (r.kind === "ai-sheet" || r.kind === "real-photo"))?.url ?? identityImageUrl;
 
   return (
     <motion.div

@@ -133,7 +133,7 @@ function OptionCard({ on, disabled, onClick, children, align = "left" }: { on: b
 export default function VideoDirectorTab({ mintAddress, onOnboardingComplete }: { mintAddress?: string; onOnboardingComplete?: () => void }) {
   const reduce = useReducedMotion();
   const doc = useQuery(api.influencers.getByMint, mintAddress ? { mintAddress } : "skip") as
-    | { videoConfig?: VideoConfig; videoEngine?: string; showBible?: unknown; personaKernelOverride?: string }
+    | { videoConfig?: VideoConfig; videoEngine?: string; showBible?: unknown; personaKernelOverride?: string; avatarUrl?: string; avatarStills?: string[] }
     | null
     | undefined;
   // Show Plan recap / wizard switchover. `wizardStep` set = the wizard is
@@ -428,6 +428,7 @@ export default function VideoDirectorTab({ mintAddress, onOnboardingComplete }: 
             <OnboardingWizard
               mintAddress={mintAddress}
               existingBible={bible}
+              initialIdentityImageUrl={doc?.avatarStills?.[0] ?? doc?.avatarUrl}
               initialStep={wizardStep ?? 1}
               initialAspectRatio={cfg.aspectRatio === "16:9" ? "16:9" : "9:16"}
               onDone={() => {
@@ -445,6 +446,7 @@ export default function VideoDirectorTab({ mintAddress, onOnboardingComplete }: 
         ) : bible ? (
           <ShowPlanRecap
             bible={bible}
+            identityImageUrl={doc?.avatarStills?.[0] ?? doc?.avatarUrl}
             onEdit={(step) => setWizardStep(step)}
             onRedo={() => setWizardStep(1)}
             advanced={legacySections}

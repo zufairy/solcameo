@@ -94,6 +94,7 @@ export default function OnboardingWizard({
   existingBible,
   initialStep,
   initialAspectRatio,
+  initialIdentityImageUrl,
   onDone,
 }: {
   mintAddress: string;
@@ -103,12 +104,18 @@ export default function OnboardingWizard({
    *  see OnboardingDraft.aspectRatio) — seeds Step 3's picker so it reflects
    *  whatever VideoDirectorTab's own Aspect ratio control last saved. */
   initialAspectRatio?: "9:16" | "16:9";
+  initialIdentityImageUrl?: string;
   onDone: () => void;
 }) {
   const [step, setStep] = useState(() => Math.min(Math.max(initialStep ?? 1, 1), TOTAL_STEPS));
   const [draft, setDraft] = useState<OnboardingDraft>(() => {
     if (typeof window === "undefined") return emptyDraft();
     const loaded = loadDraft(mintAddress, existingBible);
+    const savedFace = draftFromBible(existingBible);
+    if (!loaded.identityImageUrl && (savedFace.identityImageUrl || initialIdentityImageUrl)) {
+      loaded.identityImageUrl = savedFace.identityImageUrl || initialIdentityImageUrl!;
+      loaded.identityImageKind = savedFace.identityImageKind || "ai-sheet";
+    }
     // Only apply the agent's live videoConfig when the wizard has no saved
     // pick of its own yet (a resumed draft's choice wins — don't clobber an
     // in-progress edit on every remount).
@@ -150,6 +157,7 @@ export default function OnboardingWizard({
     setBusy(true);
     setError(null);
     try {
+      await ensureSiwsSession();
       const bible = draftToBible(draft, existingBible);
       // Persist the engine choice with the bible — the explicit pick, else the
       // suggestion, so the agent renders with what Step 2 showed.

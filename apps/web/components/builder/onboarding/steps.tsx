@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { Loader2, Upload, Check } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -139,7 +139,7 @@ export function StepModel({ draft, onChange, mintAddress }: StepProps & { mintAd
   // The draft carries the REAL photos the user uploaded during avatar
   // generation (hosted likeness references) — first-class face options here.
   const nftDraft = useQuery(api.nftAgents.getDraftByMint, mintAddress ? { mintAddress } : "skip") as
-    | { referencePhotoUrls?: string[] }
+    | { referencePhotoUrls?: string[]; avatarUrls?: string[] }
     | null
     | undefined;
   const [uploading, setUploading] = useState(false);
@@ -150,29 +150,28 @@ export function StepModel({ draft, onChange, mintAddress }: StepProps & { mintAd
   const userPhotos = Array.from(new Set((nftDraft?.referencePhotoUrls ?? []).filter(isStill)));
   const stills = Array.from(new Set([
     ...((agent?.avatarStills ?? []).filter(isStill)),
+    ...((nftDraft?.avatarUrls ?? []).filter(isStill)),
     ...(agent?.avatarUrl && isStill(agent.avatarUrl) ? [agent.avatarUrl] : []),
   ])).filter((u) => !userPhotos.includes(u));
   // A one-off wizard upload isn't in either list — keep showing it as a tile.
-  const uploaded = draft.identityImageKind === "real-photo" && draft.identityImageUrl && !userPhotos.includes(draft.identityImageUrl)
-    ? [draft.identityImageUrl] : [];
+  const savedSelection = draft.identityImageUrl && isStill(draft.identityImageUrl) && !userPhotos.includes(draft.identityImageUrl) && !stills.includes(draft.identityImageUrl)
+    ? [{ url: draft.identityImageUrl, kind: draft.identityImageKind || "ai-sheet" as const }] : [];
   const tiles: { url: string; kind: "real-photo" | "ai-sheet" }[] = [
     ...userPhotos.map((url) => ({ url, kind: "real-photo" as const })),
-    ...uploaded.map((url) => ({ url, kind: "real-photo" as const })),
+    ...savedSelection,
     ...stills.map((url) => ({ url, kind: "ai-sheet" as const })),
   ];
 
-  // DEFAULT-SELECT the user's own uploaded photo: when the operator hasn't
-  // picked a face yet and their real photo exists, choose it for them (they
-  // can still tap another tile). Render-time, once per mount.
-  const [defaulted, setDefaulted] = useState(false);
-  if (!defaulted && !draft.identityImageUrl && userPhotos.length > 0) {
-    setDefaulted(true);
-    onChange({ ...draft, identityImageUrl: userPhotos[0], identityImageKind: "real-photo" });
-  }
+  // Generated influencer portrait is the default; saved explicit picks win.
+  const defaultUrl = agent?.avatarUrl && isStill(agent.avatarUrl) ? agent.avatarUrl : stills[0] ?? userPhotos[0];
+  useEffect(() => {
+    if (!draft.identityImageUrl && defaultUrl) {
+      onChange({ ...draft, identityImageUrl: defaultUrl, identityImageKind: userPhotos.includes(defaultUrl) ? "real-photo" : "ai-sheet" });
+    }
+  }, [defaultUrl, draft, onChange, userPhotos]);
 
   const pick = (url: string, kind: "real-photo" | "ai-sheet") => {
-    const off = draft.identityImageUrl === url;
-    onChange({ ...draft, identityImageUrl: off ? "" : url, identityImageKind: off ? "" : kind });
+    onChange({ ...draft, identityImageUrl: url, identityImageKind: kind });
   };
 
   const onFile = async (file: File) => {
