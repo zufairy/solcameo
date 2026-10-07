@@ -18,6 +18,8 @@ vi.mock("@/components/ui/select", () => ({
   SelectValue: ({ children }: { children: unknown }) => <span>{typeof children === "function" ? (children as (v: string) => React.ReactNode)("mint1") : null}</span>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/components/builder/FundAgentDialog", () => ({ FundAgentDialog: ({ open }: { open: boolean }) => (open ? <div>Fund dialog</div> : null) }));
 vi.mock("@/components/builder/generate/MentionTextarea", () => ({
@@ -79,4 +81,15 @@ it("makes a video without an influencer: the form shows, and it needs a referenc
   expect(host.textContent).toContain("Add a reference image");
   expect(host.textContent).not.toContain("Skip storyboard");
   expect(Array.from(host.querySelectorAll("button")).some((b) => /\$/.test(b.textContent ?? "") && !b.disabled)).toBe(false);
+});
+
+it("lists influencers you do not own as a wallet-paid choice, and uses their portrait with no upload", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ taskId: "t9" }), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  m.query.mockImplementation((_ref: unknown, args: unknown) => (args === "skip" ? undefined : [{ mintAddress: "other1", name: "Zed", ticker: "ZED", avatarUrl: "https://cdn.test/z.png" }]));
+  host = document.createElement("div"); document.body.append(host); root = createRoot(host);
+  await act(async () => root.render(<DescribeVideoDialog open onOpenChange={() => undefined} agents={agents} />));
+  expect(host.textContent).toContain("Anyone else");
+  expect(host.textContent).toContain("Zed");
 });

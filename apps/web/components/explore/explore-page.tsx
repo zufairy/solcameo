@@ -25,7 +25,9 @@ import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -40,6 +42,8 @@ import { CATEGORIES, inCategory, type ReferenceVideo } from "@/lib/explore/feed"
 import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
+import { payAndPost } from "@/lib/client/walletPaid";
+import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
 import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { DescribeVideoDialog } from "./DescribeVideoDialog";
@@ -216,7 +220,12 @@ function Generator({
   onBusy,
   onClose,
   uploadedFile,
+  own = true,
+  cameoPortrait,
 }: {
+  /** False for an influencer the viewer does not own: its public portrait is used and the viewer pays from their own wallet. */
+  own?: boolean;
+  cameoPortrait?: string;
   mint: string;
   primaryName: string;
   item: ReferenceVideo;
@@ -230,8 +239,13 @@ function Generator({
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [portrait, setPortrait] = useState<string>();
-  const [loading, setLoading] = useState(true);
+  const [ownPortrait, setPortrait] = useState<string>();
+  const [ownLoading, setLoading] = useState(true);
+  const portrait = own ? ownPortrait : cameoPortrait;
+  const loading = own ? ownLoading : false;
+  const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  const paidSig = useRef<string | undefined>(undefined);
+  const [cameoRun, setCameoRun] = useState<{ status?: "pending" | "error"; url?: string; error?: string; paid?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState(() => cameoReferencePrompt(item, primaryName));
   const [cast, setCast] = useState<CameoMember[]>([]);
@@ -249,15 +263,16 @@ function Generator({
   const engineState = engineTask ? engineStatus?.[engineTask] : undefined;
   const enginePaid = engineState?.paid === true;
   const engineRunning = engineStarting || (!!engineTask && (!engineState || engineState.status === "pending" || engineState.status === "running"));
-  const busy = uploading || (model.kind === "genjutsu" ? run?.status === "pending" : engineRunning);
-  const resultUrl = model.kind === "genjutsu" ? run?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
-  const failure = model.kind === "genjutsu" ? (run?.status === "error" ? run.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
+  const genRun = own ? run : cameoRun ?? undefined;
+  const busy = uploading || (model.kind === "genjutsu" ? genRun?.status === "pending" : engineRunning);
+  const resultUrl = model.kind === "genjutsu" ? genRun?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
+  const failure = model.kind === "genjutsu" ? (genRun?.status === "error" ? genRun.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
   // The popup is locked only while the payment goes through. Once the render is queued it runs in the background, so the
   // popup can be closed and the video is waiting in My agents.
   // "Paying" lasts until the payment is on record. A render that carries no payment record (for example credit-funded)
   // is treated as under way after 25 seconds, so the popup never waits on a signal that will not come.
   const [payGaveUp, setPayGaveUp] = useState(false);
-  const waitingOnPayment = model.kind === "genjutsu" ? run?.status === "pending" && !run?.paid : engineRunning && !enginePaid;
+  const waitingOnPayment = model.kind === "genjutsu" ? genRun?.status === "pending" && !genRun?.paid : engineRunning && !enginePaid;
   useEffect(() => {
     if (!waitingOnPayment) { setPayGaveUp(false); return; } // eslint-disable-line react-hooks/set-state-in-effect
     const timer = setTimeout(() => setPayGaveUp(true), 25_000);
@@ -287,6 +302,44 @@ function Generator({
       });
     } catch (e) { setUploadError(e instanceof Error ? e.message : "Could not upload your video"); }
     finally { setUploading(false); }
+  }
+  /** An influencer the viewer does not own: pay Solcameo from the viewer's wallet, then render with that influencer's portrait. */
+  async function startCameo() {
+    if (!portrait) return;
+    setEngineError("");
+    if (model.kind === "genjutsu") {
+      setCameoRun({ status: "pending" });
+      try {
+        const { requestId } = await payAndPost<{ requestId: string }>({
+          url: "/api/explore/cameo-motion", publicKey, signTransaction, pending: paidSig,
+          payload: { cameoMint: mint, referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token)], mode, resolution, prompt, extraImageUrls: cast.map((c) => c.avatarUrl) },
+        });
+        paidSig.current = undefined; // the render has started; this payment is spent
+        setCameoRun({ status: "pending", paid: true });
+        const t0 = Date.now();
+        for (let delay = 2000; Date.now() - t0 < 15 * 60_000; delay = Math.min(delay + 500, 4000)) {
+          await new Promise((r) => setTimeout(r, delay));
+          const res = await fetch(`/api/explore/cameo-motion?id=${encodeURIComponent(requestId)}`);
+          const r = (await res.json().catch(() => ({}))) as { status?: string; url?: string; error?: string };
+          if (r.status === "completed" && r.url) { setCameoRun({ url: r.url }); return; }
+          if (r.status && ["failed", "nsfw", "canceled"].includes(r.status)) { setCameoRun({ status: "error", error: r.status === "nsfw" ? "Blocked by content moderation" : r.error || "Generation failed. Click Generate to try again without paying again." }); return; }
+        }
+        setCameoRun({ status: "error", error: "Timed out. Click Generate to check again without paying again." });
+      } catch (e) { setCameoRun({ status: "error", error: e instanceof Error ? e.message : "Generation failed" }); }
+      return;
+    }
+    if (!model.engine) return;
+    setEngineStarting(true); setEngineTask(null);
+    try {
+      const data = await payAndPost<{ taskId?: string }>({
+        url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
+        payload: { cameoMint: mint, prompt: (prompt.trim() || `${item.title}. ${item.description}`).slice(0, 900), videoEngine: model.engine, quality: resolution, seconds: engineSeconds(model, item.duration), aspect: "9:16" },
+      });
+      if (!data.taskId) throw new Error("The video could not start.");
+      paidSig.current = undefined;
+      setEngineTask(data.taskId as Id<"agentTasks">);
+    } catch (e) { setEngineError(e instanceof Error ? e.message : "Could not start the render"); }
+    finally { setEngineStarting(false); }
   }
   async function startEngine() {
     if (!portrait || !model.engine) return;
@@ -327,6 +380,7 @@ function Generator({
     }
   }
   useEffect(() => {
+    if (!own) return; // someone else's influencer uses its public portrait, passed in
     const controller = new AbortController();
     fetch(`/api/character?mint=${encodeURIComponent(mint)}`, {
       signal: controller.signal,
@@ -343,7 +397,7 @@ function Generator({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [mint]);
+  }, [mint, own]);
   return (
     <div className="space-y-4">
       {loading ? (
@@ -358,7 +412,7 @@ function Generator({
             className="size-12 rounded-md object-cover"
           />
           <div>
-            <p className="text-sm text-white">Your saved character</p>
+            <p className="text-sm text-white">{own ? "Your saved character" : `${primaryName}, paid from your wallet`}</p>
             <p className="text-xs text-zinc-500">{model.kind === "genjutsu" ? "Identity + reference motion" : "Identity + scene prompt"}</p>
           </div>
         </div>
@@ -390,10 +444,10 @@ function Generator({
       <Button
         className={`h-11 w-full ${GREEN}`}
         disabled={
-          !portrait || loading || busy || estimate === null
+          !portrait || loading || busy || estimate === null || (!own && !!uploadedFile)
         }
         onClick={() =>
-          model.kind === "engine"
+          !own ? void startCameo() : model.kind === "engine"
             ? void startEngine()
             : void startMotion()
         }
@@ -412,8 +466,10 @@ function Generator({
         )}
       </Button>
       <p className="text-[11px] text-zinc-500">
-        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15% or $1, whichever is higher). ` : ""}
-        Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
+        {own
+          ? <>{estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15% or $1, whichever is higher). ` : ""}
+            Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}</>
+          : <>{estimate !== null ? `${formatGenerationUsd(estimate)} is paid in USDC from your own wallet to Solcameo, fee included. ` : ""}{primaryName} is not yours, so the video is made for you and shown here. Keep this window open until it finishes.</>}
       </p>
       {(failure || uploadError) && (
         <p role="alert" className="text-sm text-red-400">
@@ -537,6 +593,11 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
     wallets.length ? { creatorWallets: wallets } : "skip",
   );
   const agents = fixedMint ? ownedAgents?.filter(a => a.mintAddress === fixedMint) : ownedAgents;
+  // Anyone's influencer can be cameoed: yours bill the agent's wallet, anyone else's is paid for from the viewer's wallet.
+  const everyone = useQuery(api.influencers.listSearchable, selected && !fixedMint ? {} : "skip");
+  const ownedMints = new Set((ownedAgents ?? []).map(a => a.mintAddress));
+  const others = (everyone ?? []).filter(a => !ownedMints.has(a.mintAddress) && a.avatarUrl).slice(0, 300);
+  const cameoAgent = mint && !ownedMints.has(mint) ? (everyone ?? []).find(a => a.mintAddress === mint) : undefined;
   const reduced = useReducedMotion();
   // Favorites persist locally and synchronize across browser tabs.
   useEffect(() => {
@@ -1099,17 +1160,26 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                       >
                         <SelectValue placeholder="Choose an influencer">
                           {(value: string | null) => {
+                            const o = others.find((x) => x.mintAddress === value);
+                            if (o) return <AgentOption name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />;
                             const a = agents?.find((x) => x.mintAddress === value);
                             return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
                           }}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
-                        {agents?.map((a) => (
-                          <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
-                            <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
-                          </SelectItem>
-                        ))}
+                        {!!agents?.length && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
+                          {agents.map((a) => (
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
+                              <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
+                            </SelectItem>
+                          ))}</SelectGroup>}
+                        {!fixedMint && others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
+                          {others.map((a) => (
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
+                              <AgentOption name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
+                            </SelectItem>
+                          ))}</SelectGroup>}
                       </SelectContent>
                     </Select>
                   </label>
@@ -1117,7 +1187,9 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                     <Generator
                       key={`${mint}:${selected.id}`}
                       mint={mint}
-                      primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? "Character"}
+                      primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? cameoAgent?.name ?? "Character"}
+                      own={!cameoAgent}
+                      cameoPortrait={cameoAgent?.avatarUrl}
                       item={selected}
                       resolution={resolution}
                       mode={mode}

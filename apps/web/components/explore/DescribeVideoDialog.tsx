@@ -6,7 +6,7 @@ import { AlertCircle, Download, ImagePlus, Loader2, RotateCcw, UserRound, Wand2,
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AgentOption } from "./AgentOption";
 import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
@@ -17,7 +17,7 @@ import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPric
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
-import { sendUsdc } from "@/lib/client/usdcClient";
+import { payAndPost } from "@/lib/client/walletPaid";
 
 /** The "no influencer" choice: the video is paid for straight from the user's own wallet. */
 const NONE = "__none__";
@@ -43,9 +43,16 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   defaultMint?: string;
 }) {
   const [picked, setPicked] = useState(defaultMint ?? "");
-  const noInfluencer = picked === NONE || (agents !== undefined && !agents.length);
-  const mint = noInfluencer ? "" : picked || defaultMint || agents?.[0]?.mintAddress || "";
+  // Anyone's influencer can be used: yours bill the agent's own wallet, anyone else's is paid for from the viewer's wallet.
+  const everyone = useQuery(api.influencers.listSearchable, open ? {} : "skip");
+  const owned = new Set((agents ?? []).map((a) => a.mintAddress));
+  const cameo = picked && picked !== NONE && !owned.has(picked) ? (everyone ?? []).find((a) => a.mintAddress === picked) : undefined;
+  const noInfluencer = picked === NONE || (agents !== undefined && !agents.length && !cameo);
+  /** Paid from the viewer's own wallet: no influencer, or one they do not own. */
+  const walletPaid = noInfluencer || !!cameo;
+  const mint = noInfluencer || cameo ? "" : picked || defaultMint || agents?.[0]?.mintAddress || "";
   const agent = agents?.find((a) => a.mintAddress === mint);
+  const others = (everyone ?? []).filter((a) => !owned.has(a.mintAddress) && a.avatarUrl).slice(0, 300);
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   // Signature of a payment that was sent but not yet applied, so a retry reuses it instead of paying twice.
   const paidSig = useRef<string | undefined>(undefined);
@@ -73,14 +80,14 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [fundOpen, setFundOpen] = useState(false);
   const [fundWallet, setFundWallet] = useState<string | undefined>();
 
-  const engineId = engineOverride ?? pickableVideoEngine(noInfluencer ? undefined : agent?.videoEngine);
+  const engineId = engineOverride ?? pickableVideoEngine(walletPaid ? undefined : agent?.videoEngine);
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
   const aspect = aspectFor(engineId, aspectPick);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
   const lengths = videoLengthOptions(engineId);
   const seconds = secondsOverride && lengths.includes(secondsOverride) ? secondsOverride : (lengths[0] ?? 5);
   // Provider price plus the Solcameo fee, plus the storyboard image unless skipped. The server bills the same numbers.
-  const priceUsd = (skipStoryboard || noInfluencer ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(getVideoEngine(engineId), seconds, quality);
+  const priceUsd = (skipStoryboard || walletPaid ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(getVideoEngine(engineId), seconds, quality);
 
   const status = useQuery(api.agentTasks.generationStatus, task ? { ids: [task] } : "skip") as Status | undefined;
   const state = task ? status?.[task] : undefined;
@@ -109,37 +116,24 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
     finally { setUploading(false); }
   }
 
-  /** No influencer: price it, send the USDC from the user's own wallet, then render once the payment is verified. */
-  async function generateStandalone(text: string) {
-    if (!attached) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
-    if (!publicKey || !signTransaction) throw new Error("Connect your wallet to pay for this video.");
-    const payload = { prompt: text, referenceImageUrl: attached, videoEngine: engineId, quality, seconds, aspect, payer: publicKey.toBase58() };
-    const call = async (paymentSignature?: string) => {
-      const res = await fetch("/api/explore/describe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, ...(paymentSignature ? { paymentSignature } : {}) }) });
-      return { res, data: (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; code?: string; owedUsd?: number; treasury?: string } };
-    };
-    let { res, data } = await call(paidSig.current);
-    if (res.status === 402 && data.code === "payment_required" && data.treasury && data.owedUsd) {
-      const pay = await sendUsdc({ publicKey, signTransaction, toPubkey: data.treasury, amountUsdc: data.owedUsd, priorSignature: paidSig.current });
-      if (!pay.ok) {
-        // A transfer that was sent but not confirmed is kept, so the next click checks it instead of paying again.
-        paidSig.current = pay.unconfirmed ? pay.signature : undefined;
-        throw new Error(pay.unconfirmed ? `${pay.error} Click Generate again to check it.` : pay.error);
-      }
-      paidSig.current = pay.signature;
-      ({ res, data } = await call(pay.signature));
-    }
-    if (!res.ok || !data.taskId) throw new Error(data.error ?? `Request failed (${res.status})`);
+  /** No influencer, or someone else's: price it, send the USDC from the user's own wallet, then render once it is verified. */
+  async function generateWalletPaid(text: string) {
+    if (!cameo && !attached) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
+    const data = await payAndPost<{ taskId?: string }>({
+      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
+      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, ...(cameo ? { cameoMint: cameo.mintAddress } : { referenceImageUrl: attached }) },
+    });
+    if (!data.taskId) throw new Error("The video could not start.");
     paidSig.current = undefined; // the render has started; this payment is spent
     setTask(data.taskId as Id<"agentTasks">);
   }
 
   async function generate() {
     const text = prompt.trim();
-    if (!text || (!mint && !noInfluencer) || running) return;
+    if (!text || (!mint && !walletPaid) || running) return;
     setError(""); setTask(null); setStarting(true);
     try {
-      if (noInfluencer) { await generateStandalone(text); return; }
+      if (walletPaid) { await generateWalletPaid(text); return; }
       const res = await fetch("/api/agents/run-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -194,17 +188,22 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
             <div className="space-y-4">
               <label className="block text-xs font-medium text-zinc-400">
                 Influencer
-                <Select value={noInfluencer ? NONE : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
+                <Select value={noInfluencer ? NONE : cameo ? cameo.mintAddress : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
                   <SelectTrigger aria-label="Your influencer" className="mt-2 h-14 w-full border-white/10 bg-white/5 px-2.5 text-white">
                     <SelectValue placeholder="Choose an influencer">
-                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
+                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
                     <SelectItem value={NONE} className="min-h-14 py-1.5 pl-2"><NoInfluencerOption /></SelectItem>
-                    {agents.map((a) => (
-                      <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
-                    ))}
+                    {agents.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
+                      {agents.map((a) => (
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
+                      ))}</SelectGroup>}
+                    {others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
+                      {others.map((a) => (
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
+                      ))}</SelectGroup>}
                   </SelectContent>
                 </Select>
               </label>
@@ -223,7 +222,10 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" disabled={uploading || running}
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) void attachImage(f); e.target.value = ""; }} />
-                  {attached ? (
+                  {cameo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- the chosen influencer's portrait
+                    <img src={cameo.avatarUrl} alt={`${cameo.name} portrait`} title={`${cameo.name} is the face of this video`} className="size-8 shrink-0 rounded-lg border border-white/15 object-cover" />
+                  ) : attached ? (
                     <span className="relative inline-flex size-8 shrink-0 overflow-hidden rounded-lg border border-white/15">
                       {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the uploaded reference */}
                       <img src={attached} alt="Reference" className="size-full object-cover" />
@@ -245,11 +247,11 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                     options={lengths.map((d) => ({ value: String(d), label: `${d}s` }))} />
                   <ChipSelect value={aspect} onChange={(v) => setAspectPick(v as VideoAspect)} title="Video size: portrait, landscape or square"
                     options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
-                  {!noInfluencer && <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />}
-                  {!noInfluencer && <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />}
-                  {!noInfluencer && xConnected && <ChipCheck checked={postToX} onChange={setPostToX} label="Post to X" title="When the video is ready, post it to your connected X account with a caption written to get replies and shares" />}
-                  <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !noInfluencer) || (noInfluencer && !attached) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
-                    title={running ? "Rendering…" : noInfluencer ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
+                  {!walletPaid && <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />}
+                  {!walletPaid && <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />}
+                  {!walletPaid && xConnected && <ChipCheck checked={postToX} onChange={setPostToX} label="Post to X" title="When the video is ready, post it to your connected X account with a caption written to get replies and shares" />}
+                  <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !walletPaid) || (noInfluencer && !attached) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
+                    title={running ? "Rendering…" : walletPaid ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
                 </div>
                 {noInfluencer && !attached && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
                 {failure && (
@@ -264,14 +266,14 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                 <div className="space-y-3">
                   <BlurRevealVideo src={videoUrl} className="mx-auto max-w-sm" />
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    {noInfluencer
+                    {walletPaid
                       ? <a href={videoUrl} download target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]"><Download className="size-3.5" /> Download</a>
                       : <Link href={`/builder?type=influencer&mint=${encodeURIComponent(mint)}`} className="inline-flex h-9 items-center rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]">Open in builder</Link>}
                     <button type="button" onClick={() => { reset(); setPrompt(""); }} className={`${CHIP} h-9 px-3.5`}><RotateCcw className="size-3.5" /> Describe another</button>
                   </div>
                 </div>
               )}
-              {!running && !videoUrl && !failure && <p className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Wand2 className="size-3" /> {noInfluencer ? "Your wallet asks you to approve the USDC payment, then the render starts." : `The price is charged from ${agent?.name ?? "the agent"}'s wallet when the render starts.`}</p>}
+              {!running && !videoUrl && !failure && <p className="flex items-center gap-1.5 text-[11px] text-zinc-500"><Wand2 className="size-3" /> {walletPaid ? `Your wallet asks you to approve the USDC payment${cameo ? ` for ${cameo.name}'s cameo` : ""}, then the render starts.` : `The price is charged from ${agent?.name ?? "the agent"}'s wallet when the render starts.`}</p>}
             </div>
           )}
         </DialogContent>
