@@ -11,6 +11,10 @@ export function formatTradeSol(value?: number, usdRate?: number | null) {
   if (usdRate && usdRate > 0) return `${sign}$${Math.abs(value * usdRate).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return `${sign}${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 5 })} SOL`;
 }
-export function tradeCallText(trade: CalloutTrade) {
-  return `${trade.side === "buy" ? "Bought" : "Sold"} $${trade.ticker.toUpperCase()} for ${trade.amountSol.toLocaleString("en-US", { maximumFractionDigits: 5 })} SOL. Position P&L: ${formatTradeSol(trade.pnlSol)}.`;
+/** The call text for a confirmed trade; amounts are in dollars when a live SOL price is given. */
+export function tradeCallText(trade: CalloutTrade, usdRate?: number | null) {
+  const amount = usdRate && usdRate > 0
+    ? `$${(trade.amountSol * usdRate).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `${trade.amountSol.toLocaleString("en-US", { maximumFractionDigits: 5 })} SOL`;
+  return `${trade.side === "buy" ? "Bought" : "Sold"} $${trade.ticker.toUpperCase()} for ${amount}. Position P&L: ${formatTradeSol(trade.pnlSol, usdRate)}.`;
 }

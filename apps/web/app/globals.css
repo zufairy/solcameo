@@ -1617,3 +1617,17 @@ html.light body *, html.dark body * {
 }
 
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+/* ── Callout cards: a living colour mesh behind the glass layout ───────────────────────────────────────────────── */
+.callout-mesh { overflow: hidden; }
+.callout-blob { position: absolute; border-radius: 9999px; filter: blur(38px); will-change: transform; }
+.callout-blob-a { width: 72%; aspect-ratio: 1; left: -12%; top: -45%; background: color-mix(in srgb, var(--callout-accent) 78%, transparent); animation: callout-drift-a 16s ease-in-out infinite alternate; }
+.callout-blob-b { width: 64%; aspect-ratio: 1; right: -14%; bottom: -55%; background: color-mix(in srgb, var(--callout-accent) 30%, #22d3ee 70%); opacity: 0.6; animation: callout-drift-b 21s ease-in-out infinite alternate; }
+.callout-blob-c { width: 42%; aspect-ratio: 1; left: 38%; top: 8%; background: rgba(255, 255, 255, 0.22); animation: callout-drift-c 25s ease-in-out infinite alternate; }
+.callout-grain { position: absolute; inset: 0; opacity: 0.1; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+@keyframes callout-drift-a { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(28%, 22%, 0) scale(1.18); } 100% { transform: translate3d(8%, 46%, 0) scale(0.94); } }
+@keyframes callout-drift-b { 0% { transform: translate3d(0, 0, 0) scale(1.05); } 50% { transform: translate3d(-34%, -18%, 0) scale(0.9); } 100% { transform: translate3d(-10%, -40%, 0) scale(1.2); } }
+@keyframes callout-drift-c { 0% { transform: translate3d(0, 0, 0) scale(0.9); } 100% { transform: translate3d(-48%, 34%, 0) scale(1.25); } }
+.callout-card { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (hover: hover) { .callout-card:hover { transform: translateY(-2px); box-shadow: 0 22px 50px -28px rgba(0, 0, 0, 0.85); } }
+@media (prefers-reduced-motion: reduce) { .callout-blob { animation: none; } .callout-card { transition: none; } .callout-card:hover { transform: none; } }

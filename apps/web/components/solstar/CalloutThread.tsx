@@ -23,21 +23,18 @@ import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 export type CalloutRowData = FunctionReturnType<typeof api.solstarFeed.listCallouts>[number];
 
 const GLASS = "border border-white/[0.12] bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.02)_45%,rgba(255,255,255,0.05))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl";
-const FEED_CARD_SCALE = 0.55;
 
 /** Media sits directly on the card so GIF/image and P&L read as one object. */
-export function CalloutBundle({ card, media, onOpen }: { card: CalloutCardData; media?: CalloutAttachment[]; onOpen?: () => void }) {
+export function CalloutBundle({ card, media, onOpen, size = "feed" }: { card: CalloutCardData; media?: CalloutAttachment[]; onOpen?: () => void; size?: "feed" | "large" }) {
   const first = media?.[0];
   const [failed, setFailed] = useState(false);
   const showMedia = !!first && !failed;
-  return <div className="w-fit max-w-full overflow-hidden rounded-[3px] border border-white/15 bg-black/30 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.9)]">
-    {showMedia && <div className="relative max-h-[220px] overflow-hidden bg-white/[0.03]" style={{ width: 500 * FEED_CARD_SCALE * 1.45, maxWidth: "100%" }}>
-      <img src={first.url} alt={first.alt} loading="lazy" onError={() => setFailed(true)} onClick={onOpen} className="max-h-[220px] w-full object-cover" />
+  return <div className="w-full max-w-[600px] overflow-hidden rounded-[4px] border border-white/15 bg-black/30 shadow-[0_14px_36px_-20px_rgba(0,0,0,0.9)]">
+    {showMedia && <div className="relative max-h-[280px] overflow-hidden bg-white/[0.03]">
+      <img src={first.url} alt={first.alt} loading="lazy" onError={() => setFailed(true)} onClick={onOpen} className="max-h-[280px] w-full object-cover" />
       {first.type === "gif" && <span className="pointer-events-none absolute left-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-md">GIF</span>}
     </div>}
-    <div className="relative overflow-hidden" style={{ width: 500 * FEED_CARD_SCALE, height: 100 * FEED_CARD_SCALE, maxWidth: "100%" }}>
-      <div className="origin-top-left" style={{ width: 500, transform: `scale(${FEED_CARD_SCALE})` }}><CalloutFeedCard data={card} bare /></div>
-    </div>
+    <CalloutFeedCard data={card} bare size={size} />
   </div>;
 }
 
@@ -123,7 +120,7 @@ function ThreadBody({ c, card, onClose }: { c: CalloutRowData; card: CalloutCard
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
         <ThreadItem image={c.authorImage} name={c.authorName} time={formatRelativeTime(now, c.createdAt)} line={false}>
           <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-zinc-100">{c.body}</p>
-          <div className="mt-3"><CalloutBundle card={card} media={c.attachments} /></div>
+          <div className="mt-3"><CalloutBundle card={card} media={c.attachments} size="large" /></div>
           <p className="mt-3 text-xs font-medium text-zinc-500">{count} {count === 1 ? "reply" : "replies"}</p>
         </ThreadItem>
         {replies === undefined ? <p className="py-6 text-center text-xs text-zinc-500">Loading replies…</p> : roots.map(r =>

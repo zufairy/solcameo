@@ -58,13 +58,13 @@ export function drawHud(ctx: CanvasRenderingContext2D, d: CalloutCardData, p: nu
 
   // caption under the counter
   ctx.fillStyle = FAINT; ctx.font = `500 17px ${SANS}`;
-  letters(ctx, metric === "views" ? `${(d.videos ?? 0).toLocaleString("en-US")} ${d.videos === 1 ? "video" : "videos"}  /  live tracked views` : metric === "trade" ? d.trader && d.unselectedPreview ? "SELECT A COIN · CONFIRMED TRADES" : d.onchainTrade ? `POSITION P&L · SOL · ON-CHAIN · ${d.onchainTrade.network.toUpperCase()}` : "NET TRADE PROFIT / LOSS · USD · USER REPORTED" : "LIFETIME AGENT EARNINGS · USD", 800, 590, 1.2, "center");
+  letters(ctx, metric === "views" ? `${(d.videos ?? 0).toLocaleString("en-US")} ${d.videos === 1 ? "video" : "videos"}  /  live tracked views` : metric === "trade" ? d.trader && d.unselectedPreview ? "SELECT A COIN · CONFIRMED TRADES" : d.onchainTrade ? `POSITION P&L · ${d.tradePnlUsd == null ? "SOL" : "USD"} · ON-CHAIN · ${d.onchainTrade.network.toUpperCase()}` : "NET TRADE PROFIT / LOSS · USD · USER REPORTED" : "LIFETIME AGENT EARNINGS · USD", 800, 590, 1.2, "center");
 
   // stat panels
   const has = typeof d.changePct === "number" && Number.isFinite(d.changePct);
   const ch = has ? (d.changePct as number) : 0;
   const panels: Array<[string, string, string]> = [
-    metric === "views" ? ["VIDEOS CREATED", Math.round((d.videos ?? 0) * p).toLocaleString("en-US"), LIME_CSS] : metric === "trade" ? [(d.onchainTrade || (d.trader && d.unselectedPreview)) ? "POSITION P&L · SOL" : "NET P&L · USD", d.onchainTrade ? formatTradeSol(d.onchainTrade.pnlSol) : formatCalloutMoney(d.tradePnlUsd), (d.onchainTrade?.pnlSol ?? d.tradePnlUsd ?? 0) < 0 ? "#ff8a9b" : LIME_CSS] : ["EARNED · LAST 30 DAYS", formatCalloutMoney(d.monthlyEarningsUsd), LIME_CSS],
+    metric === "views" ? ["VIDEOS CREATED", Math.round((d.videos ?? 0) * p).toLocaleString("en-US"), LIME_CSS] : metric === "trade" ? [(d.onchainTrade || (d.trader && d.unselectedPreview)) && d.tradePnlUsd == null ? "POSITION P&L · SOL" : d.onchainTrade ? "POSITION P&L · USD" : "NET P&L · USD", d.tradePnlUsd == null && d.onchainTrade ? formatTradeSol(d.onchainTrade.pnlSol) : formatCalloutMoney(d.tradePnlUsd), (d.tradePnlUsd ?? d.onchainTrade?.pnlSol ?? 0) < 0 ? "#ff8a9b" : LIME_CSS] : ["EARNED · LAST 30 DAYS", formatCalloutMoney(d.monthlyEarningsUsd), LIME_CSS],
     d.trader ? [d.onchainTrade ? "LATEST TRADE" : "TRADER", d.onchainTrade ? `${d.onchainTrade.side.toUpperCase()} $${d.onchainTrade.ticker}` : d.caller || d.name, INK] : ["MARKET CAP", d.cap, INK],
     d.trader ? ["SOURCE", d.onchainTrade ? `ON-CHAIN · ${d.onchainTrade.network.toUpperCase()}` : d.unselectedPreview ? "SELECT A COIN" : "USER REPORTED", INK] : [has ? (d.label === "SINCE CALL" ? "SINCE CALL" : "SINCE LAUNCH") : "TOKEN CHANGE", has ? `${ch >= 0 ? "+" : "−"}${Math.abs(ch * p).toFixed(1)}%` : "—", has ? (ch >= 0 ? LIME_CSS : "#ff8a9b") : INK],
   ];
@@ -283,9 +283,9 @@ export function buildCalloutScene(initial: CalloutCardData, opts: { hudScale?: n
 
   const setCounter = (t: number, p: number) => {
     const metric = data.metric ?? "earnings";
-    const amount = metric === "views" ? data.views : metric === "trade" ? data.onchainTrade?.pnlSol ?? data.tradePnlUsd : data.earningsUsd;
+    const amount = metric === "views" ? data.views : metric === "trade" ? data.tradePnlUsd ?? data.onchainTrade?.pnlSol : data.earningsUsd;
     const animated = amount == null ? undefined : amount * ease(p / 0.6);
-    const shown = animated == null ? "—" : metric === "views" ? compact(Math.round(animated)) : data.onchainTrade ? `${animated < 0 ? "-" : "+"}${Math.abs(animated).toFixed(5)}` : `${animated < 0 ? "-" : ""}$${Math.abs(animated) >= 1000 ? compact(Math.abs(animated)) : Math.abs(animated).toFixed(2)}`;
+    const shown = animated == null ? "—" : metric === "views" ? compact(Math.round(animated)) : data.onchainTrade && data.tradePnlUsd == null ? `${animated < 0 ? "-" : "+"}${Math.abs(animated).toFixed(5)}` : `${animated < 0 ? "-" : ""}$${Math.abs(animated) >= 1000 ? compact(Math.abs(animated)) : Math.abs(animated).toFixed(2)}`;
     const chars = [...shown].filter((c) => GLYPHS[c]);
     const cols = Math.max(1, chars.length * 6 - 1), cell = Math.min(compactLayout ? 0.14 : 0.27, (compactLayout ? 4.5 : 6.4) / cols);
     counterHalfW = (cols * cell) / 2;
@@ -306,7 +306,7 @@ export function buildCalloutScene(initial: CalloutCardData, opts: { hudScale?: n
   const update: CalloutScene["update"] = (t, p, pointer) => {
     motif.update(t);
     redrawHud(p);
-    const negative = data.metric === "trade" && (data.onchainTrade?.pnlSol ?? data.tradePnlUsd ?? 0) < 0;
+    const negative = data.metric === "trade" && (data.tradePnlUsd ?? data.onchainTrade?.pnlSol ?? 0) < 0;
     const counterColor = negative ? "#fb7185" : calloutTheme(data.theme).accent;
     cubeMat.color.set(counterColor); cubeMat.emissive.set(counterColor); glowMat.color.set(counterColor);
     artwork.position.x = Math.sin(t * 0.12) * 0.16 + pointer.x * 0.1;

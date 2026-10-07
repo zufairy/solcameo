@@ -16,7 +16,6 @@ import { LeaderboardPanel } from "./LeaderboardPanel";
 import { CalloutFeedCard } from "./CalloutFeedCard";
 import { CalloutRow, CalloutThreadDialog, useReplyCounts } from "./CalloutThread";
 import { CALLOUT_THEMES, type CalloutMetric, type CalloutTheme } from "@/lib/solstar/callout";
-import { CalloutVisual } from "./CalloutVisual";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -103,7 +102,7 @@ export function HomeCallouts() {
   const selectedTrade = trader ? tradeData.coins.find(t => t.mint === tradeMint) : undefined;
   const validTrade = !!selectedTrade && !tradeData.loading;
   const bodyTrade = posted ? postedTrade : selectedTrade;
-  const callBody = body.trim() || (trader && bodyTrade ? tradeCallText(bodyTrade) : "");
+  const callBody = body.trim() || (trader && bodyTrade ? tradeCallText(bodyTrade, rate) : "");
   const selected = rows?.find(r => r.characterId === characterId);
   const cap = (id: string) => pools[id]?.available && pools[id]?.capSol != null && rate != null ? pools[id].capSol! * rate : undefined;
   async function send() {
@@ -126,7 +125,7 @@ export function HomeCallouts() {
     const agent = agents?.find(a => a.ticker?.toUpperCase() === who.ticker.toUpperCase());
     const earned = agent && earnings ? earnings[agent.mintAddress] : undefined;
     return {
-      metric: options?.metric ?? "earnings", theme: options?.theme ?? "colosseum", tradePnlUsd: options?.tradePnlUsd, onchainTrade: options?.onchainTrade,
+      metric: options?.metric ?? "earnings", theme: options?.theme ?? "colosseum", tradePnlUsd: options?.tradePnlUsd ?? (options?.onchainTrade && rate != null ? options.onchainTrade.pnlSol * rate : undefined), onchainTrade: options?.onchainTrade,
       earningsUsd: agent ? Math.max(agent.lifetimeEarningsUsdc ?? 0, earned?.lifetime ?? 0) : undefined,
       monthlyEarningsUsd: agent ? earned?.monthly ?? agent.monthlyEarnings : undefined,
       name: who.name, ticker: who.ticker, imageUrl: who.imageUrl, body: text, cap: usd(cap(id), true),
@@ -189,7 +188,7 @@ export function HomeCallouts() {
     <CalloutThreadDialog c={threadCall} card={threadCall ? cardFor(threadCall) : null} onClose={() => setThreadId(null)} />
     <Dialog open={open} onOpenChange={value => { if (sending || uploading) return; if (!value) closeDialog(); else setOpen(true); }}><DialogContent className="max-h-[94dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-5 text-white backdrop-blur-2xl sm:max-w-4xl">
       <div className="grid gap-5 md:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[520px] space-y-4 md:max-w-none"><CalloutVisual replay data={cardData} className="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]" /><div><p className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">Feed preview</p><CalloutFeedCard data={cardData} /></div></div>
+        <div className="mx-auto w-full max-w-[520px] space-y-4 md:max-w-none"><CalloutFeedCard size="large" data={cardData} /><div><p className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">Feed preview</p><CalloutFeedCard data={cardData} /></div></div>
         <div className="flex min-w-0 flex-col gap-4 [&>*]:shrink-0 md:max-h-[calc(94dvh-40px)] md:overflow-y-auto md:overscroll-contain md:py-1 md:pr-1">
           <div><DialogTitle className="text-xl tracking-tight">{posted ? "Callout posted" : "New callout"}</DialogTitle><DialogDescription className="mt-1 text-zinc-500">{posted ? "Share your call and the card with your followers." : "Share your own trade P&L, or call out an agent. Choose a theme and make your call."}</DialogDescription></div>
           {!posted ? <>
@@ -214,7 +213,7 @@ export function HomeCallouts() {
             <fieldset><legend className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Card theme</legend><div className="grid grid-cols-4 gap-1.5">{Object.entries(CALLOUT_THEMES).map(([key, option]) => <button key={key} type="button" disabled={sending} aria-pressed={theme === key} onClick={() => setTheme(key as CalloutTheme)} className={`flex items-center justify-center gap-1.5 rounded-md border px-1 py-2 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${theme === key ? "border-white/50 bg-white/10 text-white" : "border-white/10 text-zinc-400"}`}><span className="size-1.5 shrink-0 rounded-full" style={{ background: option.accent }} />{option.name}</button>)}</div></fieldset>
             <div><label htmlFor="callout-prompt" className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Your call</label>
               <CalloutAttachments value={attachments} onChange={setAttachments} onBusy={setUploading} disabled={sending}>
-                <Textarea id="callout-prompt" value={body} onChange={e => setBody(e.target.value)} maxLength={280} rows={3} placeholder={selectedTrade ? tradeCallText(selectedTrade) : "What’s your call?"} className="resize-none rounded-none border-0 bg-transparent px-3 pt-3 text-sm shadow-none focus-visible:ring-0" />
+                <Textarea id="callout-prompt" value={body} onChange={e => setBody(e.target.value)} maxLength={280} rows={3} placeholder={selectedTrade ? tradeCallText(selectedTrade, rate) : "What’s your call?"} className="resize-none rounded-none border-0 bg-transparent px-3 pt-3 text-sm shadow-none focus-visible:ring-0" />
                 <p className="px-3 pb-2 text-right text-[10px] tabular-nums text-zinc-600">{280 - body.length}</p>
               </CalloutAttachments>
             </div>

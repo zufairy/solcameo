@@ -8,12 +8,12 @@ import { GLYPHS } from "./calloutPixels";
 
 const THEMES = ["colosseum", "solana", "lambo", "bullrun", "neon", "ferrari", "vault", "aurora"];
 const ease = (p: number) => 1 - (1 - Math.max(0, Math.min(1, p))) ** 3;
-const amountOf = (d: CalloutCardData) => d.metric === "views" ? d.views : d.metric === "trade" ? d.onchainTrade?.pnlSol ?? d.tradePnlUsd : d.earningsUsd;
+const amountOf = (d: CalloutCardData) => d.metric === "views" ? d.views : d.metric === "trade" ? d.tradePnlUsd ?? d.onchainTrade?.pnlSol : d.earningsUsd;
 function numberText(d: CalloutCardData, value: number | undefined) {
   if (value == null || !Number.isFinite(value)) return "—";
   if (d.metric === "views") return compact(Math.round(value));
   const abs = Math.abs(value);
-  if (d.onchainTrade) return `${value < 0 ? "-" : "+"}${abs >= 1000 ? compact(abs) : abs.toFixed(5)}`;
+  if (d.onchainTrade && d.tradePnlUsd == null) return `${value < 0 ? "-" : "+"}${abs >= 1000 ? compact(abs) : abs.toFixed(5)}`;
   return `${value < 0 ? "-" : ""}$${abs >= 1000 ? compact(abs) : abs.toFixed(2)}`;
 }
 /** Dedicated horizontal composition: physical pixels for the counter, full-screen theme shader.
