@@ -12,7 +12,7 @@ import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
-import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { pickableVideoEngine, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
@@ -52,7 +52,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [fundOpen, setFundOpen] = useState(false);
   const [fundWallet, setFundWallet] = useState<string | undefined>();
 
-  const engineId = engineOverride ?? (agent?.videoEngine as VideoEngineId | undefined) ?? DEFAULT_VIDEO_ENGINE;
+  const engineId = engineOverride ?? pickableVideoEngine(agent?.videoEngine);
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
   const aspect = aspectFor(engineId, aspectPick);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");

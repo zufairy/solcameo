@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { normalizeShowBible, resolveIdentityRefs } from "@/lib/builder/showBible";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, ImagePlus } from "lucide-react";
-import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoLengthOptions, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { pickableVideoEngine, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoLengthOptions, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
@@ -125,7 +125,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   // "No Persona": the prompt is sent as-is — no persona voice, character bible,
   // skills, memories or standing orders blended into the script or clip prompts.
   const [noPersona, setNoPersona] = useState(false);
-  const engineId = engineOverride ?? (influencerDoc?.videoEngine as VideoEngineId | undefined) ?? DEFAULT_VIDEO_ENGINE;
+  const engineId = engineOverride ?? pickableVideoEngine(influencerDoc?.videoEngine);
   // Quality and length for THIS video. Each engine sells its own set (Kie's price table), and the price is exact for
   // the pair picked, so the quote on the button is what the render is billed.
   const pricingSpec = KIE_VIDEO_PRICING[engineId];

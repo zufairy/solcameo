@@ -982,6 +982,17 @@ export function selectableVideoEngines(): VideoEngineOption[] {
 }
 
 /**
+ * The engine a picker should show: the preferred one when users may pick it, otherwise Seedance 2.0 (or the first on the list).
+ * Without this a picker whose saved engine is hidden (the default, Veo) displays a different model from the one actually priced
+ * and rendered.
+ */
+export function pickableVideoEngine(preferred?: string): VideoEngineId {
+  const list = selectableVideoEngines();
+  if (preferred && list.some((e) => e.id === preferred)) return preferred as VideoEngineId;
+  return (list.find((e) => e.id === "seedance-v2") ?? list[0]).id;
+}
+
+/**
  * Cost of one finished video at the requested length on the chosen engine.
  * Accounts for Kie billing per-clip — a 30s video on an 8s-max engine = 4 clips.
  */

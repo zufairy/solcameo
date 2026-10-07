@@ -22,3 +22,17 @@ describe("video pricing carries a 15% markup everywhere", () => {
     expect(videoLengthOptions("grok-imagine-15")).toEqual([6, 10, 15, 20, 30]);
   });
 });
+
+describe("engine pickers show the engine that is priced and rendered", async () => {
+  const { pickableVideoEngine, selectableVideoEngines } = await import("./agentTypes");
+  it("never returns an engine the dropdown does not list", () => {
+    const ids = selectableVideoEngines().map((e) => e.id);
+    for (const preferred of [undefined, "veo3-fast", "kling-v3", "nonsense", "grok-imagine-15", "hf-seedance-2"]) {
+      expect(ids).toContain(pickableVideoEngine(preferred));
+    }
+  });
+  it("keeps a saved engine that users can pick, and replaces a hidden one", () => {
+    expect(pickableVideoEngine("grok-imagine-15")).toBe("grok-imagine-15");
+    expect(pickableVideoEngine("veo3-fast")).toBe("seedance-v2");
+  });
+});

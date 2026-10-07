@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Trophy,
   Compass,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ const item = (
 });
 const ITEMS: MenuItem[] = [
   item("Home", "/", Home, "Launchpad"),
+  item("Create Videos", "/create-videos", Clapperboard, "Launchpad"),
   item("My Influencers", "/control", FolderOpen, "Launchpad"),
   item("Video Feed", "/make", Video, "Launchpad"),
   item("Market", "/market", TrendingUp, "Launchpad"),

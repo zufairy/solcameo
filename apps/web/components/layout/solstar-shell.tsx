@@ -199,7 +199,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
         <SidebarProvider
           defaultOpen={false}
           style={{ "--sidebar-width-icon": "3.5rem", "--sidebar-width": "13.5rem" } as React.CSSProperties}
-          className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${["/market", "/explore", "/analytics"].some(route => pathname.startsWith(route)) ? "vello-market-theme" : ""}`}
+          className={`solcameo-app overflow-x-clip bg-[#08080a] text-white ${["/market", "/explore", "/analytics", "/create-videos"].some(route => pathname.startsWith(route)) ? "vello-market-theme" : ""}`}
         >
           {<Sidebar
             id="vello-sidebar"
@@ -226,7 +226,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
           <SidebarInset className="h-dvh min-w-0 overflow-hidden bg-[#08080a]">
             {!isMarketTerminal && <ShellAnnouncement autoClose={isControl} />}
             <TopBar terminal={isMarketTerminal} />
-            {!pathname.startsWith("/explore") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && !isControl && <ErrorBoundary fallback={null}><TickerStrip /></ErrorBoundary>}
+            {!pathname.startsWith("/explore") && !pathname.startsWith("/create-videos") && !pathname.startsWith("/analytics") && !pathname.startsWith("/agents") && !isControl && <ErrorBoundary fallback={null}><TickerStrip /></ErrorBoundary>}
             <div className={`min-h-0 min-w-0 flex-1 ${isMarketTerminal ? "solcameo-market-content flex flex-col overflow-hidden" : isControl ? "solcameo-control-content relative isolate flex flex-col overflow-hidden bg-background" : pathname === "/" ? "overflow-y-auto overscroll-contain [container-type:size]" : "overflow-y-auto overscroll-contain"}`}>
               <ErrorBoundary>{children}</ErrorBoundary>
             </div>
