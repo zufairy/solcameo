@@ -535,7 +535,7 @@ export function DbcTradeTicket({
             />
           </label>
         )}
-        <div className="relative mt-2 rounded-[10px] border border-white/[0.07] bg-white/[0.035] px-3.5 pb-2.5 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus-within:border-white/25 focus-within:bg-white/[0.05]">
+        <div className="relative mt-2 px-0.5 pb-2.5 pt-2">
           <div className="flex items-center justify-between text-[11px] text-zinc-500">
             <span>{side === "buy" ? "You pay" : "You sell"}</span>
             {balance ? (

@@ -294,7 +294,7 @@ describe("characterForRoute (ticker URLs)", () => {
     expect((await t.query(api.solstarMarket.characterForRoute, { id: paper.characterId }))?.slug).toBeNull();
   });
 
-  it("lets an agent handle win over a ticker", async () => {
+  it("lets a coin win over an agent handle with the same name", async () => {
     const t = await seeded();
     const token = await t.run(async (ctx) => (await ctx.db.query("ssTokens").first())!);
     const slug = token.ticker.toLowerCase();
@@ -304,8 +304,8 @@ describe("characterForRoute (ticker URLs)", () => {
         archetype: "a", description: "d", personality: { warmth: 1, humor: 1, authority: 1, boldness: 1 }, tvl: 0, monthlyEarnings: 0, sharePrice: 1, totalShares: 1, availableShares: 1,
       });
     });
-    expect(await t.query(api.solstarMarket.characterForRoute, { id: slug })).toBeNull();
-    expect((await t.query(api.solstarMarket.characterForRoute, { id: token.characterId }))?.slug).toBeNull();
+    expect((await t.query(api.solstarMarket.characterForRoute, { id: slug }))?.characterId).toBe(token.characterId);
+    expect((await t.query(api.solstarMarket.characterForRoute, { id: token.characterId }))?.slug).toBe(slug);
   });
 
   it("returns null for unknown segments", async () => {

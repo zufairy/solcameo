@@ -8,6 +8,7 @@ vi.mock("convex/react", () => ({ useQuery: (_fn: unknown, args: unknown) => { m.
 vi.mock("@/convex/_generated/api", () => ({ api: { solstarChain: { positionOf: "positionOf" } } }));
 vi.mock("@/hooks/use-solana-wallet", () => ({ useUnifiedSolanaWallet: () => ({ publicKey: m.wallet ? { toBase58: () => m.wallet } : null }) }));
 vi.mock("@/lib/solana/network", () => ({ getNetwork: () => "mainnet-beta", getTxExplorerUrl: (s: string) => `https://solscan.io/tx/${s}` }));
+vi.mock("@/lib/client/useSolUsd", () => ({ useSolUsd: () => 100 }));
 import { PositionCard } from "./PositionCard";
 
 let root: Root, host: HTMLDivElement;
@@ -36,7 +37,7 @@ it("shows the real P&L, percent and holdings with proper signs", async () => {
   m.data = data(0.0000038); // 5,000 tokens: value 0.019 vs cost 0.02 -> -0.001 SOL, -5%
   await render();
   const text = host.textContent ?? "";
-  expect(text).toContain("−0.001");
+  expect(text).toContain("−$0.1");
   expect(text).toContain("−5%");
   expect(text).toContain("5K");
   expect(text).toContain("Close");
@@ -48,7 +49,7 @@ it("updates the moment Convex pushes a new price, without any fetch", async () =
   m.data = data(0.000006);
   await render();
   await act(async () => { await new Promise((r) => setTimeout(r, 900)); }); // the number glides to its new value
-  expect(host.textContent).toContain("+0.01");
+  expect(host.textContent).toContain("+$1");
   expect(fetch).not.toHaveBeenCalled();
 });
 it("explains an empty position and a market that has not synced yet", async () => {

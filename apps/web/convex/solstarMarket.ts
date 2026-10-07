@@ -215,7 +215,7 @@ async function tokenForTicker(ctx: QueryCtx, ticker: string) {
 
 /**
  * Resolves a URL segment to a coin: a character id, or a ticker slug ("buttons" for $BUTTONS). `slug` is the canonical
- * ticker URL, or null when it cannot be used: the ticker belongs to another coin, or an agent already owns that handle.
+ * ticker URL, or null when it cannot be used: the ticker belongs to another coin.
  */
 export const characterForRoute = query({
   args: { id: v.string() },
@@ -223,11 +223,7 @@ export const characterForRoute = query({
     const byId = ctx.db.normalizeId("ssCharacters", id);
     const ticker = byId ? null : tickerFromSegment(id);
     if (!byId && !ticker) return null;
-    if (ticker) {
-      // An agent handle that matches wins, so existing agent URLs never change owner.
-      const agent = await ctx.db.query("influencers").withIndex("by_handle_lower", (q) => q.eq("handleLower", ticker.toLowerCase())).first();
-      if (agent) return null;
-    }
+    // A coin wins over an agent with the same handle: the ticker URL always opens the market page with the chart.
     let token = ticker ? await tokenForTicker(ctx, ticker) : null;
     const characterId = byId ?? token?.characterId;
     if (!characterId) return null;
@@ -237,14 +233,13 @@ export const characterForRoute = query({
     if (!token) return null;
     const slug = marketSlug(token.ticker);
     const owner = slug.length >= 2 ? await tokenForTicker(ctx, slug.toUpperCase()) : null;
-    const handleTaken = slug.length >= 2 ? await ctx.db.query("influencers").withIndex("by_handle_lower", (q) => q.eq("handleLower", slug)).first() : null;
     return {
       characterId,
       name: character.name,
       bio: character.bio,
       imageUrl: character.referenceImageUrl,
       ticker: token.ticker,
-      slug: owner?._id === token._id && !handleTaken ? slug : null,
+      slug: owner?._id === token._id ? slug : null,
     };
   },
 });
