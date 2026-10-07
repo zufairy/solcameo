@@ -1,17 +1,20 @@
+/** The five card themes. Each has its own three.js animation (components/solstar/calloutThemes3d.ts). */
 export const CALLOUT_THEMES = {
-  colosseum: { name: "Colosseum", accent: "#c8f02a", background: "#0b1008" },
-  solana: { name: "Solana", accent: "#14f195", background: "#111020" },
-  lambo: { name: "Lambo", accent: "#facc15", background: "#171406" },
-  bullrun: { name: "Bullrun", accent: "#7de2b2", background: "#06120f" },
-  neon: { name: "Neon", accent: "#e879f9", background: "#190b20" },
-  ferrari: { name: "Ferrari", accent: "#ff4b43", background: "#140b0c" },
-  vault: { name: "Vault", accent: "#e2c58a", background: "#16130d" },
-  aurora: { name: "Aurora", accent: "#a8dffb", background: "#0a0e1e" },
+  solana: { name: "Solana", accent: "#14f195", background: "#0d0b1a" },
+  lambo: { name: "Lambo", accent: "#facc15", background: "#13110a" },
+  pepe: { name: "Frog", accent: "#7be35a", background: "#0a140b" },
+  bullrun: { name: "Bull run", accent: "#34d399", background: "#06120f" },
+  diamond: { name: "Diamond hands", accent: "#7dd3fc", background: "#07111c" },
 } as const;
 export type CalloutTheme = keyof typeof CALLOUT_THEMES;
+export const DEFAULT_CALLOUT_THEME: CalloutTheme = "solana";
+/** Callouts posted before the theme cut keep working: each old theme maps to the closest current one. */
+const LEGACY_THEMES: Record<string, CalloutTheme> = { colosseum: "solana", neon: "solana", ferrari: "lambo", vault: "diamond", aurora: "diamond" };
+export const resolveCalloutTheme = (theme?: string): CalloutTheme => (theme && theme in CALLOUT_THEMES ? theme as CalloutTheme : theme ? LEGACY_THEMES[theme] : undefined) ?? DEFAULT_CALLOUT_THEME;
 export type CalloutMetric = "earnings" | "views" | "trade";
 export function calloutTheme(theme?: string) {
-  return CALLOUT_THEMES[theme as CalloutTheme] ?? CALLOUT_THEMES.colosseum;
+  const key = resolveCalloutTheme(theme);
+  return { key, ...CALLOUT_THEMES[key] };
 }
 export function formatCalloutMoney(value?: number | null) {
   if (value == null || !Number.isFinite(value)) return "—";

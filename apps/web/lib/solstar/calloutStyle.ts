@@ -7,6 +7,8 @@ export const CALLOUT_STYLES = {
   neon: { family: 'CalloutArchivo, system-ui, sans-serif', font: 'ArchivoBlack-Regular.ttf', fontName: 'CalloutArchivo', weight: 400, tracking: 0.2, italic: false, radius: 2, motif: 'grid' },
   ferrari: { family: 'CalloutBarlow, system-ui, sans-serif', font: 'Barlow-SemiBold.ttf', fontName: 'CalloutBarlow', weight: 600, tracking: 1.8, italic: true, radius: 3, motif: 'speed' },
   vault: { family: 'CalloutFraunces, Georgia, serif', font: 'Fraunces-SemiBold.ttf', fontName: 'CalloutFraunces', weight: 600, tracking: -0.5, italic: false, radius: 12, motif: 'seal' },
+  pepe: { family: 'CalloutArchivo, system-ui, sans-serif', font: 'ArchivoBlack-Regular.ttf', fontName: 'CalloutArchivo', weight: 400, tracking: 0.2, italic: false, radius: 14, motif: 'grid' },
+  diamond: { family: 'CalloutManrope, system-ui, sans-serif', font: 'Manrope-Medium.ttf', fontName: 'CalloutManrope', weight: 500, tracking: -1, italic: false, radius: 16, motif: 'seal' },
   aurora: { family: 'CalloutManrope, system-ui, sans-serif', font: 'Manrope-Medium.ttf', fontName: 'CalloutManrope', weight: 500, tracking: -1.5, italic: false, radius: 28, motif: 'ribbons' },
 } as const;
 export function calloutStyle(theme?: string) { return CALLOUT_STYLES[theme as keyof typeof CALLOUT_STYLES] ?? CALLOUT_STYLES.colosseum; }

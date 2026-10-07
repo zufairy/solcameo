@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import type { CalloutCardData } from "@/lib/client/calloutCard";
 import { compact } from "@/lib/client/calloutCard";
 import { calloutTheme } from "@/lib/solstar/callout";
+import { CalloutThemeCanvas } from "./CalloutThemeCanvas";
 
 /** Eases a number up to its value so a new figure arrives instead of snapping. */
 function useCountUp(target: number | undefined, ms = 800) {
@@ -69,41 +70,43 @@ export function CalloutFeedCard({ data, bare = false, size = "feed" }: { data: C
   return (
     <div
       aria-label={`${data.name}, ${data.ticker}, ${shown}, ${h.label}`}
-      className={`callout-card @container group/card relative isolate w-full overflow-hidden text-white ${bare ? "" : "rounded-[4px] border border-white/[0.12]"} ${large ? "min-h-[240px]" : "min-h-[148px]"}`}
+      className={`callout-card @container/card group/card relative isolate w-full overflow-hidden text-white ${bare ? "" : "rounded-[4px] border border-white/[0.12]"} ${large ? "min-h-[240px]" : "min-h-[104px]"}`}
       style={{ background: theme.background }}
     >
       {/* Living background: three slow colour fields, then a fine grain. Nothing darkens the card. */}
-      <div aria-hidden className="callout-mesh pointer-events-none absolute inset-0 -z-10" style={{ ["--callout-accent" as string]: accent }}>
+      <div aria-hidden className="callout-mesh pointer-events-none absolute inset-0 -z-10 opacity-60" style={{ ["--callout-accent" as string]: accent }}>
         <span className="callout-blob callout-blob-a" />
         <span className="callout-blob callout-blob-b" />
         <span className="callout-blob callout-blob-c" />
         <span className="callout-grain" />
       </div>
+      {/* The theme's own three.js animation (Solana mark, race car, frog, candles, diamond). */}
+      <CalloutThemeCanvas theme={theme.key} accent={theme.accent} className={large ? "-z-[5] opacity-45" : "-z-[5]"} />
       <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
 
-      <div className={`flex h-full flex-col ${large ? "gap-6 p-6" : "gap-3 p-4"}`}>
+      <div className={`flex h-full flex-col ${large ? "gap-6 p-6" : "gap-2 p-3"}`}>
         <div className={`flex min-w-0 items-center justify-between ${large ? "gap-6" : "gap-4"}`}>
-          <div className="flex min-w-0 items-center gap-3.5">
+          <div className={`flex min-w-0 items-center ${large ? "gap-3.5" : "gap-3"}`}>
             <img src={data.imageUrl || "/brand/solcameo-mark.png"} alt="" loading="lazy"
-              className={`shrink-0 rounded-[5px] bg-white/10 object-cover shadow-[0_8px_24px_-8px_rgba(0,0,0,0.7)] ring-1 ring-white/25 ${large ? "size-20" : "size-14"}`} />
+              className={`shrink-0 rounded-[5px] bg-white/10 object-cover shadow-[0_8px_24px_-8px_rgba(0,0,0,0.7)] ring-1 ring-white/25 ${large ? "size-20" : "size-11"}`} />
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <span className={`truncate font-semibold tracking-tight ${large ? "text-[22px]" : "text-[16px]"}`}>{data.name}</span>
+                <span className={`truncate font-semibold tracking-tight ${large ? "text-[22px]" : "text-[14.5px]"}`}>{data.name}</span>
                 <span className="shrink-0 rounded-[3px] border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10.5px] font-semibold tracking-wide text-white/90 backdrop-blur-sm">${data.ticker.replace(/^\$/, "")}</span>
               </div>
-              <p className={`mt-1 line-clamp-2 text-white/75 ${large ? "text-[14.5px] leading-6" : "text-[13px] leading-[18px]"}`}>{data.body}</p>
+              <p className={`mt-1 line-clamp-2 text-white/75 ${large ? "text-[14.5px] leading-6" : "text-[12px] leading-4"} [text-shadow:0_1px_8px_rgba(0,0,0,0.45)]`}>{data.body}</p>
             </div>
           </div>
 
-          <div className="hidden shrink-0 text-right @[460px]/card:block">
+          <div className="hidden shrink-0 text-right @[340px]/card:block">
             <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white/60">{h.label}</p>
-            <p className={`mt-1 whitespace-nowrap font-semibold leading-none tracking-[-0.035em] tabular-nums ${large ? "text-[44px]" : "text-[32px]"}`} style={{ color: accent }}>{shown}</p>
-            {sub && <p className="mt-1.5 text-[11.5px] tabular-nums text-white/60">{sub}</p>}
+            <p className={`mt-1 whitespace-nowrap font-semibold leading-none tracking-[-0.035em] tabular-nums ${large ? "text-[44px]" : "text-[26px]"} [text-shadow:0_2px_14px_rgba(0,0,0,0.5)]`} style={{ color: accent }}>{shown}</p>
+            {sub && <p className="mt-1 text-[11px] tabular-nums text-white/65">{sub}</p>}
           </div>
         </div>
 
         {/* Narrow cards put the figure on its own line instead of squeezing it. */}
-        <div className="flex items-end justify-between gap-3 @[460px]/card:hidden">
+        <div className="flex items-end justify-between gap-3 @[340px]/card:hidden">
           <div>
             <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white/60">{h.label}</p>
             <p className="mt-1 whitespace-nowrap text-[30px] font-semibold leading-none tracking-[-0.035em] tabular-nums" style={{ color: accent }}>{shown}</p>
