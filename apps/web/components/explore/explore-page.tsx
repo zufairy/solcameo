@@ -46,7 +46,7 @@ import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
 import { referenceAffinity } from "@/lib/explore/recommendations";
 import { castToken } from "@/lib/explore/castKey";
-import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, type ExploreModel } from "@/lib/explore/models";
+import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, EXPLORE_MODELS, type ExploreModel } from "@/lib/explore/models";
 import {
   formatGenerationUsd,
   type GenjutsuResolution,
@@ -421,6 +421,12 @@ function withShort(initial: Feed, short?: Short): ReferenceVideo[] {
   return [...PROMPT_REFERENCES, ...initial.items, ...(short?.items ?? []).filter((i) => !seen.has(i.id)).map(({ rank: _rank, ...item }) => (void _rank, item))];
 }
 
+/** Which model a reference is for. "genjutsu" shows every Genjutsu reference (motion transfer and object swap). */
+const MODEL_FILTERS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "any", label: "Any" },
+  { value: "genjutsu", label: "Genjutsu" },
+  ...EXPLORE_MODELS.filter((m) => m.kind === "engine").map((m) => ({ value: m.id, label: m.label })),
+];
 const LENGTHS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "any", label: "Any" },
   { value: "u5", label: "Under 5s" },
@@ -471,6 +477,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const [generating, setGenerating] = useState(false);
   const [price, setPrice] = useState<"any" | "u5" | "5-10" | "10-20" | "o20">("any");
   const [length, setLength] = useState("any");
+  const [modelFilter, setModelFilter] = useState("any");
   const [sort, setSort] = useState("trending");
   const model = modelForReference(selected);
   const resolution = model.defaultQuality;
@@ -478,6 +485,8 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const bounds = LENGTH_BOUNDS[length] ?? LENGTH_BOUNDS.any;
   const remote = !!query.trim() || category !== "All" || (!!bounds && (bounds.min > 0 || bounds.max > 0) && length !== "u5");
   const filterKey = `${query.trim().toLowerCase()}|${category}|${bounds ? `${bounds.min}-${bounds.max}` : "none"}|${length === "u5"}`;
+  // The downloaded library only holds Genjutsu references; other models live in the built-in prompt list, so do not keep walking it.
+  const libraryIsGenjutsuOnly = modelFilter !== "any" && modelFilter !== "genjutsu";
   const [limit, setLimit] = useState(REVEAL);
   const sentinel = useRef<HTMLDivElement>(null);
   const request = useRef(0);
@@ -547,6 +556,11 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
     if (p === null) return false;
     return price === "u5" ? p < 5 : price === "5-10" ? p >= 5 && p < 10 : price === "10-20" ? p >= 10 && p < 20 : p >= 20;
   };
+  const inModel = (i: ReferenceVideo) => {
+    if (modelFilter === "any") return true;
+    const m = modelForReference(i);
+    return modelFilter === "genjutsu" ? m.kind === "genjutsu" : m.id === modelFilter;
+  };
   const inLength = (i: ReferenceVideo) => {
     const d = i.duration;
     return length === "any" || (length === "u5" ? d < 5 : length === "5-10" ? d >= 5 && d < 10 : length === "10-20" ? d >= 10 && d < 20 : d >= 20);
@@ -558,6 +572,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
         (!embedded || referenceEstimate(i) !== null) &&
         inPrice(i) &&
         inLength(i) &&
+        inModel(i) &&
         (category === "All" || i.category === category) &&
         `${i.title} ${i.description} ${i.sourceName ?? ""}`
           .toLowerCase()
@@ -582,14 +597,14 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         if (limit < visible.length) setLimit((l) => l + REVEAL);
-        else if (next && !loading && !error) loadMore();
+        else if (next && !loading && !error && !libraryIsGenjutsuOnly) loadMore();
       },
       { rootMargin: "2400px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [limit, visible.length, next, loading, error, filterKey]);
+  }, [limit, visible.length, next, loading, error, filterKey, libraryIsGenjutsuOnly]);
   const favorites = [
     ...new Map(
       [...savedItems, ...items]
@@ -785,6 +800,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ExploreSelect label="Length" value={length} onChange={setLength} options={LENGTHS} />
+            <ExploreSelect label="Model" value={modelFilter} onChange={setModelFilter} options={MODEL_FILTERS} />
             <ExploreSelect label="Price" value={price} onChange={(v) => setPrice(v as typeof price)} options={[{ value: "any", label: "Any" }, { value: "u5", label: "Under $5" }, { value: "5-10", label: "$5 to $10" }, { value: "10-20", label: "$10 to $20" }, { value: "o20", label: "$20 and up" }]} />
             <ExploreSelect label="Sort" value={sort} onChange={setSort} options={SORTS} />
           <p className="text-sm font-medium tracking-tight text-white/50">
@@ -818,6 +834,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                 setQuery("");
                 setCategory("All");
                 setLength("any");
+                setModelFilter("any");
                 setPrice("any");
               }}
             >
