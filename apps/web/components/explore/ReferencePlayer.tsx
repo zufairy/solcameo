@@ -13,7 +13,8 @@ const fmtPrecise = (s: number, total: number) => (total < 10 ? `${s.toFixed(1)}s
 
 /**
  * The reference viewer: a glass control bar over the video with play, a scrubber you can drag, the elapsed and
- * total time, loop, speed, sound and fullscreen. Autoplays muted on a loop, like the cards do.
+ * total time, loop, speed, sound and fullscreen. Opening the viewer is a click, so it plays WITH sound on a loop; if the browser still
+ * blocks audio it falls back to muted playback and the sound button turns it on.
  */
 export function ReferencePlayer({ src, poster, aspectRatio, className = "", onError, onMetadata }: {
   src: string;
@@ -29,7 +30,7 @@ export function ReferencePlayer({ src, poster, aspectRatio, className = "", onEr
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [loop, setLoop] = useState(true);
   const [rate, setRate] = useState<(typeof RATES)[number]>(1);
   const [scrubbing, setScrubbing] = useState(false);
@@ -44,6 +45,13 @@ export function ReferencePlayer({ src, poster, aspectRatio, className = "", onEr
   useEffect(() => () => { if (idleTimer.current) clearTimeout(idleTimer.current); }, []);
 
   useEffect(() => { if (video.current) video.current.playbackRate = rate; }, [rate, src]);
+  // Start with sound. Browsers allow it because the viewer was opened by a click; if one blocks it anyway, play muted instead.
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    v.muted = false;
+    void v.play().catch(() => { v.muted = true; setMuted(true); void v.play().catch(() => undefined); });
+  }, [src]);
   const toggle = () => {
     const v = video.current;
     if (!v) return;

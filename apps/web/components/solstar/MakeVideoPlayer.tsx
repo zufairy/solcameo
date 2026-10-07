@@ -55,6 +55,14 @@ export function MakeVideoPlayer({ video, onClose }: { video: { url: string; post
     return () => document.removeEventListener("fullscreenchange", change);
   }, []);
 
+  // The player opens from a click, so it starts with sound. If a browser blocks audio autoplay anyway, play muted and show it.
+  useEffect(() => {
+    const m = media.current;
+    if (!m) return;
+    m.muted = false;
+    void m.play().catch(() => { m.muted = true; setMuted(true); void m.play().catch(() => undefined); });
+  }, [video.url]);
+
   const wake = useCallback(() => {
     setAwake(true);
     window.clearTimeout(idle.current);
