@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: "Docs | Solcameo",
     description: "Create an AI influencer, launch its coin, and grow its community on Solana.",
     url: canonicalUrl("/docs"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Solcameo Docs" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Solcameo Docs" }],
   },
 };
 

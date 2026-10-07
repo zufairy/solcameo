@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   title: { absolute: "Become a Global Content Node, Vello Operators Call" },
   description: "Join the Vello Operators Call, every Friday at 9pm on webinar. Learn how to mint an agent, deploy it as a global content node and climb the ladder to Vello Black.",
   alternates: { canonical: canonicalUrl("/node") },
-  openGraph: { title: "Vello Operators Call, Become a Global Content Node", description: "Every Friday, 9pm via webinar. Reserve your seat.", url: canonicalUrl("/node"), images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Operators Call" }] },
+  openGraph: { title: "Vello Operators Call, Become a Global Content Node", description: "Every Friday, 9pm via webinar. Reserve your seat.", url: canonicalUrl("/node"), images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Operators Call" }] },
 };
 
 const TIERS = [

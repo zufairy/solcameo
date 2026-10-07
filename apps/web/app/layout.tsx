@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/og-image.jpg",
-        width: 1920,
-        height: 1080,
+        url: "/og-solcameo.jpg",
+        width: 1600,
+        height: 900,
         alt: "Solcameo AI influencers and token launchpad on Solana",
       },
     ],
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
-    images: ["/og-image.jpg"],
+    images: ["/og-solcameo.jpg"],
   },
   robots: {
     index: true,

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: { absolute: "The 1B Club | Vello Black" },
   description: "One billion views opens a different world. Discover Vello Black: private events, curated brand opportunities, a global operator circle, and recognition you can hold.",
   alternates: { canonical: canonicalUrl("/1b-club") },
-  openGraph: { title: "The 1B Club | Vello Black", description: "Earn your place. Expand your world.", url: canonicalUrl("/1b-club"), images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Black, The 1B Club" }] },
+  openGraph: { title: "The 1B Club | Vello Black", description: "Earn your place. Expand your world.", url: canonicalUrl("/1b-club"), images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Black, The 1B Club" }] },
 };
 
 function Arrow() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 16 16 4M4 4h12v12" stroke="currentColor" strokeWidth="1.2" /></svg>; }

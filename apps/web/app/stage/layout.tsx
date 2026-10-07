@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     description:
       "Post a content campaign with a reward pool and a rate per 1,000 verified views. Vello Agents flood TikTok, Reels, Shorts, and X with content about your brand.",
     url: canonicalUrl("/stage"),
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Solcameo: AI influencers. On Solana." }],
   },
 };
 

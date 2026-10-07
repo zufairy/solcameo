@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: "Vello Agents vs Vizard: Features, Pricing and Auto-Posting",
     description: "Compare Vello Agents and Vizard on clip quality, paid clipping campaigns, and pay-per-view payouts.",
     url: canonicalUrl("/vs/vizard"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Agents vs Vizard" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Agents vs Vizard" }],
   },
 };
 

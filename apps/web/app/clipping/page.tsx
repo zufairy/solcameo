@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     description:
       "One long video in, hundreds of captioned vertical shorts out, posted everywhere automatically.",
     url: canonicalUrl("/clipping"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Shorts Agent" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Shorts Agent" }],
   },
 };
 

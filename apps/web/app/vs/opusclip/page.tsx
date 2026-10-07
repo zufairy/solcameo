@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: "Vello Agents vs OpusClip: Features, Pricing and Auto-Posting",
     description: "Compare Vello Agents and OpusClip on clip quality, paid clipping campaigns, and pay-per-view payouts.",
     url: canonicalUrl("/vs/opusclip"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Agents vs OpusClip" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Agents vs OpusClip" }],
   },
 };
 

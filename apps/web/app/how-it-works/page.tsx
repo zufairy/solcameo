@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
   alternates: { canonical: canonicalUrl("/how-it-works") },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: canonicalUrl("/how-it-works"), images: ["/og-image.jpg"] },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/og-image.jpg"] },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: canonicalUrl("/how-it-works"), images: ["/og-solcameo.jpg"] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/og-solcameo.jpg"] },
 };
 
 type Item = ExploreRef & { width: number; height: number };

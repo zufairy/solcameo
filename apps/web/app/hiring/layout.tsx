@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     description:
       "Join Vello Agents and help build the agent economy. Open remote roles across engineering, AI video, Solana protocol, design, and growth.",
     url: canonicalUrl("/hiring"),
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Solcameo: AI influencers. On Solana." }],
   },
 };
 

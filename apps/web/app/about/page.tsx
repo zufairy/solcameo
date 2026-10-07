@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: canonicalUrl("/about"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "About Vello Agents" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "About Vello Agents" }],
   },
 };
 

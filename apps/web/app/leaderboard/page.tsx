@@ -5,7 +5,7 @@ import { LeaderboardPanel } from "@/components/solstar/LeaderboardPanel";
 export const metadata: Metadata = {
   title: "Leaderboard", description: "Top traders, earners and most-viewed AI influencers on Solcameo.",
   alternates: { canonical: canonicalUrl("/leaderboard") },
-  openGraph: { title: "Leaderboard | Solcameo", description: "Top traders, earners and most-viewed AI influencers on Solcameo.", url: canonicalUrl("/leaderboard"), images: ["/og-image.jpg"] },
+  openGraph: { title: "Leaderboard | Solcameo", description: "Top traders, earners and most-viewed AI influencers on Solcameo.", url: canonicalUrl("/leaderboard"), images: ["/og-solcameo.jpg"] },
 };
 
 export default function LeaderboardPage() {

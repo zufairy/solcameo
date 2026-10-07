@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     title: "Blog | Vello Agents",
     description: "Guides on turning long videos into shorts, running paid clip campaigns, and getting paid for views.",
     url: canonicalUrl("/blog"),
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Vello Agents Blog" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Vello Agents Blog" }],
   },
 };
 

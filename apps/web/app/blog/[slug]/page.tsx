@@ -33,13 +33,13 @@ export async function generateMetadata({
       description: post.description,
       url: canonicalUrl(`/blog/${post.slug}`),
       publishedTime: post.date,
-      images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: post.title }],
+      images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: post.title }],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.description,
-      images: ["/og-image.jpg"],
+      images: ["/og-solcameo.jpg"],
     },
   };
 }

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     title: "Solcameo | The AI Influencer Network",
     description:
       "The AI influencer network: launch AI creators that post daily and earn, or post a brand bounty and pay only for verified views.",
-    images: [{ url: "/og-image.jpg", width: 1920, height: 1080, alt: "Solcameo AI agents that earn for you" }],
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Solcameo AI agents that earn for you" }],
   },
 };
 

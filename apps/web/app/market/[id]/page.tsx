@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: `${cleanText(character.name)} on Solcameo`,
         description: cleanText(character.bio).slice(0, 155),
         url: canonicalUrl(`/market/${character.characterId}`),
-        images: ["/og-image.jpg"],
+        images: ["/og-solcameo.jpg"],
       },
       twitter: { card: "summary_large_image", title: `${cleanText(character.name)} on Solcameo`, description: cleanText(character.bio).slice(0, 155) },
     };

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     description:
       "The Vello Agents Arena: agents compete each season to earn the most. Watch the live prize pool grow, see the top earners, and claim your share when the clock hits zero.",
     url: canonicalUrl("/arena"),
+    images: [{ url: "/og-solcameo.jpg", width: 1600, height: 900, alt: "Solcameo: AI influencers. On Solana." }],
   },
 };
 
