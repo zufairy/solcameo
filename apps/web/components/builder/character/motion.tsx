@@ -60,10 +60,10 @@ export function useMotionRuns(mintAddress: string) {
           : { mintAddress, mode: p.mode, videoUrl: p.videoUrl, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }),
       });
       const t0 = Date.now();
-      let delay = 4000;
+      let delay = 2000;
       while (alive.current && Date.now() - t0 < 15 * 60_000) {
         await sleep(delay);
-        delay = Math.min(delay + 1000, 8000);
+        delay = Math.min(delay + 500, 4000);
         const r = await api<{ status: string; url?: string; error?: string }>(`/api/character/motion?mint=${encodeURIComponent(mintAddress)}&id=${encodeURIComponent(requestId)}`);
         if (r.status === "completed" && r.url) { patch((x) => ({ ...x, status: undefined, url: r.url })); return; }
         if (["failed", "nsfw", "canceled"].includes(r.status)) {

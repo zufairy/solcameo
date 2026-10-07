@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import catalog from "./prompt-references.json";
+import { KIE_VIDEO_PRICING } from "@/lib/builder/kieVideoPricing";
 import { cameoReferencePrompt, engineSeconds, EXPLORE_MODELS, modelForReference, referenceEstimate } from "./models";
 
 describe("Explore reference generation routing", () => {
@@ -25,7 +26,9 @@ describe("Explore reference generation routing", () => {
       expect(item.prompt).toContain("@cameo");
       expect(referenceEstimate(item)).toBeGreaterThan(0);
       const seconds = engineSeconds(modelForReference(item), item.duration);
-      expect(seconds).toBeGreaterThanOrEqual(Math.ceil(item.duration));
+      const options = KIE_VIDEO_PRICING[modelForReference(item).engine!].durations;
+      expect(options).toContain(seconds);
+      expect(options.every((d) => Math.abs(d - item.duration) >= Math.abs(seconds - item.duration))).toBe(true);
     }
   });
   it("prices each clip with its own model instead of the selected dialog", () => {

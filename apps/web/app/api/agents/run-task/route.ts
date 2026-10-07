@@ -2103,6 +2103,9 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
           && (ideaNewsImageUrl || (typeof input.newsImageUrl === "string" && input.newsImageUrl.trim()))
           ? { newsImageUrl: ideaNewsImageUrl || (input.newsImageUrl as string).trim() }
           : {}),
+        // Exact-output renders (Explore): the finished clip is delivered as the model made it, with no caption, hook,
+        // music, inset, opener or closer pass, so it is ready the moment the render finishes and nothing is added to it.
+        ...(input.exactOutput === true ? { hookText: undefined, captions: undefined, music: undefined, newsImageUrl: undefined, hookVideos: undefined, ctaVideo: undefined } : {}),
       },
       // No-Persona render: strip EVERY persona surface from the payload so the
       // storyboard + clip prompts carry only the operator's prompt/script. The

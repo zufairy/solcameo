@@ -41,7 +41,7 @@ import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
-import { RenderProgress } from "./RenderProgress";
+import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { DescribeVideoDialog } from "./DescribeVideoDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
@@ -293,7 +293,11 @@ function Generator({
             videoEngine: model.engine,
             videoResolution: resolution,
             durationSeconds: engineSeconds(model, item.duration),
+            // Exactly what is in the prompt box and exactly the reference length: no script rewrite, no persona, no storyboard,
+            // no burned overlays.
             skipStoryboard: true,
+            noPersona: true,
+            exactOutput: true,
             ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
           },
           triggeredBy: "explore",
@@ -367,7 +371,7 @@ function Generator({
         </label>
       )}
       {(paying || rendering) && (
-        <RenderProgress stage={paying ? "paying" : "rendering"} amount={estimate !== null ? formatGenerationUsd(estimate) : undefined} agentName={primaryName} onClose={onClose} />
+        <RenderProgress stage={paying ? "paying" : "rendering"} poster={item.thumbUrl} amount={estimate !== null ? formatGenerationUsd(estimate) : undefined} agentName={primaryName} onClose={onClose} />
       )}
       <Button
         className={`h-11 w-full ${GREEN}`}
@@ -405,12 +409,7 @@ function Generator({
       {resultUrl && (
         <div>
           <p className="mb-2 text-xs text-[#d7ff00]">Your latest generation</p>
-          <video
-            src={resultUrl}
-            controls
-            playsInline
-            className="max-h-56 w-full rounded-lg bg-black"
-          />
+          <BlurRevealVideo src={resultUrl} poster={item.thumbUrl} />
           <a
             href={resultUrl}
             target="_blank"

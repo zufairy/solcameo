@@ -8,7 +8,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AgentOption } from "./AgentOption";
-import { RenderProgress } from "./RenderProgress";
+import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
@@ -35,8 +35,9 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [engineOverride, setEngineOverride] = useState<VideoEngineId | null>(null);
   const [qualityOverride, setQualityOverride] = useState<VideoQuality | null>(null);
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null);
-  const [skipStoryboard, setSkipStoryboard] = useState(false);
-  const [noPersona, setNoPersona] = useState(false);
+  // Default to exactly what was typed, at exactly the chosen length: no persona rewrite, no storyboard image.
+  const [skipStoryboard, setSkipStoryboard] = useState(true);
+  const [noPersona, setNoPersona] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   const [task, setTask] = useState<Id<"agentTasks"> | null>(null);
@@ -75,6 +76,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
             ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
             ...(skipStoryboard ? { skipStoryboard: true } : {}),
             ...(noPersona ? { noPersona: true } : {}),
+            ...(noPersona && skipStoryboard ? { exactOutput: true } : {}),
           },
           triggeredBy: "explore",
         }),
@@ -166,7 +168,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               )}
               {videoUrl && (
                 <div className="space-y-3">
-                  <video src={videoUrl} controls playsInline className="mx-auto max-h-[46dvh] rounded-[10px] border border-white/10 bg-black" />
+                  <BlurRevealVideo src={videoUrl} className="mx-auto max-w-sm" />
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <Link href={`/builder?type=influencer&mint=${encodeURIComponent(mint)}`} className="inline-flex h-9 items-center rounded-[3px] bg-[#d7ff00] px-4 text-sm font-semibold text-black hover:bg-[#e4ff59]">Open in builder</Link>
                     <button type="button" onClick={() => { reset(); setPrompt(""); }} className={`${CHIP} h-9 px-3.5`}><RotateCcw className="size-3.5" /> Describe another</button>

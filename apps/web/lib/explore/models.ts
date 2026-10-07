@@ -33,11 +33,15 @@ export function qualityFor(model: ExploreModel, quality: string): string {
   return model.qualities.includes(quality) ? quality : model.defaultQuality;
 }
 
-/** The length (seconds) a Kie model renders for a reference: the first offered length that covers it. */
+/**
+ * The length (seconds) a Kie model renders for a reference: the offered length closest to the reference's own, so the copy
+ * is as long as the original and no money is spent on extra seconds. A tie goes to the shorter, cheaper option.
+ */
 export function engineSeconds(model: ExploreModel, duration: number): number {
   const options = model.engine ? KIE_VIDEO_PRICING[model.engine]?.durations ?? [] : [];
-  const rounded = Math.max(1, Math.ceil(duration));
-  return options.find((d) => d >= rounded) ?? options[options.length - 1] ?? rounded;
+  const target = Math.max(1, duration);
+  if (!options.length) return Math.max(1, Math.round(target));
+  return options.reduce((best, d) => (Math.abs(d - target) < Math.abs(best - target) ? d : best), options[0]);
 }
 
 /** Customer price for one render, including the Solcameo fee, or null when the reference is out of range. */

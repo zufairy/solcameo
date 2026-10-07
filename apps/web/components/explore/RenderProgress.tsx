@@ -12,10 +12,11 @@ const STEPS = ["Queued", "Rendering", "Finishing"];
  * What the person sees after pressing Generate: the wallet being charged, a short "payment confirmed" celebration the
  * moment it lands, then a calm rendering animation with a clear note that the video will be waiting in My agents.
  */
-export function RenderProgress({ stage, amount, agentName, onClose }: { stage: Stage; amount?: string; agentName?: string; onClose?: () => void }) {
+export function RenderProgress({ stage, amount, agentName, poster, onClose }: { stage: Stage; amount?: string; agentName?: string; poster?: string; onClose?: () => void }) {
   const reduced = useReducedMotion();
   const [celebrate, setCelebrate] = useState(false);
   const [step, setStep] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   const wasPaying = useRef(stage === "paying");
 
   useEffect(() => {
@@ -30,9 +31,16 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
 
   useEffect(() => {
     if (stage !== "rendering" || celebrate) return;
-    const timer = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 9000);
+    const timer = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 7000);
     return () => clearInterval(timer);
   }, [stage, celebrate]);
+
+  // Elapsed time, so waiting never feels frozen.
+  useEffect(() => {
+    if (stage !== "rendering") return;
+    const timer = setInterval(() => setSeconds((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [stage]);
 
   const view = stage === "paying" ? "paying" : celebrate ? "paid" : "rendering";
   return (
@@ -74,8 +82,14 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
         {view === "rendering" && (
           <motion.div key="rendering" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
             <div className="flex items-center gap-4">
-              <span className="relative block h-16 w-12 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black/50" aria-hidden>
-                {!reduced && <motion.span className="absolute inset-y-0 w-full bg-[linear-gradient(110deg,transparent_20%,rgba(215,255,0,0.35)_50%,transparent_80%)]" initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }} />}
+              <span className="relative block h-28 w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/60 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.9)]" aria-hidden>
+                {poster ? (
+                  // The reference's first frame "develops" from heavy blur to sharp while the render runs.
+                  <motion.img src={poster} alt="" className="absolute inset-0 size-full object-cover" initial={{ filter: reduced ? "blur(4px)" : "blur(22px)", scale: 1.15 }} animate={{ filter: "blur(4px)", scale: 1 }} transition={{ duration: 150, ease: [0.22, 1, 0.36, 1] }} />
+                ) : (
+                  <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(215,255,0,0.25),transparent_60%)]" />
+                )}
+                {!reduced && <motion.span className="absolute inset-y-0 w-full bg-[linear-gradient(110deg,transparent_20%,rgba(215,255,0,0.4)_50%,transparent_80%)]" initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }} />}
                 <span className="absolute inset-x-2 bottom-2 flex h-6 items-end justify-between gap-0.5">
                   {[0, 1, 2, 3].map((i) => (
                     <motion.span key={i} className="w-1.5 rounded-sm bg-[#d7ff00]" style={{ height: reduced ? 14 : undefined }} animate={reduced ? undefined : { height: [6, 22, 10, 18, 6] }} transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }} />
@@ -83,7 +97,7 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
                 </span>
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Your video is rendering</p>
+                <p className="text-sm font-semibold text-white">Your video is rendering <span className="ml-1 font-mono text-xs font-normal tabular-nums text-zinc-500">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span></p>
                 <p className="mt-0.5 text-xs leading-5 text-zinc-400">It will be ready in a few minutes. You can close this window. Find it any time in your <Link href="/agents" className="font-semibold text-[#d7ff00] underline underline-offset-2">My agents</Link> page.</p>
               </div>
             </div>
@@ -108,5 +122,21 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** The finished video fades and un-blurs into place once its first frame is ready. */
+export function BlurRevealVideo({ src, poster, className = "" }: { src: string; poster?: string; className?: string }) {
+  const reduced = useReducedMotion();
+  const [ready, setReady] = useState(false);
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, filter: "blur(24px)", scale: 1.03 }}
+      animate={ready || reduced ? { opacity: 1, filter: "blur(0px)", scale: 1 } : { opacity: 0.55, filter: "blur(24px)", scale: 1.03 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
+      <video src={src} poster={poster} controls playsInline autoPlay muted loop preload="auto" onLoadedData={() => setReady(true)} className="max-h-72 w-full rounded-lg bg-black object-contain" />
+    </motion.div>
   );
 }
