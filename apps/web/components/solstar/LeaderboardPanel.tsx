@@ -6,10 +6,18 @@ import { getAccountExplorerUrl } from "@/lib/solana/network";
 import { ArrowUpRight, Trophy } from "lucide-react";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSolUsd } from "@/lib/client/useSolUsd";
 import { compact } from "@/lib/client/calloutCard";
 import { LEADERBOARD_PERIODS, type LeaderboardPeriod, type LeaderboardResponse } from "@/lib/solstar/leaderboard";
 const short = (wallet: string) => `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
-const sol = (value: number | null, signed = false) => value == null ? "—" : `${signed && value >= 0 ? "+" : ""}${value.toLocaleString("en-US", { maximumFractionDigits: 5 })} SOL`;
+/** SOL amounts shown in dollars at the live SOL price (SOL is only shown until the first quote arrives). */
+const money = (value: number | null, rate: number | null, signed = false) => {
+  if (value == null) return "—";
+  if (rate == null) return `${signed && value >= 0 ? "+" : ""}${value.toLocaleString("en-US", { maximumFractionDigits: 5 })} SOL`;
+  const usd = value * rate, abs = Math.abs(usd);
+  const text = abs >= 1e6 ? `${(abs / 1e6).toFixed(2)}M` : abs >= 1e4 ? `${(abs / 1e3).toFixed(1)}K` : abs >= 1 || abs === 0 ? abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : abs >= 0.01 ? abs.toFixed(2) : "<0.01";
+  return `${usd < 0 ? "−" : signed ? "+" : ""}$${text}`;
+};
 // Stable logo compositions keep unconfigured profiles distinct across refreshes.
 const avatarTreatments = [
   { background: "radial-gradient(circle at 30% 20%, #5a7835, #1a2820)", transform: "rotate(-12deg)" },
@@ -30,6 +38,7 @@ export function LeaderboardPanel({ standalone = false }: { standalone?: boolean 
   const [period, setPeriod] = useState<LeaderboardPeriod>("all");
   const [snapshots, setSnapshots] = useState<Record<string, LeaderboardResponse>>({});
   const [error, setError] = useState("");
+  const solUsd = useSolUsd();
   const { publicKey } = useUnifiedSolanaWallet();
   const wallet = publicKey?.toBase58();
   const viewsOnly = metric === "views";
@@ -69,13 +78,13 @@ export function LeaderboardPanel({ standalone = false }: { standalone?: boolean 
     </div>
     {metric !== "traders" || period !== "all" ? <p className="border-b border-white/5 px-4 py-2 text-[9px] leading-4 text-zinc-500">{metric === "traders" ? "Period sales + open buys · original cost basis and fees included" : metric === "earners" ? "Creator trading fees · claimed + claimable" : "Views on tracked videos published in the selected period"}</p> : null}
     {error && <p role="status" className="px-4 py-3 text-xs text-amber-300/80">{error}</p>}
-    {loading ? <p role="status" className="p-4 text-xs text-zinc-500">{metric === "views" ? "Loading views…" : "Reading RPC trades and creator fees…"}</p> : metric === "traders" ? <ol className="py-1">{data?.traders.slice(0, 12).map((t, i) => <li key={t.wallet} className="flex min-h-11 items-center gap-2 px-3 py-1.5 hover:bg-white/[0.025]"><span className="w-4 text-right text-[11px] tabular-nums text-zinc-500">{i + 1}</span><ProfileAvatar wallet={t.wallet} image={t.profileImage} /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-zinc-100">{t.profileName || short(t.wallet)}{t.wallet === wallet && <span className="ml-1 rounded bg-white px-1 py-0.5 text-[8px] text-black">You</span>}</p><p className="text-[9px] text-zinc-500">{t.trades} {t.trades === 1 ? "trade" : "trades"}{!t.complete && " · incomplete history"}</p></div><span className={`shrink-0 text-[11px] font-medium tabular-nums ${(t.pnlSol ?? 0) < 0 ? "text-rose-400" : "text-emerald-400"}`}>{sol(t.pnlSol, true)}</span></li>)}{data && !data.traders.length && <li className="p-4 text-xs text-zinc-500">No confirmed swaps found for this period.</li>}</ol> : metric === "earners" ? <ol className="py-1">{data?.earners.slice(0, 12).map((r, i) => <li key={r.characterId} className="flex min-h-11 items-center gap-2 px-3 py-1.5 hover:bg-white/[0.035]">
+    {loading ? <p role="status" className="p-4 text-xs text-zinc-500">{metric === "views" ? "Loading views…" : "Reading RPC trades and creator fees…"}</p> : metric === "traders" ? <ol className="py-1">{data?.traders.slice(0, 12).map((t, i) => <li key={t.wallet} className="flex min-h-11 items-center gap-2 px-3 py-1.5 hover:bg-white/[0.025]"><span className="w-4 text-right text-[11px] tabular-nums text-zinc-500">{i + 1}</span><ProfileAvatar wallet={t.wallet} image={t.profileImage} /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-zinc-100">{t.profileName || short(t.wallet)}{t.wallet === wallet && <span className="ml-1 rounded bg-white px-1 py-0.5 text-[8px] text-black">You</span>}</p><p className="text-[9px] text-zinc-500">{t.trades} {t.trades === 1 ? "trade" : "trades"}{!t.complete && " · incomplete history"}</p></div><span className={`shrink-0 text-[11px] font-medium tabular-nums ${(t.pnlSol ?? 0) < 0 ? "text-rose-400" : "text-emerald-400"}`}>{money(t.pnlSol, solUsd, true)}</span></li>)}{data && !data.traders.length && <li className="p-4 text-xs text-zinc-500">No confirmed swaps found for this period.</li>}</ol> : metric === "earners" ? <ol className="py-1">{data?.earners.slice(0, 12).map((r, i) => <li key={r.characterId} className="flex min-h-11 items-center gap-2 px-3 py-1.5 hover:bg-white/[0.035]">
       <span className="w-4 text-right text-[11px] tabular-nums text-zinc-500">{i + 1}</span>
       <ProfileAvatar wallet={r.wallet} image={r.creatorImage} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[11px] leading-4"><Link href={r.marketUrl ?? `/market/${r.characterId}`} className="font-semibold text-zinc-100 hover:text-white">${r.ticker.replace(/^\$/, "")}</Link><span className="mx-1 text-zinc-600">by</span><a href={getAccountExplorerUrl(r.wallet, data?.network === "mainnet" ? "mainnet-beta" : "devnet")} target="_blank" rel="noopener noreferrer" title="View creator wallet, holdings and transactions on Solscan" className="text-zinc-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white">{r.creatorName || short(r.wallet)}</a></p>
-        <p className="text-[9px] leading-3 text-zinc-600">{sol(r.claimableSol)} claimable</p>
-      </div><span className="shrink-0 text-[11px] font-medium tabular-nums text-emerald-400">{sol(r.feesSol)}</span>
+        <p className="text-[9px] leading-3 text-zinc-600">{money(r.claimableSol, solUsd)} claimable</p>
+      </div><span className="shrink-0 text-[11px] font-medium tabular-nums text-emerald-400">{money(r.feesSol, solUsd)}</span>
     </li>)}{data && !data.earners.length && <li className="p-4 text-xs text-zinc-500">Creator fees appear after confirmed market trades.</li>}</ol> : <ol className="py-1">{views?.map((r, i) => <li key={r.mint}><Link href={r.marketUrl ?? `/market/${r.mint}`} className="flex min-h-11 items-center gap-2 px-3 py-1.5 hover:bg-white/[0.035]"><span className="w-4 text-right text-[11px] text-zinc-500">{i + 1}</span><img src={r.imageUrl} alt="" className="size-7 shrink-0 rounded-full object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-100">{r.name}<span className="ml-1 rounded bg-white px-1 py-0.5 text-[8px] text-black">${r.ticker}</span></span><span className="text-[13px] font-medium tabular-nums text-emerald-400">{compact(r.views)}</span></Link></li>)}{views?.length === 0 && <li className="p-4 text-xs text-zinc-500">No tracked agents yet.</li>}</ol>}
     {metric !== "views" && data && (!data.complete || data.errors.length > 0) && <p role="status" className="px-4 py-2 text-[9px] leading-4 text-amber-300/70">{data.errors.join(" · ") || "History scan capped at 1,000 transactions per pool. P&L is unavailable until cost basis is complete."}</p>}
   </section>;
