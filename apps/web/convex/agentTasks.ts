@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { accrueTaskCost, todaysSpend, CREDITS_SETTLED_SENTINEL } from "./usage";
+import { accrueTaskCost, todaysSpend, CREDITS_SETTLED_SENTINEL, refundRunFeesTx } from "./usage";
 import { getOwnerWalletForMint } from "./userCredits";
 import { getSkillPriceOverride } from "./adminPricing";
 import { effectivePostCostUsdc } from "../lib/economy/servicePrices";
@@ -196,6 +196,19 @@ async function releaseWalletHold(ctx: MutationCtx, task: Doc<"agentTasks">) {
   await ctx.db.patch(task._id, { walletHold: { ...task.walletHold, settled: true } });
 }
 
+/** Record that this task's cost was already charged and paid on-chain before the render started. */
+export const markPrepaid = mutation({
+  args: { id: v.id("agentTasks"), usdc: v.number(), runId: v.string(), authSecret: v.string() },
+  handler: async (ctx, { id, usdc, runId, authSecret }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    const task = await ctx.db.get(id);
+    if (!task) throw new Error("task not found");
+    await ctx.db.patch(id, { prepaid: { usdc, runId } });
+    // The prepayment replaces the reservation, so the same money is not held twice.
+    await releaseWalletHold(ctx, task);
+  },
+});
+
 export const holdWallet = mutation({
   args: { id: v.id("agentTasks"), amountUsdc: v.number(), authSecret: v.string() },
   handler: async (ctx, { id, amountUsdc, authSecret }) => {
@@ -305,7 +318,10 @@ export const succeed = mutation({
       if (overage > 0) {
         await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: overage, idemKey: `task:${id}:overage`, payerWallet: payerFromInput(task), fundingSource: fundingFromInput(task) });
       }
-    } else if (task && effectiveCost && effectiveCost > 0) {
+    } else if (task && effectiveCost && effectiveCost > 0 && effectiveCost - (task.prepaid?.usdc ?? 0) > 1e-9) {
+      // Pay-first renders were already charged (and paid on-chain) before they started: bill only what the render cost
+      // beyond that. A task with no prepayment bills its full cost, exactly as before.
+      const billable = +(effectiveCost - (task.prepaid?.usdc ?? 0)).toFixed(6);
       // payerWallet (server-injected by run-task from the SIWS-proven login
       // wallet) routes the credits-first debit at the wallet whose balance the
       // header shows — even when it differs from the agent's creatorWallet.
@@ -314,7 +330,7 @@ export const succeed = mutation({
         const inp = task.input ? (JSON.parse(task.input) as { payerWallet?: unknown }) : undefined;
         if (typeof inp?.payerWallet === "string" && inp.payerWallet.trim()) payerWallet = inp.payerWallet.trim();
       } catch { /* unparseable input — creatorWallet fallback applies */ }
-      await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: effectiveCost, idemKey: `task:${id}`, payerWallet, fundingSource: fundingFromInput(task) });
+      await accrueTaskCost(ctx, { mintAddress: task.mintAddress, service: `task:${task.type}`, costUsdc: billable, idemKey: `task:${id}`, payerWallet, fundingSource: fundingFromInput(task) });
     }
   },
 });
@@ -384,6 +400,8 @@ export const fail = mutation({
     // A failed task never keeps the credits it reserved.
     const task = await ctx.db.get(id);
     if (task) { await releaseHold(ctx, task, 0); await releaseWalletHold(ctx, task); }
+    // A pay-first charge is voided when the render fails, so the agent is not billed for work it never got.
+    if (task?.prepaid) await refundRunFeesTx(ctx, { mintAddress: task.mintAddress, jobId: task.prepaid.runId });
   },
 });
 

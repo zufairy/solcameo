@@ -16,6 +16,7 @@ import {
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 import { topUpAgentFromSol, swapFailureMessage } from "@/lib/server/solSwap";
 import { aspectFor, isVideoAspect } from "@/lib/builder/videoAspects";
+import { chargeExploreRun, CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
 import { isJoinableCampaign, isJoinableUgcCampaign } from "@/lib/campaignLifecycle";
 import {
   isConfigured as socialConfigured,
@@ -3759,6 +3760,21 @@ export async function POST(req: NextRequest) {
       // render-step runs in this Next runtime, renders the FULL duration, marks
       // the task succeeded/failed, and auto-posts when `autoPost` is set.
       if (deferVideo) {
+        // PAY FIRST: the agent wallet pays the render's price on-chain to the collection wallet BEFORE any provider is
+        // called. Only a wallet-funded render is charged here; the render's completion then bills just any overage.
+        if (walletBilling && !skipBalanceCheck && estimatedCost > 0 && (input as Record<string, unknown>).fundingSource === "agent_wallet") {
+          const runId = `video:${String(taskId)}`;
+          const charge = await chargeExploreRun(mintAddress, runId, estimatedCost);
+          if (!charge.ok) {
+            const message = CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.";
+            await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+            return NextResponse.json(
+              { ok: false, taskId, error: charge.reason === "needs_funding" ? "insufficient_funds" : charge.reason, code: charge.reason, message, mintAddress, required: estimatedCost },
+              { status: charge.reason === "needs_funding" ? 402 : 502 },
+            );
+          }
+          await convex.mutation(api.agentTasks.markPrepaid, { id: taskId, usdc: charge.costUsdc, runId, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+        }
         const { kickoffVideoRender } = await import("@/lib/server/kickoffVideoRender");
         await kickoffVideoRender({
           convex,

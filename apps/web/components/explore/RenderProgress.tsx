@@ -2,17 +2,40 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Check, Wallet } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 
 type Stage = "paying" | "rendering";
-const CONFETTI = Array.from({ length: 14 }, (_, i) => ({ angle: (i / 14) * Math.PI * 2, dist: 44 + (i % 3) * 16, size: 4 + (i % 3) * 2 }));
 const STEPS = ["Queued", "Rendering", "Finishing"];
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+/** Slow-drifting colour fields behind the glass: lime, cyan and violet, blurred into one living gradient. */
+const BLOBS = [
+  { color: "rgba(215,255,0,0.55)", size: 220, x: ["-10%", "55%", "10%", "-10%"], y: ["-20%", "10%", "55%", "-20%"], duration: 14 },
+  { color: "rgba(56,189,248,0.45)", size: 260, x: ["60%", "5%", "50%", "60%"], y: ["40%", "-10%", "20%", "40%"], duration: 17 },
+  { color: "rgba(167,139,250,0.45)", size: 240, x: ["25%", "70%", "-5%", "25%"], y: ["60%", "35%", "-15%", "60%"], duration: 19 },
+];
+
+/** The glass surface the three states share: hairline border, frosted fill, a bright top edge and sharp corners. */
+const GLASS = "relative overflow-hidden rounded-[3px] border border-white/[0.14] bg-white/[0.045] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_28px_70px_-34px_rgba(0,0,0,0.95)]";
+
+function GradientField({ reduced, intensity = 1 }: { reduced: boolean | null; intensity?: number }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ opacity: intensity }}>
+      {BLOBS.map((b, i) => (
+        <motion.span key={i} className="absolute rounded-full blur-[58px]" style={{ width: b.size, height: b.size, background: b.color, left: 0, top: 0 }}
+          animate={reduced ? undefined : { left: b.x, top: b.y }} transition={{ duration: b.duration, repeat: Infinity, ease: "easeInOut" }} initial={{ left: b.x[0], top: b.y[0] }} />
+      ))}
+      {/* A fine grain and a vignette keep the gradient looking like frosted glass instead of a flat wash. */}
+      <span className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,transparent_40%,rgba(0,0,0,0.55)_100%)]" />
+    </div>
+  );
+}
 
 /**
- * What the person sees after pressing Generate: the wallet being charged, a short "payment confirmed" celebration the
- * moment it lands, then a calm rendering animation with a clear note that the video will be waiting in My agents.
+ * What the person sees after pressing Generate: the wallet being charged, a short "payment confirmed" moment the instant
+ * it lands, then a calm glass-and-gradient rendering state with a clear note that the video will be waiting in My agents.
  */
-export function RenderProgress({ stage, amount, agentName, poster, onClose }: { stage: Stage; amount?: string; agentName?: string; poster?: string; onClose?: () => void }) {
+export function RenderProgress({ stage, amount, agentName, onClose }: { stage: Stage; amount?: string; agentName?: string; poster?: string; onClose?: () => void }) {
   const reduced = useReducedMotion();
   const [celebrate, setCelebrate] = useState(false);
   const [step, setStep] = useState(0);
@@ -23,9 +46,8 @@ export function RenderProgress({ stage, amount, agentName, poster, onClose }: { 
     if (stage === "paying") { wasPaying.current = true; return; }
     if (!wasPaying.current) return;
     wasPaying.current = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- show the payment-confirmed moment once, then move on
     setCelebrate(true);
-    const timer = setTimeout(() => setCelebrate(false), 1700);
+    const timer = setTimeout(() => setCelebrate(false), 1300);
     return () => clearTimeout(timer);
   }, [stage]);
 
@@ -43,84 +65,78 @@ export function RenderProgress({ stage, amount, agentName, poster, onClose }: { 
   }, [stage]);
 
   const view = stage === "paying" ? "paying" : celebrate ? "paid" : "rendering";
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
   return (
-    <div role="status" aria-live="polite" className="relative overflow-hidden rounded-xl border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5">
-      <AnimatePresence mode="wait" initial={false}>
-        {view === "paying" && (
-          <motion.div key="paying" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="flex items-center gap-4">
-            <span className="relative grid size-12 shrink-0 place-items-center">
-              {!reduced && <motion.span aria-hidden className="absolute inset-0 rounded-full border border-[#d7ff00]/50" animate={{ scale: [1, 1.5], opacity: [0.7, 0] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }} />}
-              <span className="grid size-11 place-items-center rounded-full border border-white/15 bg-white/10"><Wallet className="size-5 text-white" /></span>
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">Paying from {agentName ? `${agentName}'s` : "the agent"} wallet…</p>
-              <p className="mt-0.5 text-xs text-zinc-400">{amount ? `${amount} is being charged.` : "Charging the render."} This takes a few seconds.</p>
-            </div>
-          </motion.div>
-        )}
-
-        {view === "paid" && (
-          <motion.div key="paid" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="flex items-center gap-4">
-            <span className="relative grid size-12 shrink-0 place-items-center">
-              {!reduced && CONFETTI.map((c, i) => (
-                <motion.span key={i} aria-hidden className="absolute rounded-full bg-[#d7ff00]" style={{ width: c.size, height: c.size }}
-                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }} animate={{ x: Math.cos(c.angle) * c.dist, y: Math.sin(c.angle) * c.dist, opacity: 0, scale: 0.4 }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.12 }} />
-              ))}
-              <motion.span initial={{ scale: 0.4 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 380, damping: 18 }} className="grid size-11 place-items-center rounded-full bg-[#d7ff00] text-black">
-                <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }} />
-                </svg>
-              </motion.span>
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-white">Payment confirmed</p>
-              <p className="mt-0.5 text-xs text-zinc-400">{amount ? `${amount} paid` : "Paid"}. Starting your render…</p>
-            </div>
-          </motion.div>
-        )}
-
-        {view === "rendering" && (
-          <motion.div key="rendering" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <div className="flex items-center gap-4">
-              <span className="relative block h-28 w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/60 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.9)]" aria-hidden>
-                {poster ? (
-                  // The reference's first frame "develops" from heavy blur to sharp while the render runs.
-                  <motion.img src={poster} alt="" className="absolute inset-0 size-full object-cover" initial={{ filter: reduced ? "blur(4px)" : "blur(22px)", scale: 1.15 }} animate={{ filter: "blur(4px)", scale: 1 }} transition={{ duration: 150, ease: [0.22, 1, 0.36, 1] }} />
-                ) : (
-                  <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(215,255,0,0.25),transparent_60%)]" />
-                )}
-                {!reduced && <motion.span className="absolute inset-y-0 w-full bg-[linear-gradient(110deg,transparent_20%,rgba(215,255,0,0.4)_50%,transparent_80%)]" initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }} />}
-                <span className="absolute inset-x-2 bottom-2 flex h-6 items-end justify-between gap-0.5">
-                  {[0, 1, 2, 3].map((i) => (
-                    <motion.span key={i} className="w-1.5 rounded-sm bg-[#d7ff00]" style={{ height: reduced ? 14 : undefined }} animate={reduced ? undefined : { height: [6, 22, 10, 18, 6] }} transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }} />
-                  ))}
-                </span>
+    <div role="status" aria-live="polite" className={GLASS}>
+      <GradientField reduced={reduced} intensity={view === "rendering" ? 1 : 0.55} />
+      <div className="relative">
+        <AnimatePresence mode="wait" initial={false}>
+          {view === "paying" && (
+            <motion.div key="paying" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22, ease: EASE }} className="flex items-center gap-4 p-5">
+              <span className="relative grid size-11 shrink-0 place-items-center border border-white/25 bg-black/30 backdrop-blur-md" aria-hidden>
+                {!reduced && <motion.span className="absolute -inset-px border border-[#d7ff00]" animate={{ opacity: [0.9, 0.1, 0.9] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }} />}
+                <svg viewBox="0 0 24 24" className="size-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="square"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 0V6a2 2 0 0 1 2-2h12M16 14h2" /></svg>
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Your video is rendering <span className="ml-1 font-mono text-xs font-normal tabular-nums text-zinc-500">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span></p>
-                <p className="mt-0.5 text-xs leading-5 text-zinc-400">It will be ready in a few minutes. You can close this window. Find it any time in your <Link href="/agents" className="font-semibold text-[#d7ff00] underline underline-offset-2">My agents</Link> page.</p>
+                <p className="text-[13.5px] font-semibold tracking-tight text-white">Paying from {agentName ? `${agentName}’s` : "the agent"} wallet</p>
+                <p className="mt-0.5 text-[12px] text-white/60">{amount ? `${amount} on-chain` : "Settling on-chain"} · usually a few seconds</p>
               </div>
-            </div>
-            <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/10" aria-hidden>
-              <motion.span className="block h-full w-1/3 rounded-full bg-[#d7ff00]" animate={reduced ? undefined : { x: ["-100%", "300%"] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} />
-            </div>
-            <ol className="mt-3 flex items-center gap-3 text-[11px]">
-              {STEPS.map((label, i) => (
-                <li key={label} className={`flex items-center gap-1.5 ${i <= step ? "text-white" : "text-zinc-600"}`}>
-                  <span className={`grid size-4 place-items-center rounded-full ${i < step ? "bg-[#d7ff00] text-black" : i === step ? "border border-[#d7ff00] text-[#d7ff00]" : "border border-white/15"}`}>
-                    {i < step ? <Check className="size-2.5" strokeWidth={4} /> : <span className={`size-1 rounded-full ${i === step ? "animate-pulse bg-[#d7ff00]" : "bg-transparent"}`} />}
-                  </span>
-                  {label}
-                </li>
-              ))}
-            </ol>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Link href="/agents" className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[#d7ff00] px-4 text-[13px] font-semibold text-black transition-colors hover:bg-[#e4ff59]">Open My agents <ArrowRight className="size-3.5" /></Link>
-              {onClose && <button type="button" onClick={onClose} className="inline-flex h-9 items-center rounded-[3px] border border-white/15 bg-white/[0.05] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-white/10">Close</button>}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+
+          {view === "paid" && (
+            <motion.div key="paid" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: EASE }} className="flex items-center gap-4 p-5">
+              <motion.span initial={{ scale: 0.6, rotate: -8 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 420, damping: 22 }} className="grid size-11 shrink-0 place-items-center bg-[#d7ff00] text-black shadow-[0_0_40px_-4px_rgba(215,255,0,0.7)]" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="square" strokeLinejoin="miter">
+                  <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }} />
+                </svg>
+              </motion.span>
+              <div>
+                <p className="text-[13.5px] font-semibold tracking-tight text-white">Payment confirmed</p>
+                <p className="mt-0.5 text-[12px] text-white/60">{amount ? `${amount} paid` : "Paid"} · starting your render</p>
+              </div>
+            </motion.div>
+          )}
+
+          {view === "rendering" && (
+            <motion.div key="rendering" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: EASE }} className="p-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-2 font-mono text-[10.5px] font-medium uppercase tracking-[0.22em] text-white/70">
+                  <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping bg-[#d7ff00] opacity-70" /><span className="relative inline-flex size-1.5 bg-[#d7ff00]" /></span>
+                  Rendering
+                </p>
+                <span className="border border-white/20 bg-black/25 px-2 py-0.5 font-mono text-[11px] tabular-nums text-white/80 backdrop-blur-md">{clock}</span>
+              </div>
+
+              <p className="mt-5 text-[19px] font-semibold leading-tight tracking-[-0.02em] text-white">Your video is being made</p>
+              <p className="mt-1.5 max-w-[34ch] text-[12.5px] leading-5 text-white/65">
+                It will be ready in a few minutes. Close this window any time and find it in your <Link href="/agents" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">My agents</Link> page.
+              </p>
+
+              {/* A bright highlight travels the rail; the three pips below mark where the render is. */}
+              <div className="mt-6 h-px w-full bg-white/15" aria-hidden>
+                <motion.span className="block h-px w-1/4 bg-gradient-to-r from-transparent via-[#d7ff00] to-transparent" animate={reduced ? undefined : { x: ["-100%", "400%"] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }} />
+              </div>
+              <ol className="mt-3 grid grid-cols-3 gap-2 font-mono text-[10px] uppercase tracking-[0.14em]">
+                {STEPS.map((label, i) => (
+                  <li key={label} className={`flex items-center gap-1.5 ${i <= step ? "text-white" : "text-white/35"}`}>
+                    <span className={`grid size-3.5 place-items-center border ${i < step ? "border-[#d7ff00] bg-[#d7ff00] text-black" : i === step ? "border-[#d7ff00] text-[#d7ff00]" : "border-white/25"}`}>
+                      {i < step ? <Check className="size-2.5" strokeWidth={4} /> : i === step ? <span className="size-1 animate-pulse bg-[#d7ff00]" /> : null}
+                    </span>
+                    {label}
+                  </li>
+                ))}
+              </ol>
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <Link href="/agents" className="inline-flex h-9 items-center gap-1.5 bg-[#d7ff00] px-4 text-[12.5px] font-semibold text-black transition-colors hover:bg-[#e4ff59]">Open My agents <ArrowRight className="size-3.5" /></Link>
+                {onClose && <button type="button" onClick={onClose} className="inline-flex h-9 items-center border border-white/20 bg-white/[0.06] px-4 text-[12.5px] font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/[0.12]">Close</button>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -133,10 +149,10 @@ export function BlurRevealVideo({ src, poster, className = "" }: { src: string; 
     <motion.div
       initial={reduced ? false : { opacity: 0, filter: "blur(24px)", scale: 1.03 }}
       animate={ready || reduced ? { opacity: 1, filter: "blur(0px)", scale: 1 } : { opacity: 0.55, filter: "blur(24px)", scale: 1.03 }}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.7, ease: EASE }}
       className={className}
     >
-      <video src={src} poster={poster} controls playsInline autoPlay muted loop preload="auto" onLoadedData={() => setReady(true)} className="max-h-72 w-full rounded-lg bg-black object-contain" />
+      <video src={src} poster={poster} controls playsInline autoPlay muted loop preload="auto" onLoadedData={() => setReady(true)} className="max-h-72 w-full rounded-[3px] bg-black object-contain" />
     </motion.div>
   );
 }

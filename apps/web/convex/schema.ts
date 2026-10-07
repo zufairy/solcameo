@@ -977,6 +977,8 @@ export default defineSchema({
      *  finished, so a free account could start many videos at once on 300
      *  credits and the extras rendered unpaid. */
     walletHold: v.optional(v.object({ amountUsdc: v.number(), settled: v.boolean() })),
+    // Paid on-chain from the agent wallet BEFORE the render started (pay-first). `succeed` bills only any overage; `fail` voids it.
+    prepaid: v.optional(v.object({ usdc: v.number(), runId: v.string() })),
     creditHold: v.optional(v.object({ wallet: v.string(), credits: v.number(), settled: v.boolean() })),
   })
     .index("by_mint", ["mintAddress"])
