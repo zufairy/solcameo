@@ -29,5 +29,5 @@ export function AgentFundingGate() {
   }, []);
 
   if (!request) return null;
-  return <FundAgentDialog open={open} onOpenChange={setOpen} agentWallet={agent?.agentWallet ?? undefined} agentName={agent?.name} suggestedUsdc={request.required} />;
+  return <FundAgentDialog open={open} onOpenChange={setOpen} mintAddress={request.mintAddress} agentWallet={agent?.agentWallet ?? undefined} agentName={agent?.name} suggestedUsdc={request.required} />;
 }

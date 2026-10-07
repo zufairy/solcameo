@@ -67,7 +67,7 @@ export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) 
           {wallet && <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" aria-label="View wallet on Solscan" className="text-zinc-500 hover:text-white"><ExternalLink className="size-3" /></a>}
         </span>
       </div>
-      <FundAgentDialog open={open} onOpenChange={setOpen} agentWallet={wallet} agentName={name} />
+      <FundAgentDialog open={open} onOpenChange={setOpen} mintAddress={mint} agentWallet={wallet} agentName={name} />
     </div>
   );
 }

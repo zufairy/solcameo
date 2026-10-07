@@ -180,7 +180,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           )}
         </DialogContent>
       </Dialog>
-      <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} agentWallet={fundWallet ?? agent?.agentWallet ?? undefined} agentName={agent?.name} suggestedUsdc={+priceUsd.toFixed(2)} />
+      <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} mintAddress={mint} agentWallet={fundWallet ?? agent?.agentWallet ?? undefined} agentName={agent?.name} suggestedUsdc={+priceUsd.toFixed(2)} />
     </>
   );
 }

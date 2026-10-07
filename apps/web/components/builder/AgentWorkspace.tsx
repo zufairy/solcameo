@@ -23,7 +23,7 @@ import {
   Users as UsersIcon,
   Film, FileText, TrendingUp, Home, Layers, Store, History as HistoryIcon, CalendarClock,
   Folder, ChevronLeft, MessageSquare, FileEdit,
-  Loader2, Clock, ChevronDown, Copy, X, ArrowDownToLine, ArrowUpFromLine,
+  Loader2, Clock, ChevronDown, Copy, X, ArrowDownToLine, ArrowUpFromLine, ArrowDownUp,
   Wallet, Briefcase, ChevronRight, Compass, RefreshCw, Search, ArrowUpRight,
   Settings, Trash2, DollarSign, GalleryHorizontal, Scissors, ImagePlus, Clapperboard, Video, BookOpen, Lightbulb,
   Lock, Rocket, ImageUp, Play,
@@ -87,6 +87,7 @@ import { DownloadsTab } from "@/components/builder/clipping-flow/library/downloa
 import MonetizationCards from "./MonetizationCards";
 import SkillMdModal from "./SkillMdModal";
 import DepositModal from "./DepositModal";
+import { FundAgentDialog } from "./FundAgentDialog";
 import { WorkTab } from "./WorkTab";
 import WithdrawModal from "./WithdrawModal";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -3238,6 +3239,7 @@ function ClipperHomeCockpit(props: {
     characterBible, onHeartbeatChange, onFireHeartbeat, onAutoFireHeartbeat,
   } = props;
   const solUsdRate = useSolUsd();
+  const [swapOpen, setSwapOpen] = useState(false);
   // Show the wallet in USDC or in SOL; remembered per browser. Defaults to SOL when the wallet holds SOL but no USDC.
   const [balanceViewPick, setBalanceViewPick] = useState<"USDC" | "SOL" | null>(() => {
     try { const v = localStorage.getItem("solcameo:wallet-view"); return v === "SOL" || v === "USDC" ? v : null; } catch { return null; }
@@ -3577,7 +3579,7 @@ function ClipperHomeCockpit(props: {
                     </span>
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setDepositOpen(true)}
@@ -3594,8 +3596,17 @@ function ClipperHomeCockpit(props: {
                   >
                     <ArrowUpFromLine className="size-3.5" aria-hidden /> Withdraw
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setSwapOpen(true)}
+                    title="Swap between SOL and USDC inside the agent wallet"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.07] py-2.5 text-[12px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.12]"
+                  >
+                    <ArrowDownUp className="size-3.5" aria-hidden /> Swap
+                  </button>
                 </div>
               </div>
+              <FundAgentDialog open={swapOpen} onOpenChange={setSwapOpen} mintAddress={mintAddress} agentWallet={agentWallet} agentName={displayName} initialMode="INSIDE" />
               <DepositModal
                 open={depositOpen}
                 agentName={displayName}

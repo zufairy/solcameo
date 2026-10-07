@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { AgentWalletSwap } from "./AgentWalletSwap";
 import { QRCodeSVG } from "qrcode.react";
 import { getNetwork } from "@/lib/solana/network";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,17 +21,20 @@ const money = (v: number | undefined, token: FundToken) => v == null ? "···" 
  * Move money from your own wallet into the agent's wallet. The agent pays for its generations from that wallet,
  * so this is the one place to top it up: pick USDC or SOL, an amount, sign once, and it lands on chain.
  */
-export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, suggestedUsdc }: {
+export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, suggestedUsdc, mintAddress, initialMode }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentWallet?: string;
   agentName?: string;
   /** Pre-fills the amount, e.g. the cost of the video about to be made. */
   suggestedUsdc?: number;
+  /** Enables the "Swap in wallet" tab (SOL and USDC inside the agent wallet itself). */
+  mintAddress?: string;
+  initialMode?: "USDC" | "SOL" | "SWAP" | "INSIDE";
 }) {
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const { connection } = useConnection();
-  const [mode, setMode] = useState<"USDC" | "SOL" | "SWAP">("USDC");
+  const [mode, setMode] = useState<"USDC" | "SOL" | "SWAP" | "INSIDE">(initialMode ?? "USDC");
   const token: FundToken = mode === "SOL" ? "SOL" : "USDC";
   const swap = mode === "SWAP";
   const [quote, setQuote] = useState<{ inSol: number; maxSol: number; solUsd: number; slippageBps: number } | null>(null);
@@ -139,6 +143,14 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     }
   };
 
+  const tabsBar = (
+            <div className="flex items-center gap-1 rounded-lg border border-white/10 p-0.5" role="tablist" aria-label="Token">
+              {(mintAddress ? (["USDC", "SOL", "SWAP", "INSIDE"] as const) : (["USDC", "SOL", "SWAP"] as const)).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={mode === t} disabled={busy} onClick={() => { setMode(t); setAmount(""); setStep("idle"); setError(""); }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors ${mode === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{t === "SWAP" ? "SOL → USDC" : t === "INSIDE" ? "Swap in wallet" : t}</button>
+              ))}
+            </div>
+  );
   const faucet = token === "USDC" ? getUsdcFaucetUrl() : null;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
@@ -177,7 +189,12 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
           </div>
         </div>
 
-        {step === "done" ? (
+        {mode === "INSIDE" && mintAddress ? (
+          <>
+            {tabsBar}
+            <AgentWalletSwap mintAddress={mintAddress} sol={agent?.sol} usdc={agent?.usdc} onDone={() => void loadBalances()} />
+          </>
+        ) : step === "done" ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
             <span className="mx-auto grid size-9 place-items-center rounded-full bg-white text-black"><Check className="size-5" strokeWidth={3} /></span>
             <p className="mt-3 text-sm font-semibold text-white">{swap ? `Swapped ${quote ? quote.inSol.toFixed(4) : ""} SOL and sent $${amount} USDC to the agent wallet` : `Sent ${amount} ${token} (3% platform fee, 97% to the agent wallet)`}</p>
@@ -186,12 +203,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-1 rounded-lg border border-white/10 p-0.5" role="tablist" aria-label="Token">
-              {(["USDC", "SOL", "SWAP"] as const).map((t) => (
-                <button key={t} type="button" role="tab" aria-selected={mode === t} disabled={busy} onClick={() => { setMode(t); setAmount(""); setStep("idle"); setError(""); }}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors ${mode === t ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{t === "SWAP" ? "SOL → USDC" : t}</button>
-              ))}
-            </div>
+            {tabsBar}
             <div>
               <div className="relative">
                 <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" aria-label={swap ? "USDC to receive" : `Amount in ${token}`} disabled={busy}

@@ -252,3 +252,87 @@ export function swapFailureMessage(failure: { reason: string; solNeeded?: number
     default: return `Deposit USDC or SOL to this agent wallet to generate (${need} needed).`;
   }
 }
+
+// ── Swaps inside the agent wallet (owner-initiated, either direction) ───────────
+export type AgentSwapDirection = "sol_to_usdc" | "usdc_to_sol";
+export const AGENT_SWAP_MIN_USD = 0.5;
+/** SOL a wallet needs to pay the network fee of a swap it signs itself (no Jupiter key). */
+const SELF_PAID_FEE_LAMPORTS = 1_500_000;
+
+export type AgentSwapQuote = { direction: AgentSwapDirection; inAmount: number; outAmount: number; minOut: number; priceImpactPct: number; slippageBps: number };
+
+/** What a swap of `amount` (SOL for sol_to_usdc, USDC for usdc_to_sol) would return right now, from the router that will run it. */
+export async function quoteAgentSwap(direction: AgentSwapDirection, amount: number): Promise<AgentSwapQuote> {
+  if (!(amount > 0)) throw new Error("Enter an amount.");
+  const usdc = getUsdcMint("mainnet-beta");
+  const [inputMint, outputMint, inDecimals, outDecimals] = direction === "sol_to_usdc" ? [WSOL, usdc, 9, 6] : [usdc, WSOL, 6, 9];
+  const q = new URLSearchParams({ inputMint, outputMint, amount: String(Math.floor(amount * 10 ** inDecimals)), slippageBps: String(SWAP_SLIPPAGE_BPS), restrictIntermediateTokens: "true" });
+  const base = key() ? "https://api.jup.ag/swap/v1" : "https://lite-api.jup.ag/swap/v1";
+  const res = await fetch(`${base}/quote?${q}`, { headers: headers(), signal: AbortSignal.timeout(8000), cache: "no-store" });
+  if (!res.ok) throw new Error("Jupiter could not quote this swap right now. Try again in a moment.");
+  const j = (await res.json()) as { outAmount?: string; otherAmountThreshold?: string; priceImpactPct?: string };
+  const out = Number(j.outAmount);
+  if (!Number.isFinite(out) || out <= 0) throw new Error("Jupiter returned no route for this amount.");
+  return { direction, inAmount: amount, outAmount: out / 10 ** outDecimals, minOut: Number(j.otherAmountThreshold ?? out) / 10 ** outDecimals, priceImpactPct: Number(j.priceImpactPct ?? 0) * 100, slippageBps: SWAP_SLIPPAGE_BPS };
+}
+
+export type AgentSwapOutcome = { ok: true; signature: string; router: string; received: number } | { ok: false; reason: string; message: string };
+const fail = (reason: string, message: string): AgentSwapOutcome => ({ ok: false, reason, message });
+
+/**
+ * Swap inside an agent's own wallet, signed by the agent key. Caller must already have proven ownership. SOL to USDC keeps
+ * the SOL reserve; USDC to SOL never touches USDC the agent still owes (its unsettled tab) and needs a little SOL for the fee
+ * unless a Jupiter key makes it gasless. One swap at a time per agent.
+ */
+export async function swapInAgentWallet(mintAddress: string, direction: AgentSwapDirection, amount: number, unsettledUsd = 0): Promise<AgentSwapOutcome> {
+  const previous = locks.get(mintAddress) ?? Promise.resolve();
+  const run = previous.catch(() => undefined).then(() => doAgentSwap(mintAddress, direction, amount, unsettledUsd));
+  locks.set(mintAddress, run);
+  try { return await run; } finally { if (locks.get(mintAddress) === run) locks.delete(mintAddress); }
+}
+
+async function doAgentSwap(mintAddress: string, direction: AgentSwapDirection, amount: number, unsettledUsd: number): Promise<AgentSwapOutcome> {
+  try {
+    if (process.env.NEXT_PUBLIC_SOLANA_NETWORK && process.env.NEXT_PUBLIC_SOLANA_NETWORK !== "mainnet-beta") return fail("swaps_need_mainnet", "Swaps are only available on mainnet.");
+    if (!(amount > 0)) return fail("bad_amount", "Enter an amount.");
+    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+    const agent = await convex.query(api.influencers.getByMintServer, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+    if (!agent?.agentWallet || !agent.agentWalletSecret) return fail("no_agent_wallet", "This agent has no wallet yet.");
+    const [usdc, sol] = await Promise.all([getUsdcBalanceStrict(agent.agentWallet), getSolBalanceStrict(agent.agentWallet)]);
+    if (usdc === null || sol === null) return fail("balance_unavailable", "Could not read the wallet balance. Try again in a moment.");
+    const lamports = Math.floor(sol * 1e9);
+    const usdcMint = getUsdcMint("mainnet-beta");
+    let leg: { inputMint: string; outputMint: string; amount: number; ultra?: boolean };
+    if (direction === "sol_to_usdc") {
+      const spendable = lamports - SOL_RESERVE_LAMPORTS;
+      const want = Math.floor(amount * 1e9);
+      if (spendable <= 0) return fail("no_sol", "Not enough SOL: the wallet keeps about 0.012 SOL for network fees.");
+      if (want > spendable) return fail("not_enough_sol", `Not enough SOL. You can swap up to ${(spendable / 1e9).toFixed(4)} SOL and the wallet keeps 0.012 SOL for network fees.`);
+      if (amount * 1e9 < 1e6) return fail("too_small", "That amount is too small to swap.");
+      leg = { inputMint: WSOL, outputMint: usdcMint, amount: want };
+    } else {
+      const free = Math.max(0, usdc - unsettledUsd);
+      if (amount < AGENT_SWAP_MIN_USD) return fail("too_small", `The minimum swap is $${AGENT_SWAP_MIN_USD.toFixed(2)}.`);
+      if (amount > free + 1e-9) return fail("not_enough_usdc", `Not enough free USDC. You can swap up to $${free.toFixed(2)}${unsettledUsd > 0 ? ` (the rest covers $${unsettledUsd.toFixed(2)} the agent still owes)` : ""}.`);
+      const gasless = lamports < SELF_PAID_FEE_LAMPORTS;
+      if (gasless && !key()) return fail("needs_sol_for_fee", "The wallet needs at least 0.002 SOL to pay the network fee of this swap. Send a little SOL first.");
+      leg = { inputMint: usdcMint, outputMint: WSOL, amount: Math.round(amount * 1e6), ultra: gasless };
+    }
+    const connection = new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed");
+    const signer = { wallet: agent.agentWallet, secret: agent.agentWalletSecret };
+    let swap = await swapTokens(signer, leg, connection);
+    if (!swap.ok && ["swap_reverted", "quote_failed", "order_failed", "swap_build_failed"].includes(swap.reason)) swap = await swapTokens(signer, { ...leg, slippageBps: SWAP_RETRY_SLIPPAGE_BPS }, connection);
+    if (!swap.ok) return fail(swap.reason, "The swap did not complete and nothing was swapped. Try again in a moment.");
+    // Confirm the output really arrived before reporting success.
+    const before = direction === "sol_to_usdc" ? usdc : sol;
+    let after: number | null = before;
+    for (let i = 0; i < 8 && (after === null || after <= before + 1e-9); i++) {
+      await new Promise((r) => setTimeout(r, 1200));
+      after = direction === "sol_to_usdc" ? await getUsdcBalanceStrict(agent.agentWallet) : await getSolBalanceStrict(agent.agentWallet);
+    }
+    console.info("[agent-swap]", { mintAddress, direction, amount, signature: swap.signature, router: swap.router });
+    return { ok: true, signature: swap.signature, router: swap.router, received: after === null ? 0 : Math.max(0, after - before) };
+  } catch (e) {
+    return fail("swap_error", e instanceof Error ? e.message.slice(0, 140) : "The swap failed.");
+  }
+}

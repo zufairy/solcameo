@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GAS_FLOOR_LAMPORTS, GAS_GASLESS_MIN_USD, SOL_RESERVE_LAMPORTS, planGasTopUp, planTopUp } from "./solSwap";
 
 const SOL = 1_000_000_000;
@@ -59,5 +59,29 @@ describe("swapFailureMessage", () => {
     expect(swapFailureMessage({ reason: "not_enough_sol", solNeeded: 0.1 }, 3)).toContain("0.100 SOL");
     expect(swapFailureMessage({ reason: "no_price" }, 3)).toContain("Jupiter");
     expect(swapFailureMessage(null, 3)).toContain("$3.00");
+  });
+});
+
+describe("quoteAgentSwap", () => {
+  it("quotes both directions with exact decimals and tight slippage", async () => {
+    const { quoteAgentSwap } = await import("./solSwap");
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => { calls.push(String(url)); return new Response(JSON.stringify({ outAmount: "118000000", otherAmountThreshold: "117646000", priceImpactPct: "0.001" })); }));
+    const up = await quoteAgentSwap("sol_to_usdc", 1);
+    expect(up.outAmount).toBeCloseTo(118, 4);
+    expect(up.minOut).toBeLessThan(up.outAmount);
+    expect(calls[0]).toContain("amount=1000000000");
+    expect(calls[0]).toContain("slippageBps=30");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ outAmount: "8500000", otherAmountThreshold: "8474500" }))));
+    const down = await quoteAgentSwap("usdc_to_sol", 1);
+    expect(down.outAmount).toBeCloseTo(0.0085, 6);
+    vi.unstubAllGlobals();
+  });
+  it("rejects an empty amount and a failed quote", async () => {
+    const { quoteAgentSwap } = await import("./solSwap");
+    await expect(quoteAgentSwap("sol_to_usdc", 0)).rejects.toThrow(/amount/);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    await expect(quoteAgentSwap("sol_to_usdc", 1)).rejects.toThrow(/quote/);
+    vi.unstubAllGlobals();
   });
 });
