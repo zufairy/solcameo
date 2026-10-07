@@ -26,7 +26,7 @@ export default defineSchema({
     solReserve: v.int64(), tokenReserve: v.int64(),
     createdAt: v.number(),
   }).index("by_network", ["network"]).index("by_character", ["characterId"])
-    .index("by_network_ticker", ["network", "ticker"]),
+    .index("by_network_ticker", ["network", "ticker"]).index("by_mint", ["mint"]),
   ssEpisodes: defineTable({
     tokenId: v.id("ssTokens"), index: v.number(), videoUrl: v.string(), posterUrl: v.string(),
     title: v.string(), prompt: v.optional(v.string()), source: v.union(v.literal("sample"), v.literal("generated")),

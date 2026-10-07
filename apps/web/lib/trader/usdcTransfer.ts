@@ -11,7 +11,7 @@ import {
   Keypair, PublicKey, Transaction, LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
-  createAssociatedTokenAccountInstruction, createTransferInstruction,
+  createAssociatedTokenAccountIdempotentInstruction, createTransferInstruction,
   getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import bs58 from "bs58";
@@ -269,7 +269,7 @@ export async function transferUsdc(opts: {
     // payment lands in seconds instead of waiting behind congestion.
     tx.add(...computeBudgetInstructions(units, priority));
     // ATA rent paid by the gas payer (fee payer if sponsored, else sender).
-    if (!recipientAcc) tx.add(createAssociatedTokenAccountInstruction(gasKey, toAta, toKey, USDC_MINT));
+    if (!recipientAcc) tx.add(createAssociatedTokenAccountIdempotentInstruction(gasKey, toAta, toKey, USDC_MINT));
     tx.add(createTransferInstruction(
       fromAta, toAta, fromKey,
       Math.floor(amountUsdc * Math.pow(10, USDC_DECIMALS)),

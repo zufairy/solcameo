@@ -32,7 +32,7 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
     // was already booked has already paid, so it is not charged again.
     if (!duplicate) {
       const paid = await payOrBatch(mint, r.costUsdc);
-      if (!paid.ok) { await refundExploreRun(mint, runId); return { ok: false, reason: "payment_failed" }; }
+      if (!paid.ok) { console.error(`[exploreBilling] on-chain payment failed for ${mint}: ${paid.reason}`); await refundExploreRun(mint, runId); return { ok: false, reason: paid.reason === "wallet_signing_unavailable" ? "wallet_signing_unavailable" : "payment_failed" }; }
     }
     return { ok: true, costUsdc: r.costUsdc, ...(duplicate ? { duplicate: true } : {}) };
   } catch {
@@ -51,5 +51,6 @@ export const CHARGE_MESSAGES: Record<string, string> = {
   daily_cap: "This agent hit its daily spend cap. Raise the cap or try again tomorrow.",
   suspended: "This agent is suspended.",
   billing_unavailable: "Billing is temporarily unavailable. Please try again.",
+  wallet_signing_unavailable: "This agent wallet cannot sign its payment because the server wallet encryption key does not match. The operator must restore the original encryption key before generation can continue.",
   payment_failed: "The on-chain payment from this agent wallet did not confirm, so nothing was generated or charged. Please try again.",
 };

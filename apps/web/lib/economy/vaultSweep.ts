@@ -449,11 +449,18 @@ async function sweepAgentTabCustodial(opts: {
     const gas = await ensureAgentGas(mintAddress, amountUsdc);
     if (!gas.ok) {
       console.warn(`[vaultSweep] fee payer unavailable and the agent could not get network-fee SOL for ${mintAddress}: ${gas.reason} — releasing for retry`);
-      return { ok: false };
+      return { ok: false, reason: `no_network_fee_sol: ${gas.reason}` };
     }
   }
+  let agentSecret: string;
+  try {
+    agentSecret = readAgentSecret(agent.agentWalletSecret);
+  } catch {
+    // A key mismatch must release the settlement claim; no transaction was sent.
+    return { ok: false, reason: "wallet_signing_unavailable" };
+  }
   const transfer = await transferUsdc({
-    fromSecretBase64: readAgentSecret(agent.agentWalletSecret),
+    fromSecretBase64: agentSecret,
     fromPubkey: agent.agentWallet,
     toPubkey: TREASURY, // treasury WALLET; transferUsdc derives its USDC ATA
     amountUsdc,
@@ -479,7 +486,7 @@ async function sweepAgentTabCustodial(opts: {
   console.warn(
     `[vaultSweep] custodial sweep pre-broadcast failure for ${mintAddress}: ${transfer.error ?? "unknown"} (step=${transfer.step ?? "?"}) — releasing for retry`,
   );
-  return { ok: false };
+  return { ok: false, reason: `${transfer.step ?? "send"}: ${transfer.error ?? "unknown"}` };
 }
 
 /**

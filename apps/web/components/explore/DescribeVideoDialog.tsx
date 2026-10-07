@@ -92,7 +92,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   const status = useQuery(api.agentTasks.generationStatus, task ? { ids: [task] } : "skip") as Status | undefined;
   const state = task ? status?.[task] : undefined;
-  // "Paying" lasts until the payment is on record; a render with no payment record is treated as under way after 25 seconds.
+  // Keep showing payment until it is recorded. The timer only enables closing the dialog.
   const waitingOnPayment = !!task && !!state && state.paid !== true && (state.status === "pending" || state.status === "running");
   const [payGaveUp, setPayGaveUp] = useState(false);
   useEffect(() => {
@@ -271,7 +271,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               </div>
 
               {running && !videoUrl && (
-                <RenderProgress stage={starting || (waitingOnPayment && !payGaveUp) ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
+                <RenderProgress stage={starting || !state || waitingOnPayment ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
               )}
               {videoUrl && (
                 <div className="space-y-3">

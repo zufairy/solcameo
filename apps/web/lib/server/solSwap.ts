@@ -194,6 +194,9 @@ export function planGasTopUp(a: { solLamports: number; usdcBalance: number; keep
 
 /** Is the shared fee-payer wallet able to pay network fees right now? If so agents need no SOL at all. */
 const feePayerCache = new TtlCache<boolean>(15_000, 2);
+/** One payment costs about 0.00003 SOL of network fee, so the shared fee payer stays in service far below this. */
+const FEE_PAYER_MIN_SOL = 0.0005;
+
 export async function feePayerReady(): Promise<boolean> {
   try {
     const secret = process.env.PLATFORM_FEE_PAYER_SECRET?.trim();
@@ -202,7 +205,7 @@ export async function feePayerReady(): Promise<boolean> {
     return await feePayerCache.get("ready", async () => {
       const sol = await getSolBalanceStrict(loadKeypair(secret).publicKey.toBase58());
       if (sol === null) throw new Error("balance unavailable");
-      return sol >= 0.002;
+      return sol >= FEE_PAYER_MIN_SOL;
     });
   } catch { return false; }
 }

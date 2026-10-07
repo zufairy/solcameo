@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { notFound } from "next/navigation";
+import { MarketTerminal } from "@/components/solstar/MarketTerminal";
 import { InfluencerProfile } from "@/components/influencer/influencer-profile";
 import { AppHeaderShell } from "@/components/home/app-shell";
 import { Loader2 } from "lucide-react";
@@ -26,16 +27,21 @@ interface Props {
 // and a fast 404 instead of an empty client shell (see page.tsx for why).
 export default function InfluencerPageClient({ id }: Props) {
   const router = useRouter();
-  const byHandle = useQuery(api.influencers.getByHandle, { handle: id });
+  const character = useQuery(api.solstarMarket.characterForRoute, { id });
+  const byHandle = useQuery(api.influencers.getByHandle, character === null ? { handle: id } : "skip");
   // Only fall back to a mint-address lookup once the handle lookup has
   // definitively missed — avoids a redundant query for the common case.
   const byMint = useQuery(api.influencers.getByMint, byHandle === null ? { mintAddress: id } : "skip");
 
   useEffect(() => {
-    if (byHandle === null && byMint && byMint.handleLower) {
+    if (character?.slug && character.slug !== id) {
+      router.replace(`/market/${character.slug}${window.location.search}`);
+    } else if (character === null && byHandle === null && byMint && byMint.handleLower) {
       router.replace(`/market/${byMint.handleLower}`);
     }
-  }, [byHandle, byMint, router]);
+  }, [character, id, byHandle, byMint, router]);
+
+  if (character) return <MarketTerminal characterId={character.characterId} />;
 
   const doc = byHandle ?? (byHandle === null ? byMint : undefined);
 

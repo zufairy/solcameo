@@ -284,7 +284,7 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
     h.queryMock.mockImplementation(custodialQueryDispatch());
     h.feePayerReadyMock.mockResolvedValue(false);
     h.ensureGasMock.mockResolvedValue({ ok: false, reason: "usdc_too_low" });
-    expect(await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g2", amountUsdc: 2 })).toEqual({ ok: false });
+    expect(await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g2", amountUsdc: 2 })).toEqual({ ok: false, reason: "no_network_fee_sol: usdc_too_low" });
     expect(h.transferUsdcMock).not.toHaveBeenCalled();
   });
 

@@ -61,6 +61,13 @@ describe("generation billing pays on-chain before work starts", () => {
     expect((await chargeExploreRun("mint", "run3", 0.5)).ok).toBe(true);
     expect(m.pay).not.toHaveBeenCalled();
   });
+  it("reports a signing-key mismatch and refunds the reservation", async () => {
+    const { chargeExploreRun } = await load();
+    m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55 });
+    m.pay.mockResolvedValue({ ok: false, reason: "wallet_signing_unavailable" });
+    expect(await chargeExploreRun("mint", "key-failure", 0.5)).toEqual({ ok: false, reason: "wallet_signing_unavailable" });
+    expect(m.mutation).toHaveBeenLastCalledWith("refundRunFees", expect.objectContaining({ jobId: "key-failure" }));
+  });
   it("never reaches the chain when the agent cannot cover the charge", async () => {
     const { chargeExploreRun } = await load();
     m.mutation.mockResolvedValue({ ok: false, reason: "needs_funding" });

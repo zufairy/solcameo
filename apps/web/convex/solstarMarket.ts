@@ -222,10 +222,19 @@ export const characterForRoute = query({
   handler: async (ctx, { id }) => {
     const byId = ctx.db.normalizeId("ssCharacters", id);
     const ticker = byId ? null : tickerFromSegment(id);
-    if (!byId && !ticker) return null;
     // A coin wins over an agent with the same handle: the ticker URL always opens the market page with the chart.
     let token = ticker ? await tokenForTicker(ctx, ticker) : null;
-    const characterId = byId ?? token?.characterId;
+    // Existing UI links also use the on-chain mint or the linked agent handle.
+    // Resolve those aliases before allowing the route to show a legacy profile.
+    if (!byId && !token) {
+      token = await ctx.db.query("ssTokens").withIndex("by_mint", (q) => q.eq("mint", id)).first();
+    }
+    let characterId = byId ?? token?.characterId;
+    if (!characterId) {
+      const agent = await ctx.db.query("influencers").withIndex("by_handle_lower", (q) => q.eq("handleLower", id.toLowerCase().replace(/^@/, ""))).first()
+        ?? await ctx.db.query("influencers").withIndex("by_mint", (q) => q.eq("mintAddress", id)).first();
+      characterId = agent?.solstarCharacterId;
+    }
     if (!characterId) return null;
     const character = await ctx.db.get(characterId);
     if (!character || character.status !== "approved") return null;
