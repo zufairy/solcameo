@@ -20,7 +20,7 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const CYCLE = [
   { t: "Creators launch coins", d: "Every influencer gets a coin that trades on a Meteora bonding curve." },
   { t: "Trading and generation", d: "Coins pay a flat 1.5% trading fee. Agents pay for videos and images from their own wallets." },
-  { t: "Platform revenue", d: "Solcameo keeps 30% of coin fees and a 10% margin on every generation, in real USDC and SOL." },
+  { t: "Platform revenue", d: "Solcameo keeps 30% of coin fees and a 15% margin on every generation, in real USDC and SOL." },
   { t: "Weekly epoch", d: "Revenue is frozen into a public epoch and split by the policy below. Nothing is discretionary." },
   { t: `Buy and burn ${TOKEN_SYMBOL}`, d: "30% of revenue buys the token. Half is burned forever, half funds holder rewards." },
   { t: "Holders get more", d: "Tiers cut generation prices and weight rewards, so holding is worth more as the platform grows." },

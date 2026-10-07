@@ -12,7 +12,7 @@ import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
-import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
@@ -56,7 +56,8 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
   const aspect = aspectFor(engineId, aspectPick);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
-  const seconds = secondsOverride && pricingSpec?.durations.includes(secondsOverride) ? secondsOverride : (pricingSpec?.durations[0] ?? 5);
+  const lengths = videoLengthOptions(engineId);
+  const seconds = secondsOverride && lengths.includes(secondsOverride) ? secondsOverride : (lengths[0] ?? 5);
   // Provider price plus the Solcameo fee, plus the storyboard image unless skipped. The server bills the same numbers.
   const priceUsd = useMemo(() => (skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(getVideoEngine(engineId), seconds, quality), [engineId, seconds, quality, skipStoryboard]);
 
@@ -105,7 +106,8 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
             ...(attached ? { referenceImageUrl: attached } : {}),
             videoEngine: engineId,
             aspectRatio: aspect,
-            ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
+            durationSeconds: seconds,
+            ...(pricingSpec ? { videoResolution: quality } : {}),
             ...(skipStoryboard ? { skipStoryboard: true } : {}),
             ...(noPersona ? { noPersona: true } : {}),
             ...(noPersona && skipStoryboard ? { exactOutput: true } : {}),
@@ -192,13 +194,11 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   <ChipSelect value={engineId} onChange={(v) => { setEngineOverride(v as VideoEngineId); setQualityOverride(null); setSecondsOverride(null); }} title="Video engine"
                     options={selectableVideoEngines().map((e) => ({ value: e.id, label: e.label }))} />
                   {pricingSpec && (
-                    <>
-                      <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
-                        options={pricingSpec.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
-                      <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
-                        options={pricingSpec.durations.map((d) => ({ value: String(d), label: `${d}s` }))} />
-                    </>
+                    <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
+                      options={pricingSpec.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
                   )}
+                  <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
+                    options={lengths.map((d) => ({ value: String(d), label: `${d}s` }))} />
                   <ChipSelect value={aspect} onChange={(v) => setAspectPick(v as VideoAspect)} title="Video size: portrait, landscape or square"
                     options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
                   <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />

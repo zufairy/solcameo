@@ -7,9 +7,9 @@ export const SERVICE_PRICES: Record<Service, number> = {
   llm_message: 0.003,
   social_post: 0.05,
   transcription: 0.10,
-  // Explore Genjutsu renders: qty is the whole-cent price (Higgsfield rate plus the 10% Solcameo fee).
-  explore_video: 0.01,
-  // Studio images: qty is tenths of a cent (provider price plus 10%), so $0.044 is qty 44.
+  // Pay-first video renders (Explore Genjutsu and engine videos): qty is tenths of a cent (provider price plus 15%), so $1.725 is qty 1725.
+  explore_video: 0.001,
+  // Studio images: qty is tenths of a cent (provider price plus 15%), so $0.044 is qty 44.
   gen_image: 0.001,
 };
 

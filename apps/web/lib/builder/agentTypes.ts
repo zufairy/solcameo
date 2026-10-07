@@ -5,7 +5,7 @@
 
 import { HIGGSFIELD_ENGINES } from "./higgsfieldEngines";
 import { RETAIL_MARKUP } from "@/lib/pricing/retail";
-import { kieProviderCostUsd, type VideoQuality } from "./kieVideoPricing";
+import { KIE_VIDEO_PRICING, kieProviderCostUsd, type VideoQuality } from "./kieVideoPricing";
 
 export type AgentType = "influencer" | "worker" | "trader" | "campaign" | "clipping";
 
@@ -836,11 +836,11 @@ export function maxClipForModel(kieModel: string): number {
 }
 
 // Operator-facing engine menu + RETAIL credit debits. Every engine is billed at the
-// provider's list price (Kie or Higgsfield) plus the 10% Solcameo fee (RETAIL_MARKUP).
+// provider's list price (Kie or Higgsfield) plus the 15% Solcameo fee (RETAIL_MARKUP).
 // Failed jobs are refunded by the task hold path; successful rerolls are new paid
 // generations.
 // Cost model: provider price is quoted "per N seconds" → pricePerMaxClipUsdc is that
-// quote plus 10%, and maxClipSeconds is N, so videoCostForLength bills
+// quote plus 15%, and maxClipSeconds is N, so videoCostForLength bills
 // ceil(targetSeconds/N) clips.
 // `kieModel` is the slug sent to KIE. Veo uses the dedicated /veo/ endpoint; every
 // other engine routes through KIE's generic /jobs/createTask path (model slug +
@@ -854,7 +854,7 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:gj",
     provider: "higgsfield",
     formatOnly: true,
-    // Higgsfield list price $0.681/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
+    // Higgsfield list price $0.681/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 15% Solcameo fee (RETAIL_MARKUP).
     pricePerSecondUsdc: 0.681 * RETAIL_MARKUP,
     maxClipSeconds: 30,
     pricePerMaxClipUsdc: 0.681 * RETAIL_MARKUP * 30,
@@ -866,7 +866,7 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     label: "Seedance 2.5 · Higgsfield",
     kieModel: "hf:sd25",
     provider: "higgsfield",
-    // Higgsfield list price $0.4622/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
+    // Higgsfield list price $0.4622/s at 720p (open.higgsfield.ai, checked 2026-10-06) plus the 15% Solcameo fee (RETAIL_MARKUP).
     // Higgsfield bills per generated second, so videoCostForLength bills seconds, not whole clips.
     pricePerSecondUsdc: 0.4622 * RETAIL_MARKUP,
     maxClipSeconds: 30,
@@ -880,7 +880,7 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
     kieModel: "hf:sd20",
     provider: "higgsfield",
     // Token-metered: $0.014 per 1k tokens, tokens = ceil(s x w x h x 24 / 1024). 720x1280 portrait
-    // = 21,600 tokens/s = $0.3024/s (open.higgsfield.ai, checked 2026-10-06) plus the 10% Solcameo fee (RETAIL_MARKUP).
+    // = 21,600 tokens/s = $0.3024/s (open.higgsfield.ai, checked 2026-10-06) plus the 15% Solcameo fee (RETAIL_MARKUP).
     pricePerSecondUsdc: 0.3024 * RETAIL_MARKUP,
     maxClipSeconds: 15,
     pricePerMaxClipUsdc: 0.3024 * RETAIL_MARKUP * 15,
@@ -1001,7 +1001,19 @@ export function videoCostForLength(engine: VideoEngineOption, seconds: number, q
   return clips * engine.pricePerMaxClipUsdc;
 }
 
-/** Retail storyboard debit: the provider image cost (about $0.04) plus the 10% Solcameo fee. */
+/**
+ * Lengths (seconds) offered for an engine: Kie's own price table where it has one, otherwise standard steps up to the
+ * engine's clip limit (Higgsfield bills per second). Every engine gets a length, so the price shown is always for a
+ * length that is actually sent to the render.
+ */
+export function videoLengthOptions(engineId: VideoEngineId): number[] {
+  const spec = KIE_VIDEO_PRICING[engineId];
+  if (spec) return spec.durations;
+  const limit = getVideoEngine(engineId).maxClipSeconds;
+  return [5, 8, 10, 15, 20, 30].filter((d) => d <= limit);
+}
+
+/** Retail storyboard debit: the provider image cost (about $0.04) plus the 15% Solcameo fee. */
 export const VIDEO_STORYBOARD_COST_USDC = 0.04 * RETAIL_MARKUP;
 
 /** Full customer-facing and reservable generation quote, in credits. */

@@ -410,7 +410,7 @@ function Generator({
         )}
       </Button>
       <p className="text-[11px] text-zinc-500">
-        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (10% or $1, whichever is higher). ` : ""}
+        {estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15% or $1, whichever is higher). ` : ""}
         Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}
       </p>
       {(failure || uploadError) && (

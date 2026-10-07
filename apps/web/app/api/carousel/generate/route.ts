@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Bill the chosen engine (provider price plus 10%) before spending a generation. Agent-side
+    // Bill the chosen engine (provider price plus 15%) before spending a generation. Agent-side
     // callers (internal) are billed by their own task, so only user requests are charged here.
     const runId = `img:${randomUUID()}`;
     let charged = false;

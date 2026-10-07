@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { normalizeShowBible, resolveIdentityRefs } from "@/lib/builder/showBible";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, ImagePlus } from "lucide-react";
-import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
+import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoLengthOptions, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
@@ -135,12 +135,12 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
   const seconds = useMemo(() => {
-    const options = pricingSpec?.durations ?? [];
+    const options = videoLengthOptions(engineId);
     if (secondsOverride && options.includes(secondsOverride)) return secondsOverride;
     const range = resolveDurationRange(influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds);
     return options.find((d) => d >= range.min) ?? options[0] ?? range.min;
-  }, [pricingSpec, secondsOverride, influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds]);
-  // Provider price plus 10%, plus the storyboard image unless it is skipped. The server bills the same numbers.
+  }, [engineId, secondsOverride, influencerDoc?.videoMinSeconds, influencerDoc?.videoMaxSeconds]);
+  // Provider price plus 15%, plus the storyboard image unless it is skipped. The server bills the same numbers.
   const priceUsd = useMemo(() => {
     const engine = getVideoEngine(engineId);
     return (skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds, quality);
@@ -267,7 +267,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
               aspectRatio: aspect,
-              ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
+              durationSeconds: seconds,
+              ...(pricingSpec ? { videoResolution: quality } : {}),
               ...(skipStoryboard ? { skipStoryboard: true } : {}),
               ...(noPersona ? { noPersona: true } : {}),
             },
@@ -364,13 +365,11 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             <ChipSelect value={aspect} onChange={(v) => setAspectOverride(v as VideoAspect)} title="Video size: portrait, landscape or square"
               options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
             {pricingSpec && (
-              <>
-                <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
-                  options={pricingSpec.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
-                <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
-                  options={pricingSpec.durations.map((d) => ({ value: String(d), label: `${d}s` }))} />
-              </>
+              <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
+                options={pricingSpec.qualities.map((q) => ({ value: q, label: q === "4k" ? "4K" : q }))} />
             )}
+            <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
+              options={videoLengthOptions(engineId).map((d) => ({ value: String(d), label: `${d}s` }))} />
             <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard"
               title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image" />
             <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona"
@@ -396,7 +395,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               </div>
             )}
             <PriceButton className="ml-auto" disabled={!canWrite || !prompt.trim() || isGenerating} busy={isGenerating} onClick={generate} priceUsd={null} priceText={priceText} pending={pendingCount}
-              title={isGenerating ? "Sending…" : pendingCount > 0 ? "Renders run in the background, queue another anytime" : "Includes the 10% Solcameo fee"} />
+              title={isGenerating ? "Sending…" : pendingCount > 0 ? "Renders run in the background, queue another anytime" : "Includes the 15% Solcameo fee"} />
           </div>
           {error && <p className="mt-1.5 text-[11px] text-red-400">{error}</p>}
         </div>

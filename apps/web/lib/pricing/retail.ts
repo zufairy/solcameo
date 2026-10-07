@@ -1,5 +1,5 @@
-/** Solcameo charges the provider's list price (Kie or Higgsfield) plus 10%. */
-export const RETAIL_MARKUP = 1.1;
+/** Solcameo charges the provider's list price (Kie or Higgsfield) plus 15%. Every video, image and carousel price derives from this. */
+export const RETAIL_MARKUP = 1.15;
 
 /** Provider price in USD to what the customer pays, rounded to a tenth of a cent. */
 export function retailUsd(providerUsd: number): number {

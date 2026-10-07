@@ -14,7 +14,7 @@ export const imagePriceUsd = (engine: Pick<ImageEngine, "pricePerImageUsdc">) =>
 
 export type ImageCharge = { ok: true; costUsdc: number } | { ok: false; reason: string };
 
-/** Charge one image to the agent: provider price plus 10%, paid on-chain to the generation collection wallet before the image is made. */
+/** Charge one image to the agent: provider price plus 15%, paid on-chain to the generation collection wallet before the image is made. */
 export async function chargeImage(mint: string, runId: string, engine: Pick<ImageEngine, "pricePerImageUsdc">): Promise<ImageCharge> {
   const qty = Math.max(1, Math.round(imagePriceUsd(engine) * 1000));
   try {

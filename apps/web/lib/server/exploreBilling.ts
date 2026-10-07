@@ -19,7 +19,7 @@ export type ChargeResult = { ok: true; costUsdc: number; duplicate?: boolean } |
  * and the agent wallet pays it on-chain to the generation collection wallet before the render starts. Idempotent per runId, so a retry never charges twice.
  */
 export async function chargeExploreRun(mint: string, runId: string, priceUsdc: number): Promise<ChargeResult> {
-  const qty = Math.max(1, Math.round(priceUsdc * 100));
+  const qty = Math.max(1, Math.ceil(priceUsdc * 1000 - 1e-9));
   try {
     await refreshAgentFunds(mint);
     const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });

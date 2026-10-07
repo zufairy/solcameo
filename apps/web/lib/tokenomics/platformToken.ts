@@ -44,8 +44,8 @@ export function discountedCost(cost: number, discountPct: number): number {
 export const REVENUE_SPLIT = { buybackBps: 3000, opsBps: 4000, treasuryBps: 3000 } as const;
 /** Of the tokens the buyback acquires: burned versus paid to holders. */
 export const BUYBACK_SPLIT = { burnBps: 5000, rewardsBps: 5000 } as const;
-/** Share of settled generation spend that is Solcameo margin (the 10% fee on top of provider cost: 10/110). */
-export const GENERATION_MARGIN_BPS = 909;
+/** Share of settled generation spend that is Solcameo margin (the 15% fee on top of provider cost: 15/115). */
+export const GENERATION_MARGIN_BPS = 1304;
 
 export interface RevenuePlan { revenue: bigint; buyback: bigint; ops: bigint; treasury: bigint }
 

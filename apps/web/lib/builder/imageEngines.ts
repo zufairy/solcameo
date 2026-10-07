@@ -31,7 +31,7 @@ export interface ImageEngine {
    * purposes — a reference genuinely works, just not on this literal slug.
    */
   acceptsReferences: boolean;
-  /** Provider (Kie) list price per image. Customers pay this plus 10%: use imageRetailPriceUsd. */
+  /** Provider (Kie) list price per image. Customers pay this plus 15%: use imageRetailPriceUsd. */
   pricePerImageUsdc: number;
 }
 
@@ -91,7 +91,7 @@ export const IMAGE_ENGINES: ImageEngine[] = [
   },
 ];
 
-/** What one image costs the customer: the provider price plus the 10% Solcameo fee. */
+/** What one image costs the customer: the provider price plus the 15% Solcameo fee. */
 export function imageRetailPriceUsd(engine: Pick<ImageEngine, "pricePerImageUsdc">): number {
   return retailUsd(engine.pricePerImageUsdc);
 }

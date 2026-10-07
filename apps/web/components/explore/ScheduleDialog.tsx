@@ -219,7 +219,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
                     )}
                     <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs">
                       <div className="flex items-center justify-between gap-3"><span className="text-zinc-400">{Number.isFinite(runAt) ? (repeat === "once" ? whenLabel : `${repeat === "daily" ? "Daily" : "Weekly"} from ${whenLabel}`) : "Pick a time"}</span><span className="font-medium tabular-nums">{per !== null ? `${formatGenerationUsd(per)} per run` : "Reference must be 4 to 30s"}</span></div>
-                      <p className="mt-1 text-right text-[11px] text-zinc-500">Charged from the agent wallet when each run starts. Includes the Solcameo fee (10% or $1, whichever is higher).</p>
+                      <p className="mt-1 text-right text-[11px] text-zinc-500">Charged from the agent wallet when each run starts. Includes the Solcameo fee (15% or $1, whichever is higher).</p>
                       {per !== null && runs > 1 && <p className="mt-1 text-right text-[11px] tabular-nums text-zinc-500">{runs} runs · about {formatGenerationUsd(per * runs)} in total</p>}
                     </div>
                     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
