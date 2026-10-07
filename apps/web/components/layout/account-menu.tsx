@@ -28,6 +28,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RenderStatusChip } from "@/components/generations/render-status-chip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { useFullSignOut } from "@/providers/wallet-provider";
@@ -231,6 +232,7 @@ export function AccountMenu() {
 
   return (
     <div className="flex items-center gap-2">
+      <RenderStatusChip />
       <button
         type="button"
         onClick={() => setDepositOpen(true)}

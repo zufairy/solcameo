@@ -136,52 +136,46 @@ function Market() {
     return () => clearInterval(timer);
   }, []);
   const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: "mainnet", liveOnly: true });
+  const hasLive = !!rows?.some((r) => r.dbcPool);
   useEffect(() => {
+    if (!hasLive) return;
     const controller = new AbortController();
-    const live = rows?.filter((r) => r.dbcPool) ?? [];
-    if (!live.length) return;
     let refreshing = false;
+    // One request for every coin (the server reads all pools in a single RPC call and the CDN shares it), instead of
+    // a request per coin. History arrives downsampled; points merge by time so the sparkline keeps growing live.
     const refresh = async () => {
-      if (refreshing || controller.signal.aborted) return;
+      if (refreshing || controller.signal.aborted || document.visibilityState === "hidden") return;
       refreshing = true;
       try {
-        for (
-          let offset = 0;
-          offset < live.length && !controller.signal.aborted;
-          offset += 4
-        ) {
-          await Promise.allSettled(
-            live.slice(offset, offset + 4).map(async (r) => {
-              try {
-                const res = await fetch(
-                  `/api/meteora/pool?characterId=${r.characterId}`,
-                  { signal: controller.signal },
-                );
-                const data = await res.json();
-                if (!controller.signal.aborted)
-                  setPools(p => {
-                    const points = new Map([...(p[r.characterId]?.points ?? []), ...(data.points ?? [])].map(point => [point.time, point]));
-                    return { ...p, [r.characterId]: { ...data, points: [...points.values()].sort((a,b) => a.time-b.time).slice(-1000) } };
-                  });
-              } catch {
-                /* Keep confirmed state through transient failures. */
-              }
-            }),
-          );
-        }
+        const res = await fetch("/api/meteora/pools?network=mainnet", { signal: controller.signal });
+        const data = (await res.json()) as { pools?: Record<string, { points?: Array<{ time: number; price: number; volume: number }> } & Record<string, unknown>> };
+        if (controller.signal.aborted || !data.pools) return;
+        setPools((prev) => {
+          const next = { ...prev };
+          for (const [id, snap] of Object.entries(data.pools!)) {
+            const merged = new Map([...(prev[id]?.points ?? []), ...(snap.points ?? [])].map((pt) => [pt.time, pt]));
+            next[id] = { ...(snap as object), points: [...merged.values()].sort((x, y) => x.time - y.time).slice(-200) } as (typeof prev)[string];
+          }
+          return next;
+        });
+      } catch {
+        /* Keep confirmed state through transient failures. */
       } finally {
         refreshing = false;
       }
     };
+    const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
     window.addEventListener("solcameo:trade-confirmed", refresh);
+    document.addEventListener("visibilitychange", onVisible);
     void refresh();
-    const timer = setInterval(() => void refresh(), 5000);
+    const timer = setInterval(() => void refresh(), 4000);
     return () => {
       controller.abort();
       window.removeEventListener("solcameo:trade-confirmed", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
       clearInterval(timer);
     };
-  }, [rows]);
+  }, [hasLive]);
   const categories = useMemo(
     () => [...new Set(rows?.map((r) => r.category).filter(Boolean))].sort(),
     [rows],

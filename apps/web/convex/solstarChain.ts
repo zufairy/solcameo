@@ -35,7 +35,8 @@ export const ingest = mutation({
       holders: v.array(v.object({ wallet: v.string(), units: v.string(), supplyPct: v.number(), isPool: v.boolean() })),
       creator: v.optional(v.string()), creatorSharePct: v.optional(v.number()),
       feesSol: v.optional(v.number()), claimableSol: v.optional(v.number()), migrated: v.optional(v.boolean()),
-      historyComplete: v.optional(v.boolean()),
+      historyComplete: v.optional(v.boolean()), launchCapSol: v.optional(v.number()), curveProgress: v.optional(v.number()),
+      volume24hSol: v.optional(v.number()), trades24h: v.optional(v.number()),
     })),
     error: v.optional(v.string()),
   },
@@ -78,6 +79,8 @@ export const ingest = mutation({
       creator: a.market?.creator ?? prev?.creator, creatorSharePct: a.market?.creatorSharePct ?? prev?.creatorSharePct,
       feesSol: a.market?.feesSol ?? prev?.feesSol, claimableSol: a.market?.claimableSol ?? prev?.claimableSol, migrated: a.market?.migrated ?? prev?.migrated,
       historyComplete: a.market?.historyComplete ?? prev?.historyComplete,
+      launchCapSol: a.market?.launchCapSol ?? prev?.launchCapSol, curveProgress: a.market?.curveProgress ?? prev?.curveProgress,
+      volume24hSol: a.market?.volume24hSol ?? prev?.volume24hSol, trades24h: a.market?.trades24h ?? prev?.trades24h,
       // Fee data exists for every swap from the first ingest when the whole history was read, else from now on.
       feeTrackedSince: prev ? prev.feeTrackedSince : a.market?.historyComplete === false ? Date.now() : 0,
     };
@@ -154,5 +157,52 @@ export const leaderboardCoin = query({
       swaps: newest.slice(0, 4000).reverse().map((s) => ({ signature: s.signature, wallet: s.wallet, side: s.side, units: s.units, sol: s.sol, time: s.time, feeSol: s.feeSol, networkFeeSol: s.networkFeeSol })),
       holders: holders.map((h) => ({ wallet: h.wallet, units: h.units, isPool: h.isPool })),
     };
+  },
+});
+
+/**
+ * What a listing row shows for one coin (market cap, change since launch, 24h volume, curve fill), straight from the
+ * synced tables. Reactive, so the numbers move the moment the sync lands and no row waits on an RPC call.
+ */
+export const poolSnapshot = query({
+  args: { characterId: v.id("ssCharacters") },
+  handler: async (ctx, { characterId }) => {
+    const state = await ctx.db.query("ssChainState").withIndex("by_character", (q) => q.eq("characterId", characterId)).unique();
+    if (!state) return null;
+    const since = Date.now() - 86_400_000;
+    const recent = await ctx.db.query("ssChainSwaps").withIndex("by_character_time", (q) => q.eq("characterId", characterId).gte("time", since)).take(2000);
+    const capSol = state.priceSol * (Number(state.supplyRaw) / 10 ** state.decimals);
+    return {
+      available: true as const, capSol, migrated: !!state.migrated, progress: state.migrated ? 1 : state.curveProgress ?? 0,
+      changeSinceLaunchPct: state.launchCapSol && state.launchCapSol > 0 ? (capSol / state.launchCapSol - 1) * 100 : null,
+      appVolume24hLamports: String(Math.round(recent.reduce((n, s) => n + s.sol, 0) * 1e9)),
+      syncedAt: state.syncedAt,
+    };
+  },
+});
+
+/**
+ * The tokenomics page's live pulse, reactive: how much trading is happening, what fee that makes, how the fee splits,
+ * and the latest swaps across every coin. Reads the per-coin rollups the market sync keeps, never raw history.
+ */
+export const pulse = query({
+  args: { network: v.union(v.literal("mainnet"), v.literal("devnet")) },
+  handler: async (ctx, { network }) => {
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", network)).take(60);
+    let volume24hSol = 0, trades24h = 0, marketCapSol = 0, coins = 0, graduated = 0, syncedAt = 0;
+    const tape: { signature: string; side: "buy" | "sell"; sol: number; wallet: string; time: number; ticker: string; characterId: string }[] = [];
+    for (const token of tokens) {
+      if (!token.mint || !token.dbcPool || !["live", "graduated", "migrated"].includes(token.state)) continue;
+      const state = await ctx.db.query("ssChainState").withIndex("by_character", (q) => q.eq("characterId", token.characterId)).unique();
+      if (!state) continue;
+      coins++; if (state.migrated) graduated++;
+      volume24hSol += state.volume24hSol ?? 0; trades24h += state.trades24h ?? 0;
+      marketCapSol += state.priceSol * (Number(state.supplyRaw) / 10 ** state.decimals);
+      syncedAt = Math.max(syncedAt, state.syncedAt);
+      const recent = await ctx.db.query("ssChainSwaps").withIndex("by_character_time", (q) => q.eq("characterId", token.characterId)).order("desc").take(8);
+      for (const s of recent) tape.push({ signature: s.signature, side: s.side, sol: s.sol, wallet: `${s.wallet.slice(0, 4)}…${s.wallet.slice(-4)}`, time: s.time, ticker: token.ticker, characterId: token.characterId as string });
+    }
+    tape.sort((a, b) => b.time - a.time);
+    return { coins, graduated, volume24hSol, trades24h, marketCapSol, syncedAt, tape: tape.slice(0, 14) };
   },
 });

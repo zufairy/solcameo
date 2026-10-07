@@ -9,6 +9,7 @@ import { internal } from "./_generated/api";
 import { assertSecret } from "./lib/solstarAuth";
 import { splitCollectedPartner } from "../lib/meteora/flywheel";
 import { appFetch } from "./lib/appFetch";
+import { recordEpisodeAdded } from "./lib/marketSummary";
 
 export const status = query({
   args: { characterId: v.id("ssCharacters") },
@@ -390,6 +391,7 @@ export const updateJob = mutation({
           engine: "Grok Imagine",
           createdAt: Date.now(),
         });
+        await recordEpisodeAdded(ctx, j.tokenId, c?.referenceImageUrl ?? "");
       }
     }
     await ctx.db.patch(a.id, {

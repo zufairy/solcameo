@@ -85,7 +85,11 @@ async function run(characterId: string): Promise<SyncResult> {
       const common = { authSecret: secret, characterId: id, mint, network };
       // `price` is SOL per raw base unit (what the pool stores); the tables hold SOL per whole token.
       const priceSol = price * 10 ** decimals;
-      const market = { priceSol, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders };
+      // Launch cap and curve fill, so listings can show change and progress without reading the pool.
+      const supplyTokens = Number(supplyRaw) / 10 ** decimals, start = Number(config.sqrtStartPrice.toString()) / 2 ** 64;
+      const launchCapSol = start * start * 10 ** (decimals - 9) * supplyTokens;
+      const curveProgress = Math.min(1, Number(pool.poolState.quoteReserve.toString()) / Math.max(1, Number(config.migrationQuoteThreshold.toString())));
+      const market = { priceSol, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders, launchCapSol, curveProgress };
       // Push holder data immediately; historical transaction scanning must not delay the first view.
       await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market });
       const history = await readPoolHistory(connection, poolAddress, network);
@@ -125,7 +129,8 @@ async function run(characterId: string): Promise<SyncResult> {
       });
       let ingested = 0;
       for (let i = 0; i < swaps.length; i += CHUNK) ingested += (await convex.mutation(api.solstarChain.ingest, { ...common, swaps: swaps.slice(i, i + CHUNK) })).applied;
-      await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market: { ...market, creator: pool.poolState.creator.toBase58(), creatorSharePct: config.creatorTradingFeePercentage, feesSol, claimableSol, migrated: !!pool.poolState.isMigrated, historyComplete } });
+      const dayAgo = Date.now() - 86_400_000, last24 = decoded.filter((d) => d.trade.time >= dayAgo);
+      await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market: { ...market, volume24hSol: last24.reduce((n, d) => n + d.trade.sol, 0), trades24h: last24.length, creator: pool.poolState.creator.toBase58(), creatorSharePct: config.creatorTradingFeePercentage, feesSol, claimableSol, migrated: !!pool.poolState.isMigrated, historyComplete } });
       return { ok: true, ingested };
     } catch (e) { lastError = e; }
   }

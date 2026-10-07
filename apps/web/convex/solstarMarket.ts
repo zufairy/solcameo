@@ -1,6 +1,8 @@
 import { terminalStats } from "./lib/terminalStats";
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
+import { assertSecret } from "./lib/solstarAuth";
+import { countSources } from "./lib/marketSummary";
 import type { Id } from "./_generated/dataModel";
 import {
   PAPER_VIRTUAL_SOL,
@@ -100,22 +102,26 @@ export const listMarket = query({
       )
         continue;
 
-      const episode = await ctx.db
-        .query("ssEpisodes")
-        .withIndex("by_token", (q) => q.eq("tokenId", token._id))
-        .order("desc")
-        .first();
+      // Live coins read two counters from the summary row (kept current by the writers) instead of scanning episodes and
+      // follows; coins without a row yet (or paper coins) fall back to the bounded scans below.
+      const summary = token.network === "paper" ? null : await ctx.db.query("ssMarketSummary").withIndex("by_token", (q) => q.eq("tokenId", token._id)).unique();
       const stats =
         token.network === "paper" ? await terminalStats(ctx, token._id, statsLimit) : null;
-      const episodes = await ctx.db
-        .query("ssEpisodes")
-        .withIndex("by_token", (q) => q.eq("tokenId", token._id))
-        .take(episodeCap + 1);
-      const following = await ctx.db
-        .query("ssFollows")
-        .withIndex("by_character", (q) => q.eq("characterId", character._id))
-        .take(countCap + 1);
-      const followers = Math.min(following.length, countCap);
+      let posterUrl: string | undefined, episodeCount: number, followers: number, followersCapped: boolean;
+      if (summary) {
+        posterUrl = summary.posterUrl;
+        episodeCount = summary.episodes;
+        followers = summary.followers;
+        followersCapped = false;
+      } else {
+        const episode = await ctx.db.query("ssEpisodes").withIndex("by_token", (q) => q.eq("tokenId", token._id)).order("desc").first();
+        const episodes = await ctx.db.query("ssEpisodes").withIndex("by_token", (q) => q.eq("tokenId", token._id)).take(episodeCap + 1);
+        const following = await ctx.db.query("ssFollows").withIndex("by_character", (q) => q.eq("characterId", character._id)).take(countCap + 1);
+        posterUrl = episode?.posterUrl;
+        episodeCount = episodes.length;
+        followers = Math.min(following.length, countCap);
+        followersCapped = following.length > countCap;
+      }
       // Full stats come from the bounded ledger replay. Incomplete history is marked
       // explicitly; the UI shows unavailable rather than claiming zero activity.
       const volume = stats
@@ -138,7 +144,7 @@ export const listMarket = query({
         name: character.name,
         ticker: token.ticker,
         category: character.category,
-        imageUrl: episode?.posterUrl ?? character.referenceImageUrl,
+        imageUrl: posterUrl || character.referenceImageUrl,
         state: token.state,
         ...(token.dbcPool ? { dbcPool: token.dbcPool } : {}),
         network: token.network,
@@ -148,13 +154,13 @@ export const listMarket = query({
         volume24hLamports: volume.toString(),
         trades24h,
         followers,
-        followersCountCapped: following.length > countCap,
+        followersCountCapped: followersCapped,
         historyComplete: stats !== null,
         createdAt: token.createdAt,
         ...(character.xUrl ? { xUrl: character.xUrl } : {}),
         ...(character.websiteUrl ? { websiteUrl: character.websiteUrl } : {}),
-        videosPosted: Math.min(episodes.length, episodeCap),
-        videosCountCapped: episodes.length > episodeCap,
+        videosPosted: Math.min(episodeCount, episodeCap),
+        videosCountCapped: episodeCount > episodeCap,
         holders: stats?.holders.length ?? null,
         changes: stats?.changes ?? null,
         sparkline: stats?.points.slice(-32).map((p) => p.price) ?? [],
@@ -180,6 +186,17 @@ export const listMarket = query({
     return rows
       .slice(0, MAX_LIST)
       .map(({ volume: _v, mcap: _m, change: _c, ...pub }) => pub);
+  },
+});
+
+/** Minimal public pool references for the live coins, so price polling never has to read the heavy terminal view. */
+export const poolRefs = query({
+  args: { network: networkV },
+  handler: async (ctx, { network }) => {
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", network)).take(MAX_LIST);
+    return tokens
+      .filter((t) => t.mint && t.dbcPool && t.dbcConfig && ["live", "graduated", "migrated"].includes(t.state))
+      .map((t) => ({ characterId: t.characterId, network: t.network, mint: t.mint as string, dbcPool: t.dbcPool as string, dbcConfig: t.dbcConfig as string }));
   },
 });
 
@@ -268,5 +285,27 @@ export const tokenomicsTargets = query({
       out.push({ characterId: c._id, name: c.name, ticker: t.ticker, mint: t.mint, dbcPool: t.dbcPool, dbcConfig: t.dbcConfig, state: t.state });
     }
     return out;
+  },
+});
+
+/**
+ * Repair or create the counters, a few coins per call (Convex caps reads per mutation). Recounts from the source rows,
+ * so it is safe to repeat. Call with `skip: 0`, then again with the returned `next` until it is null.
+ */
+export const rebuildMarketSummary = mutation({
+  args: { authSecret: v.string(), network: networkV, skip: v.optional(v.number()) },
+  handler: async (ctx, { authSecret, network, skip }) => {
+    assertSecret(authSecret);
+    const PAGE = 8;
+    const start = skip ?? 0;
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", network)).take(start + PAGE + 1);
+    const page = tokens.slice(start, start + PAGE);
+    for (const token of page) {
+      const counts = await countSources(ctx, token._id, token.characterId);
+      const doc = { tokenId: token._id, characterId: token.characterId, ...counts, updatedAt: Date.now() };
+      const existing = await ctx.db.query("ssMarketSummary").withIndex("by_token", (q) => q.eq("tokenId", token._id)).unique();
+      if (existing) await ctx.db.replace(existing._id, doc); else await ctx.db.insert("ssMarketSummary", doc);
+    }
+    return { rebuilt: page.length, next: tokens.length > start + PAGE ? start + PAGE : null };
   },
 });

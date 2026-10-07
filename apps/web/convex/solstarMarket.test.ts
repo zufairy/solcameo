@@ -221,3 +221,46 @@ describe("confirmed devnet market", () => {
     expect(characters.length).toBeGreaterThan(0);
   });
 });
+
+describe("market summary counters", () => {
+  async function liveCoin() {
+    const t = await seeded();
+    const ids = await t.run(async (ctx) => {
+      const base = (await ctx.db.query("ssTokens").first())!;
+      const { _id, _creationTime, ...c } = (await ctx.db.get(base.characterId))!;
+      void _id; void _creationTime;
+      const characterId = await ctx.db.insert("ssCharacters", { ...c, name: "Live" });
+      const tokenId = await ctx.db.insert("ssTokens", {
+        characterId, network: "mainnet", name: "Live", ticker: "LIVE", description: "", state: "live",
+        solReserve: 0n, tokenReserve: 0n, createdAt: Date.now(), mint: "M", dbcPool: "P", dbcConfig: "C",
+      });
+      await ctx.db.insert("ssEpisodes", { tokenId, index: 0, videoUrl: "v", posterUrl: "p0", title: "t", source: "generated", createdAt: 1 });
+      return { characterId, tokenId };
+    });
+    return { t, ...ids };
+  }
+  const list = (t: Awaited<ReturnType<typeof seeded>>) => t.query(api.solstarMarket.listMarket, { sort: "new", network: "mainnet", liveOnly: true });
+
+  it("a new row is counted from existing rows, then follow and unfollow keep it exact", async () => {
+    const { t, characterId } = await liveCoin();
+    expect((await list(t))[0]).toMatchObject({ followers: 0, videosPosted: 1 });
+    await t.mutation(api.solstarCatalog.follow, { wallet: WALLET, characterId, authSecret: SECRET });
+    await t.mutation(api.solstarCatalog.follow, { wallet: "W2".padEnd(40, "x"), characterId, authSecret: SECRET });
+    expect((await list(t))[0]).toMatchObject({ followers: 2, videosPosted: 1 });
+    await t.mutation(api.solstarCatalog.unfollow, { wallet: WALLET, characterId, authSecret: SECRET });
+    expect((await list(t))[0].followers).toBe(1);
+  });
+
+  it("rebuild repairs drifted counters and pages through coins", async () => {
+    const { t, characterId, tokenId } = await liveCoin();
+    await t.mutation(api.solstarCatalog.follow, { wallet: WALLET, characterId, authSecret: SECRET });
+    await t.run(async (ctx) => {
+      const s = (await ctx.db.query("ssMarketSummary").withIndex("by_token", (q) => q.eq("tokenId", tokenId)).unique())!;
+      await ctx.db.patch(s._id, { followers: 99, episodes: 40 });
+    });
+    expect((await list(t))[0]).toMatchObject({ followers: 99, videosPosted: 10 });
+    const r = await t.mutation(api.solstarMarket.rebuildMarketSummary, { authSecret: SECRET, network: "mainnet" });
+    expect(r).toEqual({ rebuilt: 1, next: null });
+    expect((await list(t))[0]).toMatchObject({ followers: 1, videosPosted: 1 });
+  });
+});

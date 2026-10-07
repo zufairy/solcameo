@@ -57,6 +57,10 @@ export default defineSchema({
     costLamports: v.int64(), prompt: v.string(), referenceImageUrl: v.optional(v.string()), taskId: v.optional(v.string()), videoUrl: v.optional(v.string()), error: v.optional(v.string()),
     createdAt: v.number(), updatedAt: v.number(),
   }).index("by_key", ["key"]).index("by_token", ["tokenId"]).index("by_status", ["status"]),
+  ssMarketSummary: defineTable({
+    tokenId: v.id("ssTokens"), characterId: v.id("ssCharacters"),
+    followers: v.number(), episodes: v.number(), posterUrl: v.optional(v.string()), updatedAt: v.number(),
+  }).index("by_token", ["tokenId"]).index("by_character", ["characterId"]),
   ssFollows: defineTable({ wallet: v.string(), characterId: v.id("ssCharacters"), createdAt: v.number() })
     .index("by_wallet_character", ["wallet", "characterId"]).index("by_character", ["characterId"]),
   ssTrades: defineTable({
@@ -96,6 +100,10 @@ export default defineSchema({
     /** Set when this is a reply to another reply (Reddit-style nesting). */
     parentId: v.optional(v.id("ssCalloutReplies")),
   }).index("by_callout_created", ["calloutId", "createdAt"]).index("by_wallet_created", ["wallet", "createdAt"]),
+  /** Chat under a made video. `videoKey` is the video's URL, which every surface already has and which never changes. */
+  ssVideoComments: defineTable({
+    videoKey: v.string(), characterId: v.optional(v.id("ssCharacters")), wallet: v.string(), body: v.string(), createdAt: v.number(),
+  }).index("by_video_created", ["videoKey", "createdAt"]).index("by_wallet_created", ["wallet", "createdAt"]),
   contentControlSettings: defineTable({
     key: v.string(), targetMint: v.optional(v.string()), autoAnnounce: v.boolean(), autoMilestones: v.optional(v.boolean()), updatedAt: v.number(),
   }).index("by_key", ["key"]),
@@ -2598,6 +2606,10 @@ export default defineSchema({
     feesSol: v.optional(v.number()), claimableSol: v.optional(v.number()), migrated: v.optional(v.boolean()),
     /** Swaps at or after this time carry fee data; 0 when the whole history was captured. */
     feeTrackedSince: v.optional(v.number()),
+    /** Market cap at launch and curve fill (0-1), so listings show change and progress without reading the pool. */
+    launchCapSol: v.optional(v.number()), curveProgress: v.optional(v.number()),
+    /** Rolling 24h trading activity, so the tokenomics page reads it live from Convex without scanning swaps. */
+    volume24hSol: v.optional(v.number()), trades24h: v.optional(v.number()),
     /** False when the chain history could not be read in full, so cost bases cannot be trusted. */
     historyComplete: v.optional(v.boolean()),
   }).index("by_character", ["characterId"]),

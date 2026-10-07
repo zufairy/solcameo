@@ -8,6 +8,7 @@ import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { SettingsShell, blurIn } from "@/components/settings/settings-shell";
 import { motion } from "framer-motion";
 import { useHireStore } from "@/lib/client/hireStore";
+import { LiveRenders } from "@/components/generations/live-renders";
 import { Calendar, Download, Images, Layers, Play, X } from "lucide-react";
 
 /* ════════ /generations — everything the account has generated ════════
@@ -245,6 +246,7 @@ export default function GenerationsPage() {
           </div>
         ) : (
           <>
+            <LiveRenders />
             {/* Kind filter pills */}
             <motion.div {...blurIn(0.04)} className="flex w-fit items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
               {FILTERS.map((f) => (

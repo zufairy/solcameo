@@ -13,7 +13,7 @@ export function CalloutMedia({ attachments, onRemove, compact = false }: { attac
   if (!attachments.length) return null;
   return <>
     <div className={`grid max-w-[500px] gap-2 ${attachments.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-      {attachments.map((a, i) => <div key={`${a.url}-${i}`} className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.025]">
+      {attachments.map((a, i) => <div key={`${a.url}-${i}`} className="group relative overflow-hidden rounded-[3px] border border-white/10 bg-white/[0.025]">
         <button type="button" aria-label={a.type === "gif" && reduced && !playing.includes(a.url) ? `Play GIF: ${a.alt}` : `Open attachment: ${a.alt}`} onClick={() => { if (a.type === "gif" && reduced && !playing.includes(a.url)) setPlaying(p => [...p, a.url]); else setOpened(a); }} className={`block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/60 ${attachments.length > 1 ? (compact ? "h-28" : "aspect-square") : "min-h-24"}`}>
           {failed.includes(a.url) ? <span className="flex h-24 items-center justify-center text-xs text-zinc-500">Image unavailable</span> : a.type === "gif" && reduced && !playing.includes(a.url) ? <span className="flex h-32 items-center justify-center gap-2 text-xs text-zinc-300"><Play className="size-4" />Play GIF</span> : <img src={a.url} alt={a.alt || "Callout attachment"} loading="lazy" decoding="async" onError={() => setFailed(p => [...p, a.url])} className={`w-full ${attachments.length > 1 ? "h-full object-cover" : compact ? "max-h-[120px] object-contain" : "max-h-[320px] object-contain"}`} />}
         </button>

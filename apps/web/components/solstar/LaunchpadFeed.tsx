@@ -1,4 +1,5 @@
 "use client";
+import { useSoundPreference } from "@/lib/client/soundPreference";
 /* eslint-disable @next/next/no-img-element -- character portraits hosted on remote storage */
 import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,30 +17,41 @@ import { PanelErrorBoundary } from "./feedShared";
 import type { MarketRow } from "./MarketTable";
 
 type Pool = { available: boolean; capSol?: number; progress?: number; migrated?: boolean; changeSinceLaunchPct?: number | null; appVolume24hLamports?: string };
+/**
+ * Market numbers for a coin, live from Convex (the market sync keeps them current), so a row paints instantly and
+ * moves the moment the pool does. Only a coin the sync has not reached yet falls back to one direct read.
+ */
+function usePool(characterId: string | undefined, enabled = true): Pool | null {
+  const id = characterId as MarketRow["characterId"] | undefined;
+  const snapshot = useQuery(api.solstarChain.poolSnapshot, id && enabled ? { characterId: id } : "skip");
+  const [direct, setDirect] = useState<Pool | null>(null);
+  useEffect(() => {
+    if (!id || !enabled || snapshot !== null) return;
+    const controller = new AbortController();
+    fetch(`/api/meteora/pool?characterId=${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null)).then((data) => { if (data) setDirect(data); }).catch(() => undefined);
+    return () => controller.abort();
+  }, [id, enabled, snapshot]);
+  // After a trade confirms, ask the sync to pull it in now; the snapshot then updates by itself.
+  useEffect(() => {
+    if (!id || !enabled) return;
+    const sync = () => { void fetch("/api/solstar/market-sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ characterId: id }) }).catch(() => undefined); };
+    window.addEventListener("solcameo:trade-confirmed", sync);
+    return () => window.removeEventListener("solcameo:trade-confirmed", sync);
+  }, [id, enabled]);
+  return snapshot ?? direct;
+}
+
 function CharacterPost({ row }: { row: MarketRow }) {
   const terminal = useQuery(api.solstarMarket.terminal, { characterId: row.characterId });
   const rate = useSolUsd();
-  const [pool, setPool] = useState<Pool | null>(null);
-  useEffect(() => {
-    if (!row.dbcPool) return;
-    let active = true;
-    const refresh = async () => {
-      try {
-        const res = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(row.characterId)}`);
-        if (res.ok && active) setPool(await res.json());
-      } catch { /* Keep the last confirmed observation during a connection interruption. */ }
-    };
-    void refresh();
-    const timer = setInterval(refresh, 15000);
-    window.addEventListener("solcameo:trade-confirmed", refresh);
-    return () => { active = false; clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); };
-  }, [row.characterId, row.dbcPool]);
+  const pool = usePool(row.dbcPool ? row.characterId : undefined);
   const episode = terminal?.episodes[0];
   const episodeUrl = episode?.videoUrl;
   const video = useRef<HTMLVideoElement>(null);
   const mirror = useRef<HTMLVideoElement>(null);
   const article = useRef<HTMLElement>(null);
-  const [muted, setMuted] = useState(true);
+  const { muted, soundOn, setSound } = useSoundPreference();
   const reduced = useReducedMotion();
   const active = useInView(article, { amount: 0.65 });
   /** Move to the next character, wrapping to the first; replay when it is the only one. */
@@ -74,11 +86,11 @@ function CharacterPost({ row }: { row: MarketRow }) {
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
     </div>
     <div className="relative overflow-hidden rounded-[3px] bg-black/20 shadow-[0_30px_90px_rgba(0,0,0,0.55)] ring-1 ring-white/15" style={{ width: "min(100cqw, calc(100cqh * 0.5625))", aspectRatio: "9 / 16" }}>
-      {episode ? <video ref={video} controls muted={muted} preload="metadata" playsInline onEnded={advance} src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full object-contain" aria-label={`${row.name} latest episode`} /> : <img src={row.imageUrl} alt={row.name} className={`absolute inset-0 size-full object-cover transition-transform ease-out ${active && !reduced ? "scale-[1.12] duration-[6000ms]" : "scale-100 duration-700"}`} />}
+      {episode ? <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full object-contain" aria-label={`${row.name} latest episode`} /> : <img src={row.imageUrl} alt={row.name} className={`absolute inset-0 size-full object-cover transition-transform ease-out ${active && !reduced ? "scale-[1.12] duration-[6000ms]" : "scale-100 duration-700"}`} />}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 to-transparent" />
       <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2">
         {episode ? <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.12] py-1 pl-2 pr-2.5 text-[11px] font-medium tracking-tight text-white shadow-[0_4px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl backdrop-saturate-150"><span className="size-1.5 rounded-full bg-[#d7ff00] shadow-[0_0_8px_#d7ff00]" />{episode.engine ?? "AI video"}</span> : <span />}
-        {episode && <Button size="icon-sm" variant="ghost" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute video" : "Mute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{muted ? <SpeakerOffIcon /> : <SpeakerLoudIcon />}</Button>}
+        {episode && <Button size="icon-sm" variant="ghost" onClick={() => setSound(!soundOn)} aria-label={soundOn ? "Mute video" : "Unmute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{soundOn ? <SpeakerLoudIcon /> : <SpeakerOffIcon />}</Button>}
       </div>
       <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-8">
         <Link href={`/market/${row.characterId}`} aria-label={`Open ${row.name} market`} className="block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]">
@@ -121,7 +133,7 @@ function TrendingPost({ item }: { item: TrendItem }) {
   const video = useRef<HTMLVideoElement>(null);
   const mirror = useRef<HTMLVideoElement>(null);
   const article = useRef<HTMLElement>(null);
-  const [muted, setMuted] = useState(true);
+  const { muted, soundOn, setSound } = useSoundPreference();
   const reduced = useReducedMotion();
   const active = useInView(article, { amount: 0.65 });
   /** Autoscroll: when a video ends, move to the next one, wrapping to the first. */
@@ -141,24 +153,9 @@ function TrendingPost({ item }: { item: TrendItem }) {
     return () => { clearInterval(sync); el.pause(); bg?.pause(); };
   }, [active]);
   const rate = useSolUsd();
-  const [pool, setPool] = useState<Pool | null>(null);
+  const pool = usePool(item.characterId, active);
   const identity = useQuery(api.users.leaderboardProfiles, item.creatorWallet ? { wallets: [item.creatorWallet] } : "skip");
   const market = useQuery(api.solstarMarket.terminal, item.characterId && active ? { characterId: item.characterId as MarketRow["characterId"] } : "skip");
-  useEffect(() => {
-    if (!item.characterId || !active) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    const refresh = async () => {
-      try {
-        const response = await fetch(`/api/meteora/pool?characterId=${encodeURIComponent(item.characterId!)}`, { signal: controller.signal });
-        if (response.ok && !cancelled) setPool(await response.json());
-      } catch { /* Retain the last confirmed market cap. */ }
-    };
-    void refresh();
-    const timer = setInterval(refresh, 15000);
-    window.addEventListener("solcameo:trade-confirmed", refresh);
-    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); };
-  }, [item.characterId, active]);
   const creator = identity?.[0]?.name || (item.creatorWallet ? `${item.creatorWallet.slice(0, 4)}…${item.creatorWallet.slice(-4)}` : "—");
   const cap = pool?.available && pool.capSol != null ? formatUsdEstimate(String(Math.round(pool.capSol * 1e9)), rate) : "—";
   const tokenName = market?.character.name || item.name;
@@ -180,11 +177,11 @@ function TrendingPost({ item }: { item: TrendItem }) {
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
     </div>
     <div className="relative overflow-hidden rounded-[3px] bg-black/20 shadow-[0_30px_90px_rgba(0,0,0,0.55)] ring-1 ring-white/15" style={{ width: "min(100cqw, calc(100cqh * 0.5625))", aspectRatio: "9 / 16" }}>
-      <video ref={video} controls muted={muted} preload="metadata" playsInline onEnded={advance} src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full object-contain" aria-label={`${item.name} video`} />
+      <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full object-contain" aria-label={`${item.name} video`} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 to-transparent" />
       <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2">
         <span />
-        <Button size="icon-sm" variant="ghost" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute video" : "Mute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{muted ? <SpeakerOffIcon /> : <SpeakerLoudIcon />}</Button>
+        <Button size="icon-sm" variant="ghost" onClick={() => setSound(!soundOn)} aria-label={soundOn ? "Mute video" : "Unmute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{soundOn ? <SpeakerLoudIcon /> : <SpeakerOffIcon />}</Button>
       </div>
       <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-12">
         {item.characterId ? <Link href={`/market/${item.characterId}`} aria-label={`Open ${item.name} market`} className={cardClass}>{body}</Link> : <div className={cardClass}>{body}</div>}

@@ -2,15 +2,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { X, ArrowUpRight, Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
+import { X, ArrowUpRight, Play, Pause, Volume2, VolumeX, Maximize, Minimize, MessageCircle } from "lucide-react";
+import { VideoChat } from "./VideoChat";
 
 const PAD = 16; // breathing room between the video and the screen edge
+const CHAT_W = 360; // chat panel beside the video on wide screens
+const GAP = 12;
+const WIDE = 960; // below this the chat is a sheet over the video instead
 const glass = "border border-white/20 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl";
 const clock = (s: number) => { if (!Number.isFinite(s) || s < 0) s = 0; return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`; };
 
 /** Fit a w:h frame inside the viewport (minus padding) at the video's exact aspect ratio. */
-function fit(ratio: number, vw: number, vh: number) {
-  const maxW = Math.max(160, vw - PAD * 2), maxH = Math.max(160, vh - PAD * 2);
+function fit(ratio: number, vw: number, vh: number, reserve = 0) {
+  const maxW = Math.max(160, vw - PAD * 2 - reserve), maxH = Math.max(160, vh - PAD * 2);
   const width = Math.min(maxW, maxH * ratio);
   return { width: Math.round(width), height: Math.round(width / ratio) };
 }
@@ -30,6 +34,7 @@ export function MakeVideoPlayer({ video, onClose }: { video: { url: string; post
   const [muted, setMuted] = useState(false);
   const [full, setFull] = useState(false);
   const [awake, setAwake] = useState(true);
+  const [chatOpen, setChatOpen] = useState(true); // opens with the earlier messages already showing
 
   useEffect(() => {
     const el = dialog.current;
@@ -63,12 +68,15 @@ export function MakeVideoPlayer({ video, onClose }: { video: { url: string; post
   const mute = () => { const m = media.current; if (!m) return; m.muted = !m.muted; setMuted(m.muted); wake(); };
   const expand = () => { if (document.fullscreenElement) void document.exitFullscreen(); else void frame.current?.requestFullscreen?.().catch(() => undefined); wake(); };
 
-  const size = view.w ? fit(ratio, view.w, view.h) : { width: 0, height: 0 };
+  const wide = view.w >= WIDE;
+  const sideChat = wide && chatOpen && !full;
+  const size = view.w ? fit(ratio, view.w, view.h, sideChat ? CHAT_W + GAP : 0) : { width: 0, height: 0 };
   const pct = duration ? (time / duration) * 100 : 0;
   const shown = awake || !playing;
 
   return (
     <dialog ref={dialog} aria-label={`${video.name} video player`} onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }} className="fixed inset-0 m-0 grid h-dvh max-h-none w-screen max-w-none place-items-center border-0 bg-black/55 p-0 text-white backdrop-blur-[3px] backdrop:bg-black/20">
+      <div className="flex items-stretch justify-center" style={{ gap: GAP }}>
       <motion.div ref={frame} initial={reduced ? false : { opacity: 0, scale: 0.94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: reduced ? 1 : 0.97 }} transition={{ type: "spring", stiffness: 280, damping: 30 }}
         onMouseMove={wake} onTouchStart={wake} style={full ? undefined : { width: size.width, height: size.height }}
         className={`group relative overflow-hidden bg-black shadow-[0_30px_120px_-20px_rgba(0,0,0,0.9)] ${full ? "h-full w-full" : "rounded-2xl ring-1 ring-white/15"}`}>
@@ -79,6 +87,7 @@ export function MakeVideoPlayer({ video, onClose }: { video: { url: string; post
 
         <div className={`pointer-events-none absolute inset-x-0 top-0 flex justify-end gap-2 bg-gradient-to-b from-black/45 to-transparent p-3 transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}>
           {video.characterId && <Link href={`/market/${video.characterId}`} className={`pointer-events-auto flex h-10 items-center gap-1 rounded-full px-4 text-xs font-medium transition hover:bg-white/20 ${glass}`}>Market <ArrowUpRight className="size-3.5" /></Link>}
+          <button onClick={() => setChatOpen(o => !o)} aria-label={chatOpen ? "Hide chat" : "Show chat"} aria-pressed={chatOpen} className={`pointer-events-auto grid size-10 place-items-center transition hover:bg-white/20 ${glass} ${chatOpen ? "rounded-[6px] !bg-[#d7ff00] !text-black" : "rounded-full"}`}><MessageCircle className="size-[18px]" /></button>
           <button autoFocus onClick={onClose} aria-label="Close video" className={`pointer-events-auto grid size-10 place-items-center rounded-full transition hover:bg-white/20 ${glass}`}><X className="size-5" /></button>
         </div>
 
@@ -104,6 +113,17 @@ export function MakeVideoPlayer({ video, onClose }: { video: { url: string; post
           </div>
         </div>
       </motion.div>
+      {sideChat && (
+        <motion.div initial={reduced ? false : { opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", stiffness: 280, damping: 32 }} className="flex" style={{ width: CHAT_W, height: size.height }}>
+          <VideoChat key={video.url} videoKey={video.url} characterId={video.characterId} className="w-full rounded-[6px]" />
+        </motion.div>
+      )}
+      </div>
+      {!wide && chatOpen && !full && (
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 32 }} className="absolute inset-x-2 bottom-2 flex h-[62dvh]">
+          <VideoChat key={video.url} videoKey={video.url} characterId={video.characterId} className="w-full rounded-[8px]" />
+        </motion.div>
+      )}
     </dialog>
   );
 }

@@ -70,3 +70,15 @@ it("rejects writes without the internal secret", async () => {
   const { t, characterId } = await setup();
   await expect(t.mutation(api.solstarChain.ingest, { ...base(characterId as never, []), authSecret: "nope" })).rejects.toThrow(/unauthorized/);
 });
+
+it("pulse sums the per-coin 24h rollups and lists the newest swaps across coins", async () => {
+  const { t, characterId } = await setup();
+  await t.run((ctx) => ctx.db.insert("ssTokens", { characterId: characterId as never, network: "mainnet", name: "n", ticker: "NOVA", description: "d", state: "live", mint: "mint", dbcPool: "pool", solReserve: 0n as never, tokenReserve: 0n as never, createdAt: 1 } as never));
+  const market = { priceSol: 0.00001, supplyRaw: "1000000000000000", decimals: 6, slot: 5, holders: [], volume24hSol: 12.5, trades24h: 7 };
+  await t.mutation(api.solstarChain.ingest, { ...base(characterId as never, [swap("a", "A", "buy", 1000, 0.01, 1), swap("b", "B", "sell", 1000, 0.02, 2)]), market });
+  const pulse = await t.query(api.solstarChain.pulse, { network: "mainnet" });
+  expect(pulse).toMatchObject({ coins: 1, graduated: 0, volume24hSol: 12.5, trades24h: 7 });
+  expect(pulse.marketCapSol).toBeCloseTo(0.00001 * 1_000_000_000);
+  expect(pulse.tape.map((s) => s.signature)).toEqual(["b", "a"]);
+  expect(pulse.tape[0]).toMatchObject({ ticker: "NOVA", side: "sell" });
+});

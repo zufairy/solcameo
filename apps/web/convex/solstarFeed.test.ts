@@ -337,3 +337,25 @@ describe("callout media", () => {
     }
   });
 });
+
+describe("video chat", () => {
+  const URL_A = "https://cdn.example.com/a.mp4";
+  it("lists earlier messages oldest first so the chat opens on its history", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "first!"), videoKey: URL_A });
+    await t.mutation(api.solstarFeed.postVideoComment, { ...chat(W2, "second"), videoKey: URL_A });
+    await t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "other video"), videoKey: "https://cdn.example.com/b.mp4" });
+    const rows = await t.query(api.solstarFeed.listVideoComments, { videoKey: URL_A });
+    expect(rows.map((r) => r.body)).toEqual(["first!", "second"]);
+    expect(rows[0].wallet).toContain("…");
+  });
+  it("rejects a wrong secret, an empty message, a repeat, and a flood", async () => {
+    const t = convexTest(schema, modules);
+    await expect(t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "hi", "nope"), videoKey: URL_A })).rejects.toThrow();
+    await expect(t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "   "), videoKey: URL_A })).rejects.toThrow("invalid_body");
+    await t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "same"), videoKey: URL_A });
+    await expect(t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "SAME"), videoKey: URL_A })).rejects.toThrow("duplicate_message");
+    for (let i = 0; i < 7; i++) await t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, `m${i}`), videoKey: URL_A });
+    await expect(t.mutation(api.solstarFeed.postVideoComment, { ...chat(W1, "one more"), videoKey: URL_A })).rejects.toThrow("rate_limited");
+  });
+});

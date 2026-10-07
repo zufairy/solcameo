@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AppHeaderShell } from "@/components/home/app-shell";
 import { PlatformTokenSection } from "@/components/tokenomics/PlatformTokenSection";
 import { TokenomicsLive } from "@/components/tokenomics/TokenomicsLive";
+import { CoinLifecycle } from "@/components/tokenomics/CoinLifecycle";
+import { Integrations, LivePulse } from "@/components/tokenomics/TokenomicsExtras";
 import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -14,7 +16,7 @@ export const metadata: Metadata = {
 export default function TokenomicsPage() {
   return (
     <AppHeaderShell flat>
-      <div className="min-h-full bg-black"><TokenomicsLive /><PlatformTokenSection /></div>
+      <div className="min-h-full bg-black"><TokenomicsLive afterHero={<><LivePulse /><CoinLifecycle /></>} afterCoins={<Integrations />} /><PlatformTokenSection /></div>
     </AppHeaderShell>
   );
 }

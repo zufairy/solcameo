@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
@@ -25,7 +25,7 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
 const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toFixed(2));
 
 /** Live, on-chain tokenomics: every number is read from Solana RPC a few seconds ago, never from the database. */
-export function TokenomicsLive() {
+export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNode; afterCoins?: ReactNode } = {}) {
   const reduced = useReducedMotion();
   const solUsd = useSolUsd();
   const [data, setData] = useState<LiveTokenomics | null>(null);
@@ -87,10 +87,17 @@ export function TokenomicsLive() {
           {data && <><span className="text-white/35">·</span><span>Solana {mainnet ? "mainnet" : "devnet"}</span><span className="text-white/35">·</span><span className="tabular-nums">slot {fmtInt(data.slot)}</span><span className="text-white/35">·</span><span className="tabular-nums">updated {ageS}s ago</span></>}
         </div>
         {error && !data && <p role="alert" className="mt-3 text-sm text-amber-300">{error}</p>}
+        <nav aria-label="On this page" className="mt-5 flex flex-wrap gap-2 text-[12px]">
+          {[["#how-it-works", "How it works"], ["#fee-flow", "Where fees go"], ["#on-chain", "On-chain now"], ["#platform-token", "Platform token and burns"]].map(([href, label]) => (
+            <a key={href} href={href} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white">{label}</a>
+          ))}
+        </nav>
       </motion.div>
 
+      {afterHero}
+
       {/* ── 3D fee flow ──────────────────────────────────────────────────────── */}
-      <section className={`${panel} relative mt-8 overflow-hidden`} aria-label="How a trade fee is split">
+      <section id="fee-flow" className={`${panel} relative mt-10 overflow-hidden`} aria-label="How a trade fee is split">
         <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-[420px] rounded-full bg-lime-400/[0.07] blur-[110px]" />
         <div className="relative h-[330px] sm:h-[440px]">
           <FeeFlowScene shares={shares} activity={activity} highlight={highlight} onLabels={setLabels} className="absolute inset-0" />
@@ -143,7 +150,7 @@ export function TokenomicsLive() {
       </section>
 
       {/* ── Live totals ──────────────────────────────────────────────────────── */}
-      <section className="mt-10" aria-label="Live totals">
+      <section id="on-chain" className="mt-10" aria-label="Live totals">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-[22px] font-semibold tracking-[-0.02em] sm:text-[26px]">On-chain right now</h2>
           <p className="text-[12px] text-white/40">{t ? `${fmtInt(t.coins)} coin${t.coins === 1 ? "" : "s"} · ${t.graduated} graduated` : "Reading chain…"}</p>
@@ -236,6 +243,8 @@ export function TokenomicsLive() {
           </div>
         )}
       </section>
+
+      {afterCoins}
 
       <section className="mt-6 grid gap-3 md:grid-cols-3" aria-label="How to read this">
         {[

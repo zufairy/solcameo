@@ -219,15 +219,23 @@ export const creatorFeed = query({
     const videos: Video[] = [];
     const seen = new Set<string>();
     const add = (v: Video) => { if (v.url && !seen.has(v.url)) { seen.add(v.url); videos.push(v); } };
-    const episodes = await ctx.db.query("ssEpisodes").withIndex("by_token", q => q.eq("tokenId", token!._id)).order("desc").take(20);
+    // Every video the coin's agent has made counts, posted or not: finished renders and episodes, community-round
+    // jobs, and series episodes. Only samples and cancelled/failed work are left out.
+    const [episodes, jobs] = await Promise.all([
+      ctx.db.query("ssEpisodes").withIndex("by_token", q => q.eq("tokenId", token!._id)).order("desc").take(20),
+      ctx.db.query("ssContentJobs").withIndex("by_token", q => q.eq("tokenId", token!._id)).order("desc").take(20),
+    ]);
     for (const e of episodes) if (e.source !== "sample") add({ id: `ep:${e._id}`, url: e.videoUrl, poster: e.posterUrl, caption: e.title, at: e.createdAt, views: null });
+    for (const j of jobs) if (j.videoUrl && !j.error) add({ id: `job:${j._id}`, url: j.videoUrl, poster: j.referenceImageUrl ?? null, caption: j.prompt.slice(0, 140), at: j.createdAt, views: null });
     if (token.mint) {
       const m = token.mint;
-      const [clips, sched, renders] = await Promise.all([
+      const [clips, sched, renders, series] = await Promise.all([
         ctx.db.query("clips").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
         ctx.db.query("scheduledContent").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
         ctx.db.query("videoRenderJobs").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
+        ctx.db.query("seriesEpisodes").withIndex("by_mint", q => q.eq("mintAddress", m)).order("desc").take(20),
       ]);
+      for (const e of series) if (e.videoUrl) add({ id: `series:${e._id}`, url: e.videoUrl, poster: null, caption: e.premise, at: e.createdAt, views: null });
       for (const c of clips) if (c.clipUrl) add({ id: `clip:${c._id}`, url: c.clipUrl, poster: null, caption: c.captionText || c.title || "", at: c.createdAt, views: c.viewCount ?? null });
       for (const s of sched) if (s.videoUrl && s.status !== "cancelled") add({ id: `gen:${s._id}`, url: s.videoUrl, poster: s.storyboardImageUrl ?? null, caption: s.caption || s.topic || "", at: s.createdAt, views: null });
       for (const r of renders) if (r.videoUrl && r.phase !== "failed") add({ id: `render:${r._id}`, url: r.videoUrl, poster: r.storyboardImageUrl ?? null, caption: r.autoPost?.caption || r.videoNote || "", at: r._creationTime, views: null });
@@ -235,7 +243,43 @@ export const creatorFeed = query({
     videos.sort((a, b) => b.at - a.at);
     return {
       token: { characterId: token.characterId as string, mint: token.mint ?? null, ticker: token.ticker, network: token.network, name: character.name, imageUrl: character.referenceImageUrl, tradable: !!token.dbcPool },
-      videos: videos.slice(0, 12),
+      videos: videos.slice(0, 24),
     };
+  },
+});
+
+const VIDEO_KEY_MAX = 900;
+const VIDEO_COMMENT_LIMIT = 8;
+
+/** Add a chat message under a video. Same wallet proof, length and spam limits as callout replies. */
+export const postVideoComment = mutation({
+  args: { wallet: v.string(), videoKey: v.string(), characterId: v.optional(v.id("ssCharacters")), body: v.string(), authSecret: v.string() },
+  handler: async (ctx, a) => {
+    assertSecret(a.authSecret);
+    if (a.wallet.length < 32 || a.wallet.length > 44) throw new Error("invalid_wallet");
+    if (!a.videoKey || a.videoKey.length > VIDEO_KEY_MAX) throw new Error("invalid_video");
+    const body = normalizeChat(a.body);
+    if (!body.length || body.length > REPLY_MAX) throw new Error("invalid_body");
+    const now = Date.now();
+    const recent = await ctx.db.query("ssVideoComments").withIndex("by_wallet_created", q => q.eq("wallet", a.wallet).gte("createdAt", now - RATE_WINDOW_MS)).take(VIDEO_COMMENT_LIMIT);
+    if (recent.length >= VIDEO_COMMENT_LIMIT) throw new Error("rate_limited");
+    if (recent.some(r => r.videoKey === a.videoKey && r.body.toLowerCase() === body.toLowerCase())) throw new Error("duplicate_message");
+    await ctx.db.insert("ssVideoComments", { videoKey: a.videoKey, wallet: a.wallet, body, createdAt: now, ...(a.characterId ? { characterId: a.characterId } : {}) });
+    return { ok: true as const };
+  },
+});
+
+/** The latest messages under a video, oldest first so the chat reads top to bottom (reactive). */
+export const listVideoComments = query({
+  args: { videoKey: v.string() },
+  handler: async (ctx, { videoKey }) => {
+    if (!videoKey || videoKey.length > VIDEO_KEY_MAX) return [];
+    const rows = (await ctx.db.query("ssVideoComments").withIndex("by_video_created", q => q.eq("videoKey", videoKey)).order("desc").take(150)).reverse();
+    const cache = new Map<string, { name: string; imageUrl: string }>();
+    return Promise.all(rows.map(async r => {
+      let p = cache.get(r.wallet);
+      if (!p) { p = await profileFor(ctx, r.wallet); cache.set(r.wallet, p); }
+      return { id: r._id as string, wallet: shortWallet(r.wallet), body: r.body, createdAt: r.createdAt, name: p.name, imageUrl: p.imageUrl };
+    }));
   },
 });

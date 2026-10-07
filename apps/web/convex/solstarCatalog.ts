@@ -3,6 +3,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { assertSecret } from "./lib/solstarAuth";
 import { recordFeedEvent } from "./solstarFeed";
+import { adjustFollowers } from "./lib/marketSummary";
 import { shortWallet } from "../lib/solstar/feed";
 import { SEED_CHARACTERS } from "../lib/solstar/seed";
 import { PAPER_VIRTUAL_SOL, PAPER_VIRTUAL_TOKENS } from "../lib/solstar/economics";
@@ -102,6 +103,7 @@ export const follow = mutation({
       const character = await ctx.db.get(characterId);
       if (!character) throw new Error("character_not_found");
       await ctx.db.insert("ssFollows", { wallet, characterId, createdAt: Date.now() });
+      await adjustFollowers(ctx, characterId, 1);
       await recordFeedEvent(ctx, {
         eventType: "follow", wallet, characterId, network: "paper",
         body: `${shortWallet(wallet)} followed ${character.name}`,
@@ -118,6 +120,7 @@ export const unfollow = mutation({
     assertWallet(wallet);
     const rows = await ctx.db.query("ssFollows").withIndex("by_wallet_character", (q) => q.eq("wallet", wallet).eq("characterId", characterId)).collect();
     for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length) await adjustFollowers(ctx, characterId, -rows.length);
     return null;
   },
 });
