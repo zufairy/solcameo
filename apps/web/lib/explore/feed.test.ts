@@ -22,3 +22,15 @@ describe("public reference normalization", () => {
     expect(result.next).toBeNull();
   });
 });
+
+describe("category tabs", () => {
+  it("lists the new tabs and matches topics from the text", async () => {
+    const { CATEGORIES, inCategory, topicsOf, TRENDING_TOP } = await import("./feed");
+    expect(CATEGORIES).toEqual(expect.arrayContaining(["Trending", "Movie", "Crypto"]));
+    expect(topicsOf({ title: "Cinematic trailer", description: "A hero in a film scene" })).toContain("Movie");
+    expect(topicsOf({ title: "Bitcoin trader", description: "pumping the chart" })).toContain("Crypto");
+    expect(inCategory({ title: "Studio dance", category: "Dance" }, "Dance")).toBe(true);
+    expect(inCategory({ title: "x", category: "Other" }, "Trending", TRENDING_TOP - 1)).toBe(true);
+    expect(inCategory({ title: "x", category: "Other" }, "Trending", TRENDING_TOP)).toBe(false);
+  });
+});

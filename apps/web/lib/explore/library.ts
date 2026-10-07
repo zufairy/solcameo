@@ -1,6 +1,6 @@
 import references from "@/lib/explore/references.json";
 import short from "@/lib/explore/short-references.json";
-import { FEED, normalizeFeed, type ReferenceVideo } from "@/lib/explore/feed";
+import { FEED, normalizeFeed, inCategory, type ReferenceVideo } from "@/lib/explore/feed";
 import { getObjectText, putImage, r2ImageConfigured } from "@/lib/server/imageStorage";
 
 /**
@@ -124,7 +124,7 @@ export function queryLibrary(lib: Library, { q = "", category = "All", min = 0, 
   const matches: ReferenceVideo[] = [];
   for (let i = 0; i < lib.items.length; i++) {
     const item = lib.items[i];
-    if (category !== "All" && item.category !== category) continue;
+    if (!inCategory(item, category, i)) continue;
     if (min && item.duration < min) continue;
     if (max && item.duration >= max) continue;
     if (needle && !lib.hay[i].includes(needle)) continue;

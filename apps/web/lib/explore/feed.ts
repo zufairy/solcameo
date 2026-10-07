@@ -19,7 +19,28 @@ export interface ReferenceVideo {
   page?: number;
 }
 export const FEED = "https://cms.higgsfield.ai/higgsfield-multiplier/video-explore/v2";
-export const CATEGORIES = ["All", "Dance", "Performance", "Lifestyle", "Action", "Other"];
+export const CATEGORIES = ["All", "Trending", "Movie", "Crypto", "Dance", "Performance", "Music", "Comedy", "Sports", "Fashion", "Action", "Lifestyle", "Other"];
+/** How many of the feed's top (trending-sorted) references count as "Trending". */
+export const TRENDING_TOP = 150;
+/** Topic tags found in a reference's title and description. The feed carries no tags, so these are matched from the text. */
+const TOPICS: ReadonlyArray<readonly [string, RegExp]> = [
+  ["Movie", /\b(movie|film|cinema|cinematic|trailer|blockbuster|hollywood|actor|actress|superhero|villain|noir|detective|western|horror|sci-?fi|monster|spy|thriller|wizard|vampire|zombie|samurai|battle scene|epic)\b/i],
+  ["Crypto", /\b(crypto|bitcoin|btc|ethereum|eth|solana|sol|memecoin|meme coin|token|blockchain|nft|trader|trading|to the moon|pump|hodl|web3|airdrop|binance|coinbase)\b/i],
+  ["Music", /\b(music|guitar|piano|drum|drummer|dj|singer|singing|concert|band|violin|saxophone|rapper|rap|karaoke)\b/i],
+  ["Comedy", /\b(funny|comed(y|ian)|meme|prank|joke|laugh|skit|reaction|awkward|silly)\b/i],
+  ["Sports", /\b(sport|soccer|football|basketball|boxing|boxer|gym|workout|fitness|skate|skateboard|surf|tennis|athlete|yoga|parkour|golf|baseball|mma)\b/i],
+  ["Fashion", /\b(fashion|runway|catwalk|outfit|makeup|beauty|streetwear|couture|lookbook|dress)\b/i],
+];
+export function topicsOf(item: { title?: string; description?: string }): string[] {
+  const text = `${item.title ?? ""} ${item.description ?? ""}`;
+  return TOPICS.filter(([, re]) => re.test(text)).map(([name]) => name);
+}
+/** Whether a reference belongs to a category tab. "Trending" is positional, so the caller passes its rank (0 = top). */
+export function inCategory(item: { title?: string; description?: string; category?: string }, category: string, rank?: number): boolean {
+  if (category === "All") return true;
+  if (category === "Trending") return rank === undefined || rank < TRENDING_TOP;
+  return item.category === category || topicsOf(item).includes(category);
+}
 const https = (url: unknown): url is string => typeof url === "string" && /^https:\/\//.test(url);
 export function normalizeFeed(data: unknown): { items: ReferenceVideo[]; next: number | null; total: number } {
   if (!data || typeof data !== "object") return { items: [], next: null, total: 0 };

@@ -36,7 +36,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { CATEGORIES, type ReferenceVideo } from "@/lib/explore/feed";
+import { CATEGORIES, inCategory, type ReferenceVideo } from "@/lib/explore/feed";
 import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
@@ -573,7 +573,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
         inPrice(i) &&
         inLength(i) &&
         inModel(i) &&
-        (category === "All" || i.category === category) &&
+        (category === "Trending" || inCategory(i, category)) &&
         `${i.title} ${i.description} ${i.sourceName ?? ""}`
           .toLowerCase()
           .includes(query.toLowerCase().trim()),
