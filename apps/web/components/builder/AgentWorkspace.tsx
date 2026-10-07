@@ -1,5 +1,6 @@
 "use client";
 
+import { useSolUsd } from "@/lib/client/useSolUsd";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import TabPageHeader from "./TabPageHeader";
@@ -677,6 +678,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
 
   // Live wallet data — fetched from on-chain agent wallet
   const [liveWallet, setLiveWallet] = useState<{ usdc: number; sol: number } | null>(null);
+  const solUsdRate = useSolUsd();
   const [walletLoading, setWalletLoading] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -863,18 +865,21 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
   useEffect(() => {
     if (!agentWallet) { setLiveWallet(null); return; }
     let cancelled = false;
-    const fetchBalance = async () => {
+    const fetchBalance = async (fresh = false) => {
       setWalletLoading(true);
       try {
-        const res = await fetch(`/api/agent-wallet-balance?wallet=${agentWallet}`);
+        const res = await fetch(`/api/agent-wallet-balance?wallet=${agentWallet}${fresh ? "&fresh=1" : ""}`);
         const data = await res.json() as { ok?: boolean; usdc?: number; sol?: number };
         if (!cancelled && data.ok) setLiveWallet({ usdc: data.usdc ?? 0, sol: data.sol ?? 0 });
       } catch { /* silent */ }
       finally { if (!cancelled) setWalletLoading(false); }
     };
     void fetchBalance();
-    const id = setInterval(fetchBalance, 30_000);
-    return () => { cancelled = true; clearInterval(id); };
+    const id = setInterval(() => void fetchBalance(), 15_000);
+    // A deposit or swap just landed: re-read right away instead of waiting for the next poll.
+    const onFunded = () => { void fetchBalance(true); setTimeout(() => void fetchBalance(true), 4000); };
+    window.addEventListener("solcameo:trade-confirmed", onFunded);
+    return () => { cancelled = true; clearInterval(id); window.removeEventListener("solcameo:trade-confirmed", onFunded); };
   }, [agentWallet]);
 
   // Token cost = daily skill burn rate
@@ -1768,14 +1773,14 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
                   </motion.span>
                 </motion.div>
 
-                {liveWallet && liveWallet.sol > 0 && (
-                  <div className="px-4 py-2.5 flex items-center justify-between">
+                {liveWallet && (
+                  <div className="px-4 py-2.5 flex items-center justify-between" title="Swapped to USDC automatically when a generation needs it">
                     <div className="flex items-center gap-2.5">
                       <span className="text-[13px] text-zinc-500 w-4 text-center font-mono leading-none">◈</span>
-                      <span className="text-[13px] text-zinc-800 font-medium">SOL (gas)</span>
+                      <span className="text-[13px] text-zinc-800 font-medium">SOL</span>
                     </div>
                     <span className="text-[13px] font-mono font-bold tabular-nums text-zinc-700">
-                      {liveWallet.sol.toFixed(4)}
+                      {liveWallet.sol.toFixed(4)}{solUsdRate != null && <span className="ml-1.5 text-[11px] font-medium text-zinc-500">≈ ${(liveWallet.sol * solUsdRate).toFixed(2)}</span>}
                     </span>
                   </div>
                 )}

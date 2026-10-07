@@ -18,10 +18,10 @@ const CACHE = new Map<string, { v: { sol: number; usdc: number }; t: number }>()
 const INFLIGHT = new Map<string, Promise<{ sol: number; usdc: number }>>();
 const TTL_MS = 10_000;
 
-async function readBalance(wallet: string): Promise<{ sol: number; usdc: number }> {
+async function readBalance(wallet: string, fresh = false): Promise<{ sol: number; usdc: number }> {
   const c = CACHE.get(wallet);
-  if (c && Date.now() - c.t < TTL_MS) return c.v;
-  let p = INFLIGHT.get(wallet);
+  if (!fresh && c && Date.now() - c.t < TTL_MS) return c.v;
+  let p = fresh ? undefined : INFLIGHT.get(wallet);
   if (!p) {
     p = (async () => {
       // Failover over public devnet → Helius (Helius key suspended 2026-08 → 403):
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
   try { new PublicKey(wallet); } catch { return NextResponse.json({ ok: false, error: "invalid_wallet" }, { status: 400 }); }
   try {
-    const { sol, usdc } = await readBalance(wallet);
+    const { sol, usdc } = await readBalance(wallet, url.searchParams.get("fresh") === "1");
     return NextResponse.json({ ok: true, wallet, sol, usdc, network: NETWORK, fetchedAt: Date.now() });
   } catch (err) {
     // RPC unavailable (429/timeout). Report ok:false so callers do NOT read this as

@@ -1,109 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "convex/react";
-import { Check, ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
-import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
-import { ensureSiwsViaRegistered } from "@/lib/client/siwsIdentity";
+import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
 import { useSolUsd } from "@/lib/client/useSolUsd";
-import { FUNDING_FEE_BPS, previewFundingSplit } from "@/lib/solana/fundingFee";
-import { getTxExplorerUrl } from "@/lib/solana/network";
-import { sendSolTopUp } from "@/lib/solstar/sendTopUp";
-import { formatUsdEstimate } from "@/lib/solstar/usdc";
 
-type Target = { available: boolean; network?: "devnet" | "mainnet"; treasury?: string; feeWallet?: string };
-const PRESETS = [0.1, 0.5, 1];
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+type Balance = { sol: number; usdc: number };
+const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
- * Carousel page: the agent's wallet balance and a one-tap top-up. The SOL goes on chain in a single transaction
- * (97% agent treasury, 3% platform), then the server re-reads it from the cluster before crediting the balance.
+ * Carousel page: the agent's real wallet. Balances are read from the chain (SOL and USDC), the same wallet the builder
+ * shows and the one generations are paid from. Funding opens the deposit dialog, which can send USDC, SOL, or swap SOL into USDC.
  */
-export function AgentFundSlide({ characterId, name }: { characterId: Id<"ssCharacters">; name: string }) {
-  const wheel = useQuery(api.solstarFlywheel.status, { characterId });
-  const rate = useSolUsd();
-  const { publicKey, signTransaction } = useUnifiedSolanaWallet();
-  const [amount, setAmount] = useState("");
-  const [step, setStep] = useState<"idle" | "sign" | "confirm" | "done">("idle");
-  const [error, setError] = useState("");
-  const [sig, setSig] = useState("");
-  const num = Number.parseFloat(amount);
-  const { fee, net } = previewFundingSplit(num);
-  const busy = step === "sign" || step === "confirm";
-  const available = wheel?.available ?? "0";
-  const enabled = !!wheel && wheel.network !== "paper" && !!wheel.treasury;
+export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) {
+  const agent = useQuery(api.influencers.getByMint, mint ? { mintAddress: mint } : "skip");
+  const account = useQuery(api.agentAccount.getWithNav, mint ? { mintAddress: mint } : "skip");
+  const solUsd = useSolUsd();
+  const wallet = agent?.agentWallet as string | undefined;
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  async function fund() {
-    setError("");
-    if (!publicKey || !signTransaction) return setError("Connect your wallet first.");
-    if (!(num >= 0.001)) return setError("Minimum is 0.001 SOL.");
-    setStep("sign");
+  const load = useCallback(async (fresh = false) => {
+    if (!wallet) return;
     try {
-      const target = (await (await fetch(`/api/solstar/fund?characterId=${characterId}`, { cache: "no-store" })).json()) as Target;
-      if (!target.available || !target.treasury || !target.feeWallet || !target.network) throw new Error("Funding is not available for this agent yet.");
-      if (!(await ensureSiwsViaRegistered())) throw new Error("Verify your wallet first.");
-      const { signature } = await sendSolTopUp({ payer: publicKey, signTransaction, treasury: target.treasury, feeWallet: target.feeWallet, sol: num, network: target.network });
-      setSig(signature); setStep("confirm");
-      for (let i = 0; i < 30; i++) {
-        const res = await fetch("/api/solstar/fund", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ characterId, signature }) });
-        if (res.ok) { setStep("done"); return; }
-        const d = (await res.json().catch(() => ({}))) as { error?: string };
-        if (res.status !== 202 && d.error !== "not_confirmed") throw new Error(d.error === "fee_missing" ? "The platform fee was missing from the transaction." : (d.error ?? "Could not credit the transfer."));
-        await sleep(1500);
-      }
-      throw new Error("Sent, but not confirmed yet. It will be credited once it lands; reopen this page to retry.");
-    } catch (e) {
-      const m = e instanceof Error ? e.message : "Transfer failed";
-      setStep("idle");
-      if (!/user rejected|user denied|rejected the request|request.*reject/i.test(m)) setError(m);
-    }
-  }
+      const res = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(wallet)}${fresh ? "&fresh=1" : ""}`, { cache: "no-store" });
+      const data = (await res.json()) as { ok?: boolean; sol?: number; usdc?: number };
+      if (!data.ok) throw new Error("unavailable");
+      setBalance({ sol: data.sol ?? 0, usdc: data.usdc ?? 0 }); setFailed(false);
+    } catch { setFailed(true); }
+  }, [wallet]);
+  useEffect(() => {
+    if (!wallet) return;
+    void load(); // eslint-disable-line react-hooks/set-state-in-effect
+    const timer = setInterval(() => { if (!document.hidden) void load(); }, 10_000);
+    const onFunded = () => { void load(true); setTimeout(() => void load(true), 4000); };
+    window.addEventListener("solcameo:trade-confirmed", onFunded);
+    return () => { clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", onFunded); };
+  }, [wallet, load]);
+
+  const tab = account?.unsettledTabUsdc ?? 0;
+  const solValue = balance && solUsd != null ? balance.sol * solUsd : null;
+  const total = balance ? balance.usdc + (solValue ?? 0) : null;
 
   return (
     <div className="flex h-full flex-col justify-center gap-2.5 px-4 py-2">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[11px] text-zinc-500">{name}’s wallet</p>
-          <p className="font-sans text-[26px] font-semibold leading-none tracking-tight tabular-nums text-white">{wheel ? formatUsdEstimate(available, rate) : "—"}</p>
-          <p className="mt-1 text-[10px] tabular-nums text-zinc-600">{(Number(available) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL to work with</p>
+          <p className="truncate text-[11px] text-zinc-500">{name}’s wallet · on-chain</p>
+          <p className="font-sans text-[26px] font-semibold leading-none tracking-tight tabular-nums text-white">{total != null ? usd(total) : failed ? "Unavailable" : "—"}</p>
+          <p className="mt-1 text-[10px] tabular-nums text-zinc-500">
+            {balance ? `${usd(balance.usdc)} USDC · ${balance.sol.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL${solValue != null ? ` (${usd(solValue)})` : ""}` : failed ? "Could not read the chain. Retrying…" : "Reading the chain…"}
+          </p>
         </div>
-        {step === "done" ? (
-          <div className="flex items-center gap-1.5 pb-1 text-[12px] font-medium text-white">
-            <span className="grid size-5 place-items-center rounded-full bg-[#d7ff00] text-black"><Check className="size-3" strokeWidth={3} /></span>
-            Funded
-            {sig && <a href={getTxExplorerUrl(sig)} target="_blank" rel="noreferrer" aria-label="View transaction" className="text-zinc-500 hover:text-white"><ExternalLink className="size-3" /></a>}
-            <button type="button" onClick={() => { setStep("idle"); setAmount(""); setSig(""); }} className="ml-1 text-zinc-500 underline-offset-2 hover:text-white hover:underline">Add more</button>
-          </div>
-        ) : !enabled ? (
-          <p className="max-w-[10rem] pb-1 text-right text-[11px] leading-snug text-zinc-600">{wheel ? "Funding opens once this coin is live on-chain." : "Loading…"}</p>
-        ) : (
-          <div className="flex items-center gap-1.5 pb-0.5">
-            <label className="flex h-9 w-24 items-center rounded-full bg-white/[0.07] px-3 text-[13px] tabular-nums text-white focus-within:bg-white/[0.11]">
-              <input value={amount} onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, "")); setError(""); }} placeholder="0.0" inputMode="decimal" aria-label="Amount in SOL" disabled={busy}
-                className="w-full min-w-0 bg-transparent outline-none placeholder:text-zinc-600" />
-              <span className="ml-1 text-[10px] text-zinc-500">SOL</span>
-            </label>
-            <button type="button" onClick={() => void fund()} disabled={busy || !(num > 0)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-[12.5px] font-semibold text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30">
-              {busy && <Loader2 className="size-3.5 animate-spin" />}
-              {step === "sign" ? "Approve…" : step === "confirm" ? "Confirming…" : "Fund"}
-            </button>
-          </div>
-        )}
+        <button type="button" onClick={() => setOpen(true)} disabled={!wallet}
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-[12.5px] font-semibold text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30">
+          <Plus className="size-3.5" strokeWidth={3} /> Fund
+        </button>
       </div>
-      {enabled && step !== "done" && (
-        <div className="flex items-center justify-between text-[10.5px] text-zinc-600">
-          <div className="flex gap-1">
-            {PRESETS.map((p) => (
-              <button key={p} type="button" disabled={busy} onClick={() => { setAmount(String(p)); setError(""); }} className="rounded-full bg-white/[0.05] px-2 py-0.5 tabular-nums text-zinc-400 transition hover:bg-white/[0.1] hover:text-white">{p}</button>
-            ))}
-          </div>
-          <span className="tabular-nums">{num > 0 ? `${FUNDING_FEE_BPS / 100}% fee ${fee.toFixed(4)} · agent gets ${net.toFixed(4)} SOL` : `${FUNDING_FEE_BPS / 100}% platform fee, on chain`}</span>
-        </div>
-      )}
-      {error && <p role="alert" className="text-[11px] text-red-400">{error}</p>}
+      <div className="flex items-center justify-between text-[10.5px] text-zinc-600">
+        <span className="tabular-nums">{tab > 0 ? `Tally: ${usd(tab)} owed, settles on-chain shortly` : "Tally: nothing owed"}</span>
+        <span className="flex items-center gap-2">
+          <button type="button" onClick={() => void load(true)} aria-label="Refresh balance" className="text-zinc-500 hover:text-white"><RefreshCw className="size-3" /></button>
+          {wallet && <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" aria-label="View wallet on Solscan" className="text-zinc-500 hover:text-white"><ExternalLink className="size-3" /></a>}
+        </span>
+      </div>
+      <FundAgentDialog open={open} onOpenChange={setOpen} agentWallet={wallet} agentName={name} />
     </div>
   );
 }
