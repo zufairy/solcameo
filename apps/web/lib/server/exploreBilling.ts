@@ -29,8 +29,8 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
     if (!r.ok) return { ok: false, reason: r.reason ?? "needs_funding" };
     const duplicate = "duplicate" in r && r.duplicate;
     // Pay first: the USDC reaches the generation wallet on-chain before any provider is called. A retry of a run that
-    // was already booked has already paid, so it is not charged again.
-    if (!duplicate) {
+    // has confirmed payment proof is not charged again.
+    if (!("paymentConfirmed" in r && r.paymentConfirmed)) {
       const paid = await payOrBatch(mint, r.costUsdc);
       if (!paid.ok) { console.error(`[exploreBilling] on-chain payment failed for ${mint}: ${paid.reason}`); await refundExploreRun(mint, runId); return { ok: false, reason: paid.reason === "wallet_signing_unavailable" ? "wallet_signing_unavailable" : "payment_failed" }; }
     }
@@ -46,6 +46,8 @@ export async function refundExploreRun(mint: string, runId: string): Promise<voi
 }
 
 export const CHARGE_MESSAGES: Record<string, string> = {
+  payment_pending: "This run's payment is still being confirmed. Please wait before retrying.",
+  charge_refunded: "This run was refunded. Start a new generation to reserve and pay its fee.",
   needs_funding: "Not enough funds in this agent's wallet. Add USDC (or SOL, which is swapped to USDC for you) and try again.",
   wallet_busy: "A withdrawal is settling for this agent. Try again shortly.",
   daily_cap: "This agent hit its daily spend cap. Raise the cap or try again tomorrow.",

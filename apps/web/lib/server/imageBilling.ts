@@ -23,7 +23,7 @@ export async function chargeImage(mint: string, runId: string, engine: Pick<Imag
     let r = await book();
     if (!r.ok && r.reason === "needs_funding" && (await topUpAgentFromSol(mint, imagePriceUsd(engine) * 1.15)).ok) { await refreshAgentFunds(mint); r = await book(); }
     if (!r.ok) return { ok: false, reason: r.reason ?? "needs_funding" };
-    if (!("duplicate" in r && r.duplicate)) {
+    if (!("paymentConfirmed" in r && r.paymentConfirmed)) {
       const paid = await payOrBatch(mint, r.costUsdc);
       if (!paid.ok) { await refundImage(mint, runId); return { ok: false, reason: "payment_failed" }; }
     }

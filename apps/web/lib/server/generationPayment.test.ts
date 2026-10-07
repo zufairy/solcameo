@@ -64,9 +64,16 @@ describe("generation billing pays on-chain before work starts", () => {
   });
   it("does not pay twice for a retried run that was already booked and paid", async () => {
     const { chargeExploreRun } = await load();
-    m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55, duplicate: true });
+    m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55, duplicate: true, paymentConfirmed: true });
     expect((await chargeExploreRun("mint", "run3", 0.5)).ok).toBe(true);
     expect(m.pay).not.toHaveBeenCalled();
+  });
+  it("settles a retried reservation that has no payment proof before allowing work", async () => {
+    const { chargeExploreRun } = await load();
+    m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55, duplicate: true, paymentConfirmed: false });
+    m.pay.mockResolvedValue({ ok: false, reason: "sweep deferred" });
+    expect(await chargeExploreRun("mint", "unpaid-retry", 0.5)).toEqual({ ok: false, reason: "payment_failed" });
+    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
   });
   it("reports a signing-key mismatch and refunds the reservation", async () => {
     const { chargeExploreRun } = await load();

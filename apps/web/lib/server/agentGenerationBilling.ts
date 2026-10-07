@@ -27,7 +27,7 @@ export async function chargeAgentGeneration(mintAddress: string, runId: string, 
       if (estimate > 0 && (await topUpAgentFromSol(mintAddress, estimate)).ok) { await refreshAgentFunds(mintAddress); charged = await book(); }
     }
     if (!charged.ok) return charged;
-    if (!("duplicate" in charged && charged.duplicate)) {
+    if (!("paymentConfirmed" in charged && charged.paymentConfirmed)) {
       const paid = await payOrBatch(mintAddress, charged.costUsdc);
       if (!paid.ok) { await refundImage(mintAddress, runId); return { ok: false as const, reason: "payment_failed" }; }
     }

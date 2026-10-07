@@ -298,8 +298,21 @@ export const recordUsage = mutation({
         .withIndex("by_mint_idem", (q) => q.eq("mintAddress", mintAddress).eq("idemKey", idemKey))
         .first();
       if (priorLedger) {
+        // A reservation is not payment proof. In particular, failed runs retain
+        // their idempotency row after refunding; replaying it must not unlock work.
+        const batch = priorLedger.settledBatchId;
+        if (priorLedger.costUsdc <= 0 || batch?.startsWith("refund:")) {
+          return { ok: false as const, reason: "charge_refunded" as const };
+        }
+        let paymentConfirmed = batch === CREDITS_SETTLED_SENTINEL || !!batch?.startsWith("refund-credit:");
+        if (batch && !paymentConfirmed) {
+          const settlementId = ctx.db.normalizeId("feeSettlements", batch);
+          const settlement = settlementId ? await ctx.db.get(settlementId) : null;
+          paymentConfirmed = !!settlement?.paid && isPaidSig(settlement.txSignature);
+          if (!paymentConfirmed) return { ok: false as const, reason: "payment_pending" as const };
+        }
         const acctForDup = await ctx.db.query("agentAccount").withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress)).unique();
-        return { ok: true as const, costUsdc: priorLedger.costUsdc, unsettledTabUsdc: acctForDup?.unsettledTabUsdc ?? 0, duplicate: true as const };
+        return { ok: true as const, costUsdc: priorLedger.costUsdc, unsettledTabUsdc: acctForDup?.unsettledTabUsdc ?? 0, duplicate: true as const, paymentConfirmed };
       }
     }
 

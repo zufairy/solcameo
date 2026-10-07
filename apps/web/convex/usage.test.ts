@@ -163,6 +163,31 @@ describe("recordUsage", () => {
   });
 });
 
+describe("recordUsage retry payment proof", () => {
+  it("distinguishes a reservation, pending settlement, and confirmed payment", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 100);
+    const args = { mintAddress: MINT, service: "render", qty: 1, idemKey: "retry:skill:render", authSecret: SECRET };
+    await t.mutation(api.usage.recordUsage, args);
+    expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: true, duplicate: true, paymentConfirmed: false });
+    const batch = await t.mutation(api.usage.settleTab, { mintAddress: MINT, authSecret: SECRET });
+    if (!batch.settled) throw new Error("expected settlement");
+    expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: false, reason: "payment_pending" });
+    await t.mutation(api.usage.markSettlementPaid, { settlementId: batch.settlementId, txSignature: "confirmed-signature", authSecret: SECRET });
+    expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: true, paymentConfirmed: true });
+  });
+  it("rejects an idempotency row voided by a failed run", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 100);
+    const args = { mintAddress: MINT, service: "render", qty: 1, idemKey: "failed:skill:render", authSecret: SECRET };
+    await t.mutation(api.usage.recordUsage, args);
+    await t.mutation(api.usage.refundRunFees, { mintAddress: MINT, jobId: "failed", authSecret: SECRET });
+    expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: false, reason: "charge_refunded" });
+  });
+});
+
 describe("settleTab", () => {
   it.each([0.4, 0.9])("consumes a %s refund credit once and preserves the remainder", async (credit) => {
     const t = convexTest(schema, modules);
