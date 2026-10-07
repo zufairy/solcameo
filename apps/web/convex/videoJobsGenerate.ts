@@ -282,6 +282,22 @@ export const generate = internalAction({
       cost,
       authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     });
+    // The cost is now on the agent's tab. Move it on-chain from the agent wallet to the collection wallet straight away
+    // instead of waiting for the hourly sweep. Best-effort: a failure leaves the tab for the keeper and never fails the video.
+    if (cost > 0) {
+      try {
+        const res = await appFetch(`/api/economy/settle-agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(process.env.INTERNAL_CRON_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_CRON_SECRET } : {}) },
+          body: JSON.stringify({ mintAddress: args.mintAddress, immediate: true }),
+          signal: AbortSignal.timeout(75_000),
+        });
+        const settled = (await res.json().catch(() => ({}))) as { status?: string; reason?: string };
+        if (settled.status !== "settled") console.warn(`[videoJobsGenerate.generate] immediate settle not completed (${settled.status ?? res.status}: ${settled.reason ?? ""}); the keeper will retry`);
+      } catch (e) {
+        console.warn("[videoJobsGenerate.generate] immediate settle failed (keeper will retry):", e instanceof Error ? e.message : e);
+      }
+    }
     await ctx.runMutation(api.agentTasks.recordMemory, {
       mintAddress: args.mintAddress,
       kind: "lesson",

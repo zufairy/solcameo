@@ -5,7 +5,7 @@ import { requireInternalOrUserAuth, requireOwnerWithSiws } from "@/lib/server/re
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 90;
 
 /**
  * Reconcile an agent's escrow mirror to its on-chain USDC and, when the accrued
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireInternalOrUserAuth(req);
   if (auth.error) return auth.error;
 
-  const { mintAddress } = await req.json().catch(() => ({}));
+  const { mintAddress, immediate } = await req.json().catch(() => ({})) as { mintAddress?: string; immediate?: boolean };
   if (!mintAddress) return NextResponse.json({ error: "missing mintAddress" }, { status: 400 });
 
   // Ownership gate for user (Bearer) callers — internal cron callers skip. A
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     if (ownershipError) return ownershipError;
   }
 
-  const result = await settleAgentEconomics(mintAddress);
+  // "immediate" (server callers only) sweeps whatever is on the tab now, however small; the schedule uses the threshold.
+  const result = await settleAgentEconomics(mintAddress, { immediate: immediate === true && auth.internal === true });
   return NextResponse.json({ ok: true, ...result });
 }
