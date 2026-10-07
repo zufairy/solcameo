@@ -44,3 +44,24 @@ export function rpcCandidates(network?: ReturnType<typeof getNetwork>): string[]
   const publicUrl = n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : n === "testnet" ? "https://api.testnet.solana.com" : "https://api.devnet.solana.com";
   return [...new Set([...getRpcCandidates(n), publicUrl])];
 }
+
+/** Race independent RPC reads. A stale/null response must not win when a
+ * caller needs positive evidence (for example a confirmed payment). */
+export async function rpcRace<T>(
+  urls: string[], fn: (conn: Connection) => Promise<T>,
+  accept: (value: T) => boolean = () => true, timeoutMs = 2000,
+): Promise<T> {
+  return Promise.any([...new Set(urls)].map(async (url) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const value = await Promise.race([
+        fn(new Connection(url, { commitment: "confirmed", disableRetryOnRateLimit: true })),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("RPC timeout")), timeoutMs); }),
+      ]);
+      if (!accept(value)) throw new Error("RPC has no matching evidence yet");
+      return value;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }));
+}

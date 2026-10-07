@@ -276,7 +276,7 @@ export async function sweepAgentTabOnchain(opts: {
   if (!TREASURY) throw new Error("Generation collection wallet not configured");
 
   const convex = new ConvexHttpClient(convexUrl);
-  const account = await convex.query(api.agentAccount.get, { mintAddress });
+  const account = process.env.VELLO_VAULT_SWEEP === "1" ? await convex.query(api.agentAccount.get, { mintAddress }) : null;
   // Generation fees are paid from the agent's own wallet straight to the generation collection wallet. The vault
   // `debit_fee` route can only pay the treasury the vault was created with, so it stays off unless VELLO_VAULT_SWEEP=1.
   if (process.env.VELLO_VAULT_SWEEP !== "1" || !account?.vaultEnabled || !account.vaultAgentId) {

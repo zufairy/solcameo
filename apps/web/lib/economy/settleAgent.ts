@@ -115,11 +115,13 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
       txSignature: paidSig,
       authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     });
-    // The payment is on-chain: record the referrer's share of Solcameo's margin on it (best-effort, never delays or fails the payment).
-    await Promise.race([
-      accrueReferralForSettlement({ settlementId: String(settled.settlementId), mintAddress, amountUsdc: claim.amountUsdc }),
-      new Promise((resolve) => setTimeout(resolve, 5000)),
-    ]);
+    // Referral bookkeeping does not gate generation once payment is recorded.
+    const recordReferral = async () => {
+      try { await accrueReferralForSettlement({ settlementId: String(settled.settlementId), mintAddress, amountUsdc: claim.amountUsdc }); }
+      catch { /* best effort; the referral accrual is idempotent */ }
+    };
+    if (opts.immediate) { try { after(recordReferral); } catch { void recordReferral(); } }
+    else await recordReferral();
 
     // 5) Re-reconcile so the mirror reflects the post-sweep balance. The payment is already confirmed and recorded, so this is
     //    off the critical path: the video starts now, and every later charge re-reads the chain before it books anything.

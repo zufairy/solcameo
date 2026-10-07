@@ -1,6 +1,6 @@
 import { ComputeBudgetProgram, Connection, type TransactionInstruction } from "@solana/web3.js";
 import { getHeliusRpcUrl, getNetwork, getRpcUrl } from "./network";
-import { rpcTry } from "./rpc";
+import { rpcTry, rpcRace } from "./rpc";
 
 /**
  * Getting a signed transaction on-chain quickly and cheaply, following the standard Solana landing recipe:
@@ -66,7 +66,8 @@ export async function landTransaction(args: {
   while (Date.now() - start < maxMs) {
     onTick?.(Date.now() - start);
     try {
-      const { value } = await rpcTry(urls, (c) => c.getSignatureStatuses([signature], { searchTransactionHistory: true }), 4000);
+      const { value } = await rpcRace(urls, (c) => c.getSignatureStatuses([signature], { searchTransactionHistory: true }),
+        (result) => Boolean(result.value[0]?.err || result.value[0]?.confirmationStatus === "confirmed" || result.value[0]?.confirmationStatus === "finalized"));
       const status = value[0];
       if (status?.err) throw new Error(`The transaction failed on-chain: ${JSON.stringify(status.err)}`);
       if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return "confirmed";
@@ -84,10 +85,20 @@ export async function landTransaction(args: {
         const height = await rpcTry(urls, (c) => c.getBlockHeight("confirmed"), 3000);
         if (height > lastValidBlockHeight) {
           // One last look: it may have landed in the final slots.
-          const { value } = await rpcTry(urls, (c) => c.getSignatureStatuses([signature], { searchTransactionHistory: true }), 4000);
-          return value[0]?.confirmationStatus === "confirmed" || value[0]?.confirmationStatus === "finalized" ? "confirmed" : "expired";
+          const reads = await Promise.allSettled([...new Set(urls)].map((url) =>
+            rpcTry([url], (c) => c.getSignatureStatuses([signature], { searchTransactionHistory: true }), 2000)));
+          const statuses = reads.flatMap((read) => read.status === "fulfilled" ? [read.value.value[0]] : []);
+          const failed = statuses.find((status) => status?.err);
+          if (failed) throw new Error(`The transaction failed on-chain: ${JSON.stringify(failed.err)}`);
+          if (statuses.some((status) => status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized")) return "confirmed";
+          // Included transactions can confirm after expiry. Unreadable or stale
+          // nodes cannot prove the signature absent: keep it for recovery.
+          return statuses.some(Boolean) || reads.some((read) => read.status === "rejected") ? "pending" : "expired";
         }
-      } catch { /* try again next round */ }
+      } catch (e) {
+        if (e instanceof Error && /failed on-chain/.test(e.message)) throw e;
+        // An unreadable node cannot prove expiration; try again next round.
+      }
     }
     await new Promise((r) => setTimeout(r, 450));
   }

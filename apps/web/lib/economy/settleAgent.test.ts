@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => {
   process.env.VELLO_SETTLE_THRESHOLD_USDC = "0.05";
   process.env.NEXT_PUBLIC_CONVEX_URL = "https://x.convex.cloud";
-  return { query: vi.fn(), mutation: vi.fn(), sweep: vi.fn(), onchain: vi.fn() };
+  return { query: vi.fn(), mutation: vi.fn(), sweep: vi.fn(), onchain: vi.fn(), referral: vi.fn() };
 });
 vi.mock("convex/browser", () => ({ ConvexHttpClient: class { query = h.query; mutation = h.mutation; } }));
 vi.mock("@/convex/_generated/api", () => ({ api: { influencers: { getByMintServer: "getByMintServer" }, agentAccount: { reconcileEscrowToOnchainServer: "reconcile" }, usage: { settleTab: "settleTab", claimSettlement: "claim", markSettlementPaid: "paid", releaseSettlement: "release", markSettlementConfirmAmbiguous: "amb" } } }));
 vi.mock("@/lib/economy/vaultSweep", () => ({ sweepAgentTabOnchain: h.sweep, resolveAgentOnchainUsdc: h.onchain, ONCHAIN_FEE_ALREADY_PROCESSED: "processed" }));
+vi.mock("@/lib/server/referrals", () => ({ accrueReferralForSettlement: h.referral }));
 import { settleAgentEconomics } from "./settleAgent";
 
 beforeEach(() => {
@@ -24,6 +25,11 @@ beforeEach(() => {
 });
 
 describe("settleAgentEconomics", () => {
+  it("returns the confirmed payment without waiting for a stalled referral service", async () => {
+    h.referral.mockReturnValue(new Promise(() => {}));
+    expect(await settleAgentEconomics("mint", { immediate: true })).toMatchObject({ status: "settled", txSignature: "SIG" });
+  });
+
   it("applies refund credit even when the reconciled tab is negative without sweeping", async () => {
     h.mutation.mockImplementation(async (name: string) => name === "reconcile" ? { ok: true, unsettledTabUsdc: -0.5 } : { settled: false, credited: true, coveredUsdc: 0.4 });
     expect(await settleAgentEconomics("mint", { immediate: true })).toEqual({ status: "credited", coveredUsdc: 0.4 });
