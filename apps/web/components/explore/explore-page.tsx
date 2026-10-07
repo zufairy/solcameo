@@ -168,7 +168,7 @@ function ReferenceCard({
           </span>
         </span>
       </button>
-      <div className="absolute right-2 top-14 flex items-center gap-1.5">
+      <div className="absolute right-2 top-2 flex items-center gap-1.5">
       {onSchedule && (
       <Button
         variant="ghost"
