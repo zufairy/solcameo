@@ -3237,6 +3237,13 @@ function ClipperHomeCockpit(props: {
     runnableTasks, blueprint, allTasks, liveTasks, socialConnected, sessionId,
     characterBible, onHeartbeatChange, onFireHeartbeat, onAutoFireHeartbeat,
   } = props;
+  const solUsdRate = useSolUsd();
+  // Show the wallet in USDC or in SOL; remembered per browser. Defaults to SOL when the wallet holds SOL but no USDC.
+  const [balanceViewPick, setBalanceViewPick] = useState<"USDC" | "SOL" | null>(() => {
+    try { const v = localStorage.getItem("solcameo:wallet-view"); return v === "SOL" || v === "USDC" ? v : null; } catch { return null; }
+  });
+  const balanceView: "USDC" | "SOL" = balanceViewPick ?? ((liveWallet?.usdc ?? 0) < 0.01 && (liveWallet?.sol ?? 0) > 0 ? "SOL" : "USDC");
+  const chooseBalanceView = (v: "USDC" | "SOL") => { setBalanceViewPick(v); try { localStorage.setItem("solcameo:wallet-view", v); } catch { /* ignore */ } };
 
   // Knowledge surface starts collapsed (a count summary + one upload affordance).
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
@@ -3533,11 +3540,36 @@ function ClipperHomeCockpit(props: {
                 <div className="mt-5 border-t border-white/[0.08] pt-4">
                   <div className="flex items-end justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">Available balance</p>
-                      <p className="mt-1 text-[26px] font-semibold leading-none tracking-normal text-white tabular-nums">
-                        ${(liveWallet?.usdc ?? onChainBalance ?? 0).toFixed(2)}
-                        <span className="ml-1.5 text-[11px] font-medium text-zinc-500">USDC</span>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">{balanceView === "SOL" ? "SOL balance" : "Available balance"}</p>
+                        <div role="tablist" aria-label="Balance currency" className="flex items-center rounded-md border border-white/10 bg-black/20 p-0.5">
+                          {(["USDC", "SOL"] as const).map((c) => (
+                            <button key={c} type="button" role="tab" aria-selected={balanceView === c} onClick={() => chooseBalanceView(c)}
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${balanceView === c ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-300"}`}>{c === "SOL" ? "Solana" : "USDC"}</button>
+                          ))}
+                        </div>
+                      </div>
+                      {balanceView === "SOL" ? (
+                        <>
+                          <p className="mt-1 text-[26px] font-semibold leading-none tracking-normal text-white tabular-nums">
+                            {(liveWallet?.sol ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            <span className="ml-1.5 text-[11px] font-medium text-zinc-500">SOL</span>
+                          </p>
+                          <p className="mt-1 text-[10.5px] tabular-nums text-zinc-500">
+                            {solUsdRate != null ? `≈ $${((liveWallet?.sol ?? 0) * solUsdRate).toFixed(2)} · ` : ""}swapped to USDC automatically when a video needs it
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-1 text-[26px] font-semibold leading-none tracking-normal text-white tabular-nums">
+                            ${(liveWallet?.usdc ?? onChainBalance ?? 0).toFixed(2)}
+                            <span className="ml-1.5 text-[11px] font-medium text-zinc-500">USDC</span>
+                          </p>
+                          {(liveWallet?.sol ?? 0) > 0 && (
+                            <p className="mt-1 text-[10.5px] tabular-nums text-zinc-500">+ {(liveWallet?.sol ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL{solUsdRate != null ? ` (≈ $${((liveWallet?.sol ?? 0) * solUsdRate).toFixed(2)})` : ""}</p>
+                          )}
+                        </>
+                      )}
                     </div>
                     <span className="mb-0.5 inline-flex items-center gap-1.5 text-[10px] text-zinc-500">
                       <span className={`size-1.5 rounded-full ${walletLoading ? "animate-pulse bg-amber-300" : "bg-emerald-400"}`} />
