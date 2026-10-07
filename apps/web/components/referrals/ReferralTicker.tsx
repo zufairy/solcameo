@@ -13,6 +13,8 @@ const COLORS: Record<TickerEvent["kind"], { a: string; b: string; ink: string }>
 const LABEL: Record<TickerEvent["kind"], string> = { buy: "BUY", sell: "SELL", earn: "EARNED", missed: "MISSED" };
 
 const CHIP_W = 3.1, CHIP_H = 0.78, SPEED = 0.55, GAP = 0.35;
+/** Camera distance: close enough that the chips read at a glance on a normal page width. */
+const DIST = 7.2;
 
 /** One chip's artwork: a rounded plate in the event's colour with the kind, the headline and the detail. */
 function chipTexture(e: TickerEvent) {
@@ -60,9 +62,9 @@ export function ReferralTicker({ events, className = "" }: { events: TickerEvent
     el.appendChild(renderer.domElement);
     renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, 4, 0.1, 80); camera.position.set(0, 0.15, 11);
+    const camera = new THREE.PerspectiveCamera(32, 4, 0.1, 80); camera.position.set(0, 0.15, DIST);
     let aspect = 4;
-    const viewH = () => 2 * Math.tan((32 * Math.PI) / 360) * 11;
+    const viewH = () => 2 * Math.tan((32 * Math.PI) / 360) * DIST;
     const resize = () => { const w = el.clientWidth || 1, h = el.clientHeight || 1; renderer.setSize(w, h, false); aspect = w / h; camera.aspect = aspect; camera.updateProjectionMatrix(); };
     resize();
     const ro = new ResizeObserver(resize); ro.observe(el);
@@ -114,7 +116,7 @@ export function ReferralTicker({ events, className = "" }: { events: TickerEvent
       incoming.forEach((e, i) => {
         seen.add(e.id);
         const lastX = chips.length ? Math.max(...chips.map((c) => c.mesh.position.x)) : -W / 2;
-        const x = firstLoad ? -W / 2 + i * (CHIP_W + GAP) + CHIP_W / 2 : Math.max(edge, lastX + CHIP_W + GAP);
+        const x = firstLoad ? -W / 2 + 2.9 + i * (CHIP_W + GAP) + CHIP_W / 2 : Math.max(edge, lastX + CHIP_W + GAP);
         spawn(e, x, !firstLoad, t);
         if (!firstLoad) { const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLORS[e.kind].b, transparent: true, opacity: 0.9, depthWrite: false })); ring.position.set(W / 2 - 0.5, 0, 0.1); scene.add(ring); rings.push({ mesh: ring, born: t }); }
       });
@@ -133,7 +135,7 @@ export function ReferralTicker({ events, className = "" }: { events: TickerEvent
         r.mesh.scale.setScalar(1 + a * 5); (r.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 - a * 1.4);
         if (a > 0.7) { scene.remove(r.mesh); (r.mesh.material as THREE.Material).dispose(); rings.splice(i, 1); }
       }
-      coin.position.set(-W / 2 + 0.95, 0, 0.4); coin.rotation.y = reduced ? 0.5 : t * 1.6; coin.rotation.x = Math.sin(t * 0.8) * 0.12;
+      coin.position.set(-W / 2 + 1.5, 0, 0.4); coin.rotation.y = reduced ? 0.5 : t * 1.6; coin.rotation.x = Math.sin(t * 0.8) * 0.12;
       for (let i = 0; i < N; i++) { sp[i * 3] -= dt * 0.25 * (1 + (i % 3) * 0.5); if (sp[i * 3] < -15) sp[i * 3] = 15; }
       starGeo.attributes.position.needsUpdate = true;
       renderer.render(scene, camera);

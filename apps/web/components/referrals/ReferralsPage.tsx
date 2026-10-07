@@ -71,7 +71,7 @@ export function ReferralsPage() {
   }, []);
   useEffect(() => {
     if (!authenticated || !getCurrentSiwsToken()) return;
-    void loadMe();
+    void loadMe(); // eslint-disable-line react-hooks/set-state-in-effect
     const timer = setInterval(() => { if (!document.hidden) void loadMe(); }, 20_000);
     window.addEventListener("solcameo:trade-confirmed", loadMe);
     return () => { clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", loadMe); };
@@ -93,7 +93,7 @@ export function ReferralsPage() {
   // The live ticker: the coin's real on-chain swaps, plus what referrers have just earned (or missed).
   const events = useMemo<TickerEvent[]>(() => {
     const out: TickerEvent[] = [];
-    for (const s of (swaps ?? []).slice(0, 14)) out.push({ id: s.signature, kind: s.side === "buy" ? "buy" : "sell", title: `${s.sol.toLocaleString("en-US", { maximumFractionDigits: 3 })} SOL`, detail: short(s.wallet), at: s.time });
+    for (const s of (swaps ?? []).slice(0, 14)) out.push({ id: s.signature, kind: s.side === "buy" ? "buy" : "sell", title: s.sol < 0.001 ? "<0.001 SOL" : `${s.sol.toLocaleString("en-US", { maximumFractionDigits: 3 })} SOL`, detail: short(s.wallet), at: s.time });
     for (const r of stats?.recent ?? []) out.push({ id: `earn-${r.at}-${r.referrer}`, kind: r.missed ? "missed" : "earn", title: `${r.missed ? "" : "+"}${usd(r.shareUsdc, 3)}`, detail: r.referrer, at: r.at });
     return out.sort((a, b) => b.at - a.at).slice(0, 16);
   }, [swaps, stats?.recent]);
@@ -122,7 +122,7 @@ export function ReferralsPage() {
           <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-white/70"><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative inline-flex size-2 rounded-full bg-emerald-400" /></span>Live on Solana</p>
           <p className="text-[12px] text-zinc-500">SOLCAMEO trades and referral earnings as they happen</p>
         </div>
-        <ReferralTicker events={events} className="h-[150px]" />
+        <ReferralTicker events={events} className="h-[190px]" />
         <dl className="grid grid-cols-2 divide-x divide-white/10 border-t border-white/10 text-center sm:grid-cols-4">
           {[
             ["Earned by referrers", stats ? usd(stats.accruedUsdc) : "···"],

@@ -27,6 +27,7 @@ import { getMenuItems } from "@/lib/solstar/menu";
 import { ShellAccount } from "./shell-account";
 import { ShellSearch } from "./shell-search";
 import { ShellProvider } from "./shell-context";
+import { ReferralBinder } from "@/components/referrals/ReferralBinder";
 import { OnchainUpdates } from "@/components/solstar/OnchainUpdates";
 import { ErrorBoundary } from "@/components/error/error-boundary";
 import { TickerStrip } from "@/components/solstar/TickerStrip";
@@ -196,6 +197,7 @@ export function SolstarShell({ children }: { children: React.ReactNode }) {
   }, []);
   return (
     <ShellProvider value={true}>
+      <ReferralBinder />
       <OnchainUpdates />
       <MotionConfig reducedMotion="user">
         <SidebarProvider

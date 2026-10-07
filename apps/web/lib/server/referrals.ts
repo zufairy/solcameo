@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { getRpcCandidates } from "@/lib/solana/network";
 import { usdcPerSol } from "@/lib/server/solSwap";
+import { platformSnapshot } from "@/lib/server/platformSnapshot";
 import { MARGIN_SHARE, tierFor, type ReferralTier } from "@/lib/referrals/program";
 
 const secret = () => process.env.INTERNAL_CRON_SECRET ?? "";
@@ -16,11 +17,9 @@ export async function platformToken(): Promise<PlatformToken | null> {
   if (tokenCache && Date.now() - tokenCache.at < 15_000) return tokenCache.value;
   let value: PlatformToken | null = null;
   try {
-    const origin = process.env.NEXT_PUBLIC_APP_URL || "https://solcameo.com";
-    const res = await fetch(`${origin}/api/market/platform`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
-    const snap = (await res.json()) as { available?: boolean; mint?: string; characterId?: string | null; capSol?: number | null; supplyTokens?: number };
+    const snap = await platformSnapshot();
     const sol = await usdcPerSol();
-    if (snap.available && snap.mint && snap.capSol != null && snap.supplyTokens && sol) {
+    if (snap && snap.capSol != null && snap.supplyTokens && sol) {
       value = { mint: snap.mint, characterId: snap.characterId ?? null, capSol: snap.capSol, supplyTokens: snap.supplyTokens, priceUsd: (snap.capSol * sol) / snap.supplyTokens };
     }
   } catch { /* the program page shows "price unavailable" and accruals wait */ }
