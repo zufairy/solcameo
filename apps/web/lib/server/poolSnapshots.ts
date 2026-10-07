@@ -8,7 +8,7 @@ import { getObjectText, listImageObjects } from "@/lib/server/imageStorage";
 import { assertSolanaChain } from "@/lib/server/solanaChainGuard";
 import { convexClient } from "@/lib/server/solstarRoute";
 import { TtlCache, mapLimit } from "@/lib/server/ttlCache";
-import { getNetwork, getRpcUrl } from "@/lib/solana/network";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 
 /**
  * Live pool numbers for the market, built in layers that each cache for as long as the data really stays true:
@@ -34,11 +34,10 @@ const liveCache = new TtlCache<Map<string, Live>>(2_000, 20);
 const chainCache = new TtlCache<true>(600_000, 4);
 const connections = new Map<string, Connection>();
 
+/** One failover connection per network: QuickNode first, Helius and the public cluster behind it, per request. */
 function connectionFor(network: PoolRef["network"]): Connection {
-  const chain = network === "mainnet" ? "mainnet-beta" : "devnet";
-  const url = chain === getNetwork() ? process.env.SOLCAMEO_DBC_RPC_URL || getRpcUrl(chain) : getRpcUrl(chain);
-  let c = connections.get(url);
-  if (!c) { c = new Connection(url, { commitment: "confirmed", fetch: (u, init) => fetch(u, { ...init, signal: AbortSignal.timeout(8000) }) }); connections.set(url, c); }
+  let c = connections.get(network);
+  if (!c) { c = failoverConnection({ network: network === "mainnet" ? "mainnet-beta" : "devnet", timeoutMs: 8000 }); connections.set(network, c); }
   return c;
 }
 

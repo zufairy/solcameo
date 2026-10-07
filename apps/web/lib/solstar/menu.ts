@@ -17,6 +17,8 @@ export type MenuItem = {
   href: string;
   icon: LucideIcon;
   group: "Launchpad" | "Workspace";
+  /** Only shown to signed-in users. */
+  authOnly?: boolean;
   match: (pathname: string) => boolean;
 };
 const item = (
@@ -24,11 +26,13 @@ const item = (
   href: string,
   icon: LucideIcon,
   group: MenuItem["group"],
+  authOnly = false,
 ): MenuItem => ({
   label,
   href,
   icon,
   group,
+  ...(authOnly ? { authOnly } : {}),
   match: (pathname) =>
     href === "/"
       ? pathname === "/"
@@ -36,8 +40,8 @@ const item = (
 });
 const ITEMS: MenuItem[] = [
   item("Home", "/", Home, "Launchpad"),
-  item("Create Videos", "/create-videos", Clapperboard, "Launchpad"),
-  item("My Influencers", "/control", FolderOpen, "Launchpad"),
+  item("Create Videos", "/create-videos", Clapperboard, "Launchpad", true),
+  item("My Influencers", "/control", FolderOpen, "Launchpad", true),
   item("Video Feed", "/make", Video, "Launchpad"),
   item("Market", "/market", TrendingUp, "Launchpad"),
   item("Agent Marketplace", "/agents", LayoutGrid, "Launchpad"),
@@ -46,8 +50,11 @@ const ITEMS: MenuItem[] = [
   item("Tokenomics", "/tokenomics", Activity, "Workspace"),
   item("Analytics", "/analytics", BarChart3, "Workspace"),
 ];
-/** Influencer-focused navigation, independent of the old landing-page flag. */
-export function getMenuItems(legacy: boolean): MenuItem[] {
+/**
+ * Influencer-focused navigation, independent of the old landing-page flag. "My Influencers" and "Create Videos" belong
+ * to an account, so they only appear once the user is signed in.
+ */
+export function getMenuItems(legacy: boolean, signedIn = true): MenuItem[] {
   void legacy;
-  return [...ITEMS];
+  return ITEMS.filter((i) => signedIn || !i.authOnly);
 }

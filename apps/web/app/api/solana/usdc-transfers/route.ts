@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
+import { PublicKey } from "@solana/web3.js";
 import type { ParsedTransactionWithMeta, TokenBalance } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { getReadRpcUrl, getUsdcMint, getNetwork } from "@/lib/solana/network";
+import { getUsdcMint, getNetwork } from "@/lib/solana/network";
 import { requireInternalOrUserAuth } from "@/lib/server/requireAuth";
 import { mapWithConcurrency } from "@/lib/async/mapWithConcurrency";
 import {
@@ -46,7 +47,6 @@ export const maxDuration = 30;
 const NETWORK = getNetwork();
 const USDC_MINT = getUsdcMint(NETWORK);
 const HELIUS_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY ?? "";
-const READ_RPC = getReadRpcUrl(NETWORK);
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 50;
@@ -119,7 +119,7 @@ function toParsedTxLike(tx: ParsedTransactionWithMeta, signature: string): Parse
 }
 
 async function fetchViaWeb3(wallet: string, limit: number): Promise<UsdcTransfer[]> {
-  const conn = new Connection(READ_RPC, "confirmed");
+  const conn = failoverConnection({ network: NETWORK });
   const owner = new PublicKey(wallet);
   // Incoming SPL transfers list only the ATA (not the owner key), so read the
   // wallet's USDC ATA — reading the owner pubkey would miss deposits. A missing

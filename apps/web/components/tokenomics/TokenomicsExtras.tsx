@@ -11,6 +11,7 @@ import { getTxExplorerUrl } from "@/lib/solana/network";
 import { formatRelativeTime } from "@/lib/solstar/relativeTime";
 import { CountUp } from "./CountUp";
 import { useLiveTokenomics } from "./useLiveTokenomics";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 const LIME = "#d7ff00";
 const panel = "rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
@@ -67,7 +68,7 @@ export function LivePulse() {
                 <motion.li key={t.signature} layout initial={reduced ? false : { opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
                   <span className={`w-10 shrink-0 rounded-[4px] px-1.5 py-0.5 text-center text-[10.5px] font-bold uppercase ${t.side === "buy" ? "bg-emerald-400/15 text-emerald-300" : "bg-rose-400/15 text-rose-300"}`}>{t.side}</span>
-                  <Link href={`/market/${t.characterId}`} className="font-semibold text-white hover:underline">${t.ticker}</Link>
+                  <Link href={marketPath(t)} className="font-semibold text-white hover:underline">${t.ticker}</Link>
                   <span className="tabular-nums text-white/70">{fmt(t.sol, t.sol < 1 ? 3 : 2)} SOL</span>
                   <span className="hidden text-white/35 sm:inline" style={mono}>{t.wallet}</span>
                   <a href={getTxExplorerUrl(t.signature)} target="_blank" rel="noreferrer" className="ml-auto text-[11.5px] tabular-nums text-white/40 hover:text-white">{formatRelativeTime(now, t.time)}</a>

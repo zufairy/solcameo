@@ -10,6 +10,7 @@ import { LiveValue } from "./MarketTable";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useMarketWatchlist } from "./market-watchlist";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 type Quote = { available: boolean; capSol: number | null; changeSinceLaunchPct?: number | null };
 /** Shared coin tape with live RPC values and movement indicators. */
@@ -43,7 +44,7 @@ export function TickerStrip() {
   const item = (row: NonNullable<typeof shown>[number], key: string, hidden = false) => {
     const quote = quotes[row.characterId];
     const change = quote?.available ? quote.changeSinceLaunchPct : null;
-    return <Link key={key} href={`/market/${row.characterId}`} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined} className="group flex shrink-0 items-center gap-2 text-[13px] font-medium tracking-tight tabular-nums text-zinc-400 transition-colors hover:text-white">
+    return <Link key={key} href={marketPath(row)} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined} className="group flex shrink-0 items-center gap-2 text-[13px] font-medium tracking-tight tabular-nums text-zinc-400 transition-colors hover:text-white">
       <span className="relative flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-white/5 text-[10px] font-semibold text-zinc-400 ring-1 ring-white/10 [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))]">
         {row.imageUrl ? <Image src={row.imageUrl} alt="" width={24} height={24} unoptimized className="size-full object-cover" /> : row.ticker.slice(0, 1)}
       </span>

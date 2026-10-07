@@ -1,6 +1,6 @@
 /**
  * Exact Kie.ai video pricing, taken from Kie's own pricing feed (api.kie.ai/client/v1/model-pricing/page,
- * the data behind kie.ai/pricing), checked 2026-10-06. Kie sells credits at $0.005 each, so every number
+ * the data behind kie.ai/pricing), checked 2026-10-08. Kie sells credits at $0.005 each, so every number
  * below is Kie's credit price, never a guess. Retail = provider cost plus the Solcameo fee (RETAIL_MARKUP),
  * applied by callers via `videoCostForLength`.
  *
@@ -50,10 +50,11 @@ export const KIE_VIDEO_PRICING: Record<string, KieVideoPricing> = {
     qualities: ["480p", "720p"], defaultQuality: "720p", durations: [6, 10, 15, 20, 30],
     credits: perSecond({ "480p": 2.4, "720p": 4.5 }, 6),
   },
-  // Seedance 2.0 Fast, no video input: 11.7 credits/s at 480p, 24.8 at 720p.
+  // Seedance 2.0 (the full `bytedance/seedance-2` model, which is what the render calls), no video input: 19 credits/s at 480p,
+  // 41 at 720p. The cheaper Fast variant ("bytedance/seedance-2 fast": 11.7 and 24.8) is a different Kie model and is not what is sent.
   "seedance-v2": {
     qualities: ["480p", "720p"], defaultQuality: "720p", durations: [5, 8, 10, 15, 20],
-    credits: perSecond({ "480p": 11.7, "720p": 24.8 }, 5),
+    credits: perSecond({ "480p": 19, "720p": 41 }, 5),
   },
   // Seedance 1.5 Pro, without audio: 3.5 credits/s at 720p, 7.5 at 1080p.
   "seedance-1-5-pro": {

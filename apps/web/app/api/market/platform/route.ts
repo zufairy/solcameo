@@ -12,7 +12,7 @@ export const maxDuration = 20;
 
 type Snapshot = {
   available: true; characterId: string | null; name: string; ticker: string; mint: string; pool: string; image: string;
-  capSol: number | null; changeSinceLaunchPct: number | null; progress: number; reserveSol: number; targetSol: number; migrated: boolean; checkedAt: number;
+  capSol: number | null; supplyTokens: number; changeSinceLaunchPct: number | null; progress: number; reserveSol: number; targetSol: number; migrated: boolean; checkedAt: number;
 };
 const TTL_MS = 3000;
 let cache: { at: number; data: Snapshot } | null = null;
@@ -52,7 +52,7 @@ async function compute(): Promise<Snapshot | null> {
   const targetSol = Number(config.migrationQuoteThreshold.toString()) / 1e9;
   return {
     available: true, characterId: listing?.characterId ?? null, name: row.name, ticker: row.ticker, mint: row.mint, pool: row.pool, image: row.image,
-    capSol, changeSinceLaunchPct: capSol != null && launchCap > 0 ? (capSol / launchCap - 1) * 100 : null,
+    capSol, supplyTokens, changeSinceLaunchPct: capSol != null && launchCap > 0 ? (capSol / launchCap - 1) * 100 : null,
     progress: pool.poolState.isMigrated ? 1 : Math.min(1, targetSol > 0 ? reserveSol / targetSol : 0), reserveSol, targetSol,
     migrated: !!pool.poolState.isMigrated, checkedAt: Date.now(),
   };

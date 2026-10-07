@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { canonicalUrl, cleanText } from "@/lib/seo";
@@ -20,6 +20,7 @@ import InfluencerPageClient from "./InfluencerPageClient";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 async function lookupCharacter(id: string) {
@@ -60,12 +61,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${cleanText(character.name)} AI Influencer Token | Solcameo Market`,
       description: cleanText(character.bio).slice(0, 155),
       alternates: {
-        canonical: canonicalUrl(`/market/${character.characterId}`),
+        canonical: canonicalUrl(`/market/${character.slug ?? character.characterId}`),
       },
       openGraph: {
         title: `${cleanText(character.name)} on Solcameo`,
         description: cleanText(character.bio).slice(0, 155),
-        url: canonicalUrl(`/market/${character.characterId}`),
+        url: canonicalUrl(`/market/${character.slug ?? character.characterId}`),
         images: ["/og-solcameo.jpg"],
       },
       twitter: { card: "summary_large_image", title: `${cleanText(character.name)} on Solcameo`, description: cleanText(character.bio).slice(0, 155) },
@@ -94,13 +95,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function InfluencerPage({ params }: Props) {
+export default async function InfluencerPage({ params, searchParams }: Props) {
   const { id } = await params;
   // undefined (Convex env missing / errored) still renders — the client
   // component does its own lookup and 404s. Only a confirmed miss on BOTH
   // handle and mint (null) short-circuits to notFound() here.
   const character = await lookupCharacter(id);
-  if (character) return <MarketTerminal characterId={character.characterId} />;
+  if (character) {
+    // Old id links (and anything shared before tickers) land on the ticker URL, query string kept.
+    if (character.slug && character.slug !== id) {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries((await searchParams) ?? {})) for (const one of Array.isArray(v) ? v : v === undefined ? [] : [v]) qs.append(k, one);
+      permanentRedirect(`/market/${character.slug}${qs.size ? `?${qs}` : ""}`);
+    }
+    return <MarketTerminal characterId={character.characterId} />;
+  }
   const agent = await lookupAgent(id);
   if (agent === null) notFound();
   return <InfluencerPageClient id={id} />;

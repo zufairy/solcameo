@@ -18,6 +18,7 @@ import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { payAndPost } from "@/lib/client/walletPaid";
+import { MAX_REFERENCE_IMAGES } from "@/lib/explore/referenceImages";
 
 /** The "no influencer" choice: the video is paid for straight from the user's own wallet. */
 const NONE = "__none__";
@@ -68,11 +69,11 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   // Posting is a public act, so it is opt-in per video.
   const [postToX, setPostToX] = useState(false);
   const xConnected = !!agent?.connectedPlatforms?.includes("x");
-  // A picture to base the video on (a face, a product, a scene). Icon-only upload, stored the same way the builder stores its own.
+  // Pictures to base the video on (faces, a product, a scene): up to five, all sent to the engine. Stored the same way the builder stores its own.
   const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
   const resolveStorageUrl = useMutation(api.clipStorage.resolveStorageUrl);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [attached, setAttached] = useState<string | null>(null);
+  const [attached, setAttached] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -103,25 +104,32 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const videoUrl = state?.status === "succeeded" ? state.videoUrl : undefined;
   const failure = error || (state?.status === "failed" ? state.error || "Generation failed" : "");
 
-  async function attachImage(file: File) {
+  /** Upload several pictures at once; each one that stores fine is added, in the order picked, up to the limit. */
+  async function attachImages(files: File[]) {
+    const room = MAX_REFERENCE_IMAGES - attached.length;
+    const picked = files.filter((f) => f.type.startsWith("image/")).slice(0, Math.max(0, room));
+    if (!picked.length) { if (files.length) setError(room <= 0 ? `You can add up to ${MAX_REFERENCE_IMAGES} images.` : "Choose image files."); return; }
     setUploading(true); setError("");
-    try {
-      const res = await fetch(await generateUploadUrl({}), { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-      const { storageId } = (await res.json()) as { storageId: string };
-      const url = (await resolveStorageUrl({ storageId: storageId as unknown as never })) as string;
-      if (!url) throw new Error("Could not store the image.");
-      setAttached(url);
-    } catch (e) { setError(e instanceof Error ? e.message : "Upload failed"); }
-    finally { setUploading(false); }
+    const stored = await Promise.all(picked.map(async (file) => {
+      try {
+        const res = await fetch(await generateUploadUrl({}), { method: "POST", headers: { "Content-Type": file.type }, body: file });
+        if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+        const { storageId } = (await res.json()) as { storageId: string };
+        const url = (await resolveStorageUrl({ storageId: storageId as unknown as never })) as string;
+        if (!url) throw new Error("Could not store the image.");
+        return url;
+      } catch (e) { setError(e instanceof Error ? e.message : "Upload failed"); return null; }
+    }));
+    setAttached((prev) => [...new Set([...prev, ...stored.filter((u): u is string => !!u)])].slice(0, MAX_REFERENCE_IMAGES));
+    setUploading(false);
   }
 
   /** No influencer, or someone else's: price it, send the USDC from the user's own wallet, then render once it is verified. */
   async function generateWalletPaid(text: string) {
-    if (!cameo && !attached) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
+    if (!cameo && !attached.length) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
     const data = await payAndPost<{ taskId?: string }>({
       url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
-      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, ...(cameo ? { cameoMint: cameo.mintAddress } : { referenceImageUrl: attached }) },
+      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attached, ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
     });
     if (!data.taskId) throw new Error("The video could not start.");
     paidSig.current = undefined; // the render has started; this payment is spent
@@ -144,7 +152,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           input: {
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
             ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
-            ...(attached ? { referenceImageUrl: attached } : {}),
+            ...(attached.length ? { referenceImageUrl: attached[0], referenceImageUrls: attached } : {}),
             videoEngine: engineId,
             aspectRatio: aspect,
             durationSeconds: seconds,
@@ -220,21 +228,24 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   rows={4}
                 />
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" disabled={uploading || running}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void attachImage(f); e.target.value = ""; }} />
-                  {cameo ? (
+                  <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" disabled={uploading || running}
+                    onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) void attachImages(files); e.target.value = ""; }} />
+                  {cameo && (
                     // eslint-disable-next-line @next/next/no-img-element -- the chosen influencer's portrait
-                    <img src={cameo.avatarUrl} alt={`${cameo.name} portrait`} title={`${cameo.name} is the face of this video`} className="size-8 shrink-0 rounded-lg border border-white/15 object-cover" />
-                  ) : attached ? (
-                    <span className="relative inline-flex size-8 shrink-0 overflow-hidden rounded-lg border border-white/15">
-                      {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the uploaded reference */}
-                      <img src={attached} alt="Reference" className="size-full object-cover" />
-                      <button type="button" aria-label="Remove image" onClick={() => setAttached(null)} className="absolute inset-0 grid place-items-center bg-black/60 text-white opacity-0 transition-opacity hover:opacity-100"><X className="size-3.5" /></button>
+                    <img src={cameo.avatarUrl} alt={`${cameo.name} portrait`} title={`${cameo.name} is the face of this video`} className="size-8 shrink-0 rounded-lg border border-[#d7ff00]/50 object-cover" />
+                  )}
+                  {attached.map((url, i) => (
+                    <span key={url} className="relative inline-flex size-8 shrink-0 overflow-hidden rounded-lg border border-white/15">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local preview of an uploaded reference */}
+                      <img src={url} alt={`Reference ${i + 1}`} className="size-full object-cover" />
+                      <button type="button" aria-label={`Remove image ${i + 1}`} disabled={running} onClick={() => setAttached((prev) => prev.filter((u) => u !== url))} className="absolute inset-0 grid place-items-center bg-black/60 text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100"><X className="size-3.5" /></button>
                     </span>
-                  ) : (
-                    <button type="button" aria-label="Add a reference image" title="Add a reference image" onClick={() => fileRef.current?.click()} disabled={uploading || running}
-                      className={`${CHIP} size-8 justify-center !p-0 disabled:opacity-40`}>
+                  ))}
+                  {attached.length < MAX_REFERENCE_IMAGES && (
+                    <button type="button" aria-label="Add reference images" title={`Add reference images: faces, a product or a scene (up to ${MAX_REFERENCE_IMAGES})`} onClick={() => fileRef.current?.click()} disabled={uploading || running}
+                      className={`${CHIP} h-8 min-w-8 justify-center !px-2 disabled:opacity-40`}>
                       {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
+                      {attached.length > 0 && <span className="tabular-nums">{attached.length}/{MAX_REFERENCE_IMAGES}</span>}
                     </button>
                   )}
                   <ChipSelect value={engineId} onChange={(v) => { setEngineOverride(v as VideoEngineId); setQualityOverride(null); setSecondsOverride(null); }} title="Video engine"
@@ -250,10 +261,10 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   {!walletPaid && <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />}
                   {!walletPaid && <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />}
                   {!walletPaid && xConnected && <ChipCheck checked={postToX} onChange={setPostToX} label="Post to X" title="When the video is ready, post it to your connected X account with a caption written to get replies and shares" />}
-                  <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !walletPaid) || (noInfluencer && !attached) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
+                  <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !walletPaid) || (noInfluencer && !attached.length) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
                     title={running ? "Rendering…" : walletPaid ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
                 </div>
-                {noInfluencer && !attached && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
+                {noInfluencer && !attached.length && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
                 {failure && (
                   <p role="alert" className="mt-3 flex items-start gap-2 text-[12px] text-red-300"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{failure}</p>
                 )}

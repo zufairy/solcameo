@@ -2614,6 +2614,8 @@ export default defineSchema({
     feeTrackedSince: v.optional(v.number()),
     /** Market cap at launch and curve fill (0-1), so listings show change and progress without reading the pool. */
     launchCapSol: v.optional(v.number()), curveProgress: v.optional(v.number()),
+    /** SOL held by the curve and the SOL it needs to graduate, so the market page shows progress without reading the pool. */
+    reserveSol: v.optional(v.number()), targetSol: v.optional(v.number()),
     /** Rolling 24h trading activity, so the tokenomics page reads it live from Convex without scanning swaps. */
     volume24hSol: v.optional(v.number()), trades24h: v.optional(v.number()),
     /** False when the chain history could not be read in full, so cost bases cannot be trusted. */
@@ -2636,4 +2638,24 @@ export default defineSchema({
   ssChainHolders: defineTable({
     characterId: v.id("ssCharacters"), wallet: v.string(), units: v.string(), supplyPct: v.number(), isPool: v.boolean(),
   }).index("by_character", ["characterId"]),
+
+  // ── Referrals: share of Solcameo's margin, paid in USDC, only to wallets that hold SOLCAMEO ──────────────────────
+  referralCodes: defineTable({
+    wallet: v.string(), code: v.string(), createdAt: v.number(),
+  }).index("by_wallet", ["wallet"]).index("by_code", ["code"]),
+  // One row per referred wallet. Bound once, at its first sign-in, and never changed.
+  referralBindings: defineTable({
+    refereeWallet: v.string(), referrerWallet: v.string(), code: v.string(), boundAt: v.number(), expiresAt: v.number(),
+  }).index("by_referee", ["refereeWallet"]).index("by_referrer", ["referrerWallet"]),
+  // One row per settled payment of a referred user's spend. `missed` = the referrer held too little SOLCAMEO to earn it.
+  referralAccruals: defineTable({
+    settlementId: v.string(), referrerWallet: v.string(), refereeWallet: v.string(), mintAddress: v.string(),
+    spendUsdc: v.number(), marginUsdc: v.number(), rate: v.number(), tier: v.number(), shareUsdc: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("missed")),
+    paidSig: v.optional(v.string()), at: v.number(),
+  }).index("by_referrer", ["referrerWallet", "at"]).index("by_settlement", ["settlementId"]).index("by_time", ["at"]),
+  // Running totals, so the public counters never scan the ledger.
+  referralStats: defineTable({
+    key: v.string(), accruedUsdc: v.number(), missedUsdc: v.number(), events: v.number(), referrers: v.number(), referred: v.number(),
+  }).index("by_key", ["key"]),
 });

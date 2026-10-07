@@ -10,6 +10,7 @@ import { FEE_SPLIT_PERCENT, TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 import { displayFont } from "./fonts";
 import { FeaturedPlayer, VideoCarousel } from "./LiveVideos";
 import { useLiveData, type LiveVideo } from "./useLiveData";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 const HeroScene = dynamic(() => import("./HeroScene"), { ssr: false });
 export type ExploreRef = { id: string; title: string; category: string; videoUrl: string; thumbUrl: string };
@@ -100,7 +101,7 @@ function Bento({ characters, videos }: { characters: Char[]; videos: ReturnType<
 function Roster({ characters, loading }: { characters: Char[]; loading: boolean }) {
   return <section className="mx-auto max-w-[1480px] px-6 py-10 text-center md:px-12 lg:px-20">
     <p className="mb-6 flex items-center justify-center gap-2 font-mono text-[11px] text-zinc-500"><span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />{loading ? "Loading characters…" : `${characters.length} character${characters.length === 1 ? "" : "s"} live now`}</p>
-    <div className="flex flex-wrap justify-center gap-2">{characters.slice(0, 40).map(c => <Link key={c.characterId} href={`/market/${c.characterId}`} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] py-1 pl-1 pr-3 font-mono text-[11px] text-zinc-300 transition hover:border-[#d7ff00]/40 hover:text-white"><img src={c.imageUrl} alt="" className="size-5 rounded-full object-cover" />${c.ticker}</Link>)}</div></section>;
+    <div className="flex flex-wrap justify-center gap-2">{characters.slice(0, 40).map(c => <Link key={c.characterId} href={marketPath(c)} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] py-1 pl-1 pr-3 font-mono text-[11px] text-zinc-300 transition hover:border-[#d7ff00]/40 hover:text-white"><img src={c.imageUrl} alt="" className="size-5 rounded-full object-cover" />${c.ticker}</Link>)}</div></section>;
 }
 
 const SPLIT = [

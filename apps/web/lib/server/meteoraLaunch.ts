@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Connection } from "@solana/web3.js";
-import { getNetwork, getRpcUrl } from "@/lib/solana/network";
+import { getDbcRpcUrl, getNetwork, getRpcUrl } from "@/lib/solana/network";
 import type { DbcOptions } from "@/lib/meteora/options";
 export function dbcReadiness() {
   const network = getNetwork();
@@ -22,7 +22,7 @@ export function dbcReadiness() {
 export function dbcConnection() {
   if (!dbcReadiness().ready) throw new Error(dbcReadiness().reason);
   return new Connection(
-    (process.env.HELIUS_API_KEY || process.env.NEXT_PUBLIC_HELIUS_API_KEY) ? getRpcUrl() : (process.env.SOLCAMEO_DBC_RPC_URL || getRpcUrl()),
+    getDbcRpcUrl(),
     "confirmed",
   );
 }

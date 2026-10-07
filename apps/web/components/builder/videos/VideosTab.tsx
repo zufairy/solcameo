@@ -14,6 +14,11 @@ import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/vid
 import { CardProgress } from "@/components/explore/RenderProgress";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton, ResultHeading } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
+import { payAndPost } from "@/lib/client/walletPaid";
+import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
+
+/** Most reference images one video can use. */
+const MAX_REFS = 3;
 
 // Same visible set as the Director tab's engine picker — keep in sync with it.
 // Computed LAZILY (not at module init): dereferencing VIDEO_ENGINES while this
@@ -117,10 +122,16 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<VideoAsset | null>(null);
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  // Up to three reference images; the first is the main face, the rest are extra references.
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const attachedImage = attachedImages[0] ?? null;
+  const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  const paidSig = useRef<string | undefined>(undefined);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [engineOverride, setEngineOverride] = useState<VideoEngineId | null>(null);
   const [skipStoryboard, setSkipStoryboard] = useState(false);
+  /** No influencer: the video is paid for from the viewer's own wallet and rendered from the images they add. */
+  const walletPaid = !mintAddress;
   const [aspectOverride, setAspectOverride] = useState<VideoAspect | null>(null);
   // "No Persona": the prompt is sent as-is — no persona voice, character bible,
   // skills, memories or standing orders blended into the script or clip prompts.
@@ -143,22 +154,24 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   // Provider price plus 15%, plus the storyboard image unless it is skipped. The server bills the same numbers.
   const priceUsd = useMemo(() => {
     const engine = getVideoEngine(engineId);
-    return (skipStoryboard ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds, quality);
-  }, [engineId, seconds, quality, skipStoryboard]);
+    return (skipStoryboard || walletPaid ? 0 : VIDEO_STORYBOARD_COST_USDC) + videoCostForLength(engine, seconds, quality);
+  }, [engineId, seconds, quality, skipStoryboard, walletPaid]);
   const priceText = formatRetailUsd(priceUsd);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadReferenceImage = useCallback(async (file: File) => {
+  const uploadReferenceImages = useCallback(async (files: File[]) => {
     setUploadingImage(true);
     setError(null);
     try {
-      const uploadUrl = await generateUploadUrl({});
-      const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!res.ok) throw new Error(`upload failed (${res.status})`);
-      const { storageId } = (await res.json()) as { storageId: string };
-      const publicUrl = (await resolveStorageUrl({ storageId: storageId as unknown as never })) as string;
-      if (publicUrl) setAttachedImage(publicUrl);
-      else setError("Could not store the image.");
+      for (const file of files) {
+        const uploadUrl = await generateUploadUrl({});
+        const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+        if (!res.ok) throw new Error(`upload failed (${res.status})`);
+        const { storageId } = (await res.json()) as { storageId: string };
+        const publicUrl = (await resolveStorageUrl({ storageId: storageId as unknown as never })) as string;
+        if (!publicUrl) throw new Error("Could not store the image.");
+        setAttachedImages((prev) => (prev.length >= MAX_REFS || prev.includes(publicUrl) ? prev : [...prev, publicUrl]));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "upload failed");
     } finally {
@@ -224,7 +237,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
 
   const effectiveRefs = useMemo(() => {
     const pinned = influencerDoc?.videoConfig?.pinnedVideoReferenceUrl?.trim() || undefined;
-    if (attachedImage) return [attachedImage];
+    if (attachedImages.length) return attachedImages.slice(0, MAX_REFS);
     if (pinned) return [pinned];
     if (bibleIdentityRefs.length) return bibleIdentityRefs.slice(0, 3);
     const stills = Array.from(new Set(
@@ -232,9 +245,10 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
     ));
     const fallback = stills.length > 0 ? stills : influencerDoc?.avatarUrl ? [influencerDoc.avatarUrl] : [];
     return fallback.slice(0, 3);
-  }, [attachedImage, bibleIdentityRefs, influencerDoc?.videoConfig?.pinnedVideoReferenceUrl, influencerDoc?.avatarStills, influencerDoc?.avatarUrl]);
+  }, [attachedImages, bibleIdentityRefs, influencerDoc?.videoConfig?.pinnedVideoReferenceUrl, influencerDoc?.avatarStills, influencerDoc?.avatarUrl]);
 
-  const canWrite = Boolean(mintAddress);
+  // With no influencer a video needs at least one image of your own; with one, it can use the agent's own face.
+  const canWrite = Boolean(mintAddress) || attachedImages.length > 0;
   // Guards against a double-click/double-tap firing two independent run-task
   // requests (and therefore two KIE renders) before the first one lands — the
   // button previously had no in-flight state at all. Cleared once the request
@@ -254,6 +268,17 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
 
     void (async () => {
       try {
+        if (walletPaid) {
+          // No influencer: pay Solcameo from your own wallet, then render from your images.
+          const data = await payAndPost<{ taskId?: string }>({
+            url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
+            payload: { prompt: p, referenceImageUrl: attachedImages[0], referenceImageUrls: attachedImages.slice(1, MAX_REFS), videoEngine: engineId, quality, seconds, aspect },
+          });
+          if (!data.taskId) throw new Error("The video could not start.");
+          paidSig.current = undefined; // the render has started; this payment is spent
+          setVideos((prev) => prev.map((v) => (v.id === localId ? { ...v, taskId: data.taskId as Id<"agentTasks"> } : v)));
+          return;
+        }
         const res = await fetch("/api/agents/run-task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -264,7 +289,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             input: {
               topic: cast.length ? `${p}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : p,
               ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
-              ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
+              ...(attachedImage ? { referenceImageUrl: attachedImage, ...(attachedImages.length > 1 ? { referenceImageUrls: attachedImages.slice(1, MAX_REFS) } : {}) } : {}),
               videoEngine: engineId,
               aspectRatio: aspect,
               durationSeconds: seconds,
@@ -289,8 +314,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
         setIsGenerating(false);
       }
     })();
-    setAttachedImage(null);
-  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast, pricingSpec, quality, seconds, aspect]);
+    setAttachedImages([]);
+  }, [prompt, canWrite, mintAddress, walletPaid, publicKey, signTransaction, attachedImages, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast, pricingSpec, quality, seconds, aspect]);
 
   const removeVideo = useCallback((id: string) => setVideos((prev) => prev.filter((v) => v.id !== id)), []);
   const retryVideo = useCallback((v: VideoAsset) => {
@@ -328,17 +353,20 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
       <div className="mx-auto max-w-[1100px]">
         {/* ── Prompt box ──────────────────────────────────────────────────── */}
         <div className={`mx-auto max-w-[900px] p-5 ${PANEL}`}>
-          {attachedImage && (
-            <div className="mb-3 flex items-center gap-2">
-              <div className="group relative size-14 overflow-hidden rounded-lg border-2 border-white/15">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={attachedImage} alt="reference" className="size-full object-cover" />
-                <button type="button" onClick={() => setAttachedImage(null)} title="Remove reference"
-                  className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-                  <X className="size-4 text-white" />
-                </button>
-              </div>
-              <span className="text-[10.5px] text-zinc-500">Sent to Kie as the face reference for this video.</span>
+          {attachedImages.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {attachedImages.map((url, i) => (
+                <div key={url} className="group relative size-14 overflow-hidden rounded-lg border-2 border-white/15">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`reference ${i + 1}`} className="size-full object-cover" />
+                  {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-black/60 text-center text-[9px] font-semibold leading-4 text-white">Main</span>}
+                  <button type="button" onClick={() => setAttachedImages((prev) => prev.filter((u) => u !== url))} title="Remove reference"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                    <X className="size-4 text-white" />
+                  </button>
+                </div>
+              ))}
+              <span className="text-[10.5px] text-zinc-500">{attachedImages.length === 1 ? "Sent as the face reference for this video." : `${attachedImages.length} references: the first is the main face, the others add look and context.`}</span>
             </div>
           )}
           <MentionTextarea
@@ -352,13 +380,13 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             rows={3}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={uploadingImage}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadReferenceImage(f); e.target.value = ""; }} />
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}
-              title="Attach a reference image, sent to Kie instead of the default face"
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" disabled={uploadingImage || attachedImages.length >= MAX_REFS}
+              onChange={(e) => { const picked = Array.from(e.target.files ?? []).slice(0, Math.max(0, MAX_REFS - attachedImages.length)); if (picked.length) void uploadReferenceImages(picked); e.target.value = ""; }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingImage || attachedImages.length >= MAX_REFS}
+              title={`Add reference images (up to ${MAX_REFS}), sent instead of the default face`}
               className={`${CHIP} disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0`}>
               {uploadingImage ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}
-              {uploadingImage ? "Uploading…" : "Image"}
+              {uploadingImage ? "Uploading…" : attachedImages.length ? `Images ${attachedImages.length}/${MAX_REFS}` : "Images"}
             </button>
             <ChipSelect value={engineId} onChange={(v) => setEngineOverride(v as VideoEngineId)} title="Video engine for this generation, defaults to the Director tab's pick"
               options={visibleEngines().map((e) => ({ value: e.id, label: e.label }))} />
@@ -370,10 +398,10 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             )}
             <ChipSelect value={String(seconds)} onChange={(v) => setSecondsOverride(Number(v))} title="Video length, sets the exact price"
               options={videoLengthOptions(engineId).map((d) => ({ value: String(d), label: `${d}s` }))} />
-            <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard"
-              title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image" />
-            <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona"
-              title="Send your prompt as-is: no persona voice, character bible, skills or memories are blended into the video. Unchecked, the video follows the agent's persona and settings." />
+            {!walletPaid && <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard"
+              title="Skip the multi-panel storyboard image, the video renders straight from your selected reference image" />}
+            {!walletPaid && <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona"
+              title="Send your prompt as-is: no persona voice, character bible, skills or memories are blended into the video. Unchecked, the video follows the agent's persona and settings." />}
             {effectiveRefs.length > 0 && (
               <div
                 className="flex items-center gap-1.5"
@@ -395,8 +423,9 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               </div>
             )}
             <PriceButton className="ml-auto" disabled={!canWrite || !prompt.trim() || isGenerating} busy={isGenerating} onClick={generate} priceUsd={null} priceText={priceText} pending={pendingCount}
-              title={isGenerating ? "Sending…" : pendingCount > 0 ? "Renders run in the background, queue another anytime" : "Includes the 15% Solcameo fee"} />
+              title={isGenerating ? "Sending…" : walletPaid ? "No influencer: you pay this in USDC from your own wallet. Includes the 15% Solcameo fee." : pendingCount > 0 ? "Renders run in the background, queue another anytime" : "Includes the 15% Solcameo fee"} />
           </div>
+          {walletPaid && attachedImages.length === 0 && <p className="mt-1.5 text-[11px] text-zinc-500">No influencer selected: add one to three reference images (a face, product or scene). You pay from your own wallet and the video renders exactly as you describe it.</p>}
           {error && <p className="mt-1.5 text-[11px] text-red-400">{error}</p>}
         </div>
 
@@ -404,15 +433,15 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
         {pickerImages.length > 0 && (
           <div className="mt-4 mx-auto max-w-[900px]">
             <p className="text-[11px] font-semibold text-zinc-400">My Images</p>
-            <p className="text-[10.5px] text-zinc-600">Tap a photo to use it as the face reference for the next video, same as attaching it.</p>
+            <p className="text-[10.5px] text-zinc-600">Tap up to three photos to use as references for the next video, same as attaching them.</p>
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
               {pickerImages.map(({ url, label }) => {
-                const selected = attachedImage === url;
+                const selected = attachedImages.includes(url);
                 return (
                   <button
                     key={url}
                     type="button"
-                    onClick={() => setAttachedImage(selected ? null : url)}
+                    onClick={() => setAttachedImages((prev) => (prev.includes(url) ? prev.filter((u) => u !== url) : prev.length >= MAX_REFS ? prev : [...prev, url]))}
                     title={selected ? "Remove reference" : `Use this ${label.toLowerCase()} photo as the video reference`}
                     className={`relative size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${selected ? "border-lime-400" : "border-white/10 hover:border-white/30"}`}
                   >

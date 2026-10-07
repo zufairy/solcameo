@@ -37,6 +37,7 @@ export const ingest = mutation({
       feesSol: v.optional(v.number()), claimableSol: v.optional(v.number()), migrated: v.optional(v.boolean()),
       historyComplete: v.optional(v.boolean()), launchCapSol: v.optional(v.number()), curveProgress: v.optional(v.number()),
       volume24hSol: v.optional(v.number()), trades24h: v.optional(v.number()),
+      reserveSol: v.optional(v.number()), targetSol: v.optional(v.number()),
     })),
     error: v.optional(v.string()),
   },
@@ -81,6 +82,7 @@ export const ingest = mutation({
       historyComplete: a.market?.historyComplete ?? prev?.historyComplete,
       launchCapSol: a.market?.launchCapSol ?? prev?.launchCapSol, curveProgress: a.market?.curveProgress ?? prev?.curveProgress,
       volume24hSol: a.market?.volume24hSol ?? prev?.volume24hSol, trades24h: a.market?.trades24h ?? prev?.trades24h,
+      reserveSol: a.market?.reserveSol ?? prev?.reserveSol, targetSol: a.market?.targetSol ?? prev?.targetSol,
       // Fee data exists for every swap from the first ingest when the whole history was read, else from now on.
       feeTrackedSince: prev ? prev.feeTrackedSince : a.market?.historyComplete === false ? Date.now() : 0,
     };
@@ -204,5 +206,52 @@ export const pulse = query({
     }
     tape.sort((a, b) => b.time - a.time);
     return { coins, graduated, volume24hSol, trades24h, marketCapSol, syncedAt, tape: tape.slice(0, 14) };
+  },
+});
+
+/**
+ * A coin's price history for its chart, straight from the synced swaps: one point per swap, as market cap in SOL at that
+ * moment, oldest first. Lets the chart paint from Convex the instant the page opens instead of waiting on a chain read.
+ */
+export const chartPoints = query({
+  args: { characterId: v.id("ssCharacters"), limit: v.optional(v.number()) },
+  handler: async (ctx, { characterId, limit }) => {
+    const state = await ctx.db.query("ssChainState").withIndex("by_character", (q) => q.eq("characterId", characterId)).unique();
+    if (!state) return [];
+    const supply = Number(state.supplyRaw) / 10 ** state.decimals;
+    const rows = await ctx.db.query("ssChainSwaps").withIndex("by_character_time", (q) => q.eq("characterId", characterId)).order("desc").take(Math.min(1500, Math.max(1, limit ?? 800)));
+    return rows.reverse().map((s) => ({ time: s.time, price: s.priceSol * supply, volume: s.sol, side: s.side }));
+  },
+});
+
+/**
+ * Every live coin's pool numbers for the market list in one reactive read: market cap, change since launch, 24h volume,
+ * curve fill and a short price history for the sparkline. Same shape the list used to fetch from the chain, so the page
+ * paints from Convex instantly and updates the moment the market sync lands a trade.
+ */
+export const marketPools = query({
+  args: { network: v.union(v.literal("mainnet"), v.literal("devnet")) },
+  handler: async (ctx, { network }) => {
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", network)).take(80);
+    const out: Record<string, {
+      available: true; capSol: number; progress: number; migrated: boolean; changeSinceLaunchPct: number | null; appVolume24hLamports: string; supplyTokens: number;
+      reserveSol: number; targetSol: number; points: { time: number; price: number; volume: number }[];
+    }> = {};
+    for (const token of tokens) {
+      if (!token.mint || !token.dbcPool || !["live", "graduated", "migrated"].includes(token.state)) continue;
+      const state = await ctx.db.query("ssChainState").withIndex("by_character", (q) => q.eq("characterId", token.characterId)).unique();
+      if (!state) continue;
+      const supply = Number(state.supplyRaw) / 10 ** state.decimals;
+      const capSol = state.priceSol * supply;
+      const swaps = (await ctx.db.query("ssChainSwaps").withIndex("by_character_time", (q) => q.eq("characterId", token.characterId)).order("desc").take(40)).reverse();
+      out[token.characterId as string] = {
+        available: true, capSol, supplyTokens: supply, migrated: !!state.migrated, progress: state.migrated ? 1 : state.curveProgress ?? 0,
+        reserveSol: state.reserveSol ?? 0, targetSol: state.targetSol ?? 0,
+        changeSinceLaunchPct: state.launchCapSol && state.launchCapSol > 0 ? (capSol / state.launchCapSol - 1) * 100 : null,
+        appVolume24hLamports: String(Math.round((state.volume24hSol ?? 0) * 1e9)),
+        points: swaps.map((s) => ({ time: s.time, price: s.priceSol * supply, volume: s.sol })),
+      };
+    }
+    return out;
   },
 });

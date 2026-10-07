@@ -1,6 +1,7 @@
 import { terminalStats } from "./lib/terminalStats";
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, type QueryCtx } from "./_generated/server";
+import { marketSlug, tickerFromSegment } from "../lib/solstar/marketSlug";
 import { assertSecret } from "./lib/solstarAuth";
 import { countSources } from "./lib/marketSummary";
 import type { Id } from "./_generated/dataModel";
@@ -200,24 +201,50 @@ export const poolRefs = query({
   },
 });
 
-/** Resolves character ids without confusing them with influencer handles or SPL mints. */
+/**
+ * The coin that owns a ticker. Tickers are only unique per network, so prefer the live mainnet coin, then devnet, then
+ * paper; the oldest wins a tie, so the answer never changes when someone later reuses the ticker.
+ */
+async function tokenForTicker(ctx: QueryCtx, ticker: string) {
+  for (const network of ["mainnet", "devnet", "paper"] as const) {
+    const token = await ctx.db.query("ssTokens").withIndex("by_network_ticker", (q) => q.eq("network", network).eq("ticker", ticker)).first();
+    if (token) return token;
+  }
+  return null;
+}
+
+/**
+ * Resolves a URL segment to a coin: a character id, or a ticker slug ("buttons" for $BUTTONS). `slug` is the canonical
+ * ticker URL, or null when it cannot be used: the ticker belongs to another coin, or an agent already owns that handle.
+ */
 export const characterForRoute = query({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const characterId = ctx.db.normalizeId("ssCharacters", id);
+    const byId = ctx.db.normalizeId("ssCharacters", id);
+    const ticker = byId ? null : tickerFromSegment(id);
+    if (!byId && !ticker) return null;
+    if (ticker) {
+      // An agent handle that matches wins, so existing agent URLs never change owner.
+      const agent = await ctx.db.query("influencers").withIndex("by_handle_lower", (q) => q.eq("handleLower", ticker.toLowerCase())).first();
+      if (agent) return null;
+    }
+    let token = ticker ? await tokenForTicker(ctx, ticker) : null;
+    const characterId = byId ?? token?.characterId;
     if (!characterId) return null;
     const character = await ctx.db.get(characterId);
     if (!character || character.status !== "approved") return null;
-    const token = await ctx.db
-      .query("ssTokens")
-      .withIndex("by_character", (q) => q.eq("characterId", characterId))
-      .first();
+    token ??= await ctx.db.query("ssTokens").withIndex("by_character", (q) => q.eq("characterId", characterId)).first();
     if (!token) return null;
+    const slug = marketSlug(token.ticker);
+    const owner = slug.length >= 2 ? await tokenForTicker(ctx, slug.toUpperCase()) : null;
+    const handleTaken = slug.length >= 2 ? await ctx.db.query("influencers").withIndex("by_handle_lower", (q) => q.eq("handleLower", slug)).first() : null;
     return {
       characterId,
       name: character.name,
       bio: character.bio,
       imageUrl: character.referenceImageUrl,
+      ticker: token.ticker,
+      slug: owner?._id === token._id && !handleTaken ? slug : null,
     };
   },
 });

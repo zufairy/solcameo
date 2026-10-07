@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { FileText, Workflow, Plus, Radio, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -50,7 +51,8 @@ function RailMenu() {
   const pathname = usePathname();
   const reduced = useReducedMotion();
   const { setOpenMobile } = useSidebar();
-  const items = getMenuItems(legacyUiEnabled());
+  const { authenticated } = usePrivy();
+  const items = getMenuItems(legacyUiEnabled(), authenticated);
 
   return (
     <nav aria-label="Primary">

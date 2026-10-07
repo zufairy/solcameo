@@ -8,27 +8,27 @@
  */
 
 import {
-  Connection, Keypair, PublicKey, Transaction, LAMPORTS_PER_SOL,
+  Keypair, PublicKey, Transaction, LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
   createAssociatedTokenAccountInstruction, createTransferInstruction,
   getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import bs58 from "bs58";
-import { getUsdcMint, getNetwork, getRpcUrl } from "@/lib/solana/network";
+import { getUsdcMint, getNetwork } from "@/lib/solana/network";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { rpcCandidates } from "@/lib/solana/rpc";
 import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "@/lib/solana/landTransaction";
 
-// Single source of truth via lib/solana/network — devnet returns the PUBLIC
-// endpoint (the configured Helius devnet key is suspended → 403 on every call).
+// Single source of truth via lib/solana/network: QuickNode first, Helius as the backup (devnet uses the public endpoint).
 const NETWORK = getNetwork();
-const RPC_URL = getRpcUrl(NETWORK);
 
 const USDC_MINT = new PublicKey(getUsdcMint(NETWORK));
 const USDC_DECIMALS = 6;
 
+/** A connection that fails over per request (QuickNode, then Helius, then the public cluster) with a deadline on each. */
 export function getRpcConnection() {
-  return new Connection(RPC_URL, "confirmed");
+  return failoverConnection({ network: NETWORK });
 }
 
 /**
@@ -176,6 +176,12 @@ export async function getCurrentBlockHeight(): Promise<number | null> {
   }
 }
 
+/** True when the cluster itself refused the transaction, which proves it was never broadcast (as opposed to a timeout). */
+export function isDefiniteRejection(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /simulation failed|Blockhash not found|insufficient funds|custom program error|invalid account|AccountNotFound|Attempt to debit/i.test(msg);
+}
+
 export interface TransferResult {
   ok: boolean;
   txSignature?: string;
@@ -229,58 +235,48 @@ export async function transferUsdc(opts: {
   const toKey = new PublicKey(toPubkey);
   const gasKey = feePayer ? feePayer.publicKey : fromKey; // who pays SOL + ATA rent
 
-  // The GAS PAYER (fee payer if sponsored, else the sender) needs SOL for fees.
-  const solBalance = await conn.getBalance(gasKey, "confirmed");
-  if (solBalance < 5000) { // ~5000 lamports min for tx fee
-    return {
-      ok: false,
-      error: `${feePayer ? "Platform fee-payer" : "Wallet"} ${gasKey.toBase58().slice(0, 8)}… has insufficient SOL for fees (${(solBalance / 1e9).toFixed(6)}). Fund with ~0.01 SOL.`,
-      step: "fees",
-    };
-  }
-
+  // Everything the transfer needs from the chain is independent, so it is read at once: one round trip of waiting instead of
+  // five in a row. (SOL for fees, whether the recipient's USDC account exists, the sender's USDC, a market priority fee and
+  // a fresh blockhash.)
+  const fromAta = await getAssociatedTokenAddress(USDC_MINT, fromKey);
+  const toAta = await getAssociatedTokenAddress(USDC_MINT, toKey);
+  const units = 60_000;
   let tx: Transaction;
   try {
-    const fromAta = await getAssociatedTokenAddress(USDC_MINT, fromKey);
-    const toAta   = await getAssociatedTokenAddress(USDC_MINT, toKey);
+    const missing = <T,>(p: Promise<T>) => p.then((v) => v, (e: unknown) => (e instanceof TokenAccountNotFoundError ? null : Promise.reject(e)));
+    const [solBalance, recipientAcc, senderAcc, priority, latest] = await Promise.all([
+      conn.getBalance(gasKey, "confirmed"),
+      missing(getAccount(conn, toAta, "confirmed")),
+      missing(getAccount(conn, fromAta, "confirmed")),
+      estimatePriorityPrice([fromAta.toBase58(), toAta.toBase58()], units),
+      conn.getLatestBlockhash("confirmed"),
+    ]);
+    // The GAS PAYER (fee payer if sponsored, else the sender) needs SOL for fees.
+    if (solBalance < 5000) { // ~5000 lamports min for tx fee
+      return {
+        ok: false,
+        error: `${feePayer ? "Platform fee-payer" : "Wallet"} ${gasKey.toBase58().slice(0, 8)}… has insufficient SOL for fees (${(solBalance / 1e9).toFixed(6)}). Fund with ~0.01 SOL.`,
+        step: "fees",
+      };
+    }
+    // Make sure sender has the USDC
+    if (!senderAcc) return { ok: false, error: `Sender ${fromPubkey.slice(0, 8)}… has no USDC token account`, step: "balance" };
+    const have = Number(senderAcc.amount) / Math.pow(10, USDC_DECIMALS);
+    if (have < amountUsdc) return { ok: false, error: `Insufficient USDC. Have $${have.toFixed(2)}, need $${amountUsdc.toFixed(2)}`, step: "balance" };
 
     tx = new Transaction();
     // Market-rate priority fee and a compute limit sized to a plain transfer (plus the optional ATA creation), so the
     // payment lands in seconds instead of waiting behind congestion.
-    const units = 60_000;
-    tx.add(...computeBudgetInstructions(units, await estimatePriorityPrice([fromAta.toBase58(), toAta.toBase58()], units)));
-
-    // Create recipient ATA if needed
-    try {
-      await getAccount(conn, toAta, "confirmed");
-    } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) {
-        // ATA rent paid by the gas payer (fee payer if sponsored, else sender).
-        tx.add(createAssociatedTokenAccountInstruction(gasKey, toAta, toKey, USDC_MINT));
-      }
-    }
-
-    // Make sure sender has the USDC
-    try {
-      const senderAcc = await getAccount(conn, fromAta, "confirmed");
-      const have = Number(senderAcc.amount) / Math.pow(10, USDC_DECIMALS);
-      if (have < amountUsdc) {
-        return { ok: false, error: `Insufficient USDC. Have $${have.toFixed(2)}, need $${amountUsdc.toFixed(2)}`, step: "balance" };
-      }
-    } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) {
-        return { ok: false, error: `Sender ${fromPubkey.slice(0, 8)}… has no USDC token account`, step: "balance" };
-      }
-      throw e;
-    }
-
+    tx.add(...computeBudgetInstructions(units, priority));
+    // ATA rent paid by the gas payer (fee payer if sponsored, else sender).
+    if (!recipientAcc) tx.add(createAssociatedTokenAccountInstruction(gasKey, toAta, toKey, USDC_MINT));
     tx.add(createTransferInstruction(
       fromAta, toAta, fromKey,
       Math.floor(amountUsdc * Math.pow(10, USDC_DECIMALS)),
       [], TOKEN_PROGRAM_ID,
     ));
 
-    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+    const { blockhash, lastValidBlockHeight } = latest;
     tx.feePayer = gasKey;
     tx.recentBlockhash = blockhash;
     // Agent signs (transfer authority); fee payer also signs (gas + ATA rent).
@@ -292,7 +288,17 @@ export async function transferUsdc(opts: {
     // sendRawTransaction itself throws BEFORE a sig is returned, so it is handled by the outer catch as a sig-less
     // pre-broadcast failure (no USDC moved).
     const raw = tx.serialize();
-    const sig = await conn.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 });
+    // The signature is known before anything is sent (it is the signer's own signature), so even a send that times out or
+    // loses its connection cannot lose track of the transaction: it may have reached a validator, so it is landed and polled
+    // instead of being written off. Only an explicit rejection (simulation failed, blockhash gone) proves it never went out.
+    const localSig = tx.signature ? bs58.encode(tx.signature) : "";
+    let sig = localSig;
+    try {
+      sig = await conn.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 });
+    } catch (e) {
+      if (!localSig || isDefiniteRejection(e)) throw e;
+      console.warn("[usdcTransfer] send was inconclusive, landing by signature:", (e as Error).message?.slice(0, 120));
+    }
     // Keep re-sending the identical signed bytes to every RPC while polling, until it confirms or the blockhash expires.
     let landed: Awaited<ReturnType<typeof landTransaction>>;
     try {

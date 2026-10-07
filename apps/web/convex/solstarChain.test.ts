@@ -82,3 +82,19 @@ it("pulse sums the per-coin 24h rollups and lists the newest swaps across coins"
   expect(pulse.tape.map((s) => s.signature)).toEqual(["b", "a"]);
   expect(pulse.tape[0]).toMatchObject({ ticker: "NOVA", side: "sell" });
 });
+
+it("chartPoints and marketPools serve the market page from the synced tables, oldest swap first", async () => {
+  const { t, characterId } = await setup();
+  await t.run((ctx) => ctx.db.insert("ssTokens", { characterId: characterId as never, network: "mainnet", name: "n", ticker: "NOVA", description: "d", state: "live", mint: "mint", dbcPool: "pool", solReserve: 0n as never, tokenReserve: 0n as never, createdAt: 1 } as never));
+  const market = { priceSol: 0.00002, supplyRaw: "1000000000000000", decimals: 6, slot: 5, holders: [], launchCapSol: 10_000, curveProgress: 0.5, reserveSol: 15, targetSol: 30, volume24hSol: 4 };
+  await t.mutation(api.solstarChain.ingest, { ...base(characterId as never, [swap("a", "A", "buy", 1000, 0.01, 1), swap("b", "B", "sell", 1000, 0.02, 2)]), market });
+  const points = await t.query(api.solstarChain.chartPoints, { characterId });
+  expect(points.map((p) => p.time)).toEqual([1, 2]);
+  expect(points[1]).toMatchObject({ side: "sell", volume: 0.02 });
+  const pools = await t.query(api.solstarChain.marketPools, { network: "mainnet" });
+  const pool = pools[characterId as string];
+  expect(pool).toMatchObject({ available: true, progress: 0.5, migrated: false, reserveSol: 15, targetSol: 30, appVolume24hLamports: "4000000000" });
+  expect(pool.capSol).toBeCloseTo(20_000);
+  expect(pool.changeSinceLaunchPct).toBeCloseTo(100); // 20,000 against a 10,000 launch cap
+  expect(pool.points).toHaveLength(2);
+});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRpcUrl } from "@/lib/solana/network";
 import { Connection } from "@solana/web3.js";
 import { getBase64Encoder, getTransactionDecoder } from "@solana/kit";
 import { decodePaymentSignatureHeader, encodePaymentResponseHeader } from "@x402/core/http";
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (stored.state === "cancelled") return NextResponse.json({ error: "Payment cancelled before settlement" }, { status: 409 });
   if (stored.state === "paid") return NextResponse.json({ ok: true, alreadyPaid: true });
   const config = x402Config();
-  const rpcUrl = config.network === SOLANA_MAINNET ? process.env.SOLAMI_RPC_URL : "https://api.devnet.solana.com";
+  const rpcUrl = config.network === SOLANA_MAINNET ? getRpcUrl("mainnet-beta") : getRpcUrl("devnet");
   if (!rpcUrl) return NextResponse.json({ error: "Configure SOLAMI_RPC_URL for mainnet recovery" }, { status: 503 });
   const conn = new Connection(rpcUrl, "confirmed");
   // Prevent an incorrectly configured endpoint from proving payment on the wrong chain.

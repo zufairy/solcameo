@@ -5,13 +5,23 @@ describe("getMenuItems", () => {
   it("launchpad navigation keeps core items first", () => {
     expect(
       getMenuItems(false)
-        .slice(0, 3)
+        .slice(0, 4)
         .map((i) => [i.label, i.href]),
     ).toEqual([
       ["Home", "/"],
+      ["Create Videos", "/create-videos"],
       ["My Influencers", "/control"],
       ["Video Feed", "/make"],
     ]);
+  });
+  it("hides My Influencers and Create Videos until the user is signed in", () => {
+    const out = getMenuItems(false, false).map((i) => i.href);
+    expect(out).not.toContain("/control");
+    expect(out).not.toContain("/create-videos");
+    for (const route of ["/", "/market", "/agents", "/explore"]) expect(out).toContain(route);
+    const inn = getMenuItems(false, true).map((i) => i.href);
+    expect(inn).toContain("/control");
+    expect(inn).toContain("/create-videos");
   });
   it("keeps influencer workspaces and hides removed creator and account menus", () => {
     const routes = getMenuItems(false).map((i) => i.href);
@@ -50,7 +60,7 @@ describe("getMenuItems", () => {
   });
   it("legacy menu keeps Home, My Agents and Video Feed first", () => {
     const labels = getMenuItems(true).map((i) => i.label);
-    expect(labels.slice(0, 3)).toEqual(["Home", "My Influencers", "Video Feed"]);
+    expect(labels.slice(0, 4)).toEqual(["Home", "Create Videos", "My Influencers", "Video Feed"]);
     expect(labels.length).toBeGreaterThan(3);
   });
 });

@@ -89,7 +89,8 @@ async function run(characterId: string): Promise<SyncResult> {
       const supplyTokens = Number(supplyRaw) / 10 ** decimals, start = Number(config.sqrtStartPrice.toString()) / 2 ** 64;
       const launchCapSol = start * start * 10 ** (decimals - 9) * supplyTokens;
       const curveProgress = Math.min(1, Number(pool.poolState.quoteReserve.toString()) / Math.max(1, Number(config.migrationQuoteThreshold.toString())));
-      const market = { priceSol, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders, launchCapSol, curveProgress };
+      const reserveSol = Number(pool.poolState.quoteReserve.toString()) / 1e9, targetSol = Number(config.migrationQuoteThreshold.toString()) / 1e9;
+      const market = { priceSol, supplyRaw, decimals, slot: Math.min(supply.context.slot, largest.context.slot), holders, launchCapSol, curveProgress, reserveSol, targetSol };
       // Push holder data immediately; historical transaction scanning must not delay the first view.
       await convex.mutation(api.solstarChain.ingest, { ...common, swaps: [], market });
       const history = await readPoolHistory(connection, poolAddress, network);

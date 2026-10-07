@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { publicPortrait, requireWalletPayment, roundUsd, walletFail } from "@/lib/server/walletPaidGeneration";
-import { normalizeImageForKie } from "@/lib/server/imageForKie";
+import { normalizeImageForKie, normalizeImagesForKie } from "@/lib/server/imageForKie";
+import { cleanReferenceUrls, extrasToCast, splitReferences } from "@/lib/explore/referenceImages";
 import { kickoffVideoRender } from "@/lib/server/kickoffVideoRender";
 import { getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
@@ -11,8 +12,6 @@ import { requireAuth } from "@/lib/server/requireAuth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u);
 
 /**
  * Explore "Describe your video" for anyone the user does not own an agent for: no influencer at all (they upload a
@@ -30,13 +29,18 @@ export async function POST(req: NextRequest) {
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 2000) return walletFail("Describe the video in up to 2,000 characters.", 400);
   // The picture: a public influencer's portrait (read here, never trusted from the client), else the user's own upload.
-  let reference: string | null = null;
+  // Several pictures can ride along: the cameo's portrait (if any) plus everything the user uploaded.
+  const uploads = cleanReferenceUrls([...(Array.isArray(body.referenceImageUrls) ? body.referenceImageUrls : []), body.referenceImageUrl]);
+  const cameoMint = typeof body.cameoMint === "string" && body.cameoMint ? body.cameoMint : "";
   let who = "";
-  if (typeof body.cameoMint === "string" && body.cameoMint) {
-    const portrait = await publicPortrait(body.cameoMint);
+  let cameoImage: string | null = null;
+  if (cameoMint) {
+    const portrait = await publicPortrait(cameoMint);
     if (!portrait) return walletFail("That influencer has no portrait to use yet.", 400);
-    reference = portrait.imageUrl; who = portrait.name;
-  } else if (https(body.referenceImageUrl)) reference = body.referenceImageUrl;
+    cameoImage = portrait.imageUrl; who = portrait.name;
+  }
+  const split = splitReferences(uploads, !!cameoImage);
+  const reference = cameoImage ?? split.main;
   if (!reference) return walletFail("Add a reference image: a face, product or scene to build the video from.", 400);
   const engine = selectableVideoEngines().find((e) => e.id === body.videoEngine);
   if (!engine) return walletFail("Pick a video engine.", 400);
@@ -61,10 +65,14 @@ export async function POST(req: NextRequest) {
     // The provider can only fetch public .png/.jpg links, so the picture is re-hosted when it needs it.
     const avatarUrl = await normalizeImageForKie(reference);
     if (!avatarUrl) throw new Error("reference image could not be prepared");
+    // Every extra picture is re-hosted the same way and reaches the engine as a named reference (the render packs them into
+    // the engine's image slots, and into one contact sheet where the engine takes only one or two).
+    const extraUrls = await normalizeImagesForKie(split.extras);
+    const castRefs = extrasToCast(extraUrls);
     const sessionId = `describe:${account}`;
     const taskId = (await convex.mutation(api.agentTasks.create, {
       authSecret: secret, sessionId, type: "create_video", title: `${who ? `${who}: ` : "Video: "}${prompt.slice(0, 60)}`, triggeredBy: "explore",
-      input: JSON.stringify({ topic: prompt, userPaid: true, payerWallet: payer, ...(typeof body.cameoMint === "string" && body.cameoMint ? { cameoMint: body.cameoMint } : {}) }),
+      input: JSON.stringify({ topic: prompt, userPaid: true, payerWallet: payer, ...(cameoMint ? { cameoMint } : {}) }),
     })) as Id<"agentTasks">;
     // The user already paid, so the task is marked prepaid: it bills nothing further and a failure voids nothing on an agent tab.
     await convex.mutation(api.agentTasks.markPrepaid, { authSecret: secret, id: taskId, usdc: owed, runId: `describe:${signature}` });
@@ -74,7 +82,7 @@ export async function POST(req: NextRequest) {
       convex, origin: req.nextUrl.origin, taskId, mintAddress: "", sessionId, kieModel: engine.kieModel,
       renderArgs: {
         agentName: "the presenter", agentNiche: "general", noPersona: true, skipStoryboard: true,
-        avatarUrl, referenceImageUrls: [], topic: prompt, hook: "", scriptText: prompt,
+        avatarUrl, referenceImageUrls: [], ...(castRefs.length ? { castRefs } : {}), topic: prompt, hook: "", scriptText: prompt,
         durationSeconds: seconds, aspectRatio: aspect, ...(quality ? { resolution: quality } : {}), videoModel: engine.kieModel,
         renderCostUsdc: owed, overlays: {}, memories: [], knowledge: [], skills: [],
       },

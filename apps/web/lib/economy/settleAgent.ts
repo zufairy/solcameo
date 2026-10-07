@@ -2,7 +2,10 @@ import { randomUUID } from "crypto";
 import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { accrueReferralForSettlement } from "@/lib/server/referrals";
 import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED } from "@/lib/economy/vaultSweep";
+import { after } from "next/server";
+import { takeRecentBalance } from "@/lib/server/balanceMemo";
 
 /** Sweep the tab on-chain once it reaches this much. Configurable via
  *  VELLO_SETTLE_THRESHOLD_USDC — set it to 0 for immediate per-task on-chain
@@ -34,7 +37,8 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
 
     // 1) Reconcile the mirror to the chain (the VAULT ATA when vault-enabled) so
     //    spendable math is real.
-    const onchainUsdc = await resolveAgentOnchainUsdc({ mintAddress, fallbackWallet: agent.agentWallet });
+    // The pay-before-generate path has just read this balance (refreshAgentFunds), so it is not read a second time.
+    const onchainUsdc = (opts.immediate ? takeRecentBalance(agent.agentWallet) : null) ?? await resolveAgentOnchainUsdc({ mintAddress, fallbackWallet: agent.agentWallet });
     const recon = await convex.mutation(api.agentAccount.reconcileEscrowToOnchainServer, {
       mintAddress,
       onchainUsdc,
@@ -109,10 +113,20 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
       txSignature: paidSig,
       authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     });
+    // The payment is on-chain: record the referrer's share of Solcameo's margin on it (best-effort, never delays or fails the payment).
+    await Promise.race([
+      accrueReferralForSettlement({ settlementId: String(settled.settlementId), mintAddress, amountUsdc: claim.amountUsdc }),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
 
-    // 5) Re-reconcile so the mirror reflects the post-sweep VAULT balance.
-    const afterUsdc = await resolveAgentOnchainUsdc({ mintAddress, fallbackWallet: agent.agentWallet });
-    await convex.mutation(api.agentAccount.reconcileEscrowToOnchainServer, { mintAddress, onchainUsdc: afterUsdc, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+    // 5) Re-reconcile so the mirror reflects the post-sweep balance. The payment is already confirmed and recorded, so this is
+    //    off the critical path: the video starts now, and every later charge re-reads the chain before it books anything.
+    const reconcileAfter = async () => {
+      const afterUsdc = await resolveAgentOnchainUsdc({ mintAddress, fallbackWallet: agent.agentWallet! });
+      await convex.mutation(api.agentAccount.reconcileEscrowToOnchainServer, { mintAddress, onchainUsdc: afterUsdc, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+    };
+    if (opts.immediate) { try { after(reconcileAfter); } catch { void reconcileAfter().catch(() => undefined); } }
+    else await reconcileAfter();
 
     return { status: "settled", amountUsdc: claim.amountUsdc, txSignature: paidSig, tabUsdc: 0 };
   } catch (e) {

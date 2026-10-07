@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { getRpcUrl } from "@/lib/solana/network";
 import { ConvexHttpClient } from "convex/browser";
 import { getTransactionDecoder, getBase64Encoder, createKeyPairSignerFromBytes } from "@solana/kit";
 import { x402Client } from "@x402/core/client";
@@ -34,7 +35,7 @@ export async function buyAgentResearch(mintAddress: string, taskId: Id<"agentTas
       if (!policy?.enabled || policy.network !== config.network || !policy.walletSecret || !policy.walletAddress) throw new Error("Agent signing wallet unavailable");
       const signer = await createKeyPairSignerFromBytes(new Uint8Array(Buffer.from(readAgentSecret(policy.walletSecret), "base64")));
       if (signer.address !== policy.walletAddress) throw new Error("Agent signer mismatch");
-      const client = new x402Client().register(config.network, new ExactSvmScheme(signer, { rpcUrl: config.network === SOLANA_MAINNET ? process.env.SOLAMI_RPC_URL : undefined }));
+      const client = new x402Client().register(config.network, new ExactSvmScheme(signer, { rpcUrl: config.network === SOLANA_MAINNET ? getRpcUrl("mainnet-beta") : undefined }));
       // Only the configured Vello service/recipient/USDC/exact price; never LLM-supplied URLs.
       client.registerPolicy((version, requirements) => version === 2 ? requirements.filter(r => permittedRequirement(r, config, REPORT_PRICE_MICROS)) : []);
       const payload = await client.createPaymentPayload(required);

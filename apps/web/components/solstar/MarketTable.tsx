@@ -38,6 +38,7 @@ import { ErrorBoundary } from "@/components/error/error-boundary";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useMarketWatchlist } from "./market-watchlist";
+import { marketPath } from "@/lib/solstar/marketSlug";
 export type MarketRow = FunctionReturnType<
   typeof api.solstarMarket.listMarket
 >[number];
@@ -100,7 +101,7 @@ function Market() {
   const [sort, setSort] = useState<Sort>("mcap");
   const [category, setCategory] = useState("");
   const [graduatedOnly, setGraduatedOnly] = useState(false);
-  const [pools, setPools] = useState<
+  const [rpcPools, setPools] = useState<
     Record<
       string,
       {
@@ -136,6 +137,19 @@ function Market() {
     return () => clearInterval(timer);
   }, []);
   const rows = useQuery(api.solstarMarket.listMarket, { sort, search: debounced || undefined, network: "mainnet", liveOnly: true });
+  // Convex already holds every coin's synced pool numbers, so the list paints with them at once; the chain read below then
+  // refines them and keeps them moving.
+  const chainPools = useQuery(api.solstarChain.marketPools, { network: "mainnet" });
+  const pools = useMemo(() => {
+    const merged: typeof rpcPools = {};
+    for (const [id, snap] of Object.entries(chainPools ?? {})) merged[id] = { ...snap, changeSinceLaunchPct: snap.changeSinceLaunchPct ?? undefined };
+    for (const [id, snap] of Object.entries(rpcPools)) {
+      const base = merged[id];
+      const points = new Map([...(base?.points ?? []), ...(snap.points ?? [])].map((pt) => [pt.time, pt]));
+      merged[id] = { ...base, ...snap, points: [...points.values()].sort((a, b) => a.time - b.time).slice(-200) };
+    }
+    return merged;
+  }, [chainPools, rpcPools]);
   const hasLive = !!rows?.some((r) => r.dbcPool);
   useEffect(() => {
     if (!hasLive) return;
@@ -455,7 +469,7 @@ function Market() {
               <div className="relative p-5">
                 <div className="flex items-start justify-between gap-3">
                   <Link
-                    href={`/market/${r.characterId}`}
+                    href={marketPath(r)}
                     className="flex min-w-0 items-center gap-3"
                   >
                     <Portrait row={r} large />
@@ -542,7 +556,7 @@ function Market() {
                 </div>
               </div>
               <Link
-                href={`/market/${r.characterId}`}
+                href={marketPath(r)}
                 className="market-cta flex items-center justify-between border-t border-white/[.08] px-5 py-4 text-xs font-medium"
               >
                 View market
@@ -609,7 +623,7 @@ function Market() {
                 >
                   <TableCell className="pl-4">
                     <Link
-                      href={`/market/${r.characterId}`}
+                      href={marketPath(r)}
                       className="flex items-center gap-3 py-1"
                     >
                       <span className="w-4 text-xs text-zinc-600">{i + 1}</span>
@@ -666,7 +680,7 @@ function Market() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/market/${r.characterId}?tab=videos`}
+                      href={`${marketPath(r)}?tab=videos`}
                       className="inline-flex items-center gap-1.5 text-emerald-200"
                     >
                       <Video className="size-3.5" />

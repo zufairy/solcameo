@@ -924,13 +924,13 @@ export const VIDEO_ENGINES: VideoEngineOption[] = [
   {
     id: "seedance-v2",
     label: "Seedance 2.0",
-    kieModel: "bytedance/seedance-2-fast",
-    // Kie list price (Seedance 2.0 Fast, no video input): 24.8 credits ($0.124) per second at 720p.
-    pricePerSecondUsdc: 0.124 * RETAIL_MARKUP,
+    kieModel: "bytedance/seedance-2",
+    // Kie list price (Seedance 2.0, no video input): 41 credits ($0.205) per second at 720p, 19 at 480p.
+    pricePerSecondUsdc: 0.205 * RETAIL_MARKUP,
     maxClipSeconds: 10,
-    pricePerMaxClipUsdc: 0.124 * 10 * RETAIL_MARKUP,
+    pricePerMaxClipUsdc: 0.205 * 10 * RETAIL_MARKUP,
     quality: "premium",
-    description: "ByteDance Seedance 2.0 Fast — smooth motion + strong character lock, frame-chained into longer takes. 24.8 credits per second at 720p.",
+    description: "ByteDance Seedance 2.0 — smooth motion + strong character lock, frame-chained into longer takes. 41 credits per second at 720p.",
   },
   {
     id: "seedance-1-5-pro",
@@ -982,14 +982,14 @@ export function selectableVideoEngines(): VideoEngineOption[] {
 }
 
 /**
- * The engine a picker should show: the preferred one when users may pick it, otherwise Seedance 2.0 (or the first on the list).
+ * The engine a picker should show: the preferred one when users may pick it, otherwise Grok Imagine (or the first on the list).
  * Without this a picker whose saved engine is hidden (the default, Veo) displays a different model from the one actually priced
  * and rendered.
  */
 export function pickableVideoEngine(preferred?: string): VideoEngineId {
   const list = selectableVideoEngines();
   if (preferred && list.some((e) => e.id === preferred)) return preferred as VideoEngineId;
-  return (list.find((e) => e.id === "seedance-v2") ?? list[0]).id;
+  return (list.find((e) => e.id === "grok-imagine-15") ?? list[0]).id;
 }
 
 /**

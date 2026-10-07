@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getNetwork, getRpcCandidates } from "@/lib/solana/network";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
+import { PublicKey } from "@solana/web3.js";
+import { getNetwork } from "@/lib/solana/network";
 import { buildFundSwapTransaction, quoteFundSwap } from "@/lib/server/fundSwap";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
     const payer = pubkey(body.payer), agentWallet = pubkey(body.agentWallet);
     if (body.action !== "build" || !payer || !agentWallet) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-    const connection = new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed");
+    const connection = failoverConnection({ network: "mainnet-beta" });
     const built = await buildFundSwapTransaction({ payer, agentWallet, usdc, connection });
     return NextResponse.json(built, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

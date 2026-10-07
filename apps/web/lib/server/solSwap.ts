@@ -1,9 +1,11 @@
 import { Connection, VersionedTransaction } from "@solana/web3.js";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
+import { TtlCache } from "@/lib/server/ttlCache";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { getUsdcBalanceStrict, getSolBalanceStrict, loadKeypair } from "@/lib/trader/usdcTransfer";
 import { readAgentSecret } from "@/lib/economy/walletSecretAccess";
-import { getRpcCandidates, getUsdcMint } from "@/lib/solana/network";
+import { getUsdcMint } from "@/lib/solana/network";
 
 /**
  * Pay-with-SOL for agents that hold SOL but not enough USDC.
@@ -128,7 +130,7 @@ async function doTopUp(mintAddress: string, requiredUsd: number): Promise<TopUpO
     if (plan.enough) return { ok: true, swapped: false };
     if (!plan.canSwap) return { ok: false, reason: plan.reason, ...(plan.solNeeded ? { solNeeded: plan.solNeeded } : {}) };
 
-    const connection = new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed");
+    const connection = failoverConnection({ network: "mainnet-beta" });
     const input = { wallet: agent.agentWallet, secret: agent.agentWalletSecret };
     const leg = { inputMint: WSOL, outputMint: getUsdcMint("mainnet-beta"), amount: plan.lamports };
     let swap = await swapTokens(input, leg, connection);
@@ -191,12 +193,17 @@ export function planGasTopUp(a: { solLamports: number; usdcBalance: number; keep
 }
 
 /** Is the shared fee-payer wallet able to pay network fees right now? If so agents need no SOL at all. */
+const feePayerCache = new TtlCache<boolean>(15_000, 2);
 export async function feePayerReady(): Promise<boolean> {
   try {
     const secret = process.env.PLATFORM_FEE_PAYER_SECRET?.trim();
     if (!secret) return false;
-    const sol = await getSolBalanceStrict(loadKeypair(secret).publicKey.toBase58());
-    return sol !== null && sol >= 0.002;
+    // Checked at most every 15 seconds: it is the same wallet for every payment, so reading it on each one only adds a round trip.
+    return await feePayerCache.get("ready", async () => {
+      const sol = await getSolBalanceStrict(loadKeypair(secret).publicKey.toBase58());
+      if (sol === null) throw new Error("balance unavailable");
+      return sol >= 0.002;
+    });
   } catch { return false; }
 }
 
@@ -225,7 +232,7 @@ async function doEnsureGas(mintAddress: string, keepUsdc: number): Promise<GasOu
     const plan = planGasTopUp({ solLamports, usdcBalance: usdc, keepUsdc, solUsd: await usdcPerSol(), hasKey: !!key() });
     if (!plan.ok) return { ok: false, reason: plan.reason };
     if (!plan.swap) return { ok: true, swapped: false };
-    const swap = await swapTokens({ wallet: agent.agentWallet, secret: agent.agentWalletSecret }, { inputMint: getUsdcMint("mainnet-beta"), outputMint: WSOL, amount: Math.round(plan.usd * 1e6), ultra: plan.gasless }, new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed"));
+    const swap = await swapTokens({ wallet: agent.agentWallet, secret: agent.agentWalletSecret }, { inputMint: getUsdcMint("mainnet-beta"), outputMint: WSOL, amount: Math.round(plan.usd * 1e6), ultra: plan.gasless }, failoverConnection({ network: "mainnet-beta" }));
     if (!swap.ok) return { ok: false, reason: swap.reason };
     let after: number | null = sol;
     for (let i = 0; i < 6 && (after === null || after * 1e9 < GAS_FLOOR_LAMPORTS); i++) {
@@ -318,7 +325,7 @@ async function doAgentSwap(mintAddress: string, direction: AgentSwapDirection, a
       if (gasless && !key()) return fail("needs_sol_for_fee", "The wallet needs at least 0.002 SOL to pay the network fee of this swap. Send a little SOL first.");
       leg = { inputMint: usdcMint, outputMint: WSOL, amount: Math.round(amount * 1e6), ultra: gasless };
     }
-    const connection = new Connection(getRpcCandidates("mainnet-beta")[0], "confirmed");
+    const connection = failoverConnection({ network: "mainnet-beta" });
     const signer = { wallet: agent.agentWallet, secret: agent.agentWalletSecret };
     let swap = await swapTokens(signer, leg, connection);
     if (!swap.ok && ["swap_reverted", "quote_failed", "order_failed", "swap_build_failed"].includes(swap.reason)) swap = await swapTokens(signer, { ...leg, slippageBps: SWAP_RETRY_SLIPPAGE_BPS }, connection);

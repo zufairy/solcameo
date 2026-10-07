@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { BLOG_POSTS, blogCoverPath } from "@/lib/blog-posts";
 import { canonicalUrl } from "@/lib/seo";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 export const revalidate = 3600;
 
@@ -18,7 +19,8 @@ async function liveCharacters(): Promise<string[]> {
   const convex = new ConvexHttpClient(url);
   const results = await Promise.all(((process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "").toLowerCase().startsWith("mainnet") ? ["mainnet"] as const : ["mainnet", "devnet"] as const).map(network =>
     convex.query(api.solstarMarket.listMarket, { sort: "new", network, liveOnly: true }).catch(() => [])));
-  return results.flat().map(r => `/market/${r.characterId}`);
+  // Ticker URLs, de-duplicated: the same ticker can exist on more than one network.
+  return [...new Set(results.flat().map(r => marketPath(r)))];
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

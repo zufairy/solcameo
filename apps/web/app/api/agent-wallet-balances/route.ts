@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddress, unpackAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { getUsdcMint, getNetwork, getRpcUrl } from "@/lib/solana/network";
+import { getUsdcMint, getNetwork } from "@/lib/solana/network";
 import { splitByFreshness, type BalanceEntry } from "@/lib/server/balanceCache";
 
 export const maxDuration = 10;
@@ -9,7 +10,6 @@ export const maxDuration = 10;
 // Single source of truth via lib/solana/network — devnet returns the PUBLIC
 // endpoint (the configured Helius devnet key is suspended → 403 on every call).
 const NETWORK = getNetwork();
-const RPC_URL = getRpcUrl(NETWORK);
 
 const USDC_MINT = new PublicKey(getUsdcMint(NETWORK));
 const USDC_DECIMALS = 6;
@@ -62,7 +62,7 @@ async function resolve(wallets: string[]) {
   const owners = allOwners.filter((o) => staleSet.has(o.wallet));
   if (owners.length === 0) return balances; // all fresh → ZERO RPC calls
 
-  const conn = new Connection(RPC_URL, "confirmed");
+  const conn = failoverConnection({ network: NETWORK });
 
   // Derive USDC ATAs (off-curve allowed for PDA-owned agent wallets).
   const atas = await Promise.all(

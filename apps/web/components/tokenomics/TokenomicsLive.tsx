@@ -11,6 +11,7 @@ import { splitShares, type SplitKey } from "@/lib/tokenomics/liveMath";
 import { CountUp } from "./CountUp";
 import { FLOW_NODES } from "./flowNodes";
 import { TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 // Three.js is heavy and browser-only: load it after first paint.
 const FeeFlowScene = dynamic(() => import("./FeeFlowScene").then((m) => m.FeeFlowScene), { ssr: false });
@@ -229,7 +230,7 @@ export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNod
               <tbody>
                 {data.coins.map((c) => (
                   <tr key={c.characterId} className={`border-t border-white/[0.05] transition-colors duration-700 ${flash[c.characterId] === "up" ? "bg-[#d7ff00]/[0.08]" : flash[c.characterId] === "down" ? "bg-rose-400/[0.07]" : ""}`}>
-                    <td className="px-5 py-3"><Link href={`/market/${c.characterId}`} className="font-semibold text-white hover:underline">{c.name}</Link> <span className="text-white/40">${c.ticker}</span></td>
+                    <td className="px-5 py-3"><Link href={marketPath(c)} className="font-semibold text-white hover:underline">{c.name}</Link> <span className="text-white/40">${c.ticker}</span></td>
                     <td className="px-3 py-3"><div className="flex items-center gap-2"><div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full" style={{ background: LIME }} animate={{ width: `${c.progress * 100}%` }} transition={{ duration: 0.8 }} /></div><span className="w-16 text-[11px] tabular-nums text-white/50">{c.migrated ? "Graduated" : `${(c.progress * 100).toFixed(1)}%`}</span></div></td>
                     <td className="px-3 py-3 text-right tabular-nums">{fmtSol(c.reserveSol)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{fmtSol(c.feesSol)}</td>

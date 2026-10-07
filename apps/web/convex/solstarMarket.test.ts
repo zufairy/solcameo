@@ -264,3 +264,53 @@ describe("market summary counters", () => {
     expect((await list(t))[0]).toMatchObject({ followers: 1, videosPosted: 1 });
   });
 });
+
+describe("characterForRoute (ticker URLs)", () => {
+  it("resolves an id to its ticker slug and a ticker slug back to the coin", async () => {
+    const t = await seeded();
+    const token = await t.run(async (ctx) => (await ctx.db.query("ssTokens").first())!);
+    const slug = token.ticker.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const byId = await t.query(api.solstarMarket.characterForRoute, { id: token.characterId });
+    expect(byId).toMatchObject({ characterId: token.characterId, slug });
+    const bySlug = await t.query(api.solstarMarket.characterForRoute, { id: slug });
+    expect(bySlug).toMatchObject({ characterId: token.characterId, slug });
+    const upper = await t.query(api.solstarMarket.characterForRoute, { id: slug.toUpperCase() });
+    expect(upper?.characterId).toBe(token.characterId);
+  });
+
+  it("prefers the live mainnet coin when a ticker exists on several networks, and keeps the older one's slug", async () => {
+    const t = await seeded();
+    const { paper, live } = await t.run(async (ctx) => {
+      const paper = (await ctx.db.query("ssTokens").first())!;
+      const { _id, _creationTime, ...c } = (await ctx.db.get(paper.characterId))!;
+      void _id; void _creationTime;
+      const characterId = await ctx.db.insert("ssCharacters", { ...c, name: "Twin" });
+      const tokenId = await ctx.db.insert("ssTokens", { characterId, network: "mainnet", name: "Twin", ticker: paper.ticker, description: "", state: "live", solReserve: 0n, tokenReserve: 0n, createdAt: Date.now(), mint: "M", dbcPool: "P", dbcConfig: "C" });
+      return { paper, live: { characterId, tokenId } };
+    });
+    const slug = paper.ticker.toLowerCase();
+    expect((await t.query(api.solstarMarket.characterForRoute, { id: slug }))?.characterId).toBe(live.characterId);
+    // the paper coin no longer owns the slug, so its id URL stays put rather than redirecting to someone else's coin
+    expect((await t.query(api.solstarMarket.characterForRoute, { id: paper.characterId }))?.slug).toBeNull();
+  });
+
+  it("lets an agent handle win over a ticker", async () => {
+    const t = await seeded();
+    const token = await t.run(async (ctx) => (await ctx.db.query("ssTokens").first())!);
+    const slug = token.ticker.toLowerCase();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("influencers", {
+        mintAddress: "AGENTMINT", creatorWallet: "W", name: "Agent", handle: slug, handleLower: slug, avatarUrl: "x", niche: "n", language: "en",
+        archetype: "a", description: "d", personality: { warmth: 1, humor: 1, authority: 1, boldness: 1 }, tvl: 0, monthlyEarnings: 0, sharePrice: 1, totalShares: 1, availableShares: 1,
+      });
+    });
+    expect(await t.query(api.solstarMarket.characterForRoute, { id: slug })).toBeNull();
+    expect((await t.query(api.solstarMarket.characterForRoute, { id: token.characterId }))?.slug).toBeNull();
+  });
+
+  it("returns null for unknown segments", async () => {
+    const t = await seeded();
+    expect(await t.query(api.solstarMarket.characterForRoute, { id: "nosuchcoin" })).toBeNull();
+    expect(await t.query(api.solstarMarket.characterForRoute, { id: "yumelyn_vello" })).toBeNull();
+  });
+});

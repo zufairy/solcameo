@@ -55,9 +55,24 @@ export function getHeliusRpcUrl(network?: SolanaNetwork): string {
   return "";
 }
 
-/** Shared primary RPC: Helius first, public cluster endpoint otherwise. */
+/**
+ * QuickNode RPC for the selected cluster, when configured: the full endpoint URL (its token is part of the path).
+ * The server prefers the private variable; the browser can only see the NEXT_PUBLIC one, so lock that endpoint to
+ * your own domains in the QuickNode dashboard (Security, referrer allowlist).
+ */
+export function getQuickNodeRpcUrl(network?: SolanaNetwork): string {
+  const n = network ?? getNetwork();
+  const clean = (v: string | undefined) => (v && /^https:\/\//.test(v.trim()) ? v.trim() : "");
+  if (n === "mainnet-beta") return clean(process.env.QUICKNODE_SOLANA_RPC_URL) || clean(process.env.NEXT_PUBLIC_QUICKNODE_SOLANA_RPC_URL);
+  if (n === "devnet") return clean(process.env.QUICKNODE_SOLANA_DEVNET_RPC_URL) || clean(process.env.NEXT_PUBLIC_QUICKNODE_SOLANA_DEVNET_RPC_URL);
+  return "";
+}
+
+/** Shared primary RPC: QuickNode first, then Helius, then the public cluster endpoint. */
 export function getRpcUrl(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
+  const quick = getQuickNodeRpcUrl(n);
+  if (quick) return quick;
   const helius = getHeliusRpcUrl(n);
   if (helius) return helius;
   if (n === "mainnet-beta") return "https://api.mainnet-beta.solana.com";
@@ -65,22 +80,37 @@ export function getRpcUrl(network?: SolanaNetwork): string {
   return "https://api.devnet.solana.com";
 }
 
+/**
+ * RPC for Meteora launch and pool work. A dedicated provider (QuickNode, then Helius) always wins, so a stale
+ * SOLCAMEO_DBC_RPC_URL left in the environment can never route these calls around it; that override only applies
+ * when neither is configured.
+ */
+export function getDbcRpcUrl(network?: SolanaNetwork): string {
+  const n = network ?? getNetwork();
+  const quick = getQuickNodeRpcUrl(n);
+  if (quick) return quick;
+  if (getHeliusRpcUrl(n)) return getRpcUrl(n);
+  return process.env.SOLCAMEO_DBC_RPC_URL?.trim() || getRpcUrl(n);
+}
+
 /** Read-only calls use the same cluster and primary provider. */
 export function getReadRpcUrl(network?: SolanaNetwork): string {
   return getRpcUrl(network);
 }
 
-/** Ordered RPC candidates for failover: Helius first when configured,
- *  public endpoints are only used when Helius is not configured. */
+/** Ordered RPC candidates for failover: QuickNode first, Helius as the backup. The shared public endpoint is only
+ *  used when neither is configured. */
 export function getRpcCandidates(network?: SolanaNetwork): string[] {
   const n = network ?? getNetwork();
+  const quick = getQuickNodeRpcUrl(n);
   const helius = getHeliusRpcUrl(n);
   const pub =
     n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com"
     : n === "testnet" ? "https://api.testnet.solana.com"
     : "https://api.devnet.solana.com";
-  // Avoid falling back to the shared public RPC when a dedicated Helius key is configured.
-  const ordered = helius ? [helius] : [pub];
+  // Avoid falling back to the shared public RPC when a dedicated provider is configured.
+  const dedicated = [quick, helius].filter(Boolean);
+  const ordered = dedicated.length ? dedicated : [pub];
   return [...new Set(ordered.filter(Boolean))];
 }
 

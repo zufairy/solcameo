@@ -1,4 +1,5 @@
 import { refreshAgentFunds } from "@/lib/server/agentWallet";
+import { cleanReferenceUrls } from "@/lib/explore/referenceImages";
 import { spendableUsdc } from "@/lib/economy/nav";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
@@ -1876,11 +1877,16 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       : stills.slice(1, 3);
     // @mentioned cameos from the Videos tab prompt box ride along as extra character references.
     // Each tagged cast member arrives as { token, imageUrl }; the portraits ride to the video model by name.
-    const castInput = (Array.isArray(input.mentionCast) ? input.mentionCast : [])
+    const castInput: { token: string; imageUrl: string }[] = (Array.isArray(input.mentionCast) ? input.mentionCast : [])
       .map((c) => (c && typeof c === "object" ? c as { token?: unknown; imageUrl?: unknown } : {}))
       .map((c) => ({ token: typeof c.token === "string" ? c.token.replace(/[^\w-]/g, "").slice(0, 40) : "", imageUrl: typeof c.imageUrl === "string" ? c.imageUrl.trim() : "" }))
-      .filter((c) => c.token && /^https:\/\/\S{1,2000}$/.test(c.imageUrl))
-      .slice(0, MAX_CAST);
+      .filter((c) => c.token && /^https:\/\/\S{1,2000}$/.test(c.imageUrl));
+    // Extra pictures attached in the prompt box (Explore's describe dialog) ride as named references too (image2, image3, ...),
+    // after any tagged agents, so every picture reaches the engine instead of only the first.
+    for (const [i, imageUrl] of cleanReferenceUrls(input.referenceImageUrls).filter((u) => u !== oneOffRef).entries()) {
+      if (!castInput.some((c) => c.imageUrl === imageUrl)) castInput.push({ token: `image${i + 2}`, imageUrl });
+    }
+    castInput.splice(MAX_CAST);
     const mentionRefs = [...castInput.map((c) => c.imageUrl), ...(Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])]
       .filter((u): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim()))
       .map((u) => u.trim())

@@ -9,7 +9,7 @@ import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { AppHeaderShell } from "@/components/home/app-shell";
 import {
   ArrowDown, ArrowLeft, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Cloud, CloudOff, ExternalLink, LayoutGrid,
-  LayoutDashboard, Loader2, Maximize2, MessagesSquare, Monitor, PanelLeftClose, PanelLeftOpen, Play, Search, Sparkles, SquarePen, Trash2, Users, Wand2, X,
+  Clapperboard, LayoutDashboard, Loader2, Maximize2, MessagesSquare, Monitor, PanelLeftClose, PanelLeftOpen, Play, Search, Sparkles, SquarePen, Trash2, Users, Wallet, Wand2, X,
 } from "lucide-react";
 import {
   type Agent, type ChatMessage, type FeedItem, type Team, type VideoFilter,
@@ -110,6 +110,7 @@ function ControlPanel() {
   const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets, liveNetwork: "mainnet" } : "skip") as Agent[] | undefined;
   const agentsList = useMemo(() => agents ?? [], [agents]);
   const changes = useChange24h(agentsList);
+  const balances = useWalletBalances(agentsList);
   const allFeed = useQuery(api.clipJobs.videoFeedByMints, agents?.length ? { mintAddresses: agents.map((agent) => agent.mintAddress).slice(0, 25) } : "skip");
   const allTeams = useTeams();
   useStoreVersion(); // re-render the sidebar as threads change (previews, "typing…")
@@ -266,7 +267,7 @@ function ControlPanel() {
               }
               const a = chat.agent;
               return <SidebarRow key={chat.key} compact={listHidden} active={selected?.kind === "agent" && selected.id === a.mintAddress}
-                threadKey={chat.key} avatar={<Avatar agent={a} />} title={a.name} change={<Change24h pct={changes[String(a.solstarCharacterId)]} />}
+                threadKey={chat.key} avatar={<Avatar agent={a} />} title={a.name} wallet={<WalletBadge usdc={balances[a.mintAddress]} />} change={<Change24h pct={changes[String(a.solstarCharacterId)]} />}
                 fallback={a.niche || `@${a.handle}`} onClick={() => select({ kind: "agent", id: a.mintAddress })} />;
             })}
             {agents.length === 0 ? (
@@ -418,6 +419,44 @@ function useChange24h(agents: Agent[]) {
   return changes;
 }
 
+/** USDC in each agent's own wallet (what its videos are paid from), keyed by mint. Refreshes with trades and every 20s. */
+function useWalletBalances(agents: Agent[]) {
+  const key = agents.filter((a) => a.agentWallet).map((a) => `${a.mintAddress}:${a.agentWallet}`).join(",");
+  const [balances, setBalances] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!key) return;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (document.hidden) return;
+      const results = await Promise.all(key.split(",").map(async (pair) => {
+        const [mint, wallet] = pair.split(":");
+        try {
+          const res = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(wallet)}`, { signal: controller.signal });
+          const data = (await res.json()) as { ok?: boolean; usdc?: number };
+          return data.ok && typeof data.usdc === "number" ? ([mint, data.usdc] as const) : null;
+        } catch { return null; }
+      }));
+      if (!controller.signal.aborted) setBalances((prev) => ({ ...prev, ...Object.fromEntries(results.filter((r) => r !== null)) }));
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 20_000);
+    window.addEventListener("solcameo:trade-confirmed", refresh);
+    return () => { controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); };
+  }, [key]);
+  return balances;
+}
+
+function WalletBadge({ usdc }: { usdc?: number }) {
+  if (usdc == null) return null;
+  const low = usdc < 1;
+  return (
+    <span title={low ? "Agent wallet is low. Fund it so it can keep making videos." : "Agent wallet balance (USDC)"}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums backdrop-blur-xl ${low ? "border-amber-400/30 bg-amber-400/10 text-amber-300" : "border-white/15 bg-white/[0.07] text-zinc-200"}`}>
+      <Wallet className="size-2.5" />${usdc.toFixed(2)}
+    </span>
+  );
+}
+
 function Change24h({ pct }: { pct?: number | null }) {
   if (pct == null || !Number.isFinite(pct)) return null;
   const up = pct >= 0;
@@ -428,13 +467,14 @@ function Change24h({ pct }: { pct?: number | null }) {
   );
 }
 
-function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, change, fallback, typingName, onClick }: {
+function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, wallet, change, fallback, typingName, onClick }: {
   active: boolean;
   compact?: boolean;
   threadKey: string;
   avatar: React.ReactNode;
   title: string;
   badge?: string;
+  wallet?: React.ReactNode;
   change?: React.ReactNode;
   fallback: string;
   typingName?: (mint: string) => string | undefined;
@@ -461,6 +501,7 @@ function SidebarRow({ active, compact = false, threadKey, avatar, title, badge, 
         <div className="flex items-center gap-2">
           <span className="truncate text-[15px] font-medium text-white">{title}</span>
           {badge && <span className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10.5px] text-zinc-400">{badge}</span>}
+          {wallet}
           {change && <span className="ml-auto shrink-0">{change}</span>}
         </div>
         {t.sending ? (
@@ -577,7 +618,8 @@ function ChatView({ threadKey, team, members, screenOpen, onToggleScreen, onBack
           {!isTeam && <div className="flex flex-col gap-1 lg:hidden"><ConnectInfluencerX key={lead.mintAddress} mint={lead.mintAddress} name={lead.name} compact /><ShareOnX mint={lead.mintAddress} name={lead.name} compact /></div>}
           <IconButton label="New chat" onClick={newChat}><SquarePen className="size-4" /></IconButton>
           {!isTeam && (<>
-            <Link href={`/builder?mint=${encodeURIComponent(lead.mintAddress)}`} title="Open in Builder" aria-label="Open in Builder" className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white"><Wand2 className="size-4" /></Link>
+            <Link href={`/builder?type=influencer&mint=${encodeURIComponent(lead.mintAddress)}&tab=director`} title="Open the Director in the Builder" aria-label="Director: open in Builder"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 text-[12.5px] font-medium text-zinc-200 transition-colors hover:bg-white/[0.12] hover:text-white"><Clapperboard className="size-3.5" />Director</Link>
           </>)}
           <span className="hidden lg:block">
             <IconButton label={screenOpen ? "Hide screen" : "Show screen"} onClick={onToggleScreen}>
@@ -977,17 +1019,17 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
     <motion.div
       whileHover={{ y: -3 }}
       transition={SPRING}
-      className="group grid w-full grid-cols-[minmax(100px,0.75fr)_minmax(0,1.25fr)] overflow-hidden rounded-[4px] border border-white/20 bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-xl sm:grid-cols-[160px_minmax(0,1fr)]"
+      className="group grid w-full grid-cols-[minmax(100px,0.75fr)_minmax(0,1.25fr)] gap-1 overflow-hidden rounded-[28px] border border-white/15 bg-gradient-to-br from-white/[0.10] via-white/[0.04] to-emerald-300/[0.05] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_18px_40px_-18px_rgba(0,0,0,0.7)] backdrop-blur-2xl backdrop-saturate-150 sm:grid-cols-[160px_minmax(0,1fr)]"
     >
-      <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full self-start overflow-hidden bg-black" aria-label="Open video player">
+      <button type="button" onClick={onOpen} className="relative block aspect-[9/16] w-full self-start overflow-hidden rounded-[22px] bg-black ring-1 ring-white/10" aria-label="Open video player">
         <video src={v.videoUrl} poster={v.posterUrl ?? undefined} ref={v.posterUrl ? undefined : paintFirstFrameIfNoPoster} preload="metadata" muted playsInline className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
         <span className="absolute inset-0 grid place-items-center bg-gradient-to-t from-black/50 via-transparent to-transparent">
-          <span className="grid size-11 place-items-center rounded-[4px] border border-white/35 bg-white/20 backdrop-blur-xl transition-transform duration-200 group-hover:scale-110">
+          <span className="grid size-11 place-items-center rounded-full border border-white/35 bg-white/20 backdrop-blur-xl transition-transform duration-200 group-hover:scale-110">
             <Play className="ml-0.5 size-5 fill-white text-white" />
           </span>
         </span>
       </button>
-      <div className="flex min-w-0 flex-col gap-2 p-3 sm:p-4">
+      <div className="flex min-w-0 flex-col gap-2 px-3 py-2.5 sm:px-4 sm:py-3.5">
         {/* Title → full caption/script context → what it was made from. */}
         <p className="text-[13px] font-semibold leading-snug text-white" title={v.title || undefined}>{v.title || v.caption || "Untitled"}</p>
         {v.caption && v.caption !== v.title && v.caption !== v.description && <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300">{v.caption}</p>}
@@ -995,7 +1037,7 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
           <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300" title={v.description}>{v.description}</p>
         )}
         {v.prompt && v.prompt !== v.title && (
-          <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words rounded-[4px] border border-white/10 bg-white/[0.05] px-2 py-1.5 text-[11px] leading-relaxed text-zinc-400" title={v.prompt}>
+          <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] leading-relaxed text-zinc-400" title={v.prompt}>
             <span className="font-semibold uppercase tracking-wider text-zinc-600">Prompt </span>{v.prompt}
           </p>
         )}
@@ -1012,7 +1054,7 @@ function VideoCard({ v, onOpen }: { v: FeedItem; onOpen: () => void }) {
             </span>
           )}
           {v.postUrl && (
-            <a href={v.postUrl} target="_blank" rel="noopener noreferrer" className={`${CONTROL_GLASS_ACTION} ml-auto inline-flex items-center gap-1 px-2 py-1`}>
+            <a href={v.postUrl} target="_blank" rel="noopener noreferrer" className={`${CONTROL_GLASS_ACTION} ml-auto inline-flex items-center gap-1 !rounded-full px-2.5 py-1`}>
               Open <ExternalLink className="size-2.5" />
             </a>
           )}

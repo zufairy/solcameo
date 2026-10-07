@@ -1,6 +1,6 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
-import { getNetwork, getRpcUrl, getUsdcMint, USDC_MINT_BY_NETWORK } from "@/lib/solana/network";
+import { getDbcRpcUrl, getNetwork, getRpcUrl, getUsdcMint, USDC_MINT_BY_NETWORK } from "@/lib/solana/network";
 import { loadMasterKey } from "@/lib/server/walletCrypto";
 import { generationCollectionWallet } from "@/lib/server/generationCollectionWallet";
 
@@ -34,7 +34,7 @@ export async function mainnetReadiness(): Promise<{ ready: boolean; network: str
   add(checks, "network", mainnet ? "ok" : "fail", mainnet ? "NEXT_PUBLIC_SOLANA_NETWORK is mainnet-beta" : `NEXT_PUBLIC_SOLANA_NETWORK resolves to ${network}; set it to mainnet-beta and rebuild (it is inlined at build time)`);
 
   // RPC: reachable, really mainnet, and not the throttled public endpoint.
-  const rpcUrl = process.env.SOLCAMEO_DBC_RPC_URL || getRpcUrl("mainnet-beta");
+  const rpcUrl = getDbcRpcUrl("mainnet-beta");
   let connection: Connection | null = null;
   try {
     connection = new Connection(rpcUrl, "confirmed");

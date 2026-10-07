@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCompactSol, formatPct, formatSol } from "@/lib/solstar/format";
 import { CharAvatar, PanelErrorBoundary } from "./feedShared";
 import type { MarketRow } from "./MarketTable";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 const TOP = 10;
 
@@ -53,7 +54,7 @@ function TrendingList() {
           {rows.map((r) => (
             <li key={r.characterId}>
               <Link
-                href={`/market/${r.characterId}`}
+                href={marketPath(r)}
                 className="flex items-center gap-3 px-6 py-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               >
                 <CharAvatar name={r.name} src={r.imageUrl} className="size-11 rounded-xl" />

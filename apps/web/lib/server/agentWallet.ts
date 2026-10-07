@@ -5,6 +5,7 @@ import { encryptWalletSecret } from "./walletCrypto";
 import { after } from "next/server";
 import { getUsdcBalanceStrict } from "@/lib/trader/usdcTransfer";
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
+import { rememberBalance } from "./balanceMemo";
 
 const client = () => new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const secret = () => process.env.INTERNAL_CRON_SECRET ?? "";
@@ -24,6 +25,7 @@ export async function refreshAgentFunds(mintAddress: string) {
   const { agentWallet } = await ensureInfluencerWallet(mintAddress);
   const balance = await getUsdcBalanceStrict(agentWallet);
   if (balance === null) throw new Error("Agent balance is temporarily unavailable. Please retry.");
+  rememberBalance(agentWallet, balance);
   await client().mutation(api.agentAccount.reconcileEscrowToOnchainServer, {
     mintAddress, onchainUsdc: balance, authSecret: secret(),
   });

@@ -1,5 +1,5 @@
 import { ComputeBudgetProgram, Connection, type TransactionInstruction } from "@solana/web3.js";
-import { getHeliusRpcUrl, getNetwork } from "./network";
+import { getHeliusRpcUrl, getNetwork, getRpcUrl } from "./network";
 import { rpcTry } from "./rpc";
 
 /**
@@ -39,7 +39,7 @@ export async function estimatePriorityPrice(accountKeys: string[], units: number
     }
   } catch { /* fall through to the node's own view */ }
   try {
-    const recent = await rpcTry([getHeliusRpcUrl("mainnet-beta") || "https://api.mainnet-beta.solana.com"], (c) => c.getRecentPrioritizationFees(), 2500);
+    const recent = await rpcTry([getRpcUrl("mainnet-beta")], (c) => c.getRecentPrioritizationFees(), 2500);
     return boundedPriorityPrice(median(recent.map((r) => r.prioritizationFee).filter((n) => n > 0)), units);
   } catch { return MIN_MICRO_LAMPORTS; }
 }

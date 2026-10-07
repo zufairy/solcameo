@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Connection } from "@solana/web3.js";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { fetchSelf } from "@/lib/server/fetchInternal";
 import { requireInternalOrUserAuth, siwsRequiredResponse } from "@/lib/server/requireAuth";
 import { verifyUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
-import { getReadRpcUrl, getUsdcMint } from "@/lib/solana/network";
+import { getUsdcMint } from "@/lib/solana/network";
 import { captureUrlScreenshots } from "@/lib/server/screenshotUrl";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ async function verifyHireDepositWithRetry(
   opts: Parameters<typeof verifyUsdcDeposit>[0],
   cfg: { attempts: number; delayMs: number },
 ): Promise<void> {
-  const connection = new Connection(getReadRpcUrl(), "confirmed");
+  const connection = failoverConnection();
   let lastErr: unknown;
   for (let i = 0; i < cfg.attempts; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, cfg.delayMs));

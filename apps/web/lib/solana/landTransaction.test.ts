@@ -11,7 +11,7 @@ vi.mock("@solana/web3.js", async () => {
   }
   return { ...real, Connection };
 });
-vi.mock("./network", () => ({ getNetwork: () => "mainnet-beta", getHeliusRpcUrl: () => "" }));
+vi.mock("./network", () => ({ getNetwork: () => "mainnet-beta", getHeliusRpcUrl: () => "", getRpcUrl: () => "https://rpc.test" }));
 import { boundedPriorityPrice, estimatePriorityPrice, landTransaction } from "./landTransaction";
 
 afterEach(() => { vi.useRealTimers(); h.statuses = []; h.height = 100; h.sends = 0; });

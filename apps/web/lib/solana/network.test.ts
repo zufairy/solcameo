@@ -57,3 +57,31 @@ describe("getReadRpcUrl", () => {
     ]);
   });
 });
+
+describe("QuickNode RPC", () => {
+  const saved = { q: process.env.QUICKNODE_SOLANA_RPC_URL, n: process.env.NEXT_PUBLIC_QUICKNODE_SOLANA_RPC_URL, h: process.env.HELIUS_API_KEY };
+  afterEach(() => {
+    for (const [k, v] of [["QUICKNODE_SOLANA_RPC_URL", saved.q], ["NEXT_PUBLIC_QUICKNODE_SOLANA_RPC_URL", saved.n], ["HELIUS_API_KEY", saved.h]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  });
+  it("comes first on mainnet, with Helius as the backup", () => {
+    process.env.NEXT_PUBLIC_SOLANA_NETWORK = "mainnet-beta";
+    process.env.QUICKNODE_SOLANA_RPC_URL = "https://node.quiknode.pro/abc/";
+    process.env.HELIUS_API_KEY = "k";
+    expect(getRpcUrl()).toBe("https://node.quiknode.pro/abc/");
+    expect(getRpcCandidates()).toEqual(["https://node.quiknode.pro/abc/", "https://mainnet.helius-rpc.com/?api-key=k"]);
+  });
+  it("the browser-visible variable works when the private one is absent, and a non-https value is ignored", () => {
+    process.env.NEXT_PUBLIC_SOLANA_NETWORK = "mainnet-beta";
+    delete process.env.QUICKNODE_SOLANA_RPC_URL; delete process.env.HELIUS_API_KEY;
+    process.env.NEXT_PUBLIC_QUICKNODE_SOLANA_RPC_URL = "https://pub.quiknode.pro/xyz/";
+    expect(getRpcUrl()).toBe("https://pub.quiknode.pro/xyz/");
+    process.env.NEXT_PUBLIC_QUICKNODE_SOLANA_RPC_URL = "http://insecure";
+    expect(getRpcUrl()).toBe("https://api.mainnet-beta.solana.com");
+  });
+  it("never applies the mainnet endpoint to devnet", () => {
+    process.env.NEXT_PUBLIC_SOLANA_NETWORK = "devnet";
+    process.env.QUICKNODE_SOLANA_RPC_URL = "https://node.quiknode.pro/abc/";
+    delete process.env.HELIUS_API_KEY;
+    expect(getRpcUrl()).toBe("https://api.devnet.solana.com");
+  });
+});

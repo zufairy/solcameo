@@ -15,6 +15,7 @@ import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { PanelErrorBoundary } from "./feedShared";
 import type { MarketRow } from "./MarketTable";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 type Pool = { available: boolean; capSol?: number; progress?: number; migrated?: boolean; changeSinceLaunchPct?: number | null; appVolume24hLamports?: string };
 /**
@@ -93,7 +94,7 @@ function CharacterPost({ row }: { row: MarketRow }) {
         {episode && <Button size="icon-sm" variant="ghost" onClick={() => setSound(!soundOn)} aria-label={soundOn ? "Mute video" : "Unmute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{soundOn ? <SpeakerLoudIcon /> : <SpeakerOffIcon />}</Button>}
       </div>
       <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-8">
-        <Link href={`/market/${row.characterId}`} aria-label={`Open ${row.name} market`} className="block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]">
+        <Link href={marketPath(row)} aria-label={`Open ${row.name} market`} className="block rounded-[3px] bg-[#d7ff00] px-4 py-4 text-[#10130a] shadow-[0_12px_40px_rgba(215,255,0,0.18)] transition-transform active:scale-[0.99]">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5"><img src={row.imageUrl} alt="" className="size-[18px] shrink-0 rounded-[2px] object-cover" /><span className="truncate text-[12px] font-semibold tracking-tight">${row.ticker}</span><span className="text-[10px] font-medium text-[#10130a]/50">Market cap</span></div>
             {change != null && <span className="rounded-[2px] bg-[#10130a] px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-[#d7ff00]">{change >= 0 ? "+" : "−"}{Math.abs(change).toFixed(2)}%</span>}
@@ -184,7 +185,7 @@ function TrendingPost({ item }: { item: TrendItem }) {
         <Button size="icon-sm" variant="ghost" onClick={() => setSound(!soundOn)} aria-label={soundOn ? "Mute video" : "Unmute video"} className="rounded-full border border-white/20 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl hover:bg-white/20">{soundOn ? <SpeakerLoudIcon /> : <SpeakerOffIcon />}</Button>
       </div>
       <motion.div initial={reduced ? false : { opacity: 0, y: 28, filter: "blur(14px)" }} animate={active || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 28, filter: "blur(14px)" }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: active ? 0.12 : 0 }} className="absolute inset-x-3 bottom-12">
-        {item.characterId ? <Link href={`/market/${item.characterId}`} aria-label={`Open ${item.name} market`} className={cardClass}>{body}</Link> : <div className={cardClass}>{body}</div>}
+        {item.characterId ? <Link href={marketPath({ characterId: item.characterId, ticker: item.ticker })} aria-label={`Open ${item.name} market`} className={cardClass}>{body}</Link> : <div className={cardClass}>{body}</div>}
       </motion.div>
     </div>
   </article>;

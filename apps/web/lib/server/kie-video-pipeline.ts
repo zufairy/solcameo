@@ -4400,6 +4400,11 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
   // When the cast does not fit, every tagged portrait is combined into ONE cast-sheet image so nobody is dropped.
   const castSlots = /veo|grok/i.test(videoModel) ? 2 : /seedance/i.test(videoModel) && is15ProModel(videoModel) ? 1 : MAX_CAST;
   const castPacked: PackedCast[] = await packCast(castList, castSlots);
+  // Higgsfield image-to-video takes ONE image, so with extra references the main image and every tagged/attached picture are
+  // combined into one contact sheet and that is what it animates from. Nothing is dropped.
+  const hfCastStill = isHiggsfieldModel(videoModel) && castList.length
+    ? (await packCast([{ token: "main", imageUrl: canonicalStill }, ...castList], 1))[0]?.imageUrl
+    : undefined;
   const castRow = (slot: number, c: PackedCast) => ({ slot, role: "Character", label: c.label });
   const storyboardRefForSeedance = isHttpImageUrl(storyboardImageUrl) ? storyboardImageUrl : undefined;
   const productRefForSeedance = isHttpImageUrl(args.productImageUrl) ? args.productImageUrl : undefined;
@@ -4913,7 +4918,7 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
         } else if (isHfEngine) {
           // Higgsfield image-to-video: `image_url` is REQUIRED; duration is an int.
           const hf = HIGGSFIELD_ENGINES[videoModel];
-          const still = primaryStill ?? args.avatarUrl;
+          const still = hfCastStill ?? primaryStill ?? args.avatarUrl;
           if (!isHttpImageUrl(still)) throw new Error(`${videoModel}: Higgsfield image-to-video needs a character image`);
           input = {
             prompt,

@@ -50,6 +50,8 @@ import { FlywheelPanel } from "@/components/solcameo/FlywheelPanel";
 import { TradeTicket } from "./TradeTicket";
 import { OpenTrades, countOpen } from "./OpenTrades";
 import { useChainMarket } from "./useChainMarket";
+import { dbcFromChain, mergeDbc } from "@/lib/solstar/chainDbc";
+import { LiveValue } from "./MarketTable";
 import { useMarketWatchlist } from "./market-watchlist";
 
 type ChainData = {
@@ -115,7 +117,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
   const [mcap, setMcap] = useState(false);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
-  const [dbc, setDbc] = useState<{
+  const [dbcRpc, setDbc] = useState<{
     available: boolean;
     capSol: number | null;
     reserveSol: number;
@@ -246,6 +248,9 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
       })),
     };
   }, [chainMarket, chainSwaps]);
+  // The chart and header paint from Convex the moment the page opens; the pool read (RPC) then refines them and keeps them live.
+  const chainPoints = useQuery(api.solstarChain.chartPoints, onChain ? { characterId, limit: 800 } : "skip");
+  const dbc = useMemo(() => mergeDbc(dbcRpc, dbcFromChain(chainMarket?.state, chainPoints)) as typeof dbcRpc, [dbcRpc, chainMarket?.state, chainPoints]);
   const holderWallets = useMemo(() => [...new Set([
     ...(chain?.holders ?? []).map(holder => holder.wallet),
     ...(chainMarket?.positions ?? []).filter(p => p.openTokens > 0).map(p => p.wallet),
@@ -510,6 +515,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
             </div>
             <div className="flex gap-5">
               <Metric
+                flash={token.network !== "paper" && dbc?.available && dbc.capSol != null ? String(Math.round(dbc.capSol * 1e9)) : undefined}
                 label="Market cap · USD"
                 value={
                   token.network === "paper"
@@ -521,6 +527,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
                 big
               />
               <Metric
+                flash={token.network !== "paper" && dbc?.appVolume24hLamports ? dbc.appVolume24hLamports : undefined}
                 label={
                   token.network === "paper"
                     ? "24h vol · USD"
@@ -957,10 +964,13 @@ function Metric({
   label,
   value,
   big = false,
+  flash,
 }: {
   label: string;
   value: string;
   big?: boolean;
+  /** Raw lamports behind `value`: when it moves, the figure flashes green (up) or red (down). */
+  flash?: string;
 }) {
   return (
     <div>
@@ -968,7 +978,7 @@ function Metric({
       <p
         className={`market-sidebar-text ${big ? "text-xl font-semibold" : "text-sm font-medium"} text-white`}
       >
-        {value}
+        {flash ? <LiveValue value={flash} display={value} /> : value}
       </p>
     </div>
   );

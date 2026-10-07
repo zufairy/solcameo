@@ -1,5 +1,5 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getPublicSolanaRpcUrl } from "@/lib/solana/public-rpc";
+import { PublicKey } from "@solana/web3.js";
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { getUsdcMint } from "@/lib/solana/network";
 
 /**
@@ -21,7 +21,7 @@ export async function fetchWalletUsdcBalance(walletAddress: string): Promise<num
   if (!owner) return null;
 
   try {
-    const connection = new Connection(getPublicSolanaRpcUrl(), "confirmed");
+    const connection = failoverConnection();
     const mintPk = new PublicKey(getUsdcMintAddress());
     const ownerPk = new PublicKey(owner);
     const { value } = await connection.getParsedTokenAccountsByOwner(ownerPk, {

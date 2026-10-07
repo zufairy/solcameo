@@ -1,5 +1,6 @@
 "use client";
 
+import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { useEffect, useState, useCallback } from "react";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -11,7 +12,7 @@ import {
   TokenAccountNotFoundError,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { getUsdcMint, getRpcUrl, getNetwork } from "@/lib/solana/network";
+import { getUsdcMint, getNetwork } from "@/lib/solana/network";
 import { rpcTry, rpcCandidates } from "@/lib/solana/rpc";
 
 // IMPORTANT — derive BOTH the RPC and the USDC mint from the SAME source
@@ -62,7 +63,7 @@ export function checkFunding(opts: {
  *  Used for the SIGNING path (sendUsdc), where getRpcUrl keeps devnet on the
  *  public endpoint so the blockhash matches Phantom's own RPC. */
 function rpc(): Connection {
-  return new Connection(getRpcUrl(NETWORK), "confirmed");
+  return failoverConnection({ network: NETWORK });
 }
 
 /** Live USDC balance of the connected wallet. Polls every 20s + refetch on demand. */
