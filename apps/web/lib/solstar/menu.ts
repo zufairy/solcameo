@@ -9,6 +9,7 @@ import {
   Trophy,
   Compass,
   Clapperboard,
+  Share2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +49,7 @@ const ITEMS: MenuItem[] = [
   item("Explore", "/explore", Compass, "Workspace"),
   item("Leaderboards", "/tournament", Trophy, "Workspace"),
   item("Tokenomics", "/tokenomics", Activity, "Workspace"),
+  item("Referrals", "/referrals", Share2, "Workspace"),
   item("Analytics", "/analytics", BarChart3, "Workspace"),
 ];
 /**
