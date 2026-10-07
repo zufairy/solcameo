@@ -442,16 +442,6 @@ async function sweepAgentTabCustodial(opts: {
     );
   }
 
-  // Sponsored gas so the agent wallet needs zero SOL (mirrors the withdraw route). If the shared fee payer is missing
-  // or out of SOL, the agent pays its own network fee instead, topping up a little SOL from its USDC when it has none.
-  const sponsored = await feePayerReady();
-  if (!sponsored) {
-    const gas = await ensureAgentGas(mintAddress, amountUsdc);
-    if (!gas.ok) {
-      console.warn(`[vaultSweep] fee payer unavailable and the agent could not get network-fee SOL for ${mintAddress}: ${gas.reason} — releasing for retry`);
-      return { ok: false, reason: `no_network_fee_sol: ${gas.reason}` };
-    }
-  }
   let agentSecret: string;
   try {
     agentSecret = readAgentSecret(agent.agentWalletSecret);
@@ -459,13 +449,24 @@ async function sweepAgentTabCustodial(opts: {
     // A key mismatch must release the settlement claim; no transaction was sent.
     return { ok: false, reason: "wallet_signing_unavailable" };
   }
-  const transfer = await transferUsdc({
+  const payment = {
     fromSecretBase64: agentSecret,
     fromPubkey: agent.agentWallet,
     toPubkey: TREASURY, // treasury WALLET; transferUsdc derives its USDC ATA
     amountUsdc,
-    feePayerSecretBase64: sponsored ? process.env.PLATFORM_FEE_PAYER_SECRET : undefined,
-  });
+  };
+  // The agent pays its own SOL fees first. Only a pre-broadcast fee shortfall
+  // permits a new attempt with sponsorship or a Jupiter gas top-up.
+  let transfer = await transferUsdc(payment);
+  if (!transfer.ok && !transfer.txSignature && transfer.step === "fees") {
+    if (await feePayerReady()) {
+      transfer = await transferUsdc({ ...payment, feePayerSecretBase64: process.env.PLATFORM_FEE_PAYER_SECRET });
+    } else {
+      const gas = await ensureAgentGas(mintAddress, amountUsdc);
+      if (!gas.ok) return { ok: false, reason: `no_network_fee_sol: ${gas.reason}` };
+      transfer = await transferUsdc(payment);
+    }
+  }
 
   if (transfer.ok) {
     return { ok: true, txSignature: transfer.txSignature };

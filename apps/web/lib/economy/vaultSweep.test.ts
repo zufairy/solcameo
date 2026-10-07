@@ -258,6 +258,9 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
     expect(res.txSignature).toBe("CUSTODIAL_SIG");
     expect(h.transferUsdcMock).toHaveBeenCalledTimes(1);
     expect(h.debitFeeTxMock).not.toHaveBeenCalled(); // never touched the vault path
+    expect(h.transferUsdcMock.mock.calls[0][0].feePayerSecretBase64).toBeUndefined();
+    expect(h.feePayerReadyMock).not.toHaveBeenCalled();
+    expect(h.ensureGasMock).not.toHaveBeenCalled();
   });
 
   it("a vault-enabled agent is also paid from its own wallet to the generation wallet, never through the vault", async () => {
@@ -273,6 +276,7 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
   it("with no usable fee payer the agent pays its own network fee, after topping up SOL from its USDC if needed", async () => {
     h.queryMock.mockImplementation(custodialQueryDispatch());
     h.feePayerReadyMock.mockResolvedValue(false);
+    h.transferUsdcMock.mockResolvedValueOnce({ ok: false, step: "fees" });
     h.ensureGasMock.mockResolvedValue({ ok: true, swapped: true, signature: "GAS_SWAP" });
     const res = await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g1", amountUsdc: 2 });
     expect(res.ok).toBe(true);
@@ -283,16 +287,18 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
   it("releases the settlement for a retry, moving nothing, when the agent cannot get network-fee SOL", async () => {
     h.queryMock.mockImplementation(custodialQueryDispatch());
     h.feePayerReadyMock.mockResolvedValue(false);
+    h.transferUsdcMock.mockResolvedValueOnce({ ok: false, step: "fees" });
     h.ensureGasMock.mockResolvedValue({ ok: false, reason: "usdc_too_low" });
     expect(await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "g2", amountUsdc: 2 })).toEqual({ ok: false, reason: "no_network_fee_sol: usdc_too_low" });
-    expect(h.transferUsdcMock).not.toHaveBeenCalled();
+    expect(h.transferUsdcMock).toHaveBeenCalledTimes(1);
   });
 
   it("(b) the custodial sweep targets the generation collection wallet from the agent wallet with sponsored gas", async () => {
     h.queryMock.mockImplementation(custodialQueryDispatch());
     h.transferUsdcMock.mockResolvedValue({ ok: true, txSignature: "CUSTODIAL_SIG" });
+    h.transferUsdcMock.mockResolvedValueOnce({ ok: false, step: "fees" });
     await sweepAgentTabOnchain({ mintAddress: "M", settlementId: "c2", amountUsdc: 2.5 });
-    const arg = h.transferUsdcMock.mock.calls[0][0];
+    const arg = h.transferUsdcMock.mock.calls[1][0];
     // toPubkey is the treasury WALLET from env; transferUsdc derives its USDC ATA —
     // the exact same account the vault (debit_fee) path targets.
     expect(arg.toPubkey).toBe("EhXTsbTMTgkGhBdUGAWx5JL78Jmu1dZgDCVUFWJp3pSa");
@@ -311,6 +317,8 @@ describe("sweepAgentTabOnchain — CUSTODIAL fallback (no vault) + no-double-spe
     expect(res.ok).toBe(false);
     expect(res.ambiguous).toBe(true);           // the caller must stamp confirm-ambiguous, NOT release
     expect(res.txSignature).toBe("AMBIG_SIG");
+    expect(h.transferUsdcMock).toHaveBeenCalledTimes(1);
+    expect(h.feePayerReadyMock).not.toHaveBeenCalled();
     expect(res.lastValidBlockHeight).toBe(12345); // blockhash-expiry proof for the keeper
   });
 

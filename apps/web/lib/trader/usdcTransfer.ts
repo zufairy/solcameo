@@ -12,7 +12,7 @@ import {
 } from "@solana/web3.js";
 import {
   createAssociatedTokenAccountIdempotentInstruction, createTransferInstruction,
-  getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID, ACCOUNT_SIZE,
 } from "@solana/spl-token";
 import bs58 from "bs58";
 import { getUsdcMint, getNetwork } from "@/lib/solana/network";
@@ -252,10 +252,13 @@ export async function transferUsdc(opts: {
       conn.getLatestBlockhash("confirmed"),
     ]);
     // The GAS PAYER (fee payer if sponsored, else the sender) needs SOL for fees.
-    if (solBalance < 5000) { // ~5000 lamports min for tx fee
+    const rentLamports = recipientAcc ? 0 : await conn.getMinimumBalanceForRentExemption(ACCOUNT_SIZE, "confirmed");
+    const requiredLamports = (feePayer && !feePayer.publicKey.equals(fromKey) ? 10_000 : 5_000)
+      + Math.ceil(units * priority / 1_000_000) + rentLamports;
+    if (solBalance < requiredLamports) {
       return {
         ok: false,
-        error: `${feePayer ? "Platform fee-payer" : "Wallet"} ${gasKey.toBase58().slice(0, 8)}… has insufficient SOL for fees (${(solBalance / 1e9).toFixed(6)}). Fund with ~0.01 SOL.`,
+        error: `${feePayer ? "Platform fee-payer" : "Wallet"} ${gasKey.toBase58().slice(0, 8)}… has insufficient SOL for fees (${(solBalance / 1e9).toFixed(6)}). Needs ${(requiredLamports / 1e9).toFixed(6)} SOL including network fees and token-account rent.`,
         step: "fees",
       };
     }
