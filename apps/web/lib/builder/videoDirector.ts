@@ -173,7 +173,7 @@ export interface WiredSkillFile { skillId: string; wired?: boolean; config?: Rec
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AgentLike = { mintAddress?: string; niche?: string; videoConfig?: VideoConfig | null; [k: string]: any };
-type VideoInput = { durationSeconds?: number; format?: string };
+type VideoInput = { durationSeconds?: number; format?: string; aspectRatio?: "9:16" | "1:1" | "16:9" };
 
 /**
  * Resolve the effective per-video directives. Explicit `input` always wins;
@@ -188,7 +188,8 @@ export function resolveVideoDirectives(
   lastFormat?: string,
   clipSkills?: WiredSkillFile[],
 ): VideoDirectives {
-  const cfg: VideoConfig = { ...DEFAULT_VIDEO_CONFIG, ...(agent.videoConfig ?? {}) };
+  // An explicit size for THIS video (Explore, the Videos tab) wins over the agent's saved Director setting.
+  const cfg: VideoConfig = { ...DEFAULT_VIDEO_CONFIG, ...(agent.videoConfig ?? {}), ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}) };
 
   // The operator's length range is authoritative: a caller-supplied duration is
   // CLAMPED into [min,max] (so a hardcoded 16s from an autonomy/task prompt can't

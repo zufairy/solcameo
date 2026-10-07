@@ -15,6 +15,7 @@ import {
 } from "@/lib/server/agentDirectives";
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 import { topUpAgentFromSol, swapFailureMessage } from "@/lib/server/solSwap";
+import { aspectFor, isVideoAspect } from "@/lib/builder/videoAspects";
 import { isJoinableCampaign, isJoinableUgcCampaign } from "@/lib/campaignLifecycle";
 import {
   isConfigured as socialConfigured,
@@ -1076,7 +1077,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     const directorSeed = `${(agent as { mintAddress?: string }).mintAddress ?? ""}:${typeof input.topic === "string" ? input.topic : ""}:${Math.floor(Date.now() / 60000)}`;
     const directives = resolveVideoDirectives(
       agent as Record<string, unknown>,
-      { durationSeconds: input.durationSeconds as number | undefined, format: input.format as string | undefined },
+      { durationSeconds: input.durationSeconds as number | undefined, format: input.format as string | undefined, aspectRatio: isVideoAspect(input.aspectRatio) ? input.aspectRatio : undefined },
       directorSeed,
       lastFormat,
       ctx.skillFiles,   // bridge wired AI-Clipper apps (trending audio / hook / captions) onto UGC
@@ -2045,7 +2046,8 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       // The agent-chosen / operator target length, fitted to the script so the
       // render covers the whole script and plays out complete.
       durationSeconds: finalDurationSeconds,
-      aspectRatio: directives.aspectRatio,
+      // The size picked for THIS video wins, limited to what the engine can render; otherwise the Director setting.
+      aspectRatio: isVideoAspect(input.aspectRatio) ? aspectFor(engine.id, input.aspectRatio) : directives.aspectRatio,
       resolution: videoQuality,
       videoModel: engine.kieModel,
       // Per-clip on-chain cost for THIS generation — charged by finishAll on

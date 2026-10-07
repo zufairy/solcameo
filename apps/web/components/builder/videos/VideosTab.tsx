@@ -10,6 +10,7 @@ import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, Im
 import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
+import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton, ResultHeading } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 
@@ -48,8 +49,13 @@ type VideoAsset = {
     referenceImages: string[];
     skipStoryboard: boolean;
     noPersona: boolean;
+    /** Size this video was rendered in, so its card keeps the same shape. */
+    aspect?: VideoAspect;
   };
 };
+
+/** CSS ratio of a card: the size the video was rendered in (portrait when unknown). */
+const cardRatio = (v: { meta?: { aspect?: VideoAspect } }) => (v.meta?.aspect ?? "9:16").replace(":", " / ");
 
 let idCounter = 0;
 function makeId(): string {
@@ -86,7 +92,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   // can be overridden per-generation without touching the saved config. Also
   // carries the profile photos (avatar + mint stills) for the reference picker.
   const influencerDoc = useQuery(api.influencers.getByMint, mintAddress ? { mintAddress } : "skip") as
-    | { videoEngine?: string; videoMinSeconds?: number; videoMaxSeconds?: number; avatarUrl?: string; avatarStills?: string[]; videoConfig?: { pinnedVideoReferenceUrl?: string } }
+    | { videoEngine?: string; videoMinSeconds?: number; videoMaxSeconds?: number; avatarUrl?: string; avatarStills?: string[]; videoConfig?: { pinnedVideoReferenceUrl?: string; aspectRatio?: string } }
     | null
     | undefined;
 
@@ -124,6 +130,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   const [uploadingImage, setUploadingImage] = useState(false);
   const [engineOverride, setEngineOverride] = useState<VideoEngineId | null>(null);
   const [skipStoryboard, setSkipStoryboard] = useState(false);
+  const [aspectOverride, setAspectOverride] = useState<VideoAspect | null>(null);
   // "No Persona": the prompt is sent as-is — no persona voice, character bible,
   // skills, memories or standing orders blended into the script or clip prompts.
   const [noPersona, setNoPersona] = useState(false);
@@ -131,6 +138,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   // Quality and length for THIS video. Each engine sells its own set (Kie's price table), and the price is exact for
   // the pair picked, so the quote on the button is what the render is billed.
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
+  // Size for THIS video: the pick here, else the Director tab's saved size, limited to what the engine can render.
+  const aspect = aspectFor(engineId, aspectOverride ?? influencerDoc?.videoConfig?.aspectRatio);
   const [qualityOverride, setQualityOverride] = useState<VideoQuality | null>(null);
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
@@ -249,7 +258,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
     const localId = makeId();
     setError(null);
     setIsGenerating(true);
-    const meta = { engineId, referenceImages: effectiveRefs, skipStoryboard, noPersona };
+    const meta = { engineId, referenceImages: effectiveRefs, skipStoryboard, noPersona, aspect };
     setVideos((prev) => [{ id: localId, prompt: p, createdAt: Date.now(), status: "pending", startedAt: Date.now(), meta }, ...prev]);
 
     void (async () => {
@@ -266,6 +275,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
+              aspectRatio: aspect,
               ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
               ...(skipStoryboard ? { skipStoryboard: true } : {}),
               ...(noPersona ? { noPersona: true } : {}),
@@ -360,6 +370,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             </button>
             <ChipSelect value={engineId} onChange={(v) => setEngineOverride(v as VideoEngineId)} title="Video engine for this generation, defaults to the Director tab's pick"
               options={visibleEngines().map((e) => ({ value: e.id, label: e.label }))} />
+            <ChipSelect value={aspect} onChange={(v) => setAspectOverride(v as VideoAspect)} title="Video size: portrait, landscape or square"
+              options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
             {pricingSpec && (
               <>
                 <ChipSelect value={quality} onChange={(v) => setQualityOverride(v as VideoQuality)} title="Video quality, sets the exact price"
@@ -453,7 +465,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
                     <motion.div key={v.id} layout
                       initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border-2 border-white/10"
+                      style={{ aspectRatio: cardRatio(v) }}
+                      className="relative w-full overflow-hidden rounded-xl border-2 border-white/10"
                     >
                       <motion.div
                         className="absolute inset-0"
@@ -474,7 +487,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
                   return (
                     <motion.div key={v.id} layout
                       initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                      className="relative flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-red-500/30 bg-red-500/[0.06] px-4 text-center"
+                      style={{ aspectRatio: cardRatio(v) }}
+                      className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-red-500/30 bg-red-500/[0.06] px-4 text-center"
                     >
                       <AlertCircle className="size-5 text-red-400" />
                       <span className="text-[10.5px] leading-snug text-red-300">{v.error ?? "Generation failed"}</span>
@@ -497,7 +511,8 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
                     tabIndex={v.url ? 0 : undefined}
                     onClick={() => v.url && setLightbox(v)}
                     onKeyDown={(e) => { if (v.url && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setLightbox(v); } }}
-                    className={`vello-card-pop group relative aspect-[9/16] w-full overflow-hidden rounded-xl border-2 border-white/10 backdrop-blur-xl ${v.url ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60" : ""}`}>
+                    style={{ aspectRatio: cardRatio(v) }}
+                    className={`vello-card-pop group relative w-full overflow-hidden rounded-xl border-2 border-white/10 backdrop-blur-xl ${v.url ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60" : ""}`}>
                     {v.url ? (
                       // No `controls` here — clicking the card opens the modal, where
                       // the real player (with controls) lives. Keeping native controls

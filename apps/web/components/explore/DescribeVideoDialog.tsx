@@ -15,6 +15,7 @@ import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/bu
 import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
+import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
 
 export type DescribeAgent = { mintAddress: string; name: string; coinTicker?: string; avatarUrl?: string; agentWallet?: string | null; videoEngine?: string };
 
@@ -36,6 +37,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [qualityOverride, setQualityOverride] = useState<VideoQuality | null>(null);
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null);
   // Default to exactly what was typed, at exactly the chosen length: no persona rewrite, no storyboard image.
+  const [aspectPick, setAspectPick] = useState<VideoAspect>("9:16");
   const [skipStoryboard, setSkipStoryboard] = useState(true);
   const [noPersona, setNoPersona] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -46,6 +48,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   const engineId = engineOverride ?? (agent?.videoEngine as VideoEngineId | undefined) ?? DEFAULT_VIDEO_ENGINE;
   const pricingSpec = KIE_VIDEO_PRICING[engineId];
+  const aspect = aspectFor(engineId, aspectPick);
   const quality: VideoQuality = qualityOverride && pricingSpec?.qualities.includes(qualityOverride) ? qualityOverride : (pricingSpec?.defaultQuality ?? "720p");
   const seconds = secondsOverride && pricingSpec?.durations.includes(secondsOverride) ? secondsOverride : (pricingSpec?.durations[0] ?? 5);
   // Provider price plus the Solcameo fee, plus the storyboard image unless skipped. The server bills the same numbers.
@@ -73,6 +76,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
             ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
             videoEngine: engineId,
+            aspectRatio: aspect,
             ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
             ...(skipStoryboard ? { skipStoryboard: true } : {}),
             ...(noPersona ? { noPersona: true } : {}),
@@ -153,6 +157,8 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                         options={pricingSpec.durations.map((d) => ({ value: String(d), label: `${d}s` }))} />
                     </>
                   )}
+                  <ChipSelect value={aspect} onChange={(v) => setAspectPick(v as VideoAspect)} title="Video size: portrait, landscape or square"
+                    options={aspectsForEngine(engineId).map((a) => ({ value: a.value, label: a.label }))} />
                   <ChipCheck checked={skipStoryboard} onChange={setSkipStoryboard} label="Skip storyboard" title="Skip the multi-panel storyboard image and render straight from the reference" />
                   <ChipCheck checked={noPersona} onChange={setNoPersona} label="No persona" title="Send your prompt as-is, without the agent's persona and memories" />
                   <PriceButton className="ml-auto" disabled={!prompt.trim() || !mint || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
