@@ -72,6 +72,31 @@ async function readSolBalanceOrNull(owner: PublicKey): Promise<number | null> {
 /** Transfers this tab just sent, so confirming one also keeps re-broadcasting it and knows when it can no longer land. */
 const sentTransfers = new Map<string, { raw: Uint8Array; lastValidBlockHeight: number }>();
 
+/**
+ * Broadcast a transaction the wallet just signed and keep it in front of the validators until it confirms or can no
+ * longer land. This is the standard landing loop: one send WITH preflight (so a price move or an empty balance fails
+ * at once with a readable reason), then the identical signed bytes re-sent to every RPC while signature status is polled,
+ * and a stop the moment the blockhash expires. "expired" is definitive: it did not land, nothing was spent.
+ */
+export async function sendAndLand(signed: VersionedTransaction, lastValidBlockHeight: number, maxMs = 120_000): Promise<{ signature: string; result: "confirmed" | "expired" | "pending" }> {
+  const raw = signed.serialize();
+  const first = signed.signatures[0];
+  if (!first) throw new Error("The wallet returned an unsigned transaction.");
+  const signature = (await import("bs58")).default.encode(first);
+  try {
+    await rpcTry(RPC_CANDIDATES, (conn) => conn.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 }), 8000);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (/already been processed/i.test(message)) { /* it landed on an earlier send: fall through to confirm it */ }
+    else if (/blockhash not found|expired/i.test(message)) throw new Error("This swap expired before it was sent, so nothing was swapped. Press the button again.");
+    else if (/slippage|0x1771|exceeded/i.test(message)) throw new Error("The price moved past the slippage limit, so nothing was swapped. Try again at the new price.");
+    else if (/insufficient|0x1|custom program error: 0x1/i.test(message)) throw new Error("Your wallet does not have enough SOL for this swap and its network fees.");
+    else throw new Error(`The swap could not be sent: ${message.slice(0, 140)}`);
+  }
+  const result = await landTransaction({ raw, signature, lastValidBlockHeight, urls: RPC_CANDIDATES, maxMs });
+  return { signature, result };
+}
+
 export async function confirmSignature(
   connection: Connection,
   signature: string,

@@ -35,7 +35,7 @@ export function AgentFundSlide({ mint, name }: { mint?: string; name: string }) 
   useEffect(() => {
     if (!wallet) return;
     void load(); // eslint-disable-line react-hooks/set-state-in-effect
-    const timer = setInterval(() => { if (!document.hidden) void load(); }, 10_000);
+    const timer = setInterval(() => { if (!document.hidden) void load(); }, 5_000);
     const onFunded = () => { void load(true); setTimeout(() => void load(true), 4000); };
     window.addEventListener("solcameo:trade-confirmed", onFunded);
     return () => { clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", onFunded); };

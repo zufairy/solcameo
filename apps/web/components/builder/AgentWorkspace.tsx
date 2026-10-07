@@ -876,7 +876,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
       finally { if (!cancelled) setWalletLoading(false); }
     };
     void fetchBalance();
-    const id = setInterval(() => void fetchBalance(), 15_000);
+    const id = setInterval(() => void fetchBalance(), 5_000);
     // A deposit or swap just landed: re-read right away instead of waiting for the next poll.
     const onFunded = () => { void fetchBalance(true); setTimeout(() => void fetchBalance(true), 4000); };
     window.addEventListener("solcameo:trade-confirmed", onFunded);

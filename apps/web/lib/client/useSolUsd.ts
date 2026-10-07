@@ -12,7 +12,7 @@ export function useSolUsd() {
       } catch { /* Keep the most recent successful quote. */ }
     };
     void refresh();
-    const timer = setInterval(() => void refresh(), 60_000);
+    const timer = setInterval(() => void refresh(), 10_000);
     return () => { live = false; clearInterval(timer); };
   }, []);
   return rate;

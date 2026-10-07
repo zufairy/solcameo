@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { AgentWalletSwap } from "./AgentWalletSwap";
 import { QRCodeSVG } from "qrcode.react";
-import { getNetwork } from "@/lib/solana/network";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { getNetwork, getUsdcMint } from "@/lib/solana/network";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
-import { confirmSignature, fetchWalletBalances, sendFundingTransfer, type FundToken } from "@/lib/solana/fundWallet";
+import { confirmSignature, fetchWalletBalances, sendAndLand, sendFundingTransfer, type FundToken } from "@/lib/solana/fundWallet";
 import { getTxExplorerUrl, getUsdcFaucetUrl } from "@/lib/solana/network";
 import { CONNECT_BUTTON_CLASS } from "./connectButton";
 
@@ -42,6 +44,10 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
   const [amount, setAmount] = useState("");
   const [mine, setMine] = useState<Funds | null>(null);
   const [agent, setAgent] = useState<Funds | null>(null);
+  const [updatedAt, setUpdatedAt] = useState(0);
+  const [quotedAt, setQuotedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const [step, setStep] = useState<"idle" | "approving" | "confirming" | "done" | "error">("idle");
   const [error, setError] = useState("");
   const [sig, setSig] = useState("");
@@ -58,35 +64,84 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     if (suggestedUsdc && suggestedUsdc > 0) setAmount((prev) => prev || (Math.ceil(suggestedUsdc * 100) / 100).toFixed(2));
   }, [open, suggestedUsdc]);
 
-  const loadBalances = async () => {
+  // The agent's balance comes from the server's fresh read (it never serves a cached figure here); yours from every RPC at once.
+  const loadBalances = useCallback(async () => {
     try {
       if (publicKey) setMine(await fetchWalletBalances(connection, publicKey));
-      if (agentWallet) setAgent(await fetchWalletBalances(connection, new PublicKey(agentWallet)));
-    } catch { /* the dialog still works without the figures */ }
-  };
+    } catch { /* keep the last figures */ }
+    if (!agentWallet) return;
+    try {
+      const res = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(agentWallet)}&fresh=1`, { cache: "no-store" });
+      const data = (await res.json()) as { ok?: boolean; sol?: number; usdc?: number };
+      if (data.ok) { setAgent({ sol: data.sol ?? 0, usdc: data.usdc ?? 0 }); setUpdatedAt(Date.now()); return; }
+    } catch { /* fall back to the direct read below */ }
+    try { setAgent(await fetchWalletBalances(connection, new PublicKey(agentWallet))); setUpdatedAt(Date.now()); } catch { /* keep the last figures */ }
+  }, [connection, publicKey, agentWallet]);
+  const loadRef = useRef(loadBalances);
+  useEffect(() => { loadRef.current = loadBalances; }, [loadBalances]);
+
+  // Realtime: refresh every 3 seconds while the dialog is open, and the instant either wallet's accounts change on chain.
   useEffect(() => {
     if (!open) return;
-    void loadBalances();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, publicKey, agentWallet]);
+    let live = true;
+    const tick = () => { if (live && !document.hidden) void loadRef.current(); };
+    tick();
+    const timer = setInterval(tick, 3000);
+    const subs: number[] = [];
+    const watch = (key: PublicKey) => { try { subs.push(connection.onAccountChange(key, tick, "confirmed")); } catch { /* polling covers it */ } };
+    const owners = [agentWallet ? new PublicKey(agentWallet) : null, publicKey].filter((k): k is PublicKey => !!k);
+    for (const owner of owners) {
+      watch(owner);
+      void getAssociatedTokenAddress(new PublicKey(getUsdcMint()), owner, true).then((ata) => { if (live) watch(ata); }).catch(() => undefined);
+    }
+    window.addEventListener("focus", tick);
+    return () => {
+      live = false; clearInterval(timer); window.removeEventListener("focus", tick);
+      for (const id of subs) void connection.removeAccountChangeListener(id).catch(() => undefined);
+    };
+  }, [open, publicKey, agentWallet, connection]);
+
+  const agentRef = useRef<Funds | null>(null);
+  useEffect(() => { agentRef.current = agent; }, [agent]);
+
+  // After a swap or deposit lands, read every second until the agent's balance actually changes (RPC nodes lag a moment).
+  const burstRefresh = useCallback((before: Funds | null) => {
+    void (async () => {
+      for (let i = 0; i < 25; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        await loadRef.current();
+        const now = agentRef.current;
+        if (now && before && (Math.abs(now.usdc - before.usdc) > 1e-6 || Math.abs(now.sol - before.sol) > 1e-9)) return;
+      }
+    })();
+  }, []);
 
   const available = swap ? (mine && quote ? Math.max(0, mine.sol - 0.008) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
   const presets = token === "USDC" ? [1, 5, 10, 25] : [0.05, 0.1, 0.25, 0.5];
 
-  // Price the swap as the amount changes: how much SOL it costs to deliver exactly this much USDC.
+  // Price the swap as the amount changes, then keep it live: re-quote every 4 seconds so the price on screen is always current.
+  const quoteRef = useRef(0);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the stale quote when the inputs change
     if (!open || !swap || !(num >= 0.5)) { setQuote(null); return; }
     let active = true;
-    setQuoting(true);
-    const timer = setTimeout(() => {
-      fetch("/api/agents/fund-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quote", usdc: num }) })
-        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "Could not price this swap."); if (active) { setQuote(d); setError(""); } })
-        .catch((e) => { if (active) { setQuote(null); setError(e instanceof Error ? e.message : "Could not price this swap."); } })
-        .finally(() => { if (active) setQuoting(false); });
-    }, 400);
-    return () => { active = false; clearTimeout(timer); };
-  }, [open, swap, num]);
+    const run = async (silent: boolean) => {
+      const ticket = ++quoteRef.current;
+      if (!silent) setQuoting(true);
+      try {
+        const r = await fetch("/api/agents/fund-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quote", usdc: num }), cache: "no-store" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? "Could not price this swap.");
+        if (active && ticket === quoteRef.current) { setQuote(d); setQuotedAt(Date.now()); setError((prev) => (step === "error" ? prev : "")); }
+      } catch (e) {
+        if (active && !silent) { setQuote(null); setError(e instanceof Error ? e.message : "Could not price this swap."); }
+      } finally { if (active && !silent) setQuoting(false); }
+    };
+    const first = setTimeout(() => void run(false), 350);
+    const poll = setInterval(() => { if (!document.hidden && step !== "approving" && step !== "confirming") void run(true); }, 4000);
+    return () => { active = false; clearTimeout(first); clearInterval(poll); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, swap, num, step === "approving" || step === "confirming"]);
 
   // When the wallet holds SOL but not enough USDC for the amount needed, start on the swap tab so it just works.
   useEffect(() => {
@@ -108,13 +163,16 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
       if (!res.ok) throw new Error(built.error ?? "Could not prepare the swap.");
       const tx = VersionedTransaction.deserialize(Uint8Array.from(atob(built.transaction), (c) => c.charCodeAt(0)));
       const signed = await signTransaction(tx);
-      const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 5 });
-      setSig(signature); setStep("confirming");
-      const status = await confirmSignature(connection, signature);
-      if (status !== "confirmed") throw new Error("The swap was sent but has not confirmed yet. Check it on the explorer, then refresh.");
+      const before = agentRef.current;
+      setStep("confirming");
+      const { signature, result } = await sendAndLand(signed, built.lastValidBlockHeight);
+      setSig(signature);
+      if (result === "expired") throw new Error("The swap did not land in time, so nothing was swapped. Press the button again for a fresh price.");
+      if (result === "pending") throw new Error("The swap is taking longer than usual. It may still land: check the transaction, and your balance will update by itself if it does.");
       setStep("done");
       window.dispatchEvent(new Event("solcameo:trade-confirmed"));
       void loadBalances();
+      burstRefresh(before);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Swap failed";
       if (/user rejected|user denied|rejected the request|request.*reject/i.test(message)) { setStep("idle"); return; }
@@ -136,6 +194,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
       setStep("done");
       window.dispatchEvent(new Event("solcameo:trade-confirmed"));
       void loadBalances();
+      burstRefresh(agentRef.current);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Transfer failed";
       if (/user rejected|user denied|rejected the request|request.*reject/i.test(message)) { setStep("idle"); return; }
@@ -183,7 +242,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
           </div>
           <ArrowRight className="size-4 text-zinc-500" />
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Agent wallet</p>
+            <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Agent wallet {updatedAt > 0 && <span className="inline-flex items-center gap-1 normal-case tracking-normal text-emerald-400/80"><span className="size-1 animate-pulse rounded-full bg-emerald-400" />live</span>}</p>
             <p className="mt-1 text-sm font-semibold tabular-nums text-white">{money(token === "USDC" ? agent?.usdc : agent?.sol, token)}</p>
             <p className="mt-0.5 font-mono text-[10px] text-zinc-600">{agentWallet ? short(agentWallet) : "Setting up…"}</p>
           </div>
@@ -223,8 +282,13 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-5 text-zinc-300">
                 {quote ? (
                   <>
-                    <p>Swap <span className="font-semibold text-white">≈ {quote.inSol.toFixed(4)} SOL</span> (≈ ${(quote.inSol * quote.solUsd).toFixed(2)}) into <span className="font-semibold text-white">${num.toFixed(2)} USDC</span>, delivered straight to the agent wallet.</p>
-                    <p className="text-zinc-500">Best Jupiter route · slippage {(quote.slippageBps / 100).toFixed(2)}% (at most {quote.maxSol.toFixed(4)} SOL) · no Solcameo fee</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p>Swap <LiveNumber value={`≈ ${quote.inSol.toFixed(4)} SOL`} /> (≈ ${(quote.inSol * quote.solUsd).toFixed(2)}) into <span className="font-semibold text-white">${num.toFixed(2)} USDC</span>, delivered straight to the agent wallet.</p>
+                    </div>
+                    <p className="mt-1 flex items-center gap-2 text-zinc-500">
+                      <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" /></span>
+                      Live Jupiter price · SOL ${quote.solUsd.toFixed(2)} · updated {Math.max(0, Math.round((now - quotedAt) / 1000))}s ago · slippage {(quote.slippageBps / 100).toFixed(2)}% (at most {quote.maxSol.toFixed(4)} SOL) · no Solcameo fee
+                    </p>
                   </>
                 ) : (
                   <p className="text-zinc-400">{quoting ? "Getting the best Jupiter price…" : num > 0 && num < 0.5 ? "The minimum swap is $0.50." : "Enter the USDC amount the agent needs. We work out the SOL for you."}</p>
@@ -243,5 +307,16 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A figure that glides to its new value whenever the live price changes. */
+function LiveNumber({ value }: { value: string }) {
+  return (
+    <span className="relative inline-block font-semibold text-white tabular-nums">
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={value} initial={{ opacity: 0, y: 6, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -6, filter: "blur(4px)" }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="inline-block">{value}</motion.span>
+      </AnimatePresence>
+    </span>
   );
 }

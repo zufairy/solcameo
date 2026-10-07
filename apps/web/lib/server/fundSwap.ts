@@ -69,12 +69,12 @@ export async function buildFundSwapTransaction(args: { payer: PublicKey; agentWa
     toIx(built.swapInstruction),
     ...(built.cleanupInstruction ? [toIx(built.cleanupInstruction)] : []),
   ];
-  const tables: AddressLookupTableAccount[] = [];
-  for (const address of built.addressLookupTableAddresses ?? []) {
-    const table = (await args.connection.getAddressLookupTable(new PublicKey(address))).value;
-    if (table) tables.push(table);
-  }
-  const { blockhash, lastValidBlockHeight } = await args.connection.getLatestBlockhash("confirmed");
+  // Lookup tables and the blockhash are independent reads, so they are fetched together.
+  const [tableResults, { blockhash, lastValidBlockHeight }] = await Promise.all([
+    Promise.all((built.addressLookupTableAddresses ?? []).map((address) => args.connection.getAddressLookupTable(new PublicKey(address)))),
+    args.connection.getLatestBlockhash("confirmed"),
+  ]);
+  const tables: AddressLookupTableAccount[] = tableResults.map((r) => r.value).filter((t): t is AddressLookupTableAccount => !!t);
   const message = new TransactionMessage({ payerKey: args.payer, recentBlockhash: blockhash, instructions }).compileToV0Message(tables);
   const tx = new VersionedTransaction(message);
   return { transaction: Buffer.from(tx.serialize()).toString("base64"), lastValidBlockHeight, summary };

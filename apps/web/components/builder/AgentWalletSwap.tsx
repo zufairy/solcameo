@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownUp, Check, ExternalLink, Loader2 } from "lucide-react";
 import { getTxExplorerUrl } from "@/lib/solana/network";
 
@@ -25,20 +26,29 @@ export function AgentWalletSwap({ mintAddress, sol, usdc, onDone }: { mintAddres
   const available = fromSol ? (sol == null ? undefined : Math.max(0, sol - SOL_KEEP)) : usdc;
   const minimum = fromSol ? 0.005 : 0.5;
 
+  // Priced as the amount changes, then re-priced every 4 seconds so the quote on screen is always the live one.
+  const [quotedAt, setQuotedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the stale quote when the inputs change
     setQuote(null);
     if (!(num >= minimum)) return;
     let active = true;
-    setQuoting(true);
-    const timer = setTimeout(() => {
-      fetch("/api/agents/wallet-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quote", mintAddress, direction, amount: num }) })
-        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "Could not price this swap."); if (active) { setQuote(d); setError(""); } })
-        .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Could not price this swap."); })
-        .finally(() => { if (active) setQuoting(false); });
-    }, 400);
-    return () => { active = false; clearTimeout(timer); };
-  }, [mintAddress, direction, num, minimum]);
+    const run = async (silent: boolean) => {
+      if (!silent) setQuoting(true);
+      try {
+        const r = await fetch("/api/agents/wallet-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quote", mintAddress, direction, amount: num }), cache: "no-store" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? "Could not price this swap.");
+        if (active) { setQuote(d); setQuotedAt(Date.now()); if (!silent) setError(""); }
+      } catch (e) { if (active && !silent) setError(e instanceof Error ? e.message : "Could not price this swap."); }
+      finally { if (active && !silent) setQuoting(false); }
+    };
+    const first = setTimeout(() => void run(false), 350);
+    const poll = setInterval(() => { if (!document.hidden && !busy) void run(true); }, 4000);
+    return () => { active = false; clearTimeout(first); clearInterval(poll); };
+  }, [mintAddress, direction, num, minimum, busy]);
 
   const overBalance = available != null && num > available + 1e-9;
   async function swap() {
@@ -92,8 +102,17 @@ export function AgentWalletSwap({ mintAddress, sol, usdc, onDone }: { mintAddres
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-5 text-zinc-300">
         {quote ? (
           <>
-            <p>You get about <span className="font-semibold text-white">{fromSol ? `$${quote.outAmount.toFixed(2)} USDC` : `${quote.outAmount.toFixed(4)} SOL`}</span> (at least {fromSol ? `$${quote.minOut.toFixed(2)}` : `${quote.minOut.toFixed(4)} SOL`}).</p>
-            <p className="text-zinc-500">Best Jupiter route · slippage {(quote.slippageBps / 100).toFixed(2)}% · signed by the agent wallet, no Solcameo fee</p>
+            <p>You get about <span className="inline-block font-semibold tabular-nums text-white">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span key={fromSol ? quote.outAmount.toFixed(2) : quote.outAmount.toFixed(4)} initial={{ opacity: 0, y: 6, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -6, filter: "blur(4px)" }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="inline-block">
+                  {fromSol ? `$${quote.outAmount.toFixed(2)} USDC` : `${quote.outAmount.toFixed(4)} SOL`}
+                </motion.span>
+              </AnimatePresence>
+            </span> (at least {fromSol ? `$${quote.minOut.toFixed(2)}` : `${quote.minOut.toFixed(4)} SOL`}).</p>
+            <p className="mt-1 flex items-center gap-2 text-zinc-500">
+              <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" /></span>
+              Live Jupiter price · updated {Math.max(0, Math.round((now - quotedAt) / 1000))}s ago · slippage {(quote.slippageBps / 100).toFixed(2)}% · signed by the agent wallet, no Solcameo fee
+            </p>
           </>
         ) : <p className="text-zinc-400">{quoting ? "Getting the best Jupiter price…" : num > 0 && num < minimum ? `The minimum is ${fromSol ? "0.005 SOL" : "$0.50"}.` : `Enter how much ${unit} to swap. The agent wallet keeps ${SOL_KEEP} SOL for network fees.`}</p>}
       </div>
