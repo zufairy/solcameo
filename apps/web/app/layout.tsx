@@ -89,7 +89,9 @@ const JSON_LD = {
       name: SITE_NAME,
       alternateName: SITE_ALTERNATE_NAMES,
       url: CANONICAL_SITE_URL,
-      logo: `${CANONICAL_SITE_URL}/brand/solcameo-mark.png`,
+      // A square, publicly crawlable PNG (512x512) with its own URL, as Google's logo guidelines ask.
+      logo: { "@type": "ImageObject", "@id": `${CANONICAL_SITE_URL}/#logo`, url: `${CANONICAL_SITE_URL}/logo.png`, contentUrl: `${CANONICAL_SITE_URL}/logo.png`, width: 512, height: 512, caption: "Solcameo logo" },
+      image: `${CANONICAL_SITE_URL}/logo.png`,
       description: HOME_DESCRIPTION,
       // sameAs ties the official social profiles to this domain — the single
       // strongest signal Google uses to disambiguate "Vello" the brand entity.

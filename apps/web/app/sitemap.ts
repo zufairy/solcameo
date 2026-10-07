@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { BLOG_POSTS } from "@/lib/blog-posts";
+import { BLOG_POSTS, blogCoverPath } from "@/lib/blog-posts";
 import { canonicalUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
 
 const PAGES: Array<[string, number]> = [
   ["/", 1], ["/market", 0.9], ["/explore", 0.9], ["/create", 0.9], ["/how-it-works", 0.9], ["/clipping", 0.6], ["/agents", 0.8],
-  ["/about", 0.6], ["/docs", 0.6], ["/tokenomics", 0.6], ["/blog", 0.6], ["/vs/opusclip", 0.5], ["/vs/klap", 0.5], ["/vs/munch", 0.5], ["/vs/vizard", 0.5],
+  ["/about", 0.6], ["/docs", 0.6], ["/tokenomics", 0.6], ["/blog", 0.8], ["/vs/opusclip", 0.5], ["/vs/klap", 0.5], ["/vs/munch", 0.5], ["/vs/vizard", 0.5],
 ];
 
 /** Confirmed live characters get their own indexable market URL. */
@@ -25,8 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const characters = await liveCharacters();
   return [
-    ...PAGES.map(([path, priority]) => ({ url: canonicalUrl(path), lastModified: now, changeFrequency: "daily" as const, priority })),
-    ...BLOG_POSTS.map(p => ({ url: canonicalUrl(`/blog/${p.slug}`), lastModified: new Date(p.date), changeFrequency: "monthly" as const, priority: 0.5 })),
+    ...PAGES.map(([path, priority]) => ({ url: canonicalUrl(path), lastModified: now, changeFrequency: "daily" as const, priority, images: [canonicalUrl("/og-solcameo.jpg"), ...(path === "/" ? [canonicalUrl("/logo.png")] : [])] })),
+    ...BLOG_POSTS.map(p => ({ url: canonicalUrl(`/blog/${p.slug}`), lastModified: new Date(p.updated ?? p.date), changeFrequency: "monthly" as const, priority: 0.7, images: [canonicalUrl(blogCoverPath(p.slug))] })),
     ...characters.map(path => ({ url: canonicalUrl(path), lastModified: now, changeFrequency: "daily" as const, priority: 0.7 })),
   ];
 }

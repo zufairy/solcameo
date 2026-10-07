@@ -1,26 +1,33 @@
-# Vello Agents
+# Solcameo
 
-> Vello Agents (velloagents.com, formerly vello.gg) turns long videos into viral shorts and posts them daily. Paste a YouTube link: an agent finds the best moments, frames the speaker, adds captions, hooks, and music, and auto-posts vertical shorts to TikTok, Instagram Reels, and YouTube Shorts. Creator agents run faceless channels that post every day on their own.
+> Solcameo is the Cameo for Solana: create an AI influencer with its own face, voice, Solana wallet and optional token. Generate short AI videos from prompts or viral reference clips, post to X, and launch a token on a Meteora Dynamic Bonding Curve. Videos are paid in USDC from the agent's own wallet (SOL can be swapped to USDC with Jupiter).
 
-Not affiliated with Vello (vello.ai), an unrelated company.
+Independent project; not affiliated with Cameo.
 
-## Products
+## Product
 
-- [Shorts Agent](https://velloagents.com/clipping): one long video in, captioned vertical shorts out, posted everywhere.
-- [Creator Agents](https://velloagents.com/ai-influencer): faceless channels with their own persona, voice, and posting schedule.
-- [Builder](https://velloagents.com/builder): set up an agent and its posting schedule.
-- [Campaigns](https://velloagents.com/stage): brands pay per 1,000 verified views.
-- [Pricing](https://velloagents.com/pricing): first 3 videos free.
+- [Create an AI influencer](https://solcameo.com/create): portrait, name, ticker, optional token launch.
+- [Explore](https://solcameo.com/explore): viral video references by category (Trending, Movie, Crypto, Dance and more) and a Describe-your-video prompt.
+- [Market](https://solcameo.com/market): live influencer tokens with price, depth and trades.
+- [Builder](https://solcameo.com/builder): generate, edit and schedule videos; manage the agent wallet.
+- [Tokenomics](https://solcameo.com/tokenomics): SOLCAMEO platform token allocation, vesting and fee split.
+- [Leaderboard](https://solcameo.com/leaderboard): top traders, earners and views, in USD.
 
-## Comparisons
+## Blog
 
-- [Vello Agents vs OpusClip](https://velloagents.com/vs/opusclip)
-- [Vello Agents vs Klap](https://velloagents.com/vs/klap)
-- [Vello Agents vs Munch](https://velloagents.com/vs/munch)
-- [Vello Agents vs Vizard](https://velloagents.com/vs/vizard)
+- [What Is Solcameo? The Cameo for Solana, Powered by AI Influencers](https://solcameo.com/blog/what-is-solcameo-cameo-for-solana)
+- [AI Influencers on Solana, Explained: Agents With Wallets, Tokens and Followers](https://solcameo.com/blog/ai-influencers-on-solana-explained)
+- [How to Launch an AI Influencer Token on Solana, Step by Step](https://solcameo.com/blog/how-to-launch-an-ai-influencer-token-on-solana)
+- [Meteora Dynamic Bonding Curve Explained for Token Creators](https://solcameo.com/blog/meteora-dynamic-bonding-curve-explained)
+- [Solana Token Launchpads: A Creator's Guide to Picking One](https://solcameo.com/blog/solana-token-launchpad-guide-for-creators)
+- [AI Video Generation for Crypto Creators: Prompts, Motion Transfer and Cost](https://solcameo.com/blog/ai-video-generation-for-crypto-creators)
+- [Agent Wallets on Solana: Funding With USDC or SOL and Swapping Between Them](https://solcameo.com/blog/agent-wallets-on-solana-usdc-sol-and-swaps)
+- [How AI Influencers Earn on Solana: Creator Fees, Tips and Campaigns](https://solcameo.com/blog/how-ai-influencers-earn-creator-fees-on-solana)
+- [Solana Memecoin Marketing With AI Video: A Practical Playbook](https://solcameo.com/blog/solana-memecoin-marketing-with-ai-video)
+- [A Cameo Alternative for Crypto: Why Solcameo Uses AI and Solana](https://solcameo.com/blog/cameo-alternative-for-crypto-creators)
+- [SOLCAMEO Tokenomics: Supply, Vesting and How Platform Fees Work](https://solcameo.com/blog/solcameo-tokenomics-and-platform-token)
 
-## Resources
+## Brand
 
-- [Docs](https://velloagents.com/docs)
-- [Blog](https://velloagents.com/blog)
-- [X / Twitter](https://x.com/velloagents)
+- Logo (512x512 PNG): https://solcameo.com/logo.png
+- Social image (1600x900): https://solcameo.com/og-solcameo.jpg

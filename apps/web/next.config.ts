@@ -32,6 +32,14 @@ const nextConfig: NextConfig = {
   },
   // Render Studio previews run in sandboxed iframes (opaque origin), so the
   // self-hosted fonts must be CORS-readable or @font-face silently fails.
+  // Old Vello-era blog posts now point at the closest current article, so their search results keep working.
+  async redirects() {
+    return [
+      { source: "/blog/how-to-run-a-paid-clipping-campaign", destination: "/blog/how-ai-influencers-earn-creator-fees-on-solana", permanent: true },
+      { source: "/blog/ai-clipping-vs-manual-editing-cost", destination: "/blog/ai-video-generation-for-crypto-creators", permanent: true },
+      { source: "/blog/best-opusclip-alternatives-2026", destination: "/blog/ai-video-generation-for-crypto-creators", permanent: true },
+    ];
+  },
   async headers() {
     return [
       { source: "/fonts/captions/:file*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
