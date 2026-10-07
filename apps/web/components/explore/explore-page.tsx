@@ -17,6 +17,7 @@ import {
   ChevronRight,
   CalendarClock,
   Upload,
+  Wand2,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -40,6 +41,7 @@ import promptReferences from "@/lib/explore/prompt-references.json";
 import { VideoStackIcon } from "./video-stack-icon";
 import { AgentOption } from "./AgentOption";
 import { ScheduleDialog, type GenMode } from "./ScheduleDialog";
+import { DescribeVideoDialog } from "./DescribeVideoDialog";
 import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
 import { referenceAffinity } from "@/lib/explore/recommendations";
@@ -445,6 +447,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   const [category, setCategory] = useState("All");
   const [saved, setSaved] = useState<string[]>([]);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [describeOpen, setDescribeOpen] = useState(false);
   const [savedItems, setSavedItems] = useState<ReferenceVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -756,6 +759,11 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
             setUploadedFile(undefined); setUploadError(""); setMediaError(false);
             setSelected({ id: "upload:new", title: "Replicate a Video", description: "Upload your video, add a prompt, and bring your Cameo influencer into the scene.", videoUrl: "", previewUrl: "", duration: 0, category: "Other" });
           }}><VideoStackIcon className="size-4" /> Replicate a Video</Button>
+          <Button
+            variant="outline"
+            onClick={() => setDescribeOpen(true)}
+            className="h-10 rounded-lg border-white/10 bg-white/[0.04] text-white/80 backdrop-blur-xl hover:bg-white/10"
+          ><Wand2 className="size-4" /> Describe your video</Button>
         </div>
         <h1 className="sr-only">{embedded ? "Video suggestions for your influencer" : "Explore video references"}</h1>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -1088,6 +1096,12 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
           )}
         </DialogContent>
       </Dialog>
+      <DescribeVideoDialog
+        open={describeOpen}
+        onOpenChange={setDescribeOpen}
+        agents={agents?.map((a) => ({ mintAddress: a.mintAddress, name: a.name, coinTicker: a.coinTicker, avatarUrl: a.avatarUrl, agentWallet: a.agentWallet, videoEngine: a.videoEngine }))}
+        defaultMint={fixedMint}
+      />
       <ScheduleDialog
         item={scheduleItem}
         agents={agents}
