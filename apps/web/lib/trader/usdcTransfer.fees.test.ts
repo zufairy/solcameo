@@ -3,6 +3,7 @@ import { Keypair, Transaction } from "@solana/web3.js";
 
 const h = vi.hoisted(() => ({ balance: vi.fn(), account: vi.fn(), send: vi.fn(), rent: vi.fn(), priority: vi.fn(), land: vi.fn() }));
 vi.mock("@/lib/solana/network", () => ({ getNetwork: () => "devnet", getUsdcMint: () => "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" }));
+vi.mock("@/lib/solana/rpc", () => ({ rpcCandidates: () => ["https://rpc.test"] }));
 vi.mock("@/lib/solana/failoverConnection", () => ({ failoverConnection: () => ({ getBalance: h.balance, getMinimumBalanceForRentExemption: h.rent, sendRawTransaction: h.send, getLatestBlockhash: async () => ({ blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 99 }) }) }));
 vi.mock("@solana/spl-token", async () => ({ ...await vi.importActual<typeof import("@solana/spl-token")>("@solana/spl-token"), getAccount: h.account }));
 vi.mock("@/lib/solana/landTransaction", async () => ({ ...await vi.importActual<typeof import("@/lib/solana/landTransaction")>("@/lib/solana/landTransaction"), estimatePriorityPrice: h.priority, landTransaction: h.land }));
@@ -23,7 +24,7 @@ beforeEach(() => {
 
 describe("USDC transfer fee payer", () => {
   it("signs with the funded agent as the only fee payer", async () => {
-    expect((await transferUsdc(opts)).ok).toBe(true);
+    expect(await transferUsdc(opts)).toMatchObject({ ok: true });
     const tx = Transaction.from(h.send.mock.calls[0][0]);
     expect(tx.feePayer!.equals(agent.publicKey)).toBe(true);
     expect(tx.signatures).toHaveLength(1);
