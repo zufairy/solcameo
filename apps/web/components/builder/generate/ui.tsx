@@ -51,10 +51,10 @@ export function PriceButton({ onClick, disabled, busy, priceUsd, priceText, pend
 }) {
   return (
     <button type="button" disabled={disabled} onClick={onClick} title={title}
-      className={`relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[#D4F53C] px-4 py-2.5 text-[14px] font-bold text-black shadow-[0_4px_0_0_#9cb524,0_14px_30px_-12px_rgba(212,245,60,0.55)] transition-all hover:-translate-y-px active:translate-y-0.5 active:shadow-[0_2px_0_0_#9cb524] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-[0_4px_0_0_#7d8f1d] ${className}`}>
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : icon ?? <Wand2 className="size-3.5" />}
+      className={`relative inline-flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-lg bg-[#D4F53C] px-3 text-[12px] font-semibold tracking-tight text-black shadow-[0_6px_18px_-8px_rgba(212,245,60,0.6)] ring-1 ring-inset ring-black/10 transition-all hover:bg-[#dcf75a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}>
+      {busy ? <Loader2 className="size-3 animate-spin" /> : icon ?? <Wand2 className="size-3" />}
       {label}
-      {(priceText || priceUsd !== null) && <span className="rounded-md bg-black/15 px-1.5 py-0.5 text-[12px] font-bold tabular-nums">{priceText ?? formatRetailUsd(priceUsd as number)}</span>}
+      {(priceText || priceUsd !== null) && <span className="rounded-[5px] bg-black/[0.12] px-1.5 py-px text-[11px] font-semibold tabular-nums">{priceText ?? formatRetailUsd(priceUsd as number)}</span>}
       {pending > 0 && (
         <span className="inline-flex items-center gap-1 rounded-full bg-black/20 px-1.5 py-0.5 text-[10px] font-bold text-black"><Loader2 className="size-2.5 animate-spin" /> {pending}</span>
       )}

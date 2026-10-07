@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock("convex/react", () => ({ useQuery: m.query }));
+vi.mock("convex/react", () => ({ useQuery: m.query, useMutation: () => vi.fn() }));
 vi.mock("next/link", () => ({ default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props}>{children}</a> }));
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) => (open ? <div>{children}</div> : null),

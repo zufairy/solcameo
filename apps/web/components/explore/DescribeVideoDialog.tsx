@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
-import { AlertCircle, Loader2, RotateCcw, Wand2 } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { AlertCircle, ImagePlus, Loader2, RotateCcw, Wand2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -40,6 +40,12 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [aspectPick, setAspectPick] = useState<VideoAspect>("9:16");
   const [skipStoryboard, setSkipStoryboard] = useState(true);
   const [noPersona, setNoPersona] = useState(true);
+  // A picture to base the video on (a face, a product, a scene). Icon-only upload, stored the same way the builder stores its own.
+  const generateUploadUrl = useMutation(api.clipStorage.generateUploadUrl);
+  const resolveStorageUrl = useMutation(api.clipStorage.resolveStorageUrl);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [attached, setAttached] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   const [task, setTask] = useState<Id<"agentTasks"> | null>(null);
@@ -68,6 +74,19 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const videoUrl = state?.status === "succeeded" ? state.videoUrl : undefined;
   const failure = error || (state?.status === "failed" ? state.error || "Generation failed" : "");
 
+  async function attachImage(file: File) {
+    setUploading(true); setError("");
+    try {
+      const res = await fetch(await generateUploadUrl({}), { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const { storageId } = (await res.json()) as { storageId: string };
+      const url = (await resolveStorageUrl({ storageId: storageId as unknown as never })) as string;
+      if (!url) throw new Error("Could not store the image.");
+      setAttached(url);
+    } catch (e) { setError(e instanceof Error ? e.message : "Upload failed"); }
+    finally { setUploading(false); }
+  }
+
   async function generate() {
     const text = prompt.trim();
     if (!text || !mint || running) return;
@@ -83,6 +102,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           input: {
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
             ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
+            ...(attached ? { referenceImageUrl: attached } : {}),
             videoEngine: engineId,
             aspectRatio: aspect,
             ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
@@ -155,6 +175,20 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   rows={4}
                 />
                 <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" disabled={uploading || running}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void attachImage(f); e.target.value = ""; }} />
+                  {attached ? (
+                    <span className="relative inline-flex size-8 shrink-0 overflow-hidden rounded-lg border border-white/15">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the uploaded reference */}
+                      <img src={attached} alt="Reference" className="size-full object-cover" />
+                      <button type="button" aria-label="Remove image" onClick={() => setAttached(null)} className="absolute inset-0 grid place-items-center bg-black/60 text-white opacity-0 transition-opacity hover:opacity-100"><X className="size-3.5" /></button>
+                    </span>
+                  ) : (
+                    <button type="button" aria-label="Add a reference image" title="Add a reference image" onClick={() => fileRef.current?.click()} disabled={uploading || running}
+                      className={`${CHIP} size-8 justify-center !p-0 disabled:opacity-40`}>
+                      {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
+                    </button>
+                  )}
                   <ChipSelect value={engineId} onChange={(v) => { setEngineOverride(v as VideoEngineId); setQualityOverride(null); setSecondsOverride(null); }} title="Video engine"
                     options={selectableVideoEngines().map((e) => ({ value: e.id, label: e.label }))} />
                   {pricingSpec && (
