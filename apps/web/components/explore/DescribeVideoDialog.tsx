@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { AlertCircle, Loader2, RotateCcw, Wand2 } from "lucide-react";
@@ -19,7 +19,7 @@ import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/vid
 
 export type DescribeAgent = { mintAddress: string; name: string; coinTicker?: string; avatarUrl?: string; agentWallet?: string | null; videoEngine?: string };
 
-type Status = Record<string, { status: string; videoUrl?: string; error?: string }>;
+type Status = Record<string, { status: string; videoUrl?: string; error?: string; paid?: boolean }>;
 
 /** Explore's "Describe your video": pick an influencer, write a prompt, choose engine, quality and length, and render it from the agent's wallet. */
 export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }: {
@@ -56,6 +56,14 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   const status = useQuery(api.agentTasks.generationStatus, task ? { ids: [task] } : "skip") as Status | undefined;
   const state = task ? status?.[task] : undefined;
+  // "Paying" lasts until the payment is on record; a render with no payment record is treated as under way after 25 seconds.
+  const waitingOnPayment = !!task && !!state && state.paid !== true && (state.status === "pending" || state.status === "running");
+  const [payGaveUp, setPayGaveUp] = useState(false);
+  useEffect(() => {
+    if (!waitingOnPayment) { setPayGaveUp(false); return; } // eslint-disable-line react-hooks/set-state-in-effect
+    const timer = setTimeout(() => setPayGaveUp(true), 25_000);
+    return () => clearTimeout(timer);
+  }, [waitingOnPayment]);
   const running = starting || (!!task && (!state || state.status === "pending" || state.status === "running"));
   const videoUrl = state?.status === "succeeded" ? state.videoUrl : undefined;
   const failure = error || (state?.status === "failed" ? state.error || "Generation failed" : "");
@@ -74,7 +82,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           title: `Video: ${text.slice(0, 60)}`,
           input: {
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
-            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
             videoEngine: engineId,
             aspectRatio: aspect,
             ...(pricingSpec ? { videoResolution: quality, durationSeconds: seconds } : {}),
@@ -103,7 +111,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(next) => { if (!starting) onOpenChange(next); }}>
+      <Dialog open={open} onOpenChange={(next) => { if (!starting && !(waitingOnPayment && !payGaveUp)) onOpenChange(next); }}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto border-white/15 bg-[#14161a]/95 p-6 text-white backdrop-blur-2xl sm:max-w-3xl">
           <div>
             <DialogTitle className="text-xl tracking-tight">Describe your video</DialogTitle>
@@ -170,7 +178,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               </div>
 
               {running && !videoUrl && (
-                <RenderProgress stage={starting ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
+                <RenderProgress stage={starting || (waitingOnPayment && !payGaveUp) ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
               )}
               {videoUrl && (
                 <div className="space-y-3">

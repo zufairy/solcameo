@@ -6,11 +6,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { normalizeShowBible, resolveIdentityRefs } from "@/lib/builder/showBible";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, Clock, ImagePlus } from "lucide-react";
+import { Loader2, Wand2, X, Maximize2, Trash2, RotateCcw, AlertCircle, ImagePlus } from "lucide-react";
 import { DEFAULT_VIDEO_ENGINE, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, resolveDurationRange, selectableVideoEngines, videoCostForLength, type VideoEngineId } from "@/lib/builder/agentTypes";
 import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
+import { CardProgress } from "@/components/explore/RenderProgress";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton, ResultHeading } from "@/components/builder/generate/ui";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 
@@ -61,16 +62,6 @@ let idCounter = 0;
 function makeId(): string {
   idCounter += 1;
   return `${Date.now().toString(36)}-${idCounter}`;
-}
-
-const STAGES = ["Writing the script…", "Building the storyboard…", "Rendering the clip(s)…", "Stitching + finishing…"];
-/** Rough stage-by-elapsed-seconds progression — real render time varies a lot by
- *  engine/length, so this is a "something is happening" indicator, not a promise. */
-function stageForElapsed(sec: number): string {
-  if (sec < 15) return STAGES[0];
-  if (sec < 40) return STAGES[1];
-  if (sec < 120) return STAGES[2];
-  return STAGES[3];
 }
 
 /**
@@ -195,7 +186,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
   const statusMap = useQuery(
     api.agentTasks.generationStatus,
     pendingTaskIds.length > 0 ? { ids: pendingTaskIds } : "skip",
-  ) as Record<string, { status: string; videoUrl?: string; posterUrl?: string; error?: string }> | undefined;
+  ) as Record<string, { status: string; videoUrl?: string; posterUrl?: string; error?: string; paid?: boolean }> | undefined;
 
   useEffect(() => {
     if (!statusMap) return;
@@ -272,7 +263,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
             title: `Video: ${p.slice(0, 60)}`,
             input: {
               topic: cast.length ? `${p}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : p,
-              ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
+              ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
               ...(attachedImage ? { referenceImageUrl: attachedImage } : {}),
               videoEngine: engineId,
               aspectRatio: aspect,
@@ -298,7 +289,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
       }
     })();
     setAttachedImage(null);
-  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast, pricingSpec, quality, seconds]);
+  }, [prompt, canWrite, mintAddress, attachedImage, engineId, skipStoryboard, noPersona, isGenerating, effectiveRefs, cast, pricingSpec, quality, seconds, aspect]);
 
   const removeVideo = useCallback((id: string) => setVideos((prev) => prev.filter((v) => v.id !== id)), []);
   const retryVideo = useCallback((v: VideoAsset) => {
@@ -459,8 +450,6 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
               {videos.map((v) => {
                 if (v.status === "pending") {
                   const elapsedSec = Math.max(0, Math.round((now - (v.startedAt ?? v.createdAt)) / 1000));
-                  const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
-                  const ss = String(elapsedSec % 60).padStart(2, "0");
                   return (
                     <motion.div key={v.id} layout
                       initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
@@ -468,18 +457,7 @@ export function VideosTab({ mintAddress, agentName, characterImages }: { mintAdd
                       style={{ aspectRatio: cardRatio(v) }}
                       className="relative w-full overflow-hidden rounded-xl border-2 border-white/10"
                     >
-                      <motion.div
-                        className="absolute inset-0"
-                        style={{ background: "linear-gradient(120deg, rgba(255,255,255,0.03), rgba(190,255,120,0.12), rgba(255,255,255,0.03))", backgroundSize: "200% 200%", filter: "blur(14px)" }}
-                        animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-                        transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20 px-4 text-center backdrop-blur-sm">
-                        <Loader2 className="size-6 animate-spin text-lime-300" />
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-300">{stageForElapsed(elapsedSec)}</span>
-                        <span className="flex items-center gap-1 text-[10px] tabular-nums text-zinc-500"><Clock className="size-2.5" /> {mm}:{ss}</span>
-                        <span className="line-clamp-2 text-[10px] text-zinc-400">{v.prompt}</span>
-                      </div>
+                      <CardProgress paid={statusMap?.[v.taskId ?? ""]?.paid === true || elapsedSec >= 25} prompt={v.prompt} elapsed={elapsedSec} />
                     </motion.div>
                   );
                 }

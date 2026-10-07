@@ -242,16 +242,26 @@ function Generator({
   const [engineError, setEngineError] = useState("");
   const [engineStarting, setEngineStarting] = useState(false);
   const engineStatus = useQuery(api.agentTasks.generationStatus, engineTask ? { ids: [engineTask] } : "skip") as
-    | Record<string, { status: string; videoUrl?: string; error?: string }>
+    | Record<string, { status: string; videoUrl?: string; error?: string; paid?: boolean }>
     | undefined;
   const engineState = engineTask ? engineStatus?.[engineTask] : undefined;
+  const enginePaid = engineState?.paid === true;
   const engineRunning = engineStarting || (!!engineTask && (!engineState || engineState.status === "pending" || engineState.status === "running"));
   const busy = uploading || (model.kind === "genjutsu" ? run?.status === "pending" : engineRunning);
   const resultUrl = model.kind === "genjutsu" ? run?.url : engineState?.status === "succeeded" ? engineState.videoUrl : undefined;
   const failure = model.kind === "genjutsu" ? (run?.status === "error" ? run.error : "") : engineError || (engineState?.status === "failed" ? engineState.error || "Generation failed" : "");
   // The popup is locked only while the payment goes through. Once the render is queued it runs in the background, so the
   // popup can be closed and the video is waiting in My agents.
-  const paying = uploading || engineStarting;
+  // "Paying" lasts until the payment is on record. A render that carries no payment record (for example credit-funded)
+  // is treated as under way after 25 seconds, so the popup never waits on a signal that will not come.
+  const [payGaveUp, setPayGaveUp] = useState(false);
+  const waitingOnPayment = model.kind === "genjutsu" ? run?.status === "pending" && !run?.paid : engineRunning && !enginePaid;
+  useEffect(() => {
+    if (!waitingOnPayment) { setPayGaveUp(false); return; } // eslint-disable-line react-hooks/set-state-in-effect
+    const timer = setTimeout(() => setPayGaveUp(true), 25_000);
+    return () => clearTimeout(timer);
+  }, [waitingOnPayment]);
+  const paying = uploading || engineStarting || (waitingOnPayment && !payGaveUp);
   const rendering = !paying && busy;
   useEffect(() => {
     onBusy(paying);
@@ -268,7 +278,9 @@ function Generator({
         if (!response.ok || !data.url) throw new Error(data.error || "Could not upload your video");
         videoUrl = data.url;
       }
-      await start({ mode, videoUrl, imageUrls: [portrait, ...cast.map(c => c.avatarUrl)].slice(0, 8), prompt, resolution: resolution as GenjutsuResolution, title: item.title,
+      // Not awaited: the charge and submission happen inside, and the run reports `paid` the moment they succeed, while this
+      // function returns so the upload spinner does not outlive the payment.
+      void start({ mode, videoUrl, imageUrls: [portrait, ...cast.map(c => c.avatarUrl)].slice(0, 8), prompt, resolution: resolution as GenjutsuResolution, title: item.title,
         ...(uploadedFile ? {} : { poster: item.thumbUrl, explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map(c => c.token)], autoPost: xConnected && autoPost } }),
       });
     } catch (e) { setUploadError(e instanceof Error ? e.message : "Could not upload your video"); }
@@ -298,7 +310,7 @@ function Generator({
             skipStoryboard: true,
             noPersona: true,
             exactOutput: true,
-            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 3) } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
           },
           triggeredBy: "explore",
         }),

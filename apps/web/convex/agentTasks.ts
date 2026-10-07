@@ -818,6 +818,8 @@ export const generationStatus = query({
        *  than the estimate instead of leaving the operator guessing. */
       note?: string;
       error?: string;
+      /** The render has been paid for (the agent wallet paid on-chain, or credits were held) and is under way. */
+      paid?: boolean;
       _creationTime: number;
     }> = {};
     for (const id of ids) {
@@ -834,7 +836,7 @@ export const generationStatus = query({
           if (typeof o.videoNote === "string" && o.videoNote.trim()) note = o.videoNote.trim();
         } catch { /* ignore */ }
       }
-      out[id] = { status: t.status, videoUrl, posterUrl, note, error: t.errorMessage, _creationTime: t._creationTime };
+      out[id] = { status: t.status, videoUrl, posterUrl, note, error: t.errorMessage, paid: !!t.prepaid || !!t.creditHold || t.status === "succeeded", _creationTime: t._creationTime };
     }
     return out;
   },

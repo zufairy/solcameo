@@ -17,6 +17,7 @@ import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 import { topUpAgentFromSol, swapFailureMessage } from "@/lib/server/solSwap";
 import { aspectFor, isVideoAspect } from "@/lib/builder/videoAspects";
 import { chargeExploreRun, CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
+import { MAX_CAST } from "@/lib/server/castSheet";
 import { isJoinableCampaign, isJoinableUgcCampaign } from "@/lib/campaignLifecycle";
 import {
   isConfigured as socialConfigured,
@@ -1876,12 +1877,12 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       .map((c) => (c && typeof c === "object" ? c as { token?: unknown; imageUrl?: unknown } : {}))
       .map((c) => ({ token: typeof c.token === "string" ? c.token.replace(/[^\w-]/g, "").slice(0, 40) : "", imageUrl: typeof c.imageUrl === "string" ? c.imageUrl.trim() : "" }))
       .filter((c) => c.token && /^https:\/\/\S{1,2000}$/.test(c.imageUrl))
-      .slice(0, 3);
+      .slice(0, MAX_CAST);
     const mentionRefs = [...castInput.map((c) => c.imageUrl), ...(Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])]
       .filter((u): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim()))
       .map((u) => u.trim())
       .filter((u, i, all) => all.indexOf(u) === i)
-      .slice(0, 2);
+      .slice(0, 2); // storyboard identity refs only; the full tagged cast travels separately as castRefs
     const extraRefs = mentionRefs.length ? [...mentionRefs, ...baseExtraRefs].slice(0, 2) : baseExtraRefs;
     if (operatorRefOnly) stills = [];
     if (usingBibleRefs) console.log(`[run-task] bible identity refs: ${1 + extraRefs.length} (archetype=${refBible?.archetype ?? "custom"})`);

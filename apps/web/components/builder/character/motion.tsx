@@ -17,6 +17,8 @@ export interface MotionRun {
   id: string;
   createdAt: number;
   status?: "pending" | "error";
+  /** The charge went through and the render was submitted. */
+  paid?: boolean;
   url?: string;
   error?: string;
   title?: string;
@@ -59,6 +61,7 @@ export function useMotionRuns(mintAddress: string) {
           ? { mintAddress, referenceId: p.explore.referenceId, referencePage: p.explore.referencePage, castTokens: p.explore.castTokens, autoPost: p.explore.autoPost, mode: p.mode, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }
           : { mintAddress, mode: p.mode, videoUrl: p.videoUrl, imageUrls: p.imageUrls, prompt: p.prompt, resolution: p.resolution }),
       });
+      patch((x) => ({ ...x, paid: true }));
       const t0 = Date.now();
       let delay = 2000;
       while (alive.current && Date.now() - t0 < 15 * 60_000) {

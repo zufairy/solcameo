@@ -7,6 +7,15 @@ import { ArrowRight, Check } from "lucide-react";
 type Stage = "paying" | "rendering";
 const STEPS = ["Queued", "Rendering", "Finishing"];
 const EASE = [0.22, 1, 0.36, 1] as const;
+/** How long "Payment confirmed" stays up, so it is clear the agent paid before the render starts. */
+export const PAID_DWELL_MS = 2600;
+/** Every state slides up out of a blur into place, and slides away up and out. */
+const SLIDE = {
+  initial: { opacity: 0, y: 26, filter: "blur(10px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -18, filter: "blur(8px)" },
+  transition: { duration: 0.55, ease: EASE },
+} as const;
 
 /** Slow-drifting colour fields behind the glass: lime, cyan and violet, blurred into one living gradient. */
 const BLOBS = [
@@ -47,7 +56,7 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
     if (!wasPaying.current) return;
     wasPaying.current = false;
     setCelebrate(true);
-    const timer = setTimeout(() => setCelebrate(false), 1300);
+    const timer = setTimeout(() => setCelebrate(false), PAID_DWELL_MS);
     return () => clearTimeout(timer);
   }, [stage]);
 
@@ -68,12 +77,12 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
   return (
-    <div role="status" aria-live="polite" className={GLASS}>
+    <motion.div role="status" aria-live="polite" className={GLASS} initial={reduced ? false : { opacity: 0, y: 32, filter: "blur(12px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.6, ease: EASE }}>
       <GradientField reduced={reduced} intensity={view === "rendering" ? 1 : 0.55} />
       <div className="relative">
         <AnimatePresence mode="wait" initial={false}>
           {view === "paying" && (
-            <motion.div key="paying" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22, ease: EASE }} className="flex items-center gap-4 p-5">
+            <motion.div key="paying" {...SLIDE} className="flex items-center gap-4 p-5">
               <span className="relative grid size-11 shrink-0 place-items-center border border-white/25 bg-black/30 backdrop-blur-md" aria-hidden>
                 {!reduced && <motion.span className="absolute -inset-px border border-[#d7ff00]" animate={{ opacity: [0.9, 0.1, 0.9] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }} />}
                 <svg viewBox="0 0 24 24" className="size-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="square"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 0V6a2 2 0 0 1 2-2h12M16 14h2" /></svg>
@@ -86,7 +95,7 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
           )}
 
           {view === "paid" && (
-            <motion.div key="paid" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: EASE }} className="flex items-center gap-4 p-5">
+            <motion.div key="paid" {...SLIDE} className="flex items-center gap-4 p-5">
               <motion.span initial={{ scale: 0.6, rotate: -8 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 420, damping: 22 }} className="grid size-11 shrink-0 place-items-center bg-[#d7ff00] text-black shadow-[0_0_40px_-4px_rgba(215,255,0,0.7)]" aria-hidden>
                 <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="square" strokeLinejoin="miter">
                   <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }} />
@@ -100,7 +109,7 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
           )}
 
           {view === "rendering" && (
-            <motion.div key="rendering" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: EASE }} className="p-5">
+            <motion.div key="rendering" {...SLIDE} className="p-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="flex items-center gap-2 font-mono text-[10.5px] font-medium uppercase tracking-[0.22em] text-white/70">
                   <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping bg-[#d7ff00] opacity-70" /><span className="relative inline-flex size-1.5 bg-[#d7ff00]" /></span>
@@ -137,7 +146,7 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -154,5 +163,57 @@ export function BlurRevealVideo({ src, poster, className = "" }: { src: string; 
     >
       <video src={src} poster={poster} controls playsInline autoPlay muted loop preload="auto" onLoadedData={() => setReady(true)} className="max-h-72 w-full rounded-[3px] bg-black object-contain" />
     </motion.div>
+  );
+}
+
+/**
+ * The same states as a card that fills a video tile (the builder's Videos grid): glass over the drifting gradient, the
+ * agent paying, a held "Payment confirmed", then the render. `elapsed` is whole seconds since the card appeared.
+ */
+export function CardProgress({ paid, prompt, elapsed }: { paid: boolean; prompt?: string; elapsed: number }) {
+  const reduced = useReducedMotion();
+  const [showPaid, setShowPaid] = useState(false);
+  const seenPaid = useRef(paid);
+  useEffect(() => {
+    if (!paid || seenPaid.current) return;
+    seenPaid.current = true;
+    setShowPaid(true);
+    const timer = setTimeout(() => setShowPaid(false), PAID_DWELL_MS);
+    return () => clearTimeout(timer);
+  }, [paid]);
+  const view = !paid ? "paying" : showPaid ? "paid" : "rendering";
+  const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+  return (
+    <div role="status" aria-live="polite" className={`${GLASS} absolute inset-0`}>
+      <GradientField reduced={reduced} intensity={view === "rendering" ? 1 : 0.6} />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={view} {...SLIDE} className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
+          {view === "paying" && (<>
+            <span className="relative grid size-9 place-items-center border border-white/25 bg-black/30 backdrop-blur-md" aria-hidden>
+              {!reduced && <motion.span className="absolute -inset-px border border-[#d7ff00]" animate={{ opacity: [0.9, 0.1, 0.9] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }} />}
+              <svg viewBox="0 0 24 24" className="size-4 text-white" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="square"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 0V6a2 2 0 0 1 2-2h12M16 14h2" /></svg>
+            </span>
+            <p className="text-[12px] font-semibold text-white">Paying from the agent wallet</p>
+            <p className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-white/55">On-chain · a few seconds</p>
+          </>)}
+          {view === "paid" && (<>
+            <motion.span initial={{ scale: 0.6, rotate: -8 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 420, damping: 22 }} className="grid size-9 place-items-center bg-[#d7ff00] text-black shadow-[0_0_36px_-4px_rgba(215,255,0,0.7)]" aria-hidden>
+              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="square"><motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.4, delay: 0.1 }} /></svg>
+            </motion.span>
+            <p className="text-[12px] font-semibold text-white">Payment confirmed</p>
+            <p className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-white/55">Starting your render</p>
+          </>)}
+          {view === "rendering" && (<>
+            <p className="flex items-center gap-1.5 font-mono text-[9.5px] font-medium uppercase tracking-[0.22em] text-white/75">
+              <span className="relative flex size-1.5"><span className="absolute inline-flex size-full animate-ping bg-[#d7ff00] opacity-70" /><span className="relative inline-flex size-1.5 bg-[#d7ff00]" /></span>
+              Rendering
+            </p>
+            <p className="text-[13px] font-semibold tracking-tight text-white">Your video is being made</p>
+            <span className="border border-white/20 bg-black/25 px-2 py-0.5 font-mono text-[10.5px] tabular-nums text-white/80 backdrop-blur-md">{clock}</span>
+            {prompt && <p className="line-clamp-2 max-w-[22ch] text-[10.5px] leading-4 text-white/55">{prompt}</p>}
+          </>)}
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }
