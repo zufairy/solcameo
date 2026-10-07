@@ -16,6 +16,8 @@ import {
 } from "@solana/spl-token";
 import bs58 from "bs58";
 import { getUsdcMint, getNetwork, getRpcUrl } from "@/lib/solana/network";
+import { rpcCandidates } from "@/lib/solana/rpc";
+import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "@/lib/solana/landTransaction";
 
 // Single source of truth via lib/solana/network — devnet returns the PUBLIC
 // endpoint (the configured Helius devnet key is suspended → 403 on every call).
@@ -243,6 +245,10 @@ export async function transferUsdc(opts: {
     const toAta   = await getAssociatedTokenAddress(USDC_MINT, toKey);
 
     tx = new Transaction();
+    // Market-rate priority fee and a compute limit sized to a plain transfer (plus the optional ATA creation), so the
+    // payment lands in seconds instead of waiting behind congestion.
+    const units = 60_000;
+    tx.add(...computeBudgetInstructions(units, await estimatePriorityPrice([fromAta.toBase58(), toAta.toBase58()], units)));
 
     // Create recipient ATA if needed
     try {
@@ -281,32 +287,29 @@ export async function transferUsdc(opts: {
     if (feePayer) tx.sign(signer, feePayer);
     else tx.sign(signer);
 
-    // BROADCAST. After this line the tx is on the wire and MAY land, so anything
-    // that follows must preserve `sig` on failure (else the keeper would treat a
-    // confirmed-but-unconfirmed transfer as never-sent and re-transfer → DOUBLE
-    // SPEND). `sendRawTransaction` itself failing throws BEFORE returning a sig,
-    // so it is correctly handled by the outer catch as a sig-less pre-broadcast
-    // failure (no USDC moved).
-    const sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
-
-    // Confirm in its own try: confirmTransaction can THROW on its own (web3.js
-    // TransactionExpiredBlockheightExceededError, RPC/socket timeout) even though
-    // the tx is already broadcast and may still confirm. Keep the sig in BOTH the
-    // on-chain-error and the throw branches so the result is AMBIGUOUS, never
-    // "pre-broadcast / safe to re-transfer".
+    // BROADCAST. After the first send the tx is on the wire and MAY land, so anything that follows must preserve `sig`
+    // unless the blockhash has provably expired (then it can never land and a retry cannot double-pay). A failure of
+    // sendRawTransaction itself throws BEFORE a sig is returned, so it is handled by the outer catch as a sig-less
+    // pre-broadcast failure (no USDC moved).
+    const raw = tx.serialize();
+    const sig = await conn.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 });
+    // Keep re-sending the identical signed bytes to every RPC while polling, until it confirms or the blockhash expires.
+    let landed: Awaited<ReturnType<typeof landTransaction>>;
     try {
-      const confirmation = await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-      if (confirmation.value.err) {
-        // The tx landed but reverted on-chain. It will never move USDC, but it IS
-        // a known signature — keep it (+ lvbh) so the keeper verifies rather than
-        // blindly re-transferring.
-        return { ok: false, error: `Tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`, step: "confirm", txSignature: sig, lastValidBlockHeight };
-      }
+      landed = await landTransaction({ raw, signature: sig, lastValidBlockHeight, urls: rpcCandidates(NETWORK), maxMs: 60_000 });
     } catch (e) {
-      // Confirmation is AMBIGUOUS: we have a sig but can't prove landed/failed.
-      // Keep the sig + lvbh so the keeper can verify on-chain (and, once the tip
-      // passes lvbh, know the sig can never land and re-transfer safely).
-      return { ok: false, error: (e as Error).message.slice(0, 120), step: "confirm-timeout", txSignature: sig, lastValidBlockHeight };
+      // It landed and reverted on-chain. It will never move USDC, but it IS a known signature: keep it (+ lvbh) so the
+      // keeper verifies rather than blindly re-transferring.
+      return { ok: false, error: `Tx failed on-chain: ${(e as Error).message.slice(0, 100)}`, step: "confirm", txSignature: sig, lastValidBlockHeight };
+    }
+    if (landed === "expired") {
+      // The blockhash window passed and the signature is not on-chain: it can never land, so nothing moved. No sig is
+      // returned, which marks this as a safe-to-retry pre-confirmation failure.
+      return { ok: false, error: "The transfer did not land before its blockhash expired. Nothing was moved.", step: "send" };
+    }
+    if (landed === "pending") {
+      // Still unproven either way: keep the sig + lvbh so the keeper can verify on-chain before ever re-transferring.
+      return { ok: false, error: "Confirmation is still pending", step: "confirm-timeout", txSignature: sig, lastValidBlockHeight };
     }
 
     return { ok: true, txSignature: sig, lastValidBlockHeight };

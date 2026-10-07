@@ -209,24 +209,22 @@ describe("POST /api/economy/recover-settlements — verify-before-retransfer (no
 // oracle claim keeper's MIN_SIGNER_SOL guard — a distinct sendAlert + a fail-closed
 // SKIP of the tick — while NEVER marking a settlement paid or moving any USDC.
 describe("POST /api/economy/recover-settlements — fee-payer SOL pre-flight (silent-strand alert)", () => {
-  it("underfunded fee-payer → alerts ONCE (fee-payer reason) and SKIPS the tick: no list, no mutation, no sweep (no transfer / no mark-paid)", async () => {
+  it("underfunded fee-payer → alerts ONCE (fee-payer reason) but STILL recovers: the sweep falls back to agent-paid gas", async () => {
     h.getSolBalanceStrictMock.mockResolvedValue(0.001); // below the 0.05 SOL floor
+    h.queryMock.mockResolvedValue([]);
 
     const res = await POST(makeReq());
     const json = await res.json();
 
-    expect(res.status).toBe(200); // fail-closed skip, not a 5xx error
-    // Alerted exactly once, with the DISTINCT fee-payer-strand reason.
+    expect(res.status).toBe(200);
     expect(h.sendAlertMock).toHaveBeenCalledTimes(1);
     expect(h.sendAlertMock).toHaveBeenCalledWith(
       "settlement-signer-low-sol",
       expect.objectContaining({ signer: "fee-payer" }),
     );
-    // No money handling AT ALL — the tick short-circuited before listing/claiming/sweeping.
-    expect(h.sweepMock).not.toHaveBeenCalled();    // no transfer attempted
-    expect(h.mutationMock).not.toHaveBeenCalled(); // nothing marked paid / released
-    expect(h.queryMock).not.toHaveBeenCalled();    // stranded rows untouched, retry next tick
-    expect(json).toMatchObject({ scanned: 0, recovered: 0 });
+    // The tick is NOT skipped any more: owed money keeps flowing while the wallet is topped up.
+    expect(h.queryMock).toHaveBeenCalled();
+    expect(json).toMatchObject({ ok: true, scanned: 0, recovered: 0 });
   });
 
   it("healthy fee-payer → NO alert; the tick proceeds to list stranded rows normally", async () => {
@@ -253,8 +251,9 @@ describe("POST /api/economy/recover-settlements — fee-payer SOL pre-flight (si
     expect(h.queryMock).toHaveBeenCalled(); // proceeded — an unknown balance is not a drained one
   });
 
-  it("rotated/bad fee-payer key → alerts (distinct reason) and SKIPS the tick, no money handling", async () => {
+  it("rotated/bad fee-payer key → alerts (distinct reason) and still lists stranded rows (agent-paid gas fallback)", async () => {
     h.loadKeypairMock.mockImplementation(() => { throw new Error("bad base64 keypair"); });
+    h.queryMock.mockResolvedValue([]);
 
     const res = await POST(makeReq());
 
@@ -264,8 +263,7 @@ describe("POST /api/economy/recover-settlements — fee-payer SOL pre-flight (si
       "settlement-signer-bad-key",
       expect.objectContaining({ signer: "fee-payer" }),
     );
-    expect(h.sweepMock).not.toHaveBeenCalled();
-    expect(h.mutationMock).not.toHaveBeenCalled();
-    expect(h.queryMock).not.toHaveBeenCalled();
+    expect(h.sweepMock).not.toHaveBeenCalled(); // nothing stranded this tick
+    expect(h.queryMock).toHaveBeenCalled();
   });
 });

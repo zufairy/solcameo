@@ -64,9 +64,9 @@ export async function POST(req: NextRequest) {
   // on an unreadable balance so a flaky RPC never strands settlements. Observability
   // only: this never marks a settlement paid and never moves USDC.
   const feePayerHealth = await checkSettlementFeePayerSol();
-  if (!feePayerHealth.healthy) {
-    return NextResponse.json({ ok: true, scanned: 0, recovered: 0, skipped: feePayerHealth.reason ?? "fee-payer signer unhealthy" });
-  }
+  // A drained sponsor wallet no longer stops recovery: the sweep falls back to the agent paying its own network fee
+  // (topping up a little SOL from its USDC when it has none), so owed money keeps flowing while the alert is acted on.
+  if (!feePayerHealth.healthy) console.warn(`[recover-settlements] fee-payer signer unhealthy (${feePayerHealth.reason ?? "unknown"}); recovering with agent-paid gas`);
 
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
   const secret = process.env.INTERNAL_CRON_SECRET ?? "";
