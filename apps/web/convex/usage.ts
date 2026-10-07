@@ -278,8 +278,8 @@ export async function todaysSpend(ctx: MutationCtx, mintAddress: string): Promis
 }
 
 export const recordUsage = mutation({
-  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), walletOnly: v.optional(v.boolean()), holderDiscountPct: v.optional(v.number()), authSecret: v.string() },
-  handler: async (ctx, { mintAddress, service, qty, idemKey, walletOnly, holderDiscountPct, authSecret }) => {
+  args: { mintAddress: v.string(), service: v.string(), qty: v.number(), idemKey: v.optional(v.string()), walletOnly: v.optional(v.boolean()), requireTransfer: v.optional(v.boolean()), reservationTaskId: v.optional(v.id("agentTasks")), holderDiscountPct: v.optional(v.number()), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, service, qty, idemKey, walletOnly, requireTransfer, reservationTaskId, holderDiscountPct, authSecret }) => {
     if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
     // Consult the admin price override (skillPriceOverrides) at charge time — this
     // is THE money chokepoint every charge path routes through, so an admin-set
@@ -304,7 +304,7 @@ export const recordUsage = mutation({
         if (priorLedger.costUsdc <= 0 || batch?.startsWith("refund:")) {
           return { ok: false as const, reason: "charge_refunded" as const };
         }
-        let paymentConfirmed = batch === CREDITS_SETTLED_SENTINEL || !!batch?.startsWith("refund-credit:");
+        let paymentConfirmed = !requireTransfer && (batch === CREDITS_SETTLED_SENTINEL || !!batch?.startsWith("refund-credit:"));
         if (batch && !paymentConfirmed) {
           const settlementId = ctx.db.normalizeId("feeSettlements", batch);
           const settlement = settlementId ? await ctx.db.get(settlementId) : null;
@@ -358,7 +358,7 @@ export const recordUsage = mutation({
     // exactly as before.
     const ownerWallet = await getOwnerWalletForMint(ctx, mintAddress);
     const influencer = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
-    if (ownerWallet && !walletOnly && influencer?.generationFunding !== "agent_wallet" && !influencer?.solstarCharacterId) {
+    if (ownerWallet && !walletOnly && !requireTransfer && influencer?.generationFunding !== "agent_wallet" && !influencer?.solstarCharacterId) {
       const costCredits = Math.round(cost * 100);
       // A cost under $0.005 rounds to 0 credits — userCredits.debit throws on a
       // non-positive delta, and an uncaught throw here would abort the whole
@@ -415,7 +415,13 @@ export const recordUsage = mutation({
     // Gate: insufficient funds is a DENIAL (not an error) — flag needs_funding so
     // autonomy pauses + the builder/investors are notified. Returned, not thrown,
     // so the status patch commits (a thrown mutation rolls back all writes).
-    if (spendableUsdc(account) < cost) {
+    const reservation = reservationTaskId ? await ctx.db.get(reservationTaskId) : null;
+    if (reservationTaskId && (!reservation || reservation.mintAddress !== mintAddress || !["pending", "running"].includes(reservation.status) || !reservation.walletHold || reservation.walletHold.settled)) {
+      return { ok: false as const, reason: "invalid_reservation" as const };
+    }
+    const ownHold = reservation?.walletHold?.amountUsdc ?? 0;
+    const available = spendableUsdc({ ...account, unsettledTabUsdc: requireTransfer ? Math.max(0, account.unsettledTabUsdc) : account.unsettledTabUsdc, generationReservedUsdc: Math.max(0, (account.generationReservedUsdc ?? 0) - ownHold) });
+    if (available < cost) {
       await ctx.db.patch(account._id, { status: "needs_funding", updatedAt: now });
       return { ok: false as const, reason: "needs_funding" as const, costUsdc: cost };
     }
@@ -431,9 +437,11 @@ export const recordUsage = mutation({
     });
     await ctx.db.patch(account._id, {
       unsettledTabUsdc: account.unsettledTabUsdc + cost,
+      ...(reservation ? { generationReservedUsdc: Math.max(0, (account.generationReservedUsdc ?? 0) - ownHold) } : {}),
       status: "active",
       updatedAt: now,
     });
+    if (reservation?.walletHold) await ctx.db.patch(reservation._id, { walletHold: { ...reservation.walletHold, settled: true } });
     return { ok: true as const, costUsdc: cost, unsettledTabUsdc: account.unsettledTabUsdc + cost };
   },
 });
@@ -607,8 +615,8 @@ export const refundRunFees = mutation({
  *  stamps each row with the settlement id, and deducts from the account balances.
  *  Returns { settled: false } when there is nothing to sweep. Spec §7. */
 export const settleTab = mutation({
-  args: { mintAddress: v.string(), authSecret: v.string() },
-  handler: async (ctx, { mintAddress, authSecret }) => {
+  args: { mintAddress: v.string(), requireTransfer: v.optional(v.boolean()), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, requireTransfer, authSecret }) => {
     if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
     const account = await ctx.db
       .query("agentAccount")
@@ -620,10 +628,11 @@ export const settleTab = mutation({
     // undefined) instead of collecting the agent's whole lifetime ledger. Bounded
     // so an unexpectedly large tail settles in batches over successive ticks (the
     // account tab stays positive, so the hourly cron re-fires until it drains).
-    const unsettled = await ctx.db
+    const tail = await ctx.db
       .query("usageLedger")
       .withIndex("by_mint_settled", (q) => q.eq("mintAddress", mintAddress).eq("settledBatchId", undefined))
       .take(SETTLE_TAB_MAX_ROWS);
+    const unsettled = requireTransfer ? tail.filter(row => row.costUsdc > 0) : tail;
 
     const amount = +unsettled.reduce((s, u) => s + u.costUsdc, 0).toFixed(6);
     if (amount <= 0) {
@@ -663,7 +672,7 @@ export const settleTab = mutation({
     // reconcile's unpaid-settlement guard until debit_fee lands and reconcile reads
     // the lowered vault balance. (Was: escrowUsdc/liquidUsdc were also decremented.)
     await ctx.db.patch(account._id, {
-      unsettledTabUsdc: Math.max(0, account.unsettledTabUsdc - amount),
+      unsettledTabUsdc: requireTransfer ? +(account.unsettledTabUsdc - amount).toFixed(6) : Math.max(0, account.unsettledTabUsdc - amount),
       updatedAt: now,
     });
 

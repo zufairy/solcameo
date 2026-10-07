@@ -15,6 +15,11 @@ describe("payForCharge", () => {
     expect(await payForCharge("agent")).toEqual({ ok: false, reason: "nothing to settle" });
   });
 
+  it("requires a wallet transfer for videos even when refund credit could cover the charge", async () => {
+    m.settle.mockResolvedValue({ status: "credited", coveredUsdc: 0.4 });
+    expect((await payForCharge("video", { requireTransfer: true })).ok).toBe(false);
+    expect(m.settle).toHaveBeenCalledWith("video", { immediate: true, requireTransfer: true });
+  });
   it("settles the whole tab immediately and reports the on-chain signature", async () => {
     m.settle.mockResolvedValue({ status: "settled", amountUsdc: 1.2, txSignature: "SIG", tabUsdc: 0 });
     expect(await payForCharge("agent")).toEqual({ ok: true, txSignature: "SIG" });
@@ -41,7 +46,7 @@ describe("generation billing pays on-chain before work starts", () => {
     vi.doMock("convex/browser", () => ({ ConvexHttpClient: class { mutation = m.mutation; } }));
     vi.doMock("./agentWallet", () => ({ refreshAgentFunds: m.refresh }));
     vi.doMock("./holderTier", () => ({ holderDiscountForMint: async () => 0 }));
-    vi.doMock("./generationPayment", () => ({ payOrBatch: m.pay }));
+    vi.doMock("./generationPayment", () => ({ payForCharge: m.pay }));
     vi.doMock("./solSwap", () => ({ topUpAgentFromSol: m.topUp }));
     vi.doMock("@/convex/_generated/api", () => ({ api: { usage: { recordUsage: "recordUsage", refundRunFees: "refundRunFees" } } }));
     return import("./exploreBilling");
@@ -53,7 +58,7 @@ describe("generation billing pays on-chain before work starts", () => {
     m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55 });
     m.pay.mockResolvedValue({ ok: true, txSignature: "SIG" });
     expect(await chargeExploreRun("mint", "run1", 0.5)).toEqual({ ok: true, costUsdc: 0.55 });
-    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
+    expect(m.pay).toHaveBeenCalledWith("mint", { requireTransfer: true });
   });
   it("refunds and refuses when the on-chain payment fails, so nothing is generated", async () => {
     const { chargeExploreRun } = await load();
@@ -73,7 +78,7 @@ describe("generation billing pays on-chain before work starts", () => {
     m.mutation.mockResolvedValue({ ok: true, costUsdc: 0.55, duplicate: true, paymentConfirmed: false });
     m.pay.mockResolvedValue({ ok: false, reason: "sweep deferred" });
     expect(await chargeExploreRun("mint", "unpaid-retry", 0.5)).toEqual({ ok: false, reason: "payment_failed" });
-    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
+    expect(m.pay).toHaveBeenCalledWith("mint", { requireTransfer: true });
   });
   it("reports a signing-key mismatch and refunds the reservation", async () => {
     const { chargeExploreRun } = await load();
@@ -96,7 +101,7 @@ describe("generation billing pays on-chain before work starts", () => {
     m.pay.mockResolvedValue({ ok: true, txSignature: "SIG" });
     expect(await chargeExploreRun("mint", "run5", 0.5)).toEqual({ ok: true, costUsdc: 0.55 });
     expect(m.topUp).toHaveBeenCalledWith("mint", expect.closeTo(0.575, 3));
-    expect(m.pay).toHaveBeenCalledWith("mint", 0.55);
+    expect(m.pay).toHaveBeenCalledWith("mint", { requireTransfer: true });
   });
   it("still says needs_funding when neither USDC nor SOL can cover it", async () => {
     const { chargeExploreRun } = await load();

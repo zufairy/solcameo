@@ -1,3 +1,4 @@
+import { preparePaidAgentVideo } from "@/lib/server/preparePaidAgentVideo";
 import { refreshAgentFunds } from "@/lib/server/agentWallet";
 import { cleanReferenceUrls } from "@/lib/explore/referenceImages";
 import { spendableUsdc } from "@/lib/economy/nav";
@@ -17,7 +18,7 @@ import {
 import { settleAgentEconomics } from "@/lib/economy/settleAgent";
 import { topUpAgentFromSol, swapFailureMessage } from "@/lib/server/solSwap";
 import { aspectFor, isVideoAspect } from "@/lib/builder/videoAspects";
-import { chargeExploreRun, CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
+import { CHARGE_MESSAGES } from "@/lib/server/exploreBilling";
 import { MAX_CAST } from "@/lib/server/castSheet";
 import { isJoinableCampaign, isJoinableUgcCampaign } from "@/lib/campaignLifecycle";
 import {
@@ -3440,11 +3441,9 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let agentWallet = (agent as any).agentWallet as string | undefined;
     const walletBilling = taskType === "create_video" || agent.generationFunding === "agent_wallet" || !!agent.solstarCharacterId;
-    // The hire flow has the CLIENT pay the agent on-chain up-front, so the
-    // agent's own metered balance must not gate the render — skip the precheck.
-    // Only a server-to-server caller (the hire flow, where the CLIENT already
-    // paid on-chain) may skip the balance gate — never a browser request body.
-    const skipBalanceCheck = input.skipBalanceCheck === true && auth.internal === true;
+    // Every video, including samples and commissioned work, pays its provider
+    // fee from the agent wallet. Internal callers may only bypass other tasks.
+    const skipBalanceCheck = taskType !== "create_video" && input.skipBalanceCheck === true && auth.internal === true;
     // Set when the agent's OWN on-chain wallet can cover this task — lets a
     // wallet-funded (non-credits) operator run without a credit hold below.
     if (walletBilling && !skipBalanceCheck) {
@@ -3452,7 +3451,7 @@ export async function POST(req: NextRequest) {
         agentWallet = await refreshAgentFunds(mintAddress);
         let swapFailure: { reason: string; solNeeded?: number } | null = null;
         let account = await convex.query(api.agentAccount.get, { mintAddress });
-        let available = account ? spendableUsdc(account) : 0;
+        let available = account ? spendableUsdc({ ...account, unsettledTabUsdc: Math.max(0, account.unsettledTabUsdc) }) : 0;
         // Short on USDC but holding SOL: swap just the shortfall at the live best price, then re-read the balance.
         if (account && account.status !== "suspended" && available < estimatedCost) {
           const required = estimatedCost * 1.05 + Math.max(0, account.escrowUsdc - available);
@@ -3461,7 +3460,7 @@ export async function POST(req: NextRequest) {
           if (topUp.ok) {
             await refreshAgentFunds(mintAddress);
             account = await convex.query(api.agentAccount.get, { mintAddress });
-            available = account ? spendableUsdc(account) : 0;
+            available = account ? spendableUsdc({ ...account, unsettledTabUsdc: Math.max(0, account.unsettledTabUsdc) }) : 0;
           }
         }
         if (!account || account.status === "suspended" || available < estimatedCost) {
@@ -3765,7 +3764,18 @@ export async function POST(req: NextRequest) {
     const runExecution = async (): Promise<NextResponse> => {
     try {
       input._x402TaskId = taskId;
-      const { output, cost, revenue, memory, deferVideo } = await executor(agent as AgentDoc, ctx, input);
+      const execution = taskType === "create_video"
+        ? await preparePaidAgentVideo({
+            convex, mintAddress, taskId, estimatedCost,
+            execute: () => executor(agent as AgentDoc, ctx, input),
+          })
+        : { ok: true as const, result: await executor(agent as AgentDoc, ctx, input) };
+      if (!execution.ok) {
+        const message = CHARGE_MESSAGES[execution.reason] ?? "Could not charge the agent wallet.";
+        await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+        return NextResponse.json({ ok: false, taskId, error: execution.reason, code: execution.reason, message, mintAddress, required: estimatedCost }, { status: execution.reason === "needs_funding" ? 402 : 502 });
+      }
+      const { output, cost, revenue, memory, deferVideo } = execution.result;
 
       // Slow video work is deferred to the CHUNKED, Vercel-safe render-step chain
       // (one Veo clip per ≤300s invocation) — NOT the old single Convex action,
@@ -3774,21 +3784,6 @@ export async function POST(req: NextRequest) {
       // render-step runs in this Next runtime, renders the FULL duration, marks
       // the task succeeded/failed, and auto-posts when `autoPost` is set.
       if (deferVideo) {
-        // PAY FIRST: the agent wallet pays the render's price on-chain to the collection wallet BEFORE any provider is
-        // called. Only a wallet-funded render is charged here; the render's completion then bills just any overage.
-        if (walletBilling && !skipBalanceCheck && estimatedCost > 0 && (input as Record<string, unknown>).fundingSource === "agent_wallet") {
-          const runId = `video:${String(taskId)}`;
-          const charge = await chargeExploreRun(mintAddress, runId, estimatedCost);
-          if (!charge.ok) {
-            const message = CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.";
-            await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
-            return NextResponse.json(
-              { ok: false, taskId, error: charge.reason === "needs_funding" ? "insufficient_funds" : charge.reason, code: charge.reason, message, mintAddress, required: estimatedCost },
-              { status: charge.reason === "needs_funding" ? 402 : 502 },
-            );
-          }
-          await convex.mutation(api.agentTasks.markPrepaid, { id: taskId, usdc: charge.costUsdc, runId, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
-        }
         const { kickoffVideoRender } = await import("@/lib/server/kickoffVideoRender");
         await kickoffVideoRender({
           convex,

@@ -222,7 +222,7 @@ export const holdWallet = mutation({
     if (withdrawal) return { ok: false, available: 0, reason: "wallet_busy" };
     const cap = account?.dailyCapUsdc ?? Number(process.env.VELLO_DAILY_SPEND_CAP_USDC ?? "10");
     if (Number.isFinite(cap) && cap > 0 && await todaysSpend(ctx, task.mintAddress) + (account?.generationReservedUsdc ?? 0) + amountUsdc > cap) return { ok: false, available: 0, reason: "daily_cap" };
-    const available = account ? spendableUsdc(account) : 0;
+    const available = account ? spendableUsdc({ ...account, unsettledTabUsdc: Math.max(0, account.unsettledTabUsdc) }) : 0;
     if (!account || account.status === "suspended" || available < amountUsdc) return { ok: false, available };
     await ctx.db.patch(account._id, { generationReservedUsdc: +( (account.generationReservedUsdc ?? 0) + amountUsdc).toFixed(6), updatedAt: Date.now() });
     await ctx.db.patch(id, { walletHold: { amountUsdc, settled: false } });

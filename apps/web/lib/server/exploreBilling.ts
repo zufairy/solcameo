@@ -1,8 +1,9 @@
 import { refreshAgentFunds } from "./agentWallet";
-import { payOrBatch } from "./generationPayment";
+import { payForCharge } from "./generationPayment";
 import { topUpAgentFromSol } from "./solSwap";
 import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
+import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { estimateGenerationUsd, type GenjutsuResolution } from "@/lib/explore/generationPrice";
 
@@ -15,14 +16,14 @@ export const priceUsd = (durationSec: number, resolution: GenjutsuResolution) =>
 export type ChargeResult = { ok: true; costUsdc: number; duplicate?: boolean } | { ok: false; reason: string };
 
 /**
- * Charge the agent for one render. The cost lands on the agent's tab (or its owner's credits)
+ * Charge the agent for one render. The cost lands on the agent's tab
  * and the agent wallet pays it on-chain to the generation collection wallet before the render starts. Idempotent per runId, so a retry never charges twice.
  */
-export async function chargeExploreRun(mint: string, runId: string, priceUsdc: number): Promise<ChargeResult> {
+export async function chargeExploreRun(mint: string, runId: string, priceUsdc: number, reservationTaskId?: Id<"agentTasks">): Promise<ChargeResult> {
   const qty = Math.max(1, Math.ceil(priceUsdc * 1000 - 1e-9));
   try {
     await refreshAgentFunds(mint);
-    const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, requireTransfer: true, ...(reservationTaskId ? { reservationTaskId } : {}), holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
     let r = await book();
     // Short on USDC but holding SOL: swap just the shortfall at the live best price, then charge as normal.
     if (!r.ok && r.reason === "needs_funding" && (await topUpAgentFromSol(mint, priceUsdc * 1.15)).ok) { await refreshAgentFunds(mint); r = await book(); }
@@ -31,7 +32,7 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
     // Pay first: the USDC reaches the generation wallet on-chain before any provider is called. A retry of a run that
     // has confirmed payment proof is not charged again.
     if (!("paymentConfirmed" in r && r.paymentConfirmed)) {
-      const paid = await payOrBatch(mint, r.costUsdc);
+      const paid = await payForCharge(mint, { requireTransfer: true });
       if (!paid.ok) { console.error(`[exploreBilling] on-chain payment failed for ${mint}: ${paid.reason}`); await refundExploreRun(mint, runId); return { ok: false, reason: paid.reason === "wallet_signing_unavailable" ? "wallet_signing_unavailable" : "payment_failed" }; }
     }
     return { ok: true, costUsdc: r.costUsdc, ...(duplicate ? { duplicate: true } : {}) };

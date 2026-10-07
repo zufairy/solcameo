@@ -164,6 +164,45 @@ describe("recordUsage", () => {
 });
 
 describe("recordUsage retry payment proof", () => {
+  it("converts a video's own reservation into one charge without requiring twice the funds", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 0.4);
+    const taskId = await t.mutation(api.agentTasks.create, { mintAddress: MINT, sessionId: "sample", type: "create_video", title: "Sample", authSecret: SECRET });
+    expect(await t.mutation(api.agentTasks.holdWallet, { id: taskId, amountUsdc: 0.4, authSecret: SECRET })).toMatchObject({ ok: true });
+    const result = await t.mutation(api.usage.recordUsage, { mintAddress: MINT, service: "render", qty: 1, walletOnly: true, requireTransfer: true, reservationTaskId: taskId, authSecret: SECRET });
+    expect(result).toMatchObject({ ok: true, costUsdc: 0.4 });
+    const account = await t.query(api.agentAccount.get, { mintAddress: MINT });
+    expect(account?.generationReservedUsdc).toBe(0);
+    expect(account?.unsettledTabUsdc).toBeCloseTo(0.4);
+    expect((await t.run(ctx => ctx.db.get(taskId)))?.walletHold?.settled).toBe(true);
+  });
+  it("preserves refund credits while booking a real transfer for a video", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 1);
+    await t.run(async ctx => {
+      await ctx.db.insert("usageLedger", { mintAddress: MINT, service: "clip_refund_credit", qty: 1, unitPriceUsdc: -0.9, costUsdc: -0.9, at: Date.now() });
+      const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", MINT)).unique();
+      await ctx.db.patch(account!._id, { unsettledTabUsdc: -0.9 });
+    });
+    await t.mutation(api.usage.recordUsage, { mintAddress: MINT, service: "render", qty: 1, walletOnly: true, requireTransfer: true, authSecret: SECRET });
+    expect(await t.mutation(api.usage.settleTab, { mintAddress: MINT, requireTransfer: true, authSecret: SECRET })).toMatchObject({ settled: true, amountUsdc: 0.4 });
+    const account = await t.query(api.agentAccount.get, { mintAddress: MINT });
+    expect(account?.unsettledTabUsdc).toBeCloseTo(-0.9);
+    const tail = await t.run(ctx => ctx.db.query("usageLedger").withIndex("by_mint_settled", q => q.eq("mintAddress", MINT).eq("settledBatchId", undefined)).collect());
+    expect(tail.map(row => row.costUsdc)).toEqual([-0.9]);
+  });
+  it("does not use refund credit to authorize a transfer the wallet cannot afford", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 0.1);
+    await t.run(async ctx => {
+      const account = await ctx.db.query("agentAccount").withIndex("by_mint", q => q.eq("mintAddress", MINT)).unique();
+      await ctx.db.patch(account!._id, { unsettledTabUsdc: -1 });
+    });
+    expect(await t.mutation(api.usage.recordUsage, { mintAddress: MINT, service: "render", qty: 1, walletOnly: true, requireTransfer: true, authSecret: SECRET })).toMatchObject({ ok: false, reason: "needs_funding" });
+  });
   it("distinguishes a reservation, pending settlement, and confirmed payment", async () => {
     const t = convexTest(schema, modules);
     await seedAccount(t);

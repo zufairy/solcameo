@@ -56,6 +56,7 @@ const ADJUST_CHIPS: { id: AdjustChip; label: string }[] = [
 ];
 
 interface TaskState {
+  paid?: boolean;
   status: string;
   videoUrl?: string;
   posterUrl?: string;
@@ -196,6 +197,13 @@ export default function SampleGate({
   ) as Record<string, TaskState> | undefined;
 
   const state = taskId ? taskStates?.[taskId] : undefined;
+  const refreshWallet = agentWallet.refresh;
+  useEffect(() => {
+    if (state?.paid) {
+      void refreshWallet();
+      window.dispatchEvent(new Event("solcameo:trade-confirmed"));
+    }
+  }, [taskId, state?.paid, refreshWallet]);
   const isRunning = !!taskId && (!state || state.status === "pending" || state.status === "running");
   const isSucceeded = state?.status === "succeeded";
   const isFailed = state?.status === "failed";
@@ -212,7 +220,7 @@ export default function SampleGate({
     if (launchError) return launchError;
     if (!taskId) return "Starting your sample render…";
     if (state?.status === "pending") return "Queued…";
-    if (state?.status === "running") return "Rendering your sample…";
+    if (state?.status === "running") return state.paid ? "Rendering your sample…" : "Confirming payment from the agent wallet…";
     if (isFailed) return state?.error || "Something went wrong.";
     if (isSucceeded) return state?.note || "Sample ready.";
     return "Starting your sample render…";

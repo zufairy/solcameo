@@ -30,7 +30,7 @@ export type SettleResult =
  * (the UI already reflects it as spent via `available = on-chain − tab`). NEVER
  * throws — settlement is best-effort and must not break task execution.
  */
-export async function settleAgentEconomics(mintAddress: string, opts: { immediate?: boolean; threshold?: number } = {}): Promise<SettleResult> {
+export async function settleAgentEconomics(mintAddress: string, opts: { immediate?: boolean; threshold?: number; requireTransfer?: boolean } = {}): Promise<SettleResult> {
   try {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
     const agent = await convex.query(api.influencers.getByMintServer, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
@@ -57,7 +57,7 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
     //    escrow mirror — the on-chain vault + reconcile own that now (chain=truth);
     //    the booked-unpaid fee is held out of spendable by the reconcile guard
     //    until the sweep lands. It inserts a feeSettlements row with NO txSignature.
-    const settled = await convex.mutation(api.usage.settleTab, { mintAddress, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+    const settled = await convex.mutation(api.usage.settleTab, { mintAddress, ...(opts.requireTransfer ? { requireTransfer: true } : {}), authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
     if ("credited" in settled && settled.credited) return { status: "credited", coveredUsdc: settled.coveredUsdc };
     if (!settled.settled) return { status: "accruing", tabUsdc, reason: "nothing to settle" };
 

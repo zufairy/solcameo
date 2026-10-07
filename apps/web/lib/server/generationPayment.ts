@@ -10,13 +10,13 @@ const queues = new Map<string, Promise<unknown>>();
  * Pay for a charge that was just booked: move the agent's tab from its wallet to the generation collection wallet on
  * Solana and wait for confirmation. Generation only starts when this says ok; otherwise the caller refunds the charge.
  */
-export async function payForCharge(mintAddress: string): Promise<PaymentResult> {
+export async function payForCharge(mintAddress: string, opts: { requireTransfer?: boolean } = {}): Promise<PaymentResult> {
   const previous = queues.get(mintAddress) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(() => settleAgentEconomics(mintAddress, { immediate: true }));
+  const run = previous.catch(() => undefined).then(() => settleAgentEconomics(mintAddress, { immediate: true, ...(opts.requireTransfer ? { requireTransfer: true } : {}) }));
   queues.set(mintAddress, run);
   try {
     const result = await run;
-    if (result.status === "credited") return { ok: true, credited: true };
+    if (result.status === "credited" && !opts.requireTransfer) return { ok: true, credited: true };
     if (result.status === "settled") return { ok: true, txSignature: result.txSignature };
     return { ok: false, reason: "reason" in result ? result.reason : "payment_not_settled" };
   } finally {

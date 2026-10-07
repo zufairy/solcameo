@@ -5,7 +5,7 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { getUsdcMint } from "@/lib/solana/network";
-import { fetchWalletBalances } from "@/lib/solana/fundWallet";
+
 
 export type AgentFunds = { address: string; sol: number; usdc: number };
 
@@ -56,15 +56,22 @@ export function useAgentWallet({ address, mintAddress, ready = true }: { address
     if (!wallet) return;
     let live = true;
     let busy = false;
+    let queued = false;
     const refresh = async () => {
-      if (busy) return;
+      if (busy) { queued = true; return; }
+      queued = false;
       busy = true;
       setRefreshing(true);
       try {
-        const next = await fetchWalletBalances(connection, new PublicKey(wallet));
-        if (live) setFunds({ address: wallet, ...next });
+        const response = await fetch(`/api/agent-wallet-balance?wallet=${encodeURIComponent(wallet)}&fresh=1`, { cache: "no-store" });
+        const next = await response.json() as { ok?: boolean; sol?: number; usdc?: number };
+        if (!response.ok || !next.ok || typeof next.sol !== "number" || typeof next.usdc !== "number") throw new Error("Balance unavailable");
+        if (live) setFunds({ address: wallet, sol: next.sol, usdc: next.usdc });
       } catch { /* keep the last good balance; the poll below retries */ }
-      finally { busy = false; if (live) setRefreshing(false); }
+      finally {
+        busy = false;
+        if (live) { setRefreshing(false); if (queued) void refresh(); }
+      }
     };
     refreshRef.current = refresh;
     void refresh();
@@ -75,7 +82,7 @@ export function useAgentWallet({ address, mintAddress, ready = true }: { address
     void getAssociatedTokenAddress(new PublicKey(getUsdcMint()), owner)
       .then((ata) => { if (live) { try { subs.push(connection.onAccountChange(ata, () => void refresh(), "confirmed")); } catch { /* polling covers it */ } } })
       .catch(() => undefined);
-    const timer = setInterval(() => void refresh(), 15_000);
+    const timer = setInterval(() => void refresh(), 5_000);
     window.addEventListener("solcameo:trade-confirmed", refresh);
     return () => {
       live = false;
@@ -85,6 +92,7 @@ export function useAgentWallet({ address, mintAddress, ready = true }: { address
     };
   }, [wallet, connection]);
 
+  const refresh = useCallback(() => refreshRef.current(), []);
   return {
     wallet,
     funds: funds?.address === wallet ? funds : null,
@@ -93,6 +101,6 @@ export function useAgentWallet({ address, mintAddress, ready = true }: { address
     error,
     retry: provision,
     refreshing,
-    refresh: () => refreshRef.current(),
+    refresh,
   };
 }
