@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { ShieldCheck, ShieldOff, Ban, Check, Loader2, RefreshCw, Coins, Plus } from "lucide-react";
 import { fmtUsd, shortAddr, timeAgo, fmtDate, isOnline } from "./util";
+import { UsersOverview } from "./users-overview";
 
 type Row = {
   _id: string; name?: string; email?: string; image?: string; walletAddress?: string;
@@ -144,6 +145,8 @@ export function UsersSection() {
   }
 
   return (
+    <>
+    <UsersOverview rows={rows} now={now} />
     <div className="rounded-2xl border border-[#1e1e24] bg-[#0d0d10] overflow-hidden">
       <div className="px-6 py-4 border-b border-[#18181c] flex items-center justify-between">
         <div>
@@ -253,5 +256,6 @@ export function UsersSection() {
         </table>
       </div>
     </div>
+    </>
   );
 }
