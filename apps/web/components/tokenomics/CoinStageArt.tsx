@@ -66,13 +66,13 @@ function Trade({ reduced }: { reduced: boolean }) {
 }
 
 /* 3. The fee: a trade coin goes through a gate and a thin slice splits into four colours. */
-function Fee({ reduced }: { reduced: boolean }) {
+function Fee({ reduced, feePct }: { reduced: boolean; feePct: string }) {
   const parts = [[LIME, 330], [BLUE, 400], [VIOLET, 470], [GREEN, 540]] as const;
   return (
     <g>
       <motion.g animate={reduced ? undefined : { x: [0, 150, 150, 0] }} transition={{ duration: 4, repeat: Infinity, times: [0, 0.4, 0.7, 1], ease: "easeInOut" }}><Coin x={90} y={170} r={42} color="#fff" symbol="SOL" /></motion.g>
       <rect x="250" y="90" width="26" height="160" rx="13" fill="rgba(215,255,0,0.12)" stroke={LIME} strokeWidth="2" />
-      <Tag x={218} y={52} w={90} text="1% fee" color={LIME} filled />
+      <Tag x={218} y={52} w={90} text={`${feePct}% fee`} color={LIME} filled />
       {parts.map(([c, x], i) => (
         <g key={c}>
           <path d={`M276 170 C 300 170, ${x - 30} ${i % 2 ? 250 : 90}, ${x} ${i % 2 ? 262 : 78}`} stroke={c} strokeOpacity="0.5" strokeWidth="3" fill="none" strokeDasharray="5 6" />
@@ -146,10 +146,11 @@ function Burn({ reduced }: { reduced: boolean }) {
   );
 }
 
-const SCENES = [Born, Trade, Fee, Creator, Graduate, Burn] as const;
+type SceneProps = { reduced: boolean; fill: number; feePct: string };
+const SCENES: ((p: SceneProps) => ReactNode)[] = [Born, Trade, Fee, Creator, Graduate, Burn];
 
 /** One animated picture per step of a coin's life. They share one coin and one palette, so the story reads as a single journey. */
-export function CoinStageArt({ stage, fill = 0.35, className = "" }: { stage: number; fill?: number; className?: string }): ReactNode {
+export function CoinStageArt({ stage, fill = 0.35, feePct = "1.5", className = "" }: { stage: number; fill?: number; feePct?: string; className?: string }): ReactNode {
   const reduced = !!useReducedMotion();
   const Scene = SCENES[Math.max(0, Math.min(5, stage))];
   return (
@@ -157,7 +158,7 @@ export function CoinStageArt({ stage, fill = 0.35, className = "" }: { stage: nu
       <AnimatePresence mode="wait" initial={false}>
         <motion.svg key={stage} viewBox="0 0 640 340" className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Step ${stage + 1} illustration`}
           initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.35, ease: "easeOut" }}>
-          <Scene reduced={reduced} fill={fill} />
+          <Scene reduced={reduced} fill={fill} feePct={feePct} />
         </motion.svg>
       </AnimatePresence>
     </div>

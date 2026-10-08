@@ -45,8 +45,8 @@ export function FeeSplitDiagram({ shares, feeRate, highlight, onHighlight, examp
             <text x="30" y="30" fill="rgba(255,255,255,0.45)" fontSize="13" fontFamily="var(--font-geist-mono)" letterSpacing="2">1 · A TRADE HAPPENS</text>
             <rect x="30" y="52" width="300" height="46" rx="14" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.18)" />
             <rect x="34" y="56" width="262" height="38" rx="11" fill="rgba(255,255,255,0.10)" />
-            <text x="48" y="81" fill="#fff" fontSize="17" fontWeight="600">Someone buys {exampleSol} SOL of a coin</text>
-            <motion.rect x="300" y="56" width="26" height="38" rx="9" fill="url(#fsd-fee)" animate={reduced ? undefined : { x: [300, 300, 330, 410], opacity: [1, 1, 1, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.6, 1] }} />
+            <text x="48" y="81" fill="#fff" fontSize="17" fontWeight="600">A buyer spends {exampleSol} SOL</text>
+            <motion.rect x="300" y="56" width="26" height="38" rx="9" fill="url(#fsd-fee)" animate={reduced ? undefined : { x: [0, 0, 24, 112], opacity: [1, 1, 1, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.6, 1] }} />
           </g>
 
           {/* 2. the fee hub */}

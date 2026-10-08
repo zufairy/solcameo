@@ -71,7 +71,7 @@ export function CoinLifecycle() {
       <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className={`${panel} relative min-h-[320px] overflow-hidden lg:min-h-[520px]`}>
           <div aria-hidden className="pointer-events-none absolute -left-16 top-10 size-[380px] rounded-full bg-lime-400/[0.06] blur-[100px]" />
-          <CoinStageArt stage={active} fill={avgFill} className="absolute inset-x-3 bottom-[108px] top-4 sm:inset-x-8" />
+          <CoinStageArt stage={active} fill={avgFill} feePct={String(+(fee * 100).toFixed(2))} className="absolute inset-x-3 bottom-[108px] top-4 sm:inset-x-8" />
           <div className="pointer-events-none absolute inset-x-4 bottom-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>Step {active + 1} of 6</p>
