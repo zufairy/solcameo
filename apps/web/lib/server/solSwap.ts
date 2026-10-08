@@ -20,7 +20,7 @@ import { getUsdcMint } from "@/lib/solana/network";
  */
 const WSOL = "So11111111111111111111111111111111111111112";
 /** SOL the wallet must keep after swapping: the swap's own network fee, a possible USDC account rent, and headroom. */
-export const SOL_RESERVE_LAMPORTS = 12_000_000;
+export const SOL_RESERVE_LAMPORTS = 5_000_000;
 export const SWAP_SLIPPAGE_BPS = 30;
 /** Retry once with room for the price to move if the tight first attempt reverts. */
 const SWAP_RETRY_SLIPPAGE_BPS = 100;
@@ -197,6 +197,14 @@ const feePayerCache = new TtlCache<boolean>(15_000, 2);
 /** One payment costs about 0.00003 SOL of network fee, so the shared fee payer stays in service far below this. */
 const FEE_PAYER_MIN_SOL = 0.0005;
 
+/** SOL held by the shared fee-payer wallet, or null when it is not configured or unreadable. */
+export async function feePayerSol(): Promise<number | null> {
+  try {
+    const secret = process.env.PLATFORM_FEE_PAYER_SECRET?.trim();
+    return secret ? await getSolBalanceStrict(loadKeypair(secret).publicKey.toBase58()) : null;
+  } catch { return null; }
+}
+
 export async function feePayerReady(): Promise<boolean> {
   try {
     const secret = process.env.PLATFORM_FEE_PAYER_SECRET?.trim();
@@ -254,7 +262,7 @@ async function doEnsureGas(mintAddress: string, keepUsdc: number): Promise<GasOu
 export function swapFailureMessage(failure: { reason: string; solNeeded?: number } | null, requiredUsd: number): string {
   const need = `$${requiredUsd.toFixed(2)}`;
   switch (failure?.reason) {
-    case "no_sol": return `This agent wallet needs ${need} USDC, or at least 0.02 SOL so it can swap to USDC itself. Fund it and try again.`;
+    case "no_sol": return `This agent wallet needs ${need} USDC, or at least 0.01 SOL so it can swap to USDC itself. Fund it and try again.`;
     case "not_enough_sol": return `This agent wallet needs ${need} in USDC. Its SOL is not enough to swap that much${failure.solNeeded ? ` (about ${failure.solNeeded.toFixed(3)} SOL needed)` : ""}. Fund it and try again.`;
     case "over_limit": return `This job needs ${need}, more than the automatic SOL swap allows. Deposit USDC to this agent wallet.`;
     case "no_price": case "quote_failed": case "order_failed": case "swap_build_failed": return "Could not get a SOL to USDC price from Jupiter right now. Try again in a moment.";
@@ -316,8 +324,8 @@ async function doAgentSwap(mintAddress: string, direction: AgentSwapDirection, a
     if (direction === "sol_to_usdc") {
       const spendable = lamports - SOL_RESERVE_LAMPORTS;
       const want = Math.floor(amount * 1e9);
-      if (spendable <= 0) return fail("no_sol", "Not enough SOL: the wallet keeps about 0.012 SOL for network fees.");
-      if (want > spendable) return fail("not_enough_sol", `Not enough SOL. You can swap up to ${(spendable / 1e9).toFixed(4)} SOL and the wallet keeps 0.012 SOL for network fees.`);
+      if (spendable <= 0) return fail("no_sol", "Not enough SOL: the wallet keeps about 0.005 SOL for network fees.");
+      if (want > spendable) return fail("not_enough_sol", `Not enough SOL. You can swap up to ${(spendable / 1e9).toFixed(4)} SOL and the wallet keeps 0.005 SOL for network fees.`);
       if (amount * 1e9 < 1e6) return fail("too_small", "That amount is too small to swap.");
       leg = { inputMint: WSOL, outputMint: usdcMint, amount: want };
     } else {

@@ -33,7 +33,7 @@ export async function chargeExploreRun(mint: string, runId: string, priceUsdc: n
     // has confirmed payment proof is not charged again.
     if (!("paymentConfirmed" in r && r.paymentConfirmed)) {
       const paid = await payForCharge(mint, { requireTransfer: true });
-      if (!paid.ok) { console.error(`[exploreBilling] on-chain payment failed for ${mint}: ${paid.reason}`); await refundExploreRun(mint, runId); return { ok: false, reason: paid.reason === "wallet_signing_unavailable" ? "wallet_signing_unavailable" : "payment_failed" }; }
+      if (!paid.ok) { console.error(`[exploreBilling] on-chain payment failed for ${mint}: ${paid.reason}`); await refundExploreRun(mint, runId); return { ok: false, reason: paid.reason === "wallet_signing_unavailable" ? "wallet_signing_unavailable" : /no_network_fee_sol/.test(paid.reason) ? "needs_network_fee" : "payment_failed" }; }
     }
     return { ok: true, costUsdc: r.costUsdc, ...(duplicate ? { duplicate: true } : {}) };
   } catch {
@@ -55,5 +55,6 @@ export const CHARGE_MESSAGES: Record<string, string> = {
   suspended: "This agent is suspended.",
   billing_unavailable: "Billing is temporarily unavailable. Please try again.",
   wallet_signing_unavailable: "This agent wallet cannot sign its payment because the server wallet encryption key does not match. The operator must restore the original encryption key before generation can continue.",
+  needs_network_fee: "This agent wallet has USDC but no SOL for the network fee, and the automatic top-up could not run. Send a tiny amount of SOL (about 0.005) to the agent wallet, then try again. Nothing was charged.",
   payment_failed: "The on-chain payment from this agent wallet did not confirm, so nothing was generated or charged. Please try again.",
 };

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { AgentOption } from "./AgentOption";
 import { BlurRevealVideo, RenderProgress } from "./RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
+import { AgentPayStatus } from "@/components/builder/AgentPayStatus";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { CHIP, ChipCheck, ChipSelect, PANEL, PriceButton } from "@/components/builder/generate/ui";
 import { pickableVideoEngine, VIDEO_STORYBOARD_COST_USDC, getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions, type VideoEngineId } from "@/lib/builder/agentTypes";
@@ -264,6 +265,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !walletPaid) || (noInfluencer && !attached.length) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
                     title={running ? "Rendering…" : walletPaid ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
                 </div>
+                {!walletPaid && mint && agent?.agentWallet && !running && !videoUrl && <AgentPayStatus mintAddress={mint} wallet={agent.agentWallet} priceUsd={priceUsd} onFund={() => { setFundWallet(agent.agentWallet ?? undefined); setFundOpen(true); }} />}
                 {noInfluencer && !attached.length && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
                 {failure && (
                   <p role="alert" className="mt-3 flex items-start gap-2 text-[12px] text-red-300"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{failure}</p>

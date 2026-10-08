@@ -55,7 +55,7 @@ describe("planGasTopUp (can the agent pay its own network fee?)", () => {
 describe("swapFailureMessage", () => {
   it("tells the user what to do for each way a SOL top-up can fail", async () => {
     const { swapFailureMessage } = await import("./solSwap");
-    expect(swapFailureMessage({ reason: "no_sol" }, 3)).toContain("0.02 SOL");
+    expect(swapFailureMessage({ reason: "no_sol" }, 3)).toContain("0.01 SOL");
     expect(swapFailureMessage({ reason: "not_enough_sol", solNeeded: 0.1 }, 3)).toContain("0.100 SOL");
     expect(swapFailureMessage({ reason: "no_price" }, 3)).toContain("Jupiter");
     expect(swapFailureMessage(null, 3)).toContain("$3.00");

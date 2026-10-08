@@ -14,6 +14,9 @@ import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
 import { confirmSignature, fetchWalletBalances, sendAndLand, sendFundingTransfer, type FundToken } from "@/lib/solana/fundWallet";
 import { getTxExplorerUrl, getUsdcFaucetUrl } from "@/lib/solana/network";
 import { CONNECT_BUTTON_CLASS } from "./connectButton";
+import { FundingGuide } from "./FundingGuide";
+import { planFunding, swapFeeSol } from "@/lib/explore/fundingPlan";
+import { useSolUsd } from "@/lib/client/useSolUsd";
 
 type Funds = { sol: number; usdc: number };
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -37,6 +40,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const { connection } = useConnection();
   const [mode, setMode] = useState<"USDC" | "SOL" | "SWAP" | "INSIDE">(initialMode ?? "USDC");
+  const solUsdRate = useSolUsd();
   const token: FundToken = mode === "SOL" ? "SOL" : "USDC";
   const swap = mode === "SWAP";
   const [quote, setQuote] = useState<{ inSol: number; maxSol: number; solUsd: number; slippageBps: number } | null>(null);
@@ -116,7 +120,8 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     })();
   }, []);
 
-  const available = swap ? (mine && quote ? Math.max(0, mine.sol - 0.008) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
+  const feeSol = swapFeeSol((agent?.usdc ?? 0) > 0);
+  const available = swap ? (mine && quote ? Math.max(0, mine.sol - feeSol) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
   const presets = token === "USDC" ? [1, 5, 10, 25] : [0.05, 0.1, 0.25, 0.5];
 
   // Price the swap as the amount changes, then keep it live: re-quote every 4 seconds so the price on screen is always current.
@@ -155,7 +160,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     if (!publicKey || !signTransaction) { setError("Connect your wallet first."); setStep("error"); return; }
     if (!agentWallet) { setError("The agent wallet is still being set up. Try again in a moment."); setStep("error"); return; }
     if (!(num >= 0.5)) { setError("The minimum swap is $0.50."); setStep("error"); return; }
-    if (mine && quote && mine.sol < quote.maxSol + 0.008) { setError(`You need about ${(quote.maxSol + 0.008).toFixed(4)} SOL (the swap plus network fees); your wallet has ${mine.sol.toFixed(4)} SOL.`); setStep("error"); return; }
+    if (mine && quote && mine.sol < quote.maxSol + feeSol) { setError(`This swap needs about ${(quote.maxSol + feeSol).toFixed(4)} SOL (the swap plus network fees) and your wallet has ${mine.sol.toFixed(4)} SOL. Use the suggestion above: swap a smaller amount, or send USDC or SOL straight to the agent address.`); setStep("error"); return; }
     setStep("approving"); setError("");
     try {
       const res = await fetch("/api/agents/fund-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "build", usdc: num, payer: publicKey.toBase58(), agentWallet }) });
@@ -211,6 +216,14 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
             </div>
   );
   const faucet = token === "USDC" ? getUsdcFaucetUrl() : null;
+  const needUsd = suggestedUsdc && suggestedUsdc > 0 ? suggestedUsdc : swap && num > 0 ? num : 0;
+  const plan = open && step !== "done" ? planFunding({ needUsd, mine, agent, solUsd: solUsdRate }) : null;
+  const guide = plan && mode !== "INSIDE" ? (
+    <FundingGuide plan={plan} agentWallet={agentWallet} mintAddress={mintAddress}
+      onSend={(usd) => { setMode("USDC"); setAmount(usd.toFixed(2)); setStep("idle"); setError(""); }}
+      onSwap={(usd) => { setMode("SWAP"); setAmount(usd.toFixed(2)); setStep("idle"); setError(""); }}
+      onSwapped={() => { void loadBalances(); burstRefresh(agentRef.current); }} />
+  ) : null;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <DialogContent className="!max-w-md rounded-3xl border border-white/20 bg-[linear-gradient(145deg,rgba(40,43,48,0.92),rgba(15,18,22,0.9))] p-6 text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-3xl">
@@ -247,6 +260,8 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
             <p className="mt-0.5 font-mono text-[10px] text-zinc-600">{agentWallet ? short(agentWallet) : "Setting up…"}</p>
           </div>
         </div>
+
+        {guide}
 
         {mode === "INSIDE" && mintAddress ? (
           <>
@@ -298,7 +313,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
             {faucet && mine && mine.usdc < 1 && (
               <p className="text-[11px] text-zinc-500">No devnet USDC yet? <a href={faucet} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-white">Get free test USDC</a>.</p>
             )}
-            {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
+            {error && <p role="alert" className="rounded-lg border border-red-400/25 bg-red-400/[0.07] px-3 py-2 text-xs leading-5 text-red-200">{error}</p>}
             <button type="button" onClick={() => void (swap ? swapAndFund() : transfer())} disabled={busy || !agentWallet || !(num > 0) || (swap && (!quote || quoting))} className={`${CONNECT_BUTTON_CLASS} w-full justify-center !py-2.5 !text-[12.5px]`}>
               {busy && <Loader2 className="size-3.5 animate-spin" />}
               {step === "approving" ? "Approve in your wallet…" : step === "confirming" ? "Confirming on Solana…" : swap ? `Swap ${quote ? `${quote.inSol.toFixed(4)} SOL` : "SOL"} → $${num > 0 ? num.toFixed(2) : "0.00"} USDC` : `Transfer ${num > 0 ? `${amount} ${token}` : ""} to the agent`}

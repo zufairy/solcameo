@@ -7,7 +7,7 @@ import { getTxExplorerUrl } from "@/lib/solana/network";
 type Direction = "sol_to_usdc" | "usdc_to_sol";
 type Quote = { outAmount: number; minOut: number; priceImpactPct: number; slippageBps: number };
 /** SOL the agent wallet always keeps for network fees; mirrors the server. */
-const SOL_KEEP = 0.012;
+const SOL_KEEP = 0.005;
 
 /**
  * Swap between the agent wallet's own SOL and USDC (either way) without moving anything through your wallet. The server signs

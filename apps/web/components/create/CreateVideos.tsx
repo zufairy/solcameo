@@ -14,6 +14,7 @@ import { MAX_REFERENCE_IMAGES } from "@/lib/explore/referenceImages";
 import { AgentOption } from "@/components/explore/AgentOption";
 import { BlurRevealVideo, RenderProgress } from "@/components/explore/RenderProgress";
 import { FundAgentDialog } from "@/components/builder/FundAgentDialog";
+import { AgentPayStatus } from "@/components/builder/AgentPayStatus";
 import { MentionTextarea, type Mention } from "@/components/builder/generate/MentionTextarea";
 import { DirectorPicker } from "./DirectorPicker";
 import { CHIP, ChipSelect, PriceButton } from "@/components/builder/generate/ui";
@@ -323,6 +324,7 @@ export function CreateVideos() {
               <PriceButton className="ml-auto" disabled={!prompt.trim() || (!mint && !walletPaid) || (noInfluencer && !attachedList.length) || running} busy={running} onClick={() => void generate()} priceUsd={null} priceText={formatRetailUsd(priceUsd)}
                 title={running ? "Rendering…" : walletPaid ? "You pay this in USDC from your own wallet before the render starts. Includes the Solcameo fee." : "Paid from the agent's wallet before the render starts. Includes the Solcameo fee."} />
             </div>
+            {!walletPaid && mint && wallet && !running && <AgentPayStatus mintAddress={mint} wallet={wallet} priceUsd={priceUsd} onFund={() => setFundOpen(true)} />}
             {failure && <p role="alert" className="mt-3 flex items-start gap-2 text-[12px] text-red-300"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{failure}</p>}
           </div>
 

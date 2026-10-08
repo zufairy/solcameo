@@ -22,6 +22,7 @@ vi.mock("@/components/ui/select", () => ({
   SelectLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/components/builder/FundAgentDialog", () => ({ FundAgentDialog: ({ open }: { open: boolean }) => (open ? <div>Fund dialog</div> : null) }));
+vi.mock("@/components/builder/AgentPayStatus", () => ({ AgentPayStatus: () => null }))
 vi.mock("@/components/builder/generate/MentionTextarea", () => ({
   MentionTextarea: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => <textarea aria-label="Prompt" value={value} onChange={(e) => onChange(e.target.value)} />,
 }));

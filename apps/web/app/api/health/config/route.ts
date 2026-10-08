@@ -66,6 +66,9 @@ export async function GET(req: Request) {
     GOOGLE_DRIVE_API_KEY: Boolean(process.env.GOOGLE_DRIVE_API_KEY?.trim()),
     GOOGLE_SERVICE_ACCOUNT_JSON: Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim()),
     UPLOAD_POST_API_KEY: Boolean(process.env.UPLOAD_POST_API_KEY?.trim()),
+    // Pays the network fee when an agent wallet holds no SOL (generation payments and fee settlements depend on it).
+    PLATFORM_FEE_PAYER_SECRET: Boolean(process.env.PLATFORM_FEE_PAYER_SECRET?.trim()),
+    JUPITER_API_KEY: Boolean(process.env.JUPITER_API_KEY?.trim()),
     KIE_API_KEY: Boolean(process.env.KIE_API_KEY?.trim()),
     GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY?.trim()),
     INTERNAL_CRON_SECRET: Boolean(process.env.INTERNAL_CRON_SECRET?.trim()),
@@ -97,6 +100,7 @@ export async function GET(req: Request) {
   };
 
   const warnings: string[] = [];
+  let feePayer: { sol: number | null; ready: boolean } | null = null;
 
   if (!nextEnv.NEXT_PUBLIC_CONVEX_URL) {
     warnings.push("Missing NEXT_PUBLIC_CONVEX_URL in the Next.js deployment. Client-side Convex data will not load.");
@@ -112,6 +116,15 @@ export async function GET(req: Request) {
   }
   if (!serverEnv.UPLOAD_POST_API_KEY) {
     warnings.push("Missing UPLOAD_POST_API_KEY. Social connect + auto-post are disabled (skipped).");
+  }
+  if (!serverEnv.PLATFORM_FEE_PAYER_SECRET) {
+    warnings.push("Missing PLATFORM_FEE_PAYER_SECRET. Agent wallets with no SOL cannot pay network fees, so their generation payments and fee settlements stall.");
+  } else {
+    // The fallback only works while this wallet holds SOL.
+    const { feePayerSol } = await import("@/lib/server/solSwap");
+    const sol = await feePayerSol();
+    feePayer = { sol, ready: sol !== null && sol >= 0.0005 };
+    if (!feePayer.ready) warnings.push(`The fee-payer wallet has ${sol === null ? "an unreadable balance" : `${sol.toFixed(5)} SOL`}. Fund it (about 0.05 SOL) so agent wallets with no SOL can still pay.`);
   }
   if (!serverEnv.GEMINI_API_KEY) {
     warnings.push("Missing GEMINI_API_KEY. Every chat (builder copilot, agent chat, control panel, help widget) falls back to Kie's queue — ~30s per reply instead of ~2s.");
@@ -187,6 +200,7 @@ export async function GET(req: Request) {
     ok: warnings.length === 0,
     nextEnv,
     serverEnv,
+    feePayer,
     originChecks,
     convexOrigins,
     warnings,
