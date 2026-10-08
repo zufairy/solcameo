@@ -71,7 +71,7 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
 
   return <>
     <Dialog open={open && !depositOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[460px] border-0 bg-transparent p-0 text-center text-white shadow-none ring-0 sm:max-w-[460px]">
+      <DialogContent className="max-w-[460px] overflow-hidden rounded-[24px] border border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03)_55%,rgba(215,255,0,0.06))] bg-[#0b0d0f]/90 p-0 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_40px_100px_-30px_rgba(0,0,0,0.95)] ring-0 backdrop-blur-2xl backdrop-saturate-150 sm:max-w-[460px]">
         <div className="relative px-7 pb-7 pt-9">
           <motion.div
             initial={{ scale: reduced ? 1 : 0.6, opacity: 0, rotate: reduced ? 0 : -6 }}
@@ -87,7 +87,7 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
           </motion.div>
 
           <DialogTitle className="text-[26px] font-semibold tracking-tight">{name} is ready<span className="text-[#d7ff00]">.</span></DialogTitle>
-          <DialogDescription className="mx-auto mt-2.5 max-w-[340px] text-[14.5px] leading-6 text-zinc-400">
+          <DialogDescription className="mx-auto mt-2.5 max-w-[340px] text-[14.5px] leading-6 text-zinc-300">
             {live
               ? <>${ticker.toUpperCase()} is trading. One last step: fund {name}&apos;s wallet and it will make its first video.</>
               : <>Your preview coin is created. Fund {name}&apos;s wallet so it can make its first video.</>}
@@ -120,7 +120,7 @@ export function LaunchReady({ open, characterId, name, ticker, imageUrl, agentWa
             )}
           </motion.div>
 
-          <ul className="mt-4 grid grid-cols-3 gap-2 text-[11.5px] leading-4 text-zinc-400">
+          <ul className="mt-4 grid grid-cols-3 gap-2 text-[11.5px] leading-4 text-zinc-300">
             {[{ Icon: Video, text: "Fund influencer for first video" }, { Icon: Zap, text: "Funded agents start right away" }, { Icon: LockKeyhole, text: "Withdraw unused funds anytime" }].map(({ Icon, text }) => (
               <li key={text} className="flex flex-col items-center px-1 py-2">
                 <span aria-hidden className={`grid size-9 place-items-center rounded-xl text-white ${GLASS}`}><Icon className="size-4" strokeWidth={1.75} /></span>

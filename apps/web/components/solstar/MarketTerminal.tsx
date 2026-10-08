@@ -36,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ErrorBoundary } from "@/components/error/error-boundary";
+import { RecoveringBoundary } from "./RecoveringBoundary";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -82,7 +82,7 @@ export function MarketTerminal({
   characterId: Id<"ssCharacters">;
 }) {
   return (
-    <ErrorBoundary
+    <RecoveringBoundary
       fallback={
         <div className="p-10 text-zinc-400">
           Market data is unavailable.{" "}
@@ -93,7 +93,7 @@ export function MarketTerminal({
       }
     >
       <Terminal key={characterId} characterId={characterId} />
-    </ErrorBoundary>
+    </RecoveringBoundary>
   );
 }
 function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
