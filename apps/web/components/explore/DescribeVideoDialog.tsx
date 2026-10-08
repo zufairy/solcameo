@@ -201,20 +201,20 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               <label className="block text-xs font-medium text-zinc-400">
                 Influencer
                 <Select value={noInfluencer ? NONE : cameo ? cameo.mintAddress : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
-                  <SelectTrigger aria-label="Your influencer" className="mt-2 h-[88px] w-full border-white/10 bg-white/5 px-2.5 text-white">
+                  <SelectTrigger size="auto" aria-label="Your influencer" className="mt-2 min-h-[96px] w-full border-white/10 bg-white/5 px-2.5 text-white">
                     <SelectValue placeholder="Choose an influencer">
                       {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption xl name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(34rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
-                    <SelectItem value={NONE} className="min-h-[88px] py-3 pl-2"><NoInfluencerOption /></SelectItem>
+                  <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(42rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
+                    <SelectItem value={NONE} className="min-h-[96px] py-3.5 pl-2.5"><NoInfluencerOption /></SelectItem>
                     {agents.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                       {agents.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2"><AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[96px] py-3.5 pl-2.5"><AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                     {others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                       {others.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2"><AgentOption xl name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[96px] py-3.5 pl-2.5"><AgentOption xl name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                   </SelectContent>
                 </Select>

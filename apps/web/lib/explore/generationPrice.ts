@@ -9,11 +9,10 @@ const RATE_MILLS: Record<GenjutsuResolution, number> = {
   "720p": 681,
   "1080p": 1632,
 };
-/** Solcameo's fee on top of the Higgsfield rate: 15% of the provider cost or $1, whichever is higher. Single source of truth for UI and billing. */
+/** Solcameo's fee on top of the Higgsfield rate: 15% of the provider cost, the same markup as every other generation. Single source of truth for UI and billing. */
 export const SOLCAMEO_MARKUP_PCT = 15;
-export const SOLCAMEO_MIN_MARKUP_MILLS = 1000; // $1.00
 export function solcameoMarkupMills(providerMills: number): number {
-  return Math.max(Math.ceil((providerMills * SOLCAMEO_MARKUP_PCT) / 100), SOLCAMEO_MIN_MARKUP_MILLS);
+  return Math.ceil((providerMills * SOLCAMEO_MARKUP_PCT) / 100);
 }
 export function estimateGenerationUsd(
   duration: number,

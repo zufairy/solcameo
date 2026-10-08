@@ -534,7 +534,7 @@ function Generator({
       </Button>
       <p className="text-[11px] text-zinc-500">
         {own
-          ? <>{estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15% or $1, whichever is higher). ` : ""}
+          ? <>{estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15%). ` : ""}
             Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}</>
           : <>{estimate !== null ? `${formatGenerationUsd(estimate)} is paid in USDC from your own wallet to Solcameo, fee included. ` : ""}{custom ? "No influencer is used" : `${primaryName} is not yours`}, so the video is made for you and shown here. Keep this window open until it finishes.</>}
       </p>
@@ -932,7 +932,7 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
           <Button
             variant="outline"
             onClick={() => setDescribeOpen(true)}
-            className="h-10 rounded-lg border-white/10 bg-white/[0.04] text-white/80 backdrop-blur-xl hover:bg-white/10"
+            className="h-10 rounded-lg border border-white/25 bg-gradient-to-b from-white/[0.18] to-white/[0.05] px-4 font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_24px_-10px_rgba(0,0,0,0.7)] backdrop-blur-2xl backdrop-saturate-150 transition-colors hover:from-white/[0.26] hover:to-white/[0.1] hover:text-white"
           ><Wand2 className="size-4" /> Describe your video</Button>
         </div>
         <h1 className="sr-only">{embedded ? "Video suggestions for your influencer" : "Explore video references"}</h1>
@@ -1224,8 +1224,9 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                       onValueChange={(value) => setMint(value ?? "")}
                     >
                       <SelectTrigger
+                        size="auto"
                         aria-label="Your influencer"
-                        className="mt-2 h-[88px] w-full border-white/10 bg-white/5 px-2.5 text-white"
+                        className="mt-2 min-h-[96px] w-full border-white/10 bg-white/5 px-2.5 text-white"
                       >
                         <SelectValue placeholder="Choose an influencer">
                           {(value: string | null) => {
@@ -1237,17 +1238,17 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                           }}
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(34rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
-                        {!fixedMint && <SelectItem value={NO_INFLUENCER} className="min-h-[88px] py-3 pl-2"><NoInfluencerRow /></SelectItem>}
+                      <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(42rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
+                        {!fixedMint && <SelectItem value={NO_INFLUENCER} className="min-h-[96px] py-3.5 pl-2.5"><NoInfluencerRow /></SelectItem>}
                         {!!agents?.length && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                           {agents.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2">
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[96px] py-3.5 pl-2.5">
                               <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}
                         {!fixedMint && others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                           {others.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2">
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[96px] py-3.5 pl-2.5">
                               <AgentOption xl name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}

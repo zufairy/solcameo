@@ -17,7 +17,7 @@ const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\/
 
 /**
  * Explore "Generate now". The source video and the price come from our own reference table, never
- * from the client. The agent is charged (reference price plus the Solcameo fee: 15% or $1, whichever is higher, settled from
+ * from the client. The agent is charged (reference price plus the Solcameo fee: 15%, settled from
  * the agent wallet to the Solcameo treasury), then the render is submitted to Higgsfield. A render
  * that fails to start is refunded. The row it leaves behind lets the cron finish and auto-post it.
  */

@@ -2,16 +2,17 @@ import { describe, expect, it } from "vitest";
 import { estimateGenerationUsd } from "./generationPrice";
 
 describe("explore generation price", () => {
-  it("adds 15% or $1 on top of the Higgsfield rate, whichever is higher", () => {
-    expect(estimateGenerationUsd(4, "480p")).toBe(2.28); // $1.272 + max($0.127, $1.00) = $2.272, rounded up to the cent
-    expect(estimateGenerationUsd(10, "720p")).toBe(7.84); // $6.81 + 15% ($1.022), which is above the $1.00 floor
-    expect(estimateGenerationUsd(10, "1080p")).toBe(18.77); // $16.32 + 15% ($2.448) = $18.768
+  it("adds exactly 15% on top of the Higgsfield rate, rounded up to the cent", () => {
+    expect(estimateGenerationUsd(4, "480p")).toBe(1.47); // $1.272 + $0.1908 = $1.4628
+    expect(estimateGenerationUsd(10, "720p")).toBe(7.84); // $6.81 + $1.0215 = $7.8315
+    expect(estimateGenerationUsd(10, "1080p")).toBe(18.77); // $16.32 + $2.448 = $18.768
   });
-  it("never takes less than $1 or 15% of the provider cost", () => {
+  it("takes the same 15% on every length and quality", () => {
     for (const resolution of ["480p", "720p", "1080p"] as const) for (const seconds of [4, 8, 15, 30]) {
       const provider = seconds * { "480p": 0.318, "720p": 0.681, "1080p": 1.632 }[resolution];
       const price = estimateGenerationUsd(seconds, resolution)!;
-      expect(price - provider).toBeGreaterThanOrEqual(Math.max(provider * 0.15, 1) - 0.011);
+      expect(price / provider).toBeGreaterThanOrEqual(1.15 - 1e-9);
+      expect(price / provider).toBeLessThan(1.15 + 0.01 / provider + 1e-9);
     }
   });
   it("rounds the duration up to whole seconds", () => {
