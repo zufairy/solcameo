@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         }
       } else requestId = await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
       accepted = true;
-      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, provider, model: usedModel, requestId, count: 1, ratio, createdAt: Date.now() };
+      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, provider, model: usedModel, requestId, count: 1, ratio, createdAt: Date.now(), ...(provider === "kie" ? { prompt, refs: kieRefs.slice(0, 1) } : {}) };
       // Register every accepted job before returning: refresh recovery does not depend on browser memory.
       await putImage(Buffer.from(JSON.stringify(job)), "application/json", { key: `characters/${a.mint}/jobs/${requestId}.json` });
       return { ...job, ticket: issueCharacterJobTicket(a.mint, requestId) };

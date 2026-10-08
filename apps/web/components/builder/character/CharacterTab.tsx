@@ -235,13 +235,14 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
           });
         });
         let delay = 2500;
-        while (runId.current === id && Date.now() - startedAt < 5 * 60_000) {
+        while (runId.current === id && Date.now() - startedAt < 8 * 60_000) {
           await sleep(delay);
           delay = Math.min(delay + 500, 5000);
           try {
-            const r = await api<{ status: string; url?: string; urls?: string[]; error?: string }>(
+            const r = await api<{ status: string; phase?: "primary" | "backup"; url?: string; urls?: string[]; error?: string }>(
               `/api/character/status?mint=${encodeURIComponent(mintAddress ?? "")}&id=${encodeURIComponent(job.requestId)}${onboarding ? "&draft=1" : ""}&ticket=${encodeURIComponent(job.ticket ?? "")}`,
             );
+            if (r.phase === "backup") patchTiles(id, (prev) => prev.map((t) => (ids.has(t.id) && t.status === "pending" && t.phase !== "backup" ? { ...t, phase: "backup" as const } : t)));
             if (r.status === "completed") { settle(r.urls?.length ? r.urls : r.url ? [r.url] : [], "No image came back"); return; }
             if (["failed", "nsfw", "canceled"].includes(r.status)) {
               const message = generationError(r.status, r.error);

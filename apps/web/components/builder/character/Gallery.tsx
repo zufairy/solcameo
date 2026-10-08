@@ -14,6 +14,8 @@ export type Tile = {
   status: "pending" | "done" | "failed";
   url?: string;
   error?: string;
+  /** "backup" once a faster backup engine has taken over a slow render. */
+  phase?: "backup";
   startedAt: number;
 };
 
@@ -36,7 +38,11 @@ async function download(url: string, name: string) {
 
 function PendingCard({ tile, now }: { tile: Tile; now: number }) {
   const secs = Math.max(0, Math.round((now - tile.startedAt) / 1000));
-  const progress = 1 - Math.exp(-secs / 28); // eases toward ~95% so it never looks stuck
+  const ETA = 60; // typical nano banana pro render, seconds
+  const progress = Math.min(0.96, 1 - Math.exp(-secs / (ETA * 0.6))); // eases toward ~96% so it never looks stuck
+  const left = Math.max(0, ETA - secs);
+  const label = tile.phase === "backup" ? "Speeding it up" : secs < ETA ? "Rendering your portrait" : "Almost there";
+  const hint = tile.phase === "backup" ? "Switched to a faster engine. Keep this tab open." : secs < ETA ? `About ${left}s left` : "Still working, please keep this tab open";
   return (
     <div className="relative size-full overflow-hidden bg-zinc-900/80" style={{ aspectRatio: cssRatio(tile.ratio) }}>
       <motion.div aria-hidden className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_40%,rgba(163,230,53,0.16),transparent)]" animate={{ opacity: [0.35, 1, 0.35], scale: [1, 1.08, 1] }} transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }} />
@@ -50,8 +56,8 @@ function PendingCard({ tile, now }: { tile: Tile; now: number }) {
             </svg>
             <Sparkles className="size-4 text-lime-400" />
           </div>
-          <p className="mt-2.5 text-[12px] font-medium text-zinc-300">Rendering</p>
-          <p className="text-[11px] tabular-nums text-zinc-500">{secs}s</p>
+          <p className="mt-2.5 text-[12px] font-medium text-zinc-300">{label}</p>
+          <p className="px-3 text-[11px] tabular-nums text-zinc-500" role="status" aria-live="polite">{hint} · {secs}s</p>
         </div>
       </div>
     </div>
