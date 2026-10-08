@@ -118,6 +118,8 @@ export default defineSchema({
     agentMint: v.optional(v.string()), agentName: v.optional(v.string()), tokenId: v.optional(v.id("ssTokens")),
     milestoneViews: v.optional(v.number()), videoUrl: v.optional(v.string()), postUrl: v.optional(v.string()), platform: v.optional(v.string()),
     caption: v.string(), mediaUrl: v.optional(v.string()), kind: v.string(),
+    /** Which network card a "stat" post shows (network, leaderboard, social, engine, minted). */
+    statKind: v.optional(v.string()),
     platforms: v.array(v.string()), status: v.string(), error: v.optional(v.string()),
     requestId: v.optional(v.string()), result: v.optional(v.string()),
     createdAt: v.number(), updatedAt: v.number(), attempts: v.number(),

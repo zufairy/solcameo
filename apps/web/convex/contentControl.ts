@@ -8,12 +8,18 @@ import { agentLaunchCaption, videoMilestoneCaption, tokenLaunchCaption, coinsDig
 import { marketPath } from "../lib/solstar/marketSlug";
 import { bestMilestone, nextSlot, postClass, type PostedEntry } from "../lib/contentQuota";
 
+/** The posting destination. Automatic posts never depend on someone pressing a button first: with nothing saved, they go to the marketing account, queue up, and publish by themselves as soon as X is connected. */
+async function settingsFor(ctx: MutationCtx) {
+  const row = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
+  if (row) return row;
+  const id = await ctx.db.insert("contentControlSettings", { key: "marketing", autoAnnounce: true, autoMilestones: true, updatedAt: Date.now() });
+  return (await ctx.db.get(id))!;
+}
 function authorize(secret: string) {
   if (!process.env.INTERNAL_CRON_SECRET || secret !== process.env.INTERNAL_CRON_SECRET) throw new Error("Unauthorized");
 }
 export async function enqueueAgentAnnouncement(ctx: MutationCtx, agent: { mintAddress: string; name: string; handle: string; description: string; niche: string; avatarUrl: string; agentType?: string }) {
-  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
-  if (!settings) return; // An unconfigured marketing destination must not block agent creation.
+  const settings = await settingsFor(ctx);
   // Always on: every new mint is announced to the selected destination (or the Vello marketing account).
   const dedupeKey = `agent-launch:${agent.mintAddress}`;
   if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return;
@@ -28,8 +34,7 @@ const SITE = "https://solcameo.com";
 const LIVE_STATES = new Set(["live", "graduated", "migrated"]);
 /** A coin that just went live on mainnet: queue one announcement with a ticker-first caption and its card. */
 export async function enqueueTokenAnnouncement(ctx: MutationCtx, tokenId: Id<"ssTokens">) {
-  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
-  if (!settings) return; // An unconfigured marketing destination must not block a launch.
+  const settings = await settingsFor(ctx);
   const token = await ctx.db.get(tokenId);
   if (!token || token.network !== "mainnet" || !LIVE_STATES.has(token.state) || !token.ticker) return;
   const dedupeKey = `token-launch:${tokenId}`;
@@ -44,8 +49,7 @@ export async function enqueueTokenAnnouncement(ctx: MutationCtx, tokenId: Id<"ss
 }
 /** Roundup of the coins minted in the last 24 hours. One per 6 hour window; nothing is posted on a quiet day. */
 async function enqueueCoinsDigest(ctx: MutationCtx, force: boolean) {
-  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
-  if (!settings) return { queued: false as const, reason: "Choose the auto-post account first" };
+  const settings = await settingsFor(ctx);
   const now = Date.now(), live = (await ctx.db.query("ssTokens").withIndex("by_network", q => q.eq("network", "mainnet")).order("desc").take(500)).filter(t => LIVE_STATES.has(t.state) && t.ticker);
   const fresh = live.filter(t => t.createdAt >= now - 24 * 3_600_000);
   if (!fresh.length) return { queued: false as const, reason: "No coins were minted in the last 24 hours" };
@@ -59,6 +63,48 @@ async function enqueueCoinsDigest(ctx: MutationCtx, force: boolean) {
   await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
   return { queued: true as const, id };
 }
+/**
+ * Network statistics, twice a day at random-looking hours (one morning slot, one evening slot, UTC, different every day), each
+ * showing a different card (views, leaderboard, platforms, clip engine, new agents) chosen by the day. The post is queued
+ * empty: the worker builds the card from live data and writes the caption with the real numbers when it publishes.
+ */
+export const STAT_KINDS = ["network", "leaderboard", "social", "engine", "minted"] as const;
+const mix = (n: number, salt: number) => { const x = Math.sin(n * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
+async function enqueueStatPost(ctx: MutationCtx, opts: { now: number; force?: boolean; kind?: string }) {
+  const settings = await settingsFor(ctx);
+  const day = Math.floor(opts.now / 86_400_000), hour = new Date(opts.now).getUTCHours();
+  const targets = [8 + Math.floor(mix(day, 1) * 5), 14 + Math.floor(mix(day, 2) * 7)];
+  const slots = opts.force ? [{ slot: `manual:${opts.now}`, salt: opts.now % 997 }] : targets.flatMap((t, i) => (hour >= t ? [{ slot: `${i}`, salt: i + 1 }] : []));
+  let queued: Id<"contentControlPosts"> | null = null;
+  for (const { slot, salt } of slots) {
+    const dedupeKey = `stat:${day}:${slot}`;
+    if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) continue;
+    const kind = opts.kind && (STAT_KINDS as readonly string[]).includes(opts.kind) ? opts.kind : STAT_KINDS[Math.floor(mix(day, salt + 9) * STAT_KINDS.length)];
+    const id = await ctx.db.insert("contentControlPosts", {
+      dedupeKey, source: "stat", statKind: kind, targetMint: settings.targetMint, agentName: `Network stats: ${kind}`, caption: "Network stats", kind: "video", platforms: ["x"],
+      status: "queued", attempts: 0, createdAt: opts.now, updatedAt: opts.now,
+    });
+    await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
+    queued = id;
+    if (!opts.force) break; // a late tick catches up one slot at a time, never a burst
+  }
+  return queued;
+}
+export const statCron = internalMutation({ args: {}, handler: async (ctx) => { await enqueueStatPost(ctx, { now: Date.now() }); } });
+export const statNow = mutation({
+  args: { authSecret: v.string(), kind: v.optional(v.string()) },
+  handler: async (ctx, { authSecret, kind }) => { authorize(authSecret); const id = await enqueueStatPost(ctx, { now: Date.now(), force: true, kind }); return id ? { queued: true as const, id } : { queued: false as const, reason: "Could not queue a stats post" }; },
+});
+/** The worker writes the caption once the card's live numbers are known. */
+export const setCaption = mutation({
+  args: { authSecret: v.string(), id: v.id("contentControlPosts"), caption: v.string() },
+  handler: async (ctx, { authSecret, id, caption }) => {
+    authorize(authSecret);
+    const post = await ctx.db.get(id);
+    if (!post || post.status !== "publishing") throw new Error("Post is not being prepared");
+    await ctx.db.patch(id, { caption: caption.slice(0, 600) });
+  },
+});
 export const coinsDigestCron = internalMutation({ args: {}, handler: async (ctx) => { await enqueueCoinsDigest(ctx, false); } });
 export const coinsDigestNow = mutation({ args: { authSecret: v.string() }, handler: async (ctx, { authSecret }) => { authorize(authSecret); return await enqueueCoinsDigest(ctx, true); } });
 /** Data behind the coin cards: one coin (first, with its number) or the newest four, plus the 24 hour and total counts. */
@@ -82,8 +128,7 @@ export const coinCardData = query({
  */
 export async function enqueueVideoAnnouncement(ctx: MutationCtx, job: { _id: Id<"videoRenderJobs">; mintAddress: string; videoUrl?: string; videoNote?: string }) {
   if (!job.videoUrl) return;
-  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
-  if (!settings) return;
+  const settings = await settingsFor(ctx);
   const dedupeKey = `video-new:${job._id}`;
   if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return;
   const agent = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", job.mintAddress)).first();
@@ -252,7 +297,7 @@ export const pending = query({
     // Held posts (daily quota / spacing / provider cap) are skipped until their slot; launches go before milestones.
     const groups = await Promise.all(statuses.map(async status => (await ctx.db.query("contentControlPosts").withIndex("by_status_and_updatedAt", q => q.eq("status", status)).take(40))
       .filter(p => !(p.notBefore && p.notBefore > now)).slice(0, 3)));
-    const rank = (p: { source: string }) => (p.source === "mint" || p.source === "token" ? 0 : p.source === "video" ? 1 : p.source === "milestone" ? 2 : p.source === "digest" ? 3 : 4);
+    const rank = (p: { source: string }) => (p.source === "mint" || p.source === "token" ? 0 : p.source === "video" ? 1 : p.source === "milestone" ? 2 : p.source === "digest" ? 3 : p.source === "stat" ? 4 : 5);
     return groups.flat().sort((a, b) => rank(a) - rank(b) || a.updatedAt - b.updatedAt);
   },
 });

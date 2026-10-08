@@ -9,6 +9,12 @@ import { createMilestoneCard } from "@/lib/server/milestoneCard";
 import { createMilestoneVideo } from "@/lib/server/milestoneVideo";
 import { createLaunchCard, createLaunchVideo } from "@/lib/server/launchCard";
 import { createCoinCard, createCoinVideo } from "@/lib/server/coinCard";
+import { buildStatData } from "@/lib/server/statData";
+import { renderMaterial } from "@/lib/server/postMaterialRender";
+import { renderMaterialMp4 } from "@/lib/server/materialVideo";
+import { putImage } from "@/lib/server/imageStorage";
+import { putVideo } from "@/lib/server/videoStorage";
+import { statCaption } from "@/lib/marketingCaption";
 import { withMentions, xHandle, xMentions } from "@/lib/server/xMention";
 import { isProviderCapError, providerCapRetryAt } from "@/lib/contentQuota";
 export const runtime = "nodejs";
@@ -58,6 +64,18 @@ export async function POST(req: NextRequest) {
           catch (e) {
             console.error("[content-control] animated launch card failed, using still", e);
             try { await attach(await createLaunchCard(post), "photo"); } catch (err) { console.error("[content-control] launch card failed, using avatar", err); }
+          }
+        }
+        else if (post.source === "stat" && !post.mediaUrl) {
+          // Network statistics: the card and its caption come from the same live numbers, built right before posting.
+          const stat = await buildStatData(post.statKind ?? "network");
+          const caption = statCaption(stat.kind, stat.caption, `${post._id}`);
+          await convex.mutation(api.contentControl.setCaption, { authSecret, id: post._id, caption });
+          prepared = { ...prepared, caption };
+          try { await attach((await putVideo(new Uint8Array(await renderMaterialMp4(stat.data)), { keyPrefix: "marketing/stats", contentType: "video/mp4" })).url, "video"); }
+          catch (e) {
+            console.error("[content-control] animated stat card failed, using still", e);
+            await attach((await putImage(await renderMaterial(stat.data, "png"), "image/png", { key: `marketing/stats/${post._id}.png` })).url, "photo");
           }
         }
         else if ((post.source === "token" || post.source === "digest") && !post.mediaUrl?.includes("/marketing/coins/")) {

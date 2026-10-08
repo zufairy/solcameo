@@ -17,61 +17,53 @@ async function fixture() {
   });
   return { t, id };
 }
-describe("10k video milestones", () => {
-  it("triggers strictly above 10k, once despite repeated/higher/lower measurements", async () => {
+const milestones = async (t: ReturnType<typeof convexTest>) => (await t.query(api.contentControl.state, { authSecret: secret })).posts.filter(p => p.source === "milestone");
+describe("100k video milestones", () => {
+  it("ignores everything up to 100k, then triggers strictly above it, once despite repeated/higher/lower measurements", async () => {
     const { t, id } = await fixture();
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 10000 });
-    expect((await t.query(api.contentControl.state, { authSecret: secret })).posts).toHaveLength(0);
-    for (const viewCount of [10001, 10001, 25000, 9000]) await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount });
-    const { posts } = await t.query(api.contentControl.state, { authSecret: secret });
+    for (const viewCount of [10001, 25000, 100000]) await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount });
+    expect(await milestones(t)).toHaveLength(0);
+    for (const viewCount of [100001, 100001, 250000, 9000]) await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount });
+    const posts = await milestones(t);
     expect(posts).toHaveLength(1);
-    expect(posts[0]).toMatchObject({ source: "milestone", platforms: ["x"], milestoneViews: 10001, agentMint: "mint", videoUrl: "https://example.com/clip.mp4", status: "queued" });
-    expect(posts[0].caption).toContain("10,001"); expect(posts[0].caption).not.toMatch(/[—–]/);
+    expect(posts[0]).toMatchObject({ source: "milestone", platforms: ["x"], milestoneViews: 100001, agentMint: "mint", videoUrl: "https://example.com/clip.mp4", status: "queued" });
+    expect(posts[0].caption).toContain("100,001"); expect(posts[0].caption).not.toMatch(/[—–]/);
   });
   it("deduplicates clip and submission observations of the same public post", async () => {
     const { t, id } = await fixture();
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 15000 });
-    await t.run(ctx => enqueueVideoMilestone(ctx, { mintAddress: "mint", views: 19000, key: "submission:another", postUrl: "https://tiktok.com/@mila/video/123" }));
-    expect((await t.query(api.contentControl.state, { authSecret: secret })).posts).toHaveLength(1);
+    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 150000 });
+    await t.run(ctx => enqueueVideoMilestone(ctx, { mintAddress: "mint", views: 190000, key: "submission:another", postUrl: "https://tiktok.com/@mila/video/123" }));
+    expect(await milestones(t)).toHaveLength(1);
   });
   it("does not announce unposted video measurements", async () => {
     const { t, id } = await fixture();
     await t.run(ctx => ctx.db.patch(id, { status: "ready", postUrl: undefined, postedAt: undefined }));
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 20000 });
-    expect((await t.query(api.contentControl.state, { authSecret: secret })).posts).toHaveLength(0);
+    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 200000 });
+    expect(await milestones(t)).toHaveLength(0);
   });
   it("is always on: milestones queue with no setup and a legacy pause write cannot cancel them", async () => {
     const { t, id } = await fixture();
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 15000 });
-    const post = (await t.query(api.contentControl.state, { authSecret: secret })).posts[0];
+    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 150000 });
+    const post = (await milestones(t))[0];
     await t.mutation(api.contentControl.settings, { authSecret: secret, autoAnnounce: false, autoMilestones: false });
     expect(await t.mutation(api.contentControl.claim, { authSecret: secret, id: post._id })).not.toBeNull();
   });
-  it("posts a second milestone for the same video once it passes 100k", async () => {
+  it("spends X's budget: the most-viewed milestone first, the rest wait their turn", async () => {
     const { t, id } = await fixture();
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 15000 });
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 130000 });
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 160000 });
-    const { posts } = await t.query(api.contentControl.state, { authSecret: secret });
-    expect(posts.map(p => p.milestoneViews).sort()).toEqual([15000, 130000]);
-    expect(posts.find(p => p.milestoneViews === 130000)?.caption).toContain("100k");
-  });
-  it("spends X's daily budget: one 10k milestone a day, the most-viewed first, the rest wait", async () => {
-    const { t, id } = await fixture();
-    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 12000 });
-    const low = (await t.query(api.contentControl.state, { authSecret: secret })).posts[0];
-    const high = await t.run(ctx => ctx.db.insert("contentControlPosts", { dedupeKey: "other", source: "milestone", caption: "c", kind: "photo", platforms: ["x"], status: "queued", attempts: 0, milestoneViews: 19000, createdAt: Date.now(), updatedAt: Date.now() }));
+    await t.mutation(api.clipJobs.recordViewCount, { authSecret: secret, id, viewCount: 120000 });
+    const low = (await milestones(t))[0];
+    const high = await t.run(ctx => ctx.db.insert("contentControlPosts", { dedupeKey: "other", source: "milestone", caption: "c", kind: "photo", platforms: ["x"], status: "queued", attempts: 0, milestoneViews: 190000, createdAt: Date.now(), updatedAt: Date.now() }));
     expect(await t.mutation(api.contentControl.claim, { authSecret: secret, id: low._id })).toBeNull(); // a higher-viewed milestone is waiting
     expect(await t.mutation(api.contentControl.claim, { authSecret: secret, id: high })).not.toBeNull();
     await t.mutation(api.contentControl.finish, { authSecret: secret, id: high, status: "posted" });
-    expect(await t.mutation(api.contentControl.claim, { authSecret: secret, id: low._id })).toBeNull(); // today's slot is used
-    const held = (await t.query(api.contentControl.state, { authSecret: secret })).posts.find(p => p._id === low._id)!;
+    expect(await t.mutation(api.contentControl.claim, { authSecret: secret, id: low._id })).toBeNull(); // spaced six hours apart
+    const held = (await milestones(t)).find(p => p._id === low._id)!;
     expect(held).toMatchObject({ status: "queued" });
-    expect((held as { notBefore?: number }).notBefore).toBeGreaterThan(Date.now() + 23 * 3_600_000);
+    expect((held as { notBefore?: number }).notBefore).toBeGreaterThan(Date.now() + 5 * 3_600_000);
   });
   it("rejects caller-supplied view updates without the server secret", async () => {
     const { t, id } = await fixture();
     await expect(t.mutation(api.clipJobs.recordViewCount, { authSecret: "wrong", id, viewCount: 999999 })).rejects.toThrow("unauthorized");
-    expect((await t.query(api.contentControl.state, { authSecret: secret })).posts).toHaveLength(0);
+    expect(await milestones(t)).toHaveLength(0);
   });
 });

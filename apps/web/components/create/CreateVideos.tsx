@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
-import { AlertCircle, ArrowUpRight, Clapperboard, Compass, Download, ImagePlus, Loader2, RotateCcw, Plus, UserRound, Wand2, X } from "lucide-react";
+import { AlertCircle, Clapperboard, Compass, Download, ImagePlus, Loader2, RotateCcw, Plus, UserRound, Wand2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -41,6 +41,37 @@ function NoInfluencerOption() {
 
 /** Rounded frosted-glass surface shared by the page's cards and panels. */
 const GLASS = "rounded-3xl border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl";
+
+const MODES = [
+  { key: "prompt", label: "Just a prompt", tag: "Fastest", Icon: Wand2, desc: "Type what you want, with or without an influencer. It is sent exactly as written: no persona, no rewrite, no extras." },
+  { key: "library", label: "Copy from library", tag: "Explore", Icon: Compass, href: "/explore", desc: "Browse thousands of viral clips and recreate the motion with your influencer." },
+  { key: "director", label: "Become a director", tag: "Autopilot", Icon: Clapperboard, desc: "Set the scenes, cast and style once, then let your influencer plan, make and post videos on its own." },
+] as const;
+
+/** The three ways to make a video: small glass buttons that float beside the prompt box, each explaining itself on hover or focus. */
+function ModeRail({ onDirector }: { onDirector: () => void }) {
+  return (
+    <nav aria-label="Ways to make a video" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:sticky lg:top-24 lg:z-20 lg:flex-col lg:overflow-visible lg:pb-0">
+      {MODES.map((m) => {
+        const active = m.key === "prompt";
+        const body = (
+          <>
+            <span className={`grid size-8 shrink-0 place-items-center rounded-[8px] border ${active ? "border-[#d7ff00]/40 bg-black/25 text-[#d7ff00]" : "border-white/[0.14] bg-white/[0.06] text-zinc-200"}`}><m.Icon className="size-4" /></span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12.5px] font-semibold leading-4 text-white">{m.label}</span>
+              <span className={`mt-0.5 block font-mono text-[9px] uppercase tracking-[0.16em] ${active ? "text-[#d7ff00]" : "text-zinc-500"}`}>{m.tag}</span>
+            </span>
+            <span aria-hidden="true" className="pointer-events-none absolute left-full top-1/2 z-30 ml-3 hidden w-60 -translate-y-1/2 translate-x-1 rounded-[10px] border border-white/[0.16] bg-[#0b0d0f]/90 p-3 text-left text-[12px] leading-5 text-zinc-300 opacity-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_20px_50px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition duration-200 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 lg:block">{m.desc}</span>
+          </>
+        );
+        const cls = `group relative flex min-w-[168px] items-center gap-2.5 rounded-[10px] border p-2 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_-18px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-all duration-200 focus-visible:outline-2 focus-visible:outline-[#d7ff00] lg:min-w-0 ${active ? "border-[#d7ff00]/50 bg-[linear-gradient(145deg,rgba(215,255,0,0.14),rgba(215,255,0,0.03))]" : "border-white/[0.14] bg-[linear-gradient(145deg,rgba(255,255,255,0.09),rgba(255,255,255,0.02))] hover:border-white/30 hover:bg-white/[0.08] active:scale-[0.98] lg:hover:translate-x-0.5"}`;
+        return "href" in m
+          ? <Link key={m.key} href={m.href} aria-label={`${m.label}. ${m.desc}`} className={cls}>{body}</Link>
+          : <button key={m.key} type="button" aria-label={`${m.label}. ${m.desc}`} onClick={m.key === "director" ? onDirector : undefined} aria-current={active ? "true" : undefined} className={cls}>{body}</button>;
+      })}
+    </nav>
+  );
+}
 
 /**
  * Create videos without opening the builder. The prompt is sent exactly as typed and the render is paid from the chosen
@@ -199,42 +230,18 @@ export function CreateVideos() {
   const lowBalance = funds != null && funds.usdc < priceUsd && funds.sol <= 0.03;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
       <header>
         <h1 className="text-[clamp(1.8rem,4vw,2.6rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-white">Make a video in one prompt</h1>
         <p className="mt-2 max-w-xl text-[14.5px] leading-relaxed text-zinc-400">No builder, no setup, and no influencer needed. Describe the video, add up to {MAX_REFERENCE_IMAGES} reference images, pick a size and length. Pay from your agent&apos;s wallet, or from your own wallet for anyone else.</p>
       </header>
 
-      {/* Three ways in: type a prompt here, copy something from the library, or put an influencer in the director's chair. */}
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
-        <div className="relative overflow-hidden rounded-3xl border border-[#d7ff00]/50 bg-[linear-gradient(145deg,rgba(215,255,0,0.12),rgba(215,255,0,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl">
-          <div className="flex items-center justify-between">
-            <span className="grid size-9 place-items-center rounded-xl border border-[#d7ff00]/40 bg-black/20 text-[#d7ff00]"><Wand2 className="size-4" /></span>
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#d7ff00]">Fastest</span>
-          </div>
-          <p className="mt-3 text-[14.5px] font-semibold text-white">Just a prompt</p>
-          <p className="mt-1 text-[12px] leading-5 text-zinc-300">Type what you want, with or without an influencer. It is sent exactly as written: no persona, no rewrite, no extras.</p>
-        </div>
-        <Link href="/explore" className={`${GLASS} group flex flex-col p-4 transition-all hover:-translate-y-0.5 hover:border-white/30`}>
-          <div className="flex items-center justify-between">
-            <span className="grid size-9 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-zinc-200"><Compass className="size-4" /></span>
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-zinc-500">Explore</span>
-          </div>
-          <p className="mt-3 flex items-center gap-1 text-[14.5px] font-semibold text-white">Copy from library <ArrowUpRight className="size-3.5 text-zinc-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></p>
-          <p className="mt-1 text-[12px] leading-5 text-zinc-400">Browse thousands of viral clips and recreate the motion with your influencer.</p>
-        </Link>
-        <button type="button" onClick={() => setDirectorOpen(true)} className={`${GLASS} group flex flex-col p-4 text-left transition-all hover:-translate-y-0.5 hover:border-white/30`}>
-          <div className="flex items-center justify-between">
-            <span className="grid size-9 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-zinc-200"><Clapperboard className="size-4" /></span>
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-zinc-500">Autopilot</span>
-          </div>
-          <p className="mt-3 flex items-center gap-1 text-[14.5px] font-semibold text-white">Become a director <ArrowUpRight className="size-3.5 text-zinc-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></p>
-          <p className="mt-1 text-[12px] leading-5 text-zinc-400">Set the scenes, cast and style once, then let your influencer plan, make and post videos on its own.</p>
-        </button>
-      </div>
-
+      {/* Three ways in as a floating rail on the left (a row on small screens); the prompt box takes the wider column on the right. */}
+      <div className="mt-8 grid gap-5 lg:grid-cols-[172px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <ModeRail onDirector={() => setDirectorOpen(true)} />
+        <div className="min-w-0">
       {(
-        <section className={`${GLASS} mt-6 p-4 sm:p-6`} aria-label="Video prompt">
+        <section className={`${GLASS} p-4 sm:p-6 lg:p-7`} aria-label="Video prompt">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               Influencer
@@ -351,6 +358,9 @@ export function CreateVideos() {
           </div>
         </div>
       )}
+
+        </div>
+      </div>
 
       <DirectorPicker open={directorOpen} onOpenChange={setDirectorOpen} agents={agents} />
       <FundAgentDialog open={fundOpen} onOpenChange={setFundOpen} mintAddress={mint} agentWallet={wallet} agentName={agent?.name} suggestedUsdc={+priceUsd.toFixed(2)} />

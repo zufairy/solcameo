@@ -1,23 +1,25 @@
 /* Daily posting budget for AUTOMATIC Content Control posts (pure, shared by Convex and the tests).
 
    X lets one account post 20 times per rolling 24 hours (provider cap). We spend that budget by post type:
-     launch        new agent or coin minted   up to 7 a day, spaced 15 minutes apart
-     video         a new coin video           up to 5 a day, spaced 20 minutes apart
+     launch        new agent or coin minted   up to 6 a day, spaced 15 minutes apart
+     video         a new coin video           up to 4 a day, spaced 20 minutes apart
+     stat          a network statistics card up to 2 a day, spaced 4 hours apart
      digest        new coins roundup          up to 2 a day, spaced 6 hours apart
      milestone100k a video past 100k views    up to 2 a day, spaced 6 hours apart
    Those add up to 16, and automatic posts stop once the account has used 17 of the 20, so
    a manual post always has room. Anything over its quota is not dropped: it waits in the
    queue and goes out at the first free slot (milestones: the highest-viewed one goes first). */
 
-export type PostClass = "launch" | "video" | "digest" | "milestone100k" | "manual";
+export type PostClass = "launch" | "video" | "digest" | "stat" | "milestone100k" | "manual";
 
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 export const X_DAILY_CAP = 20;
 /** Slots always kept free for manual posts. */
 export const MANUAL_RESERVE = 3;
 export const POST_LIMITS: Record<PostClass, { perDay: number; gapMs: number }> = {
-  launch: { perDay: 7, gapMs: 15 * 60_000 },
-  video: { perDay: 5, gapMs: 20 * 60_000 },
+  launch: { perDay: 6, gapMs: 15 * 60_000 },
+  video: { perDay: 4, gapMs: 20 * 60_000 },
+  stat: { perDay: 2, gapMs: 4 * HOUR },
   digest: { perDay: 2, gapMs: 6 * HOUR },
   milestone100k: { perDay: 2, gapMs: 6 * HOUR },
   manual: { perDay: Infinity, gapMs: 0 },
@@ -26,6 +28,7 @@ export const POST_LIMITS: Record<PostClass, { perDay: number; gapMs: number }> =
 export function postClass(post: { source: string; milestoneViews?: number }): PostClass {
   if (post.source === "mint" || post.source === "token") return "launch";
   if (post.source === "digest") return "digest";
+  if (post.source === "stat") return "stat";
   if (post.source === "video") return "video";
   if (post.source === "milestone") return (post.milestoneViews ?? 0) > 100_000 ? "milestone100k" : "manual";
   return "manual";

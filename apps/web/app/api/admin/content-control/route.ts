@@ -17,6 +17,7 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("x-connect"), targetMint: target }),
   z.object({ action: z.literal("x-disconnect"), targetMint: target }),
   z.object({ action: z.literal("digest") }),
+  z.object({ action: z.literal("stat"), kind: z.string().max(20).optional() }),
   z.object({ action: z.literal("settings"), targetMint: target, autoAnnounce: z.boolean().optional(), autoMilestones: z.boolean().optional() }),
   z.object({ action: z.literal("publish"), targetMint: target, caption: z.string().min(1).max(5000), kind: z.enum(["text", "photo", "video"]), mediaUrl: z.string().url().optional(), key: z.string().uuid() }),
   z.object({ action: z.literal("retry"), id: z.string().min(1) }),
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       await auth.convex.mutation(api.contentControl.retry, { authSecret, id: body.id as Id<"contentControlPosts"> });
       return NextResponse.json({ ok: true });
     }
+    if (body.action === "stat") return NextResponse.json(await auth.convex.mutation(api.contentControl.statNow, { authSecret, ...(body.kind ? { kind: body.kind } : {}) }));
     if (body.action === "digest") return NextResponse.json(await auth.convex.mutation(api.contentControl.coinsDigestNow, { authSecret }));
     if (body.targetMint) {
       const agent = await auth.convex.query(api.influencers.getByMintServer, { authSecret, mintAddress: body.targetMint });
