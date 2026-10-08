@@ -1631,3 +1631,9 @@ html.light body *, html.dark body * {
 .callout-card { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 @media (hover: hover) { .callout-card:hover { transform: translateY(-2px); box-shadow: 0 22px 50px -28px rgba(0, 0, 0, 0.85); } }
 @media (prefers-reduced-motion: reduce) { .callout-blob { animation: none; } .callout-card { transition: none; } .callout-card:hover { transform: none; } }
+
+/* Press feedback used by useClickFeedback: a quick dip and settle on whatever was pressed. Uses the standalone `scale`
+   property so it never fights an element's own transform. */
+@keyframes ui-pop { 0% { scale: 1; } 35% { scale: 0.955; } 100% { scale: 1; } }
+.ui-pop { animation: ui-pop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) { .ui-pop { animation: none; } }

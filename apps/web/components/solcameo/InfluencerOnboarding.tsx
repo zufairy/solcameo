@@ -33,6 +33,7 @@ import {
 } from "@/lib/solstar/createForm";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { ensureSiwsViaRegistered } from "@/lib/client/siwsIdentity";
+import { useClickFeedback } from "@/lib/client/useClickFeedback";
 
 import { DbcEconomics } from "./DbcEconomics";
 import { motion, useReducedMotion } from "framer-motion";
@@ -86,6 +87,7 @@ export function InfluencerOnboarding({
   generationConfigured?: boolean;
   liveReadiness?: Readiness;
 }) {
+  useClickFeedback();
   const hydrated = useSyncExternalStore(
     subscribe,
     () => true,
