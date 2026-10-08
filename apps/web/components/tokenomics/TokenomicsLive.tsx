@@ -1,20 +1,19 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { getAccountExplorerUrl } from "@/lib/solana/network";
 import type { LiveTokenomics } from "@/app/api/tokenomics/live/route";
 import { splitShares, type SplitKey } from "@/lib/tokenomics/liveMath";
+import { FeeSplitDiagram } from "./FeeSplitDiagram";
 import { CountUp } from "./CountUp";
 import { FLOW_NODES } from "./flowNodes";
 import { TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 import { marketPath } from "@/lib/solstar/marketSlug";
 
 // Three.js is heavy and browser-only: load it after first paint.
-const FeeFlowScene = dynamic(() => import("./FeeFlowScene").then((m) => m.FeeFlowScene), { ssr: false });
 
 const LIME = "#d7ff00";
 const POLL_MS = 4000;
@@ -26,7 +25,7 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
 const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toFixed(2));
 
 /** Live, on-chain tokenomics: every number is read from Solana RPC a few seconds ago, never from the database. */
-export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNode; afterCoins?: ReactNode } = {}) {
+export function TokenomicsLive({ afterHero, afterCoins, heroAside }: { afterHero?: ReactNode; afterCoins?: ReactNode; heroAside?: ReactNode } = {}) {
   const reduced = useReducedMotion();
   const solUsd = useSolUsd();
   const [data, setData] = useState<LiveTokenomics | null>(null);
@@ -37,7 +36,6 @@ export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNod
   const [flash, setFlash] = useState<Record<string, "up" | "down">>({});
   const [volume, setVolume] = useState(100);
   const [highlight, setHighlight] = useState<SplitKey | null>(null);
-  const [labels, setLabels] = useState<Record<SplitKey, { x: number; y: number }> | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -73,11 +71,11 @@ export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNod
   const empty = !!t && t.coins === 0;
   const fee = volume * FEE_RATE;
   const owed: Record<SplitKey, number> = { creator: fee * shares.creator, content: fee * shares.content, platform: fee * shares.platform, meteora: fee * shares.meteora };
-  const activity = !t ? 0.4 : empty ? 0.55 : Math.min(1, 0.35 + Math.log10(1 + t.feesSol * 100) / 3);
 
   return (
     <div className="mx-auto max-w-[1180px] px-4 pb-16 pt-10 text-white sm:px-8 sm:pt-14">
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
+      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
       <motion.div initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/40" style={mono}>Coin tokenomics</p>
         <h1 className="mt-2 text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px]">Every trade pays a fee.<br /><span style={{ color: LIME }}>Watch where it goes.</span></h1>
@@ -94,40 +92,21 @@ export function TokenomicsLive({ afterHero, afterCoins }: { afterHero?: ReactNod
           ))}
         </nav>
       </motion.div>
+      {heroAside}
+      </div>
 
       {afterHero}
 
-      {/* ── 3D fee flow ──────────────────────────────────────────────────────── */}
-      <section id="fee-flow" className={`${panel} relative mt-10 overflow-hidden`} aria-label="How a trade fee is split">
+      {/* ── Where the fee goes ───────────────────────────────────────────────── */}
+      <section id="fee-flow" className={`${panel} relative mt-10 overflow-hidden p-4 sm:p-7`} aria-label="How a trade fee is split">
         <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-[420px] rounded-full bg-lime-400/[0.07] blur-[110px]" />
-        <div className="relative h-[330px] sm:h-[440px]">
-          <FeeFlowScene shares={shares} activity={activity} highlight={highlight} onLabels={setLabels} className="absolute inset-0" />
-          <div className="pointer-events-none absolute left-4 top-4 space-y-1 sm:left-6 sm:top-5">
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>1 · Buyers climb the curve</p>
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>2 · A {+(FEE_RATE * 100).toFixed(2)}% fee is taken</p>
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>3 · It fans out to four owners</p>
-          </div>
-          {labels && FLOW_NODES.map((n) => {
-            const p = labels[n.key]; if (!p) return null;
-            return (
-              <div key={n.key} className="pointer-events-none absolute -translate-y-1/2 transition-opacity" style={{ left: `calc(${p.x * 100}% + 18px)`, top: `${p.y * 100}%`, opacity: highlight && highlight !== n.key ? 0.35 : 1 }}>
-                <p className="text-[12px] font-semibold leading-none sm:text-[13px]" style={{ color: n.color }}>{(shares[n.key] * 100).toFixed(0)}%</p>
-                <p className="mt-0.5 hidden text-[11px] leading-none text-white/65 sm:block">{n.label}</p>
-              </div>
-            );
-          })}
-          {!labels && <div className="absolute inset-0 grid place-items-center text-[12px] text-white/30">Loading the curve…</div>}
+        <div className="relative">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/40" style={mono}>Where the money goes</p>
+          <h2 className="mt-2 text-[24px] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[34px]">Every trade pays a {+(FEE_RATE * 100).toFixed(2)}% fee. <span style={{ color: LIME }}>Here is who gets it.</span></h2>
+          <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-white/55">Buying or selling a coin costs a small fee. It is split the moment the trade lands, into four parts that you can see below. Point at a card to follow its share.</p>
+          <div className="mt-6"><FeeSplitDiagram shares={shares} feeRate={FEE_RATE} highlight={highlight} onHighlight={setHighlight} /></div>
+          <p className="mt-4 text-[11px] leading-5 text-white/35">{live ? "Shares are measured from every live pool." : "Showing the published policy until the first coin collects a fee."} Platform (30%) and content (10%) share the partner wallet&apos;s 40%, because the chain holds a single partner wallet.</p>
         </div>
-        <div className="relative grid gap-px border-t border-white/10 bg-white/10 sm:grid-cols-4">
-          {FLOW_NODES.map((n) => (
-            <button key={n.key} type="button" onMouseEnter={() => setHighlight(n.key)} onMouseLeave={() => setHighlight(null)} onFocus={() => setHighlight(n.key)} onBlur={() => setHighlight(null)} onClick={() => setHighlight((h) => (h === n.key ? null : n.key))}
-              className="bg-[#08090a] px-4 py-3.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none" aria-pressed={highlight === n.key}>
-              <p className="flex items-center gap-2 text-[12px] font-semibold text-white"><span className="size-2 rounded-full" style={{ background: n.color }} />{n.label}<span className="ml-auto tabular-nums text-white/45">{(shares[n.key] * 100).toFixed(0)}%</span></p>
-              <p className="mt-1 text-[11.5px] leading-4 text-white/45">{n.note}</p>
-            </button>
-          ))}
-        </div>
-        <p className="relative px-4 py-2.5 text-[11px] text-white/35 sm:px-5">{live ? "Shares are measured from every live pool." : "Showing the published policy until the first coin collects a fee."} Platform (30%) and content (10%) share the partner wallet&apos;s 40%, because the chain holds a single partner wallet.</p>
       </section>
 
       {/* ── Calculator ───────────────────────────────────────────────────────── */}

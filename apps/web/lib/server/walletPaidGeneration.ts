@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { getUserWallet, requireAuth, walletBelongsToUser, type AuthUser } from "./requireAuth";
 import { studioTreasury } from "./studioGenBilling";
+import { accrueReferralForWalletPayment } from "./referrals";
 import { waitForUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
 import { getUsdcMint } from "@/lib/solana/network";
 
@@ -42,6 +43,8 @@ export async function requireWalletPayment(req: NextRequest, args: { owed: numbe
   catch (e) { return { error: walletFail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this video." : "We could not confirm your payment yet. Try again in a moment.", 402, { code: "payment_unconfirmed" }) }; }
   try {
     const claim = await convex.mutation(api.describeVideo.claim, { authSecret: secret, account, txSignature: signature, amountUsd: args.owed });
+    // A fresh payment from a referred wallet earns its referrer a share of the margin, once per transfer signature.
+    if (claim.kind === "fresh") { const accrue = () => accrueReferralForWalletPayment({ signature, payer, amountUsdc: args.owed }); try { after(accrue); } catch { void accrue(); } }
     return { user: auth.user, account, payer, signature, convex, secret, claim };
   } catch (e) {
     const message = e instanceof Error ? e.message : "";

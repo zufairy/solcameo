@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { getRpcCandidates } from "@/lib/solana/network";
 import { usdcPerSol } from "@/lib/server/solSwap";
 import { platformSnapshot } from "@/lib/server/platformSnapshot";
-import { MARGIN_SHARE, tierFor, type ReferralTier } from "@/lib/referrals/program";
+import { MARGIN_SHARE, REFERRAL_TIERS, tierFor, type ReferralTier } from "@/lib/referrals/program";
 
 const secret = () => process.env.INTERNAL_CRON_SECRET ?? "";
 const convex = () => new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -67,9 +67,31 @@ export async function accrueReferralForSettlement(args: { settlementId: string; 
       settlementId: args.settlementId, referrerWallet: binding.referrerWallet, refereeWallet: referee, mintAddress: args.mintAddress,
       spendUsdc: args.amountUsdc, marginUsdc: +(args.amountUsdc * MARGIN_SHARE).toFixed(6),
       // Below the first tier the share is recorded as missed: shown to the referrer, never paid.
-      rate: holding.tier?.rate ?? 0.2, tier: holding.tier?.tier ?? 0, authSecret: secret(),
+      rate: holding.tier?.rate ?? REFERRAL_TIERS[0].rate, tier: holding.tier?.tier ?? 0, authSecret: secret(),
     });
   } catch (e) {
     console.warn("[referrals] accrual skipped:", e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Called when someone pays Solcameo for a generation straight from their own wallet (no agent involved). The payer is the
+ * referred wallet, the on-chain transfer signature is the settlement, and the price they paid includes the same 15% margin as
+ * any other video. Best-effort, idempotent per signature, and it never throws or delays the generation.
+ */
+export async function accrueReferralForWalletPayment(args: { signature: string; payer: string; amountUsdc: number }): Promise<void> {
+  try {
+    if (!(args.amountUsdc > 0) || !args.signature || !args.payer) return;
+    const client = convex();
+    const binding = await client.query(api.referrals.bindingFor, { refereeWallet: args.payer, authSecret: secret() });
+    if (!binding) return;
+    const holding = await holdingOf(binding.referrerWallet);
+    await client.mutation(api.referrals.accrue, {
+      settlementId: `wallet:${args.signature}`, referrerWallet: binding.referrerWallet, refereeWallet: args.payer, mintAddress: "wallet-paid",
+      spendUsdc: args.amountUsdc, marginUsdc: +(args.amountUsdc * MARGIN_SHARE).toFixed(6),
+      rate: holding.tier?.rate ?? REFERRAL_TIERS[0].rate, tier: holding.tier?.tier ?? 0, authSecret: secret(),
+    });
+  } catch (e) {
+    console.warn("[referrals] wallet-payment accrual skipped:", e instanceof Error ? e.message : e);
   }
 }

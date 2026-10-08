@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -8,10 +7,8 @@ import { api } from "@/convex/_generated/api";
 import { LIVE_NETWORK } from "@/lib/solstar/liveNetwork";
 import { FEE_SPLIT_PERCENT, TRADING_FEE_BPS } from "@/lib/meteora/feePolicy";
 import { CountUp } from "./CountUp";
+import { CoinStageArt } from "./CoinStageArt";
 import { useLiveTokenomics } from "./useLiveTokenomics";
-
-// Three.js is heavy and browser-only: load it after first paint.
-const LifecycleScene = dynamic(() => import("./LifecycleScene").then((m) => m.LifecycleScene), { ssr: false });
 
 const LIME = "#d7ff00";
 const panel = "rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
@@ -44,7 +41,6 @@ export function CoinLifecycle() {
   const avgFill = onCurve.length ? onCurve.reduce((n, c) => n + c.progress, 0) / onCurve.length : 0.35;
   const nearest = [...onCurve].sort((a, b) => b.progress - a.progress)[0];
   const vol = pulse?.volume24hSol ?? 0;
-  const activity = pulse ? Math.min(1, 0.3 + Math.log10(1 + vol * 10) / 2.5) : 0.5;
 
   const steps = useMemo<{ title: string; body: string; stats: Stat[]; link?: { href: string; label: string } }[]>(() => [
     { title: "A coin is born", body: "Each AI character gets its own coin on a Meteora Dynamic Bonding Curve. The supply is fixed at 1,000,000,000 and the mint authority is revoked, so nobody can mint more.",
@@ -70,12 +66,12 @@ export function CoinLifecycle() {
     <section className="mt-10" aria-label="How a coin works" id="how-it-works">
       <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/40" style={mono}>How it works</p>
       <h2 className="mt-2 text-[28px] font-semibold leading-[1.08] tracking-[-0.03em] sm:text-[40px]">The life of a coin, <span style={{ color: LIME }}>in six steps</span></h2>
-      <p className="mt-3 max-w-2xl text-[14.5px] leading-7 text-white/55">Pick a step, or let it play. The scene lights up what is happening and the numbers beside it are live.</p>
+      <p className="mt-3 max-w-2xl text-[14.5px] leading-7 text-white/55">Each step is drawn as a short animation. Pick one, or let it play. The numbers on the picture are live.</p>
 
       <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className={`${panel} relative min-h-[320px] overflow-hidden lg:min-h-[520px]`}>
           <div aria-hidden className="pointer-events-none absolute -left-16 top-10 size-[380px] rounded-full bg-lime-400/[0.06] blur-[100px]" />
-          <LifecycleScene stage={active} progress={avgFill} activity={activity} className="absolute inset-0" />
+          <CoinStageArt stage={active} fill={avgFill} className="absolute inset-x-3 bottom-[108px] top-4 sm:inset-x-8" />
           <div className="pointer-events-none absolute inset-x-4 bottom-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/40" style={mono}>Step {active + 1} of 6</p>

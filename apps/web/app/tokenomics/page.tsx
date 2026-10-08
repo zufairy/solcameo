@@ -3,6 +3,8 @@ import { AppHeaderShell } from "@/components/home/app-shell";
 import { PlatformTokenSection } from "@/components/tokenomics/PlatformTokenSection";
 import { TokenomicsLive } from "@/components/tokenomics/TokenomicsLive";
 import { CoinLifecycle } from "@/components/tokenomics/CoinLifecycle";
+import { BurnFlipCard } from "@/components/tokenomics/BurnFlipCard";
+import { MoneyFlywheel } from "@/components/tokenomics/MoneyFlywheel";
 import { Integrations, LivePulse } from "@/components/tokenomics/TokenomicsExtras";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 export default function TokenomicsPage() {
   return (
     <AppHeaderShell flat>
-      <div className="min-h-full bg-black"><TokenomicsLive afterHero={<><LivePulse /><CoinLifecycle /></>} afterCoins={<Integrations />} /><PlatformTokenSection /></div>
+      <div className="min-h-full bg-[#07080a]"><TokenomicsLive heroAside={<BurnFlipCard />} afterHero={<><MoneyFlywheel /><LivePulse /><CoinLifecycle /></>} afterCoins={<Integrations />} /><PlatformTokenSection /></div>
     </AppHeaderShell>
   );
 }

@@ -1637,3 +1637,7 @@ html.light body *, html.dark body * {
 @keyframes ui-pop { 0% { scale: 1; } 35% { scale: 0.955; } 100% { scale: 1; } }
 .ui-pop { animation: ui-pop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .ui-pop { animation: none; } }
+
+/* Flip-clock fold used by FlipDigits: the old top half falls away, then the new bottom half drops into place. */
+@keyframes flip-top { from { transform: rotateX(0deg); } to { transform: rotateX(-90deg); } }
+@keyframes flip-bottom { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }

@@ -2670,6 +2670,14 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("paid"), v.literal("missed")),
     paidSig: v.optional(v.string()), at: v.number(),
   }).index("by_referrer", ["referrerWallet", "at"]).index("by_settlement", ["settlementId"]).index("by_time", ["at"]),
+  // One row per on-chain referral payout. "sending" is a lease: a payout that has a signature is verified on-chain before it is ever
+  // repeated, so a crash or a slow confirmation can never pay a referrer twice.
+  referralPayouts: defineTable({
+    referrerWallet: v.string(), upToAt: v.number(), usdc: v.number(),
+    status: v.union(v.literal("sending"), v.literal("paid"), v.literal("failed")),
+    sig: v.optional(v.string()), lastValidBlockHeight: v.optional(v.number()), error: v.optional(v.string()),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_wallet", ["referrerWallet", "createdAt"]).index("by_status", ["status", "createdAt"]),
   // Running totals, so the public counters never scan the ledger.
   referralStats: defineTable({
     key: v.string(), accruedUsdc: v.number(), missedUsdc: v.number(), events: v.number(), referrers: v.number(), referred: v.number(),

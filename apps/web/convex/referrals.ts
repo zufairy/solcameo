@@ -139,3 +139,122 @@ export const leaderboard = query({
     return [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([wallet, usdc]) => ({ wallet: short(wallet), usdc: +usdc.toFixed(4) }));
   },
 });
+
+/**
+ * Referrers owed a payout: wallets whose pending earnings have reached `minUsdc`. Operations pays each one in USDC from the
+ * treasury, then calls `markPaid` with the transfer signature, so a payout is always backed by an on-chain transfer.
+ */
+export const payoutQueue = query({
+  args: { minUsdc: v.number(), authSecret: v.string() },
+  handler: async (ctx, { minUsdc, authSecret }) => {
+    gate(authSecret);
+    const rows = await ctx.db.query("referralAccruals").withIndex("by_time").order("desc").take(5000);
+    const owed = new Map<string, { usdc: number; upToAt: number; count: number }>();
+    for (const r of rows) {
+      if (r.status !== "pending") continue;
+      const e = owed.get(r.referrerWallet) ?? { usdc: 0, upToAt: 0, count: 0 };
+      e.usdc += r.shareUsdc; e.upToAt = Math.max(e.upToAt, r.at); e.count += 1;
+      owed.set(r.referrerWallet, e);
+    }
+    return [...owed.entries()].filter(([, e]) => e.usdc >= minUsdc)
+      .map(([wallet, e]) => ({ wallet, usdc: +e.usdc.toFixed(6), upToAt: e.upToAt, accruals: e.count })).sort((a, b) => b.usdc - a.usdc);
+  },
+});
+
+/** Mark a referrer's pending earnings up to `upToAt` as paid by the on-chain transfer `txSignature`. Idempotent: paid rows are skipped. */
+export const markPaid = mutation({
+  args: { referrerWallet: v.string(), upToAt: v.number(), txSignature: v.string(), authSecret: v.string() },
+  handler: async (ctx, { referrerWallet, upToAt, txSignature, authSecret }) => {
+    gate(authSecret);
+    if (txSignature.trim().length < 40) throw new Error("a real transfer signature is required");
+    const rows = await ctx.db.query("referralAccruals").withIndex("by_referrer", (q) => q.eq("referrerWallet", referrerWallet).lte("at", upToAt)).take(1000);
+    let paid = 0, usdc = 0;
+    for (const r of rows) {
+      if (r.status !== "pending") continue;
+      await ctx.db.patch(r._id, { status: "paid", paidSig: txSignature.trim() });
+      paid += 1; usdc += r.shareUsdc;
+    }
+    return { paid, usdc: +usdc.toFixed(6) };
+  },
+});
+
+/* ── Automatic on-chain payouts ─────────────────────────────────────────────────
+ * The payout route sends the USDC, then these mutations record it. beginPayout leases a referrer's pending earnings (one payout at a
+ * time per wallet); a lease that already holds a signature is resumed (verified on-chain) instead of paid again. */
+
+/** Lease a referrer's pending earnings for a payout, or hand back the unfinished one. */
+export const beginPayout = mutation({
+  args: { referrerWallet: v.string(), minUsdc: v.number(), authSecret: v.string() },
+  handler: async (ctx, { referrerWallet, minUsdc, authSecret }) => {
+    gate(authSecret);
+    const open = await ctx.db.query("referralPayouts").withIndex("by_wallet", (q) => q.eq("referrerWallet", referrerWallet)).order("desc").first();
+    if (open?.status === "sending") return { kind: "resume" as const, id: open._id, sig: open.sig ?? null, lastValidBlockHeight: open.lastValidBlockHeight ?? null, upToAt: open.upToAt, usdc: open.usdc, ageMs: Date.now() - open.createdAt };
+    const rows = await ctx.db.query("referralAccruals").withIndex("by_referrer", (q) => q.eq("referrerWallet", referrerWallet)).order("desc").take(1000);
+    const pending = rows.filter((r) => r.status === "pending");
+    const usdc = +pending.reduce((n, r) => n + r.shareUsdc, 0).toFixed(6);
+    if (usdc < minUsdc) return { kind: "none" as const };
+    const upToAt = Math.max(...pending.map((r) => r.at));
+    const now = Date.now();
+    const id = await ctx.db.insert("referralPayouts", { referrerWallet, upToAt, usdc, status: "sending", createdAt: now, updatedAt: now });
+    return { kind: "fresh" as const, id, upToAt, usdc };
+  },
+});
+
+/** Keep the signature (and how long it can still land) the moment it is known, so a retry can verify it instead of resending. */
+export const recordPayoutSig = mutation({
+  args: { id: v.id("referralPayouts"), sig: v.string(), lastValidBlockHeight: v.optional(v.number()), authSecret: v.string() },
+  handler: async (ctx, { id, sig, lastValidBlockHeight, authSecret }) => {
+    gate(authSecret);
+    await ctx.db.patch(id, { sig, ...(lastValidBlockHeight !== undefined ? { lastValidBlockHeight } : {}), updatedAt: Date.now() });
+  },
+});
+
+/** The transfer is confirmed: mark every earning up to the lease as paid by its signature. Idempotent. */
+export const finishPayout = mutation({
+  args: { id: v.id("referralPayouts"), sig: v.string(), authSecret: v.string() },
+  handler: async (ctx, { id, sig, authSecret }) => {
+    gate(authSecret);
+    const row = await ctx.db.get(id);
+    if (!row) throw new Error("payout not found");
+    if (row.status === "paid") return { paid: 0, usdc: 0 };
+    const rows = await ctx.db.query("referralAccruals").withIndex("by_referrer", (q) => q.eq("referrerWallet", row.referrerWallet).lte("at", row.upToAt)).take(1000);
+    let paid = 0, usdc = 0;
+    for (const r of rows) { if (r.status !== "pending") continue; await ctx.db.patch(r._id, { status: "paid", paidSig: sig }); paid += 1; usdc += r.shareUsdc; }
+    await ctx.db.patch(id, { status: "paid", sig, updatedAt: Date.now() });
+    return { paid, usdc: +usdc.toFixed(6) };
+  },
+});
+
+/** Give the earnings back to the queue after a payout that provably never left (no signature, or one that can no longer land). */
+export const failPayout = mutation({
+  args: { id: v.id("referralPayouts"), error: v.string(), authSecret: v.string() },
+  handler: async (ctx, { id, error, authSecret }) => {
+    gate(authSecret);
+    await ctx.db.patch(id, { status: "failed", error: error.slice(0, 300), updatedAt: Date.now() });
+  },
+});
+
+/** Everyone with pending earnings at or above the minimum, plus any payout still waiting on confirmation. */
+export const payoutWork = query({
+  args: { minUsdc: v.number(), authSecret: v.string() },
+  handler: async (ctx, { minUsdc, authSecret }) => {
+    gate(authSecret);
+    const rows = await ctx.db.query("referralAccruals").withIndex("by_time").order("desc").take(5000);
+    const owed = new Map<string, number>();
+    for (const r of rows) if (r.status === "pending") owed.set(r.referrerWallet, (owed.get(r.referrerWallet) ?? 0) + r.shareUsdc);
+    const sending = await ctx.db.query("referralPayouts").withIndex("by_status", (q) => q.eq("status", "sending")).take(50);
+    const wallets = new Set<string>([...owed].filter(([, usdc]) => usdc >= minUsdc).map(([w]) => w));
+    for (const p of sending) wallets.add(p.referrerWallet);
+    return [...wallets].slice(0, 12);
+  },
+});
+
+/** A referrer's own payout history, for the page. */
+export const payoutsFor = query({
+  args: { wallet: v.string(), authSecret: v.string() },
+  handler: async (ctx, { wallet, authSecret }) => {
+    gate(authSecret);
+    const rows = await ctx.db.query("referralPayouts").withIndex("by_wallet", (q) => q.eq("referrerWallet", wallet)).order("desc").take(10);
+    return rows.map((r) => ({ at: r.createdAt, usdc: r.usdc, status: r.status, sig: r.sig ?? null }));
+  },
+});

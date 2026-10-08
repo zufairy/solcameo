@@ -365,6 +365,20 @@ export const runDueOracle = internalAction({
  * closes the actual gap (view counts previously only refreshed when a human
  * opened /analytics and clicked "Refresh").
  */
+/** Sends referral earnings out on-chain (USDC) through the internal payout route. Best-effort; the route is safe to run repeatedly. */
+export const runReferralPayouts = internalAction({
+  args: {},
+  handler: async (): Promise<{ ok: boolean }> => {
+    const res = await appFetch(`/api/referrals/payout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(process.env.INTERNAL_CRON_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_CRON_SECRET } : {}) },
+      body: "{}",
+    }).catch(() => null);
+    if (!res?.ok) console.warn(`[cron.runReferralPayouts] payout route returned ${res?.status ?? "no response"}`);
+    return { ok: !!res?.ok };
+  },
+});
+
 export const runAnalyticsSync = internalAction({
   args: {},
   handler: async (): Promise<{ ok: boolean }> => {
@@ -743,6 +757,7 @@ crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.re
 
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});
 crons.interval("new coins digest post", { hours: 6 }, internal.contentControl.coinsDigestCron, {});
+crons.interval("referral payouts", { hours: 6 }, internal.crons.runReferralPayouts, {});
 crons.interval("network stats post", { hours: 1 }, internal.contentControl.statCron, {});
 crons.interval("auto-schedule unposted X videos", { minutes: 30 }, internal.scheduledContent.autoScheduleBacklog, {});
 

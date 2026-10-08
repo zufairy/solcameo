@@ -9,9 +9,9 @@ describe("getMenuItems", () => {
         .map((i) => [i.label, i.href]),
     ).toEqual([
       ["Home", "/"],
+      ["Market", "/market"],
       ["Create Videos", "/create-videos"],
       ["My Influencers", "/control"],
-      ["Video Feed", "/make"],
     ]);
   });
   it("hides My Influencers and Create Videos until the user is signed in", () => {
@@ -60,7 +60,7 @@ describe("getMenuItems", () => {
   });
   it("legacy menu keeps Home, My Agents and Video Feed first", () => {
     const labels = getMenuItems(true).map((i) => i.label);
-    expect(labels.slice(0, 4)).toEqual(["Home", "Create Videos", "My Influencers", "Video Feed"]);
+    expect(labels.slice(0, 5)).toEqual(["Home", "Market", "Create Videos", "My Influencers", "Video Feed"]);
     expect(labels.length).toBeGreaterThan(3);
   });
 });

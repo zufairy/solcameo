@@ -1,14 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ExternalLink } from "lucide-react";
 import { getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
-import type { PlatformTokenState } from "@/app/api/tokenomics/platform/route";
-import { ALLOCATION, BUYBACK_SPLIT, REVENUE_SPLIT, TIERS, TOKEN_SYMBOL, TOTAL_SUPPLY } from "@/lib/tokenomics/platformToken";
+import { BUYBACK_SPLIT, REVENUE_SPLIT, TIERS, TOKEN_SYMBOL, TOTAL_SUPPLY } from "@/lib/tokenomics/platformToken";
+import { AllocationRing } from "./AllocationRing";
+import { TierLadder } from "./TierLadder";
+import { usePlatformToken } from "./usePlatformToken";
 
-const CycleScene = dynamic(() => import("./CycleScene").then((m) => m.CycleScene), { ssr: false });
 
 const LIME = "#d7ff00";
 const card = "rounded-2xl border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
@@ -16,15 +15,6 @@ const fmt = (n: number, d = 0) => n.toLocaleString("en-US", { maximumFractionDig
 const compact = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toFixed(0));
 const usd = (micro: number) => `$${(micro / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
-
-const CYCLE = [
-  { t: "Creators launch coins", d: "Every influencer gets a coin that trades on a Meteora bonding curve." },
-  { t: "Trading and generation", d: "Coins pay a flat 1.5% trading fee. Agents pay for videos and images from their own wallets." },
-  { t: "Platform revenue", d: "Solcameo keeps 30% of coin fees and a 15% margin on every generation, in real USDC and SOL." },
-  { t: "Weekly epoch", d: "Revenue is frozen into a public epoch and split by the policy below. Nothing is discretionary." },
-  { t: `Buy and burn ${TOKEN_SYMBOL}`, d: "30% of revenue buys the token. Half is burned forever, half funds holder rewards." },
-  { t: "Holders get more", d: "Tiers cut generation prices and weight rewards, so holding is worth more as the platform grows." },
-] as const;
 
 const PERKS: ReadonlyArray<{ name: string; status: "Live" | "Operator-run" | "Planned"; note: string }> = [
   { name: "Holder discount on generations", status: "Live", note: "Image, Explore and motion video, caption and hook generations are discounted by your tier, read from your wallet balance. Active once the token mint is configured." },
@@ -40,80 +30,9 @@ function Pill({ s }: { s: "Live" | "Operator-run" | "Planned" }) {
   return <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${c}`}>{s}</span>;
 }
 
-function Donut() {
-  const R = 52, C = 2 * Math.PI * R;
-  const arcs = ALLOCATION.map((a, i) => ({ a, off: (ALLOCATION.slice(0, i).reduce((n, x) => n + x.pct, 0) / 100) * C, len: (a.pct / 100) * C }));
-  return (
-    <svg viewBox="0 0 140 140" className="size-44 shrink-0 -rotate-90" role="img" aria-label="Token allocation">
-      <circle cx="70" cy="70" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-      {arcs.map(({ a, off, len }) => <circle key={a.key} cx="70" cy="70" r={R} fill="none" stroke={a.color} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 1.5)} ${C}`} strokeDashoffset={-off} />)}
-    </svg>
-  );
-}
-
-/** The revenue loop: a 3D ring on one side, the six steps on the other. Steps auto-advance until the reader takes over. */
-function CycleDiagram({ reduced }: { reduced: boolean | null }) {
-  const [active, setActive] = useState(0);
-  const [manual, setManual] = useState(false);
-  const [labels, setLabels] = useState<{ x: number; y: number; front: number }[] | null>(null);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (manual || reduced) return;
-    const t = setInterval(() => setActive((a) => (a + 1) % CYCLE.length), 3600);
-    return () => clearInterval(t);
-  }, [manual, reduced]);
-  const pick = (i: number) => { setManual(true); setActive(i); };
-  return (
-    <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      <ol className="space-y-2" onMouseLeave={() => setManual(false)}>
-        {CYCLE.map((c, i) => (
-          <li key={c.t}>
-            <button type="button" onClick={() => pick(i)} onMouseEnter={() => pick(i)} onFocus={() => pick(i)} aria-current={active === i ? "step" : undefined}
-              className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors ${active === i ? "border-[#d7ff00]/35 bg-[#d7ff00]/[0.06]" : "border-white/10 bg-white/[0.025] hover:bg-white/[0.05]"}`}>
-              <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-colors ${active === i ? "text-black" : "bg-white/10 text-white/60"}`} style={active === i ? { background: LIME } : undefined}>{i + 1}</span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-white">{c.t}</span>
-                <span className={`block overflow-hidden text-[12.5px] leading-relaxed text-white/55 transition-all duration-300 ${active === i ? "mt-1 max-h-24 opacity-100" : "max-h-0 opacity-0"}`}>{c.d}{i === CYCLE.length - 1 ? " Then it loops back to step 1: more value attracts more creators." : ""}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-      <div ref={box} className={`${card} relative min-h-[300px] overflow-hidden p-0 lg:min-h-[420px]`}>
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400/[0.06] blur-[90px]" />
-        <CycleScene active={active} onLabels={setLabels} className="absolute inset-0" />
-        {labels?.map((p, i) => (
-          <button key={i} type="button" onClick={() => pick(i)} aria-label={`Step ${i + 1}: ${CYCLE[i].t}`} className="absolute -translate-x-1/2 -translate-y-[170%] rounded-full border px-2 py-0.5 text-[10.5px] font-semibold tabular-nums transition-colors"
-            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, opacity: p.front, borderColor: active === i ? LIME : "rgba(255,255,255,0.18)", color: active === i ? "#000" : "rgba(255,255,255,0.7)", background: active === i ? LIME : "rgba(0,0,0,0.5)" }}>{i + 1}</button>
-        ))}
-        <p className="pointer-events-none absolute bottom-3 left-4 right-4 text-center text-[11px] text-white/40">Glowing particles are revenue moving round the loop. Red marks where supply is burned.</p>
-      </div>
-    </div>
-  );
-}
-
 export function PlatformTokenSection() {
   const reduced = useReducedMotion();
-  const [data, setData] = useState<(PlatformTokenState & { stale?: boolean }) | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    const ctrl = new AbortController();
-    const pull = async () => {
-      if (document.hidden) return;
-      try {
-        const res = await fetch("/api/tokenomics/platform", { signal: ctrl.signal, cache: "no-store" });
-        const json = await res.json();
-        if (!alive) return;
-        if (!json.ok) { setError(json.error ?? "RPC unavailable"); return; }
-        setData(json); setError("");
-      } catch { if (alive && !ctrl.signal.aborted) setError("RPC unavailable. Retrying…"); }
-    };
-    void pull();
-    const t = setInterval(pull, 6000);
-    return () => { alive = false; ctrl.abort(); clearInterval(t); };
-  }, []);
+  const { data, error } = usePlatformToken();
 
   const launched = !!data?.launched;
   const supply = data?.supply ?? TOTAL_SUPPLY;
@@ -133,9 +52,6 @@ export function PlatformTokenSection() {
       </div>
       <h2 id="platform-token" className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">${TOKEN_SYMBOL}: the token the whole platform feeds</h2>
       <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-white/60">Every creator coin pays fees to Solcameo, and every video and image an agent makes pays a margin. That money is counted in public each week, and 30% of it buys {TOKEN_SYMBOL}. The more the platform is used, the more is bought and burned, and the more a holder&apos;s tier is worth. Real revenue drives it, not emissions.</p>
-
-      <h3 className="mt-10 text-lg font-semibold text-white">The cycle</h3>
-      <div className="mt-5"><CycleDiagram reduced={reduced} /></div>
 
       <h3 className="mt-12 text-lg font-semibold text-white">On-chain right now</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -204,24 +120,18 @@ export function PlatformTokenSection() {
         </table>
       </div>
 
-      <div className="mt-12 grid gap-6 lg:grid-cols-2">
-        <div>
-          <h3 className="text-lg font-semibold text-white">Supply and planned allocation</h3><p className="mt-2 text-xs text-white/45">These reserved allocations and vesting are planned. The platform fair-launch interface does not apply them.</p><Link href="/tokenomics/launch" className="mt-3 inline-flex rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-[#d7ff00]">Launch platform token ↗</Link>
-          <div className={`${card} mt-4 flex flex-col items-center gap-5 sm:flex-row`}>
-            <Donut />
-            <ul className="w-full space-y-2.5 text-[12.5px]">{ALLOCATION.map((a) => <li key={a.key}><div className="flex items-center justify-between text-white"><span className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{ background: a.color }} />{a.label}</span><b className="tabular-nums">{a.pct}%</b></div><p className="mt-0.5 pl-[18px] text-white/45">{a.note}</p></li>)}</ul>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold text-white">Holder tiers</h3>
-          <div className={`${card} mt-4 overflow-hidden p-0`}>
-            <table className="w-full text-left text-[12.5px]">
-              <thead className="text-[10.5px] uppercase tracking-wider text-white/40"><tr><th className="px-4 py-3 font-medium">Tier</th><th className="px-4 py-3 font-medium">Hold at least</th><th className="px-4 py-3 font-medium">Generation discount</th><th className="px-4 py-3 font-medium">Reward weight</th></tr></thead>
-              <tbody className="text-white/75">{TIERS.slice(1).map((t) => <tr key={t.key} className="border-t border-white/5"><td className="px-4 py-2.5 font-semibold text-white">{t.label}</td><td className="px-4 py-2.5 tabular-nums">{compact(t.minTokens)}</td><td className="px-4 py-2.5 tabular-nums" style={{ color: LIME }}>{t.discountPct}%</td><td className="px-4 py-2.5 tabular-nums">{t.rewardWeight}×</td></tr>)}</tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-[11.5px] text-white/40">Your tier is read from the wallet that owns the agent, in real time. Nothing to stake or lock.</p>
-        </div>
+      <div className="mt-14">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-white/40">Supply</p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-white sm:text-[28px]">One billion tokens, five buckets</h3>
+        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-white/50">Hover a slice to see what it is for and when it unlocks. These reserved allocations and vesting are planned; the platform fair-launch interface does not apply them yet. <Link href="/tokenomics/launch" className="underline underline-offset-2 hover:text-white">Launch details</Link></p>
+        <div className={`${card} mt-5 sm:p-7`}><AllocationRing /></div>
+      </div>
+
+      <div className="mt-14">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-white/40">Holders</p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-white sm:text-[28px]">Hold more, pay less, earn more</h3>
+        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-white/50">Four tiers by balance. Drag the slider to see what a $10 video costs at any holding.</p>
+        <div className="mt-5"><TierLadder /></div>
       </div>
 
       <h3 className="mt-12 text-lg font-semibold text-white">What is live and what is not</h3>

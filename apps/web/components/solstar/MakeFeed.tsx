@@ -3,8 +3,9 @@ import { MAINNET_ONLY } from "@/lib/solstar/liveNetwork";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, LayoutGrid, Rows3 } from "lucide-react";
 import { MakeVideoPlayer } from "./MakeVideoPlayer";
+import { MakeReels } from "./MakeReels";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { formatUsdEstimate } from "@/lib/solstar/usdc";
 import { api } from "@/convex/_generated/api";
@@ -18,10 +19,35 @@ type Video = { id: string; url: string; poster?: string | null; name: string; ti
 const FALLBACK_CHARACTER = "sn7e3nb82dfcpep6sey2hqdc0n8fqz9w";
 /** Masonry rhythm: a stable, mixed set of frame shapes so the wall isn't a uniform grid. */
 const ASPECTS = ["9 / 16", "4 / 5", "9 / 16", "1 / 1", "3 / 4", "9 / 16"];
+const RATIOS = ASPECTS.map((a) => { const [w, h] = a.split(" / ").map(Number); return h / w; });
 function aspectFor(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return ASPECTS[h % ASPECTS.length];
+}
+
+/** Column count for the wall, matching the old breakpoints (2 / 3 / 4 / 5). */
+function useColumnCount() {
+  const [n, setN] = useState(2);
+  useEffect(() => {
+    const pick = () => setN(window.innerWidth >= 1536 ? 5 : window.innerWidth >= 1280 ? 4 : window.innerWidth >= 768 ? 3 : 2);
+    pick();
+    window.addEventListener("resize", pick);
+    return () => window.removeEventListener("resize", pick);
+  }, []);
+  return n;
+}
+
+/** Newest first, left to right across the top: each video joins the shortest column, so the latest sit on the first row. */
+function toColumns<T extends { id: string }>(items: T[], count: number) {
+  const cols: { item: T; index: number }[][] = Array.from({ length: count }, () => []);
+  const heights = new Array<number>(count).fill(0);
+  items.forEach((item, index) => {
+    const c = heights.indexOf(Math.min(...heights));
+    cols[c].push({ item, index });
+    heights[c] += RATIOS[ASPECTS.indexOf(aspectFor(item.id))];
+  });
+  return cols;
 }
 
 /** True once the element has come within `margin` of the viewport; never flips back, so a loaded clip stays loaded. */
@@ -97,6 +123,12 @@ function VideoCard({ v, index, onOpen }: { v: Video; index: number; onOpen: () =
 
 function Content() {
   const [selected, setSelected] = useState<Video | null>(null);
+  const [view, setView] = useState<"feed" | "grid">("feed");
+  const columnCount = useColumnCount();
+  useEffect(() => {
+    try { const saved = localStorage.getItem("make-view"); if (saved === "grid" || saved === "feed") setView(saved); } catch { /* default view */ } // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
+  const chooseView = (next: "feed" | "grid") => { setView(next); try { localStorage.setItem("make-view", next); } catch { /* not persisted */ } };
   const solUsd = useSolUsd();
   const mainnet = useQuery(api.solstarMarket.listMarket, { sort: "mcap", network: "mainnet" });
   const devnet = useQuery(api.solstarMarket.listMarket, MAINNET_ONLY ? "skip" : { sort: "mcap", network: "devnet" });
@@ -177,7 +209,15 @@ function Content() {
   }, [poolIds]);
   return (
     <main className="min-h-full bg-[#181a1c] px-4 py-6 lg:px-8">
-      <h1 className="mb-6 text-xl font-semibold text-zinc-100">Videos</h1>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-zinc-100">Videos</h1>
+        <div role="group" aria-label="Layout" className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-0.5">
+          {([["feed", "Feed", Rows3], ["grid", "Grid", LayoutGrid]] as const).map(([id, label, Icon]) => (
+            <button key={id} type="button" aria-pressed={view === id} onClick={() => chooseView(id)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${view === id ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}><Icon className="size-3.5" />{label}</button>
+          ))}
+        </div>
+      </div>
       {!loaded ? (
         <div className="columns-2 gap-4 md:columns-3 xl:columns-4">
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -186,10 +226,14 @@ function Content() {
         </div>
       ) : !shown.length ? (
         <p className="py-12 text-sm text-zinc-500">Created videos will appear here.</p>
+      ) : view === "feed" ? (
+        <MakeReels videos={shown} />
       ) : (
-        <div className="columns-2 gap-4 md:columns-3 xl:columns-4 2xl:columns-5">
-          {shown.map((v, i) => (
-            <VideoCard key={v.id} v={v} index={i} onOpen={() => setSelected(v)} />
+        <div className="flex gap-4">
+          {toColumns(shown, columnCount).map((col, c) => (
+            <div key={c} className="min-w-0 flex-1">
+              {col.map(({ item, index }) => <VideoCard key={item.id} v={item} index={index} onOpen={() => setSelected(item)} />)}
+            </div>
           ))}
         </div>
       )}

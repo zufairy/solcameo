@@ -41,10 +41,10 @@ const item = (
 });
 const ITEMS: MenuItem[] = [
   item("Home", "/", Home, "Launchpad"),
+  item("Market", "/market", TrendingUp, "Launchpad"),
   item("Create Videos", "/create-videos", Clapperboard, "Launchpad", true),
   item("My Influencers", "/control", FolderOpen, "Launchpad", true),
   item("Video Feed", "/make", Video, "Launchpad"),
-  item("Market", "/market", TrendingUp, "Launchpad"),
   item("Agent Marketplace", "/agents", LayoutGrid, "Launchpad"),
   item("Explore", "/explore", Compass, "Workspace"),
   item("Leaderboards", "/tournament", Trophy, "Workspace"),
