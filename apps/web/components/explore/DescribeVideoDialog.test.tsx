@@ -27,6 +27,7 @@ vi.mock("@/components/builder/generate/MentionTextarea", () => ({
   MentionTextarea: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => <textarea aria-label="Prompt" value={value} onChange={(e) => onChange(e.target.value)} />,
 }));
 vi.mock("@/hooks/use-solana-wallet", () => ({ useUnifiedSolanaWallet: () => ({ publicKey: null, signTransaction: undefined }) }));
+vi.mock("@/providers/supabase-auth-provider", () => ({ useSupabaseAuth: () => ({ authenticated: true, login: vi.fn() }) }));
 vi.mock("@/lib/client/usdcClient", () => ({ sendUsdc: vi.fn() }));
 import { DescribeVideoDialog } from "./DescribeVideoDialog";
 

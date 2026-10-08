@@ -1680,3 +1680,14 @@ export const walletForMarket = query({
     return agent ? { mintAddress: agent.mintAddress, agentWallet: agent.agentWallet } : null;
   },
 });
+
+/** The coin an influencer is attached to, for captions that name its $TICKER. Null when it has none. */
+export const coinOfMint = query({
+  args: { mintAddress: v.string() },
+  handler: async (ctx, { mintAddress }) => {
+    const a = await ctx.db.query("influencers").withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress)).first();
+    if (!a?.solstarTokenId) return null;
+    const t = await ctx.db.get(a.solstarTokenId);
+    return t?.ticker ? { ticker: t.ticker, name: t.name, characterId: String(t.characterId) } : null;
+  },
+});

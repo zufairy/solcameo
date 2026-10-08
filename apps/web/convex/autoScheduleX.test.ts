@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, it, expect } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -43,5 +43,26 @@ describe("automatic 3-a-day X schedule", () => {
     expect(r.map((x) => x.videoUrl)).toEqual(["https://v.test/3.mp4", "https://v.test/2.mp4", "https://v.test/1.mp4"]);
     expect(r[1].scheduledFor - r[0].scheduledFor).toBe(8 * 3_600_000);
     expect(r[2].scheduledFor - r[1].scheduledFor).toBe(8 * 3_600_000);
+  });
+});
+
+describe("catch-up for videos nobody posted", () => {
+  it("queues finished videos of an X-connected agent that were never scheduled, and skips ones already posted by hand", async () => {
+    const t = convexTest(schema, modules);
+    const MINT = "BacklogMint111111111111111111111111111111";
+    await t.run(async (ctx) => {
+      await ctx.db.insert("influencers", { mintAddress: MINT, creatorWallet: "W", name: "Nova", handle: "nova", avatarUrl: "https://x.test/a.png", niche: "fitness", language: "en", archetype: "creator", description: "d", personality: { warmth: 1, humor: 1, authority: 1, boldness: 1 }, tvl: 0, monthlyEarnings: 0, sharePrice: 1, totalShares: 1, availableShares: 1, updatedAt: 1, connectedPlatforms: ["x"] } as never);
+      const mk = async (n: number, output?: string) => {
+        const taskId = await ctx.db.insert("agentTasks", { mintAddress: MINT, sessionId: MINT, type: "create_video", status: "succeeded", title: `t${n}`, ...(output ? { output } : {}) } as never);
+        await ctx.db.insert("videoRenderJobs", { taskId, mintAddress: MINT, sessionId: MINT, driveToken: `d${n}`, kieModel: "veo3_fast", phase: "done", statusMessage: "Done.", renderArgs: "{}", videoUrl: `https://v.test/${n}.mp4`, videoNote: `note ${n}`, attempts: 0, updatedAt: Date.now() } as never);
+      };
+      await mk(1); await mk(2); await mk(3, JSON.stringify({ post: { status: "posted" } }));
+    });
+    const result = await t.mutation(internal.scheduledContent.autoScheduleBacklog, {});
+    expect(result.queued).toBe(2);
+    const rows = (await t.run((ctx) => ctx.db.query("scheduledContent").collect())).sort((a, b) => a.scheduledFor - b.scheduledFor);
+    expect(rows.map((r) => r.videoUrl)).toEqual(["https://v.test/2.mp4", "https://v.test/1.mp4"]); // newest first
+    expect(rows[0].scheduledFor).toBeLessThan(Date.now() + 5 * 60_000); // the freshest goes out right away
+    expect((await t.mutation(internal.scheduledContent.autoScheduleBacklog, {})).queued).toBe(0); // and it never doubles up
   });
 });

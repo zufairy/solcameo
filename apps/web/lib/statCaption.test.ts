@@ -26,3 +26,21 @@ it("rotates the wording by seed and ends on a question or a dare", () => {
   expect(set.size).toBeGreaterThan(1);
   expect(statCaption("network", data, "a")).toMatch(/\?\s*\n\nsolcameo\.com$/);
 });
+
+import { withTicker } from "./marketingCaption";
+it("adds the coin's ticker and link to any caption that lacks it, within one post", () => {
+  const coin = { ticker: "orgie", url: "https://solcameo.com/market/orgie" };
+  expect(withTicker("new drop from orangie", coin)).toBe("new drop from orangie\n\n$ORGIE https://solcameo.com/market/orgie");
+  expect(withTicker("already naming $ORGIE here", coin)).toBe("already naming $ORGIE here");
+  expect(withTicker("x ".repeat(200), coin).length).toBeLessThanOrEqual(275);
+  expect(withTicker("hello", null)).toBe("hello");
+});
+
+import { tokenLaunchCaption, videoLaunchCaption } from "./marketingCaption";
+it("never leaves a blank gap in a coin or video caption, whatever the ticker hashes to", () => {
+  for (const t of ["ALG", "MILO", "ORGIE", "ZZZZZZ", "A1", "NOVA", "KURO", "HANA"]) {
+    const v = videoLaunchCaption({ name: "Along Rocket", ticker: t, bio: "an ai creator", url: "https://solcameo.com/market/x" });
+    const c = tokenLaunchCaption({ name: "Along Rocket", ticker: t, bio: "an ai creator", url: "https://solcameo.com/market/x" });
+    for (const text of [v, c]) { expect(text).not.toMatch(/\n\n\n/); expect(text).not.toContain("undefined"); expect(text).toContain(`$${t}`); }
+  }
+});

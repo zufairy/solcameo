@@ -288,6 +288,7 @@ function Generator({
     setPhotoBusy(false);
   }
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  const { login: promptLogin } = useSupabaseAuth();
   const paidSig = useRef<string | undefined>(undefined);
   const [cameoRun, setCameoRun] = useState<{ status?: "pending" | "error"; url?: string; error?: string; paid?: boolean } | null>(null);
   const [error, setError] = useState("");
@@ -355,7 +356,7 @@ function Generator({
       setCameoRun({ status: "pending" });
       try {
         const { requestId } = await payAndPost<{ requestId: string }>({
-          url: "/api/explore/cameo-motion", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+          url: "/api/explore/cameo-motion", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote, onAuthNeeded: promptLogin,
           payload: { ...(custom ? {} : { cameoMint: mint }), referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token), ...photoTokens], castHints: cast.filter((c) => !c.self && c.mintAddress).map((c) => ({ token: c.token, mintAddress: c.mintAddress })), mode, resolution, prompt, extraImageUrls: [...(custom ? [photos[0]] : []), ...cast.map((c) => c.avatarUrl), ...extraPhotos] },
         });
         paidSig.current = undefined; // the render has started; this payment is spent
@@ -376,7 +377,7 @@ function Generator({
     setEngineStarting(true); setEngineTask(null);
     try {
       const data = await payAndPost<{ taskId?: string }>({
-        url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+        url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote, onAuthNeeded: promptLogin,
         payload: { ...(custom ? {} : { cameoMint: mint }), referenceImageUrls: [...(custom ? [photos[0]] : []), ...extraPhotos], castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl, ...(c.mintAddress ? { mintAddress: c.mintAddress } : {}) })), prompt: (prompt.trim() || `${item.title}. ${item.description}`).slice(0, 900), videoEngine: model.engine, quality: resolution, seconds: engineSeconds(model, item.duration), aspect: "9:16" },
       });
       if (!data.taskId) throw new Error("The video could not start.");

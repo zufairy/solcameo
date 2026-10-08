@@ -64,6 +64,17 @@ export async function GET(req: NextRequest) {
       displayName: user.name,
       ...(user.profile_image_url ? { image: user.profile_image_url } : {}),
     });
+    // The agent is marked X-connected right away, so automatic posting starts without waiting for the background sync.
+    if (!session.profile && session.mintAddress) try {
+      const secret = process.env.INTERNAL_CRON_SECRET ?? "";
+      const agent = await xDb().query(api.influencers.getByMintServer, { mintAddress: session.mintAddress, authSecret: secret }).catch(() => null);
+      await xDb().mutation(api.influencers.setConnectedPlatforms, {
+        mintAddress: session.mintAddress, authSecret: secret,
+        platforms: [...(agent?.connectedPlatforms ?? []), "x"],
+        accounts: { ...(agent?.connectedSocialAccounts ?? {}), x: { id: user.id, handle: user.username, displayName: user.name } },
+      }).catch(() => undefined);
+    }    catch { /* the background sync marks it connected a little later */ }
+
   } catch (e) {
     message = e instanceof Error ? e.message : "X connection failed";
     status = 400;

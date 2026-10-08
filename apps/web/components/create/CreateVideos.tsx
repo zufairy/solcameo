@@ -79,7 +79,7 @@ function ModeRail({ onDirector }: { onDirector: () => void }) {
  * a director and let an influencer run itself from its Director tab.
  */
 export function CreateVideos() {
-  const { profile } = useSupabaseAuth();
+  const { profile, login } = useSupabaseAuth();
   const wallets = useMemo(() => [...new Set([...(profile?.walletAddresses ?? []), profile?.walletAddress].filter((w): w is string => !!w))], [profile]);
   const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets, liveNetwork: "mainnet" } : "skip");
 
@@ -178,7 +178,7 @@ export function CreateVideos() {
   async function generateWalletPaid(text: string) {
     if (!cameo && !attachedList.length) throw new Error("Add at least one reference image first: a face, product or scene to build the video from.");
     const data = await payAndPost<{ taskId?: string }>({
-      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+      url: "/api/explore/describe", publicKey, signTransaction, onAuthNeeded: login, pending: paidSig, onStatus: setPayNote,
       payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attachedList, ...(cast.length ? { castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}), ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
     });
     if (!data.taskId) throw new Error("The video could not start.");

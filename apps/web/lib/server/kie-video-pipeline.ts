@@ -13,6 +13,7 @@
 //   Veo3:    https://docs.kie.ai/veo3-api/generate-veo-3-video
 //   Seedance: https://docs.kie.ai/market/bytedance/seedance-2-fast
 
+import { isModerationError } from "@/lib/builder/moderationFallback";
 import { HIGGSFIELD_ENGINES, isHiggsfieldModel } from "@/lib/builder/higgsfieldEngines";
 import type { VideoQuality } from "@/lib/builder/kieVideoPricing";
 import { submitVideoClip, waitForVideo } from "@/lib/server/higgsfield";
@@ -4962,7 +4963,9 @@ export async function generateVideoFromScript(args: GenerateVideoArgs): Promise<
           // isImageRefError's phrasing (they surface as a generic task failure) — so
           // for gemini-omni we retry text-only on ANY failure, not just recognized
           // image errors. This was the "All N gemini-omni-video clips failed" case.
-          if (hadImages && (isGeminiOmni || isImageRefError(emsg))) {
+          // A content-filter rejection is NOT a bad picture: dropping the reference would "pass" the filter by rendering a stranger.
+          // It is thrown on instead, and the render step hands the same references to the next engine.
+          if (hadImages && !isModerationError(emsg) && (isGeminiOmni || isImageRefError(emsg))) {
             console.warn(`[kie-video-pipeline] ${videoModel} clip ${i + 1} failed with images (${emsg.slice(0, 140)}) — retrying without images`);
             const noImg = { ...input };
             delete noImg.image_urls; delete noImg.image_url; delete noImg.image_input;

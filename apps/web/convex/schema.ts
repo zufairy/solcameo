@@ -2337,6 +2337,8 @@ export default defineSchema({
     driveToken: v.string(),
     /** The influencer this render features when someone else paid for it (Explore with a cameo): lets the video show under that influencer's coin without making it theirs. */
     cameoMint: v.optional(v.string()),
+    /** Engines that already rejected this render (JSON array of model slugs); the next one in the moderation ladder takes over. */
+    triedEngines: v.optional(v.string()),
     kieModel: v.string(),            // agent's selected video engine slug (veo3_fast / veo3 / seedance…)
     phase: v.string(),              // "storyboard" | "video" | "posting" | "done" | "failed"
     statusMessage: v.string(),       // human progress text for the card's viewing place

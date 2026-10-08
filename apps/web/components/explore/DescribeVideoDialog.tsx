@@ -18,6 +18,7 @@ import { KIE_VIDEO_PRICING, type VideoQuality } from "@/lib/builder/kieVideoPric
 import { formatRetailUsd } from "@/lib/pricing/retail";
 import { aspectFor, aspectsForEngine, type VideoAspect } from "@/lib/builder/videoAspects";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
+import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { payAndPost } from "@/lib/client/walletPaid";
 import { MAX_REFERENCE_IMAGES } from "@/lib/explore/referenceImages";
 
@@ -56,6 +57,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const agent = agents?.find((a) => a.mintAddress === mint);
   const others = (everyone ?? []).filter((a) => !owned.has(a.mintAddress) && a.avatarUrl).slice(0, 300);
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
+  const { login } = useSupabaseAuth();
   // Signature of a payment that was sent but not yet applied, so a retry reuses it instead of paying twice.
   const paidSig = useRef<string | undefined>(undefined);
   const [prompt, setPrompt] = useState("");
@@ -128,9 +130,10 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 
   /** No influencer, or someone else's: price it, send the USDC from the user's own wallet, then render once it is verified. */
   async function generateWalletPaid(text: string) {
+    // A visitor who is not signed in, or has no wallet connected yet, gets the login popup instead of a dead-end error.
     if (!cameo && !attached.length) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
     const data = await payAndPost<{ taskId?: string }>({
-      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote, onAuthNeeded: login,
       // Every face reaches the engine: the picked influencer (server side), anyone tagged in the prompt, and your own uploads.
       payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attached, ...(cast.length ? { castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}), ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
     });
@@ -228,7 +231,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                   selfMint={mint}
                   selfName={agent?.name}
                   selfImage={agent?.avatarUrl}
-                  placeholder="What should this video be about? Type @ to bring in another agent, e.g. reacting to a viral trend in my niche…"
+                  placeholder={walletPaid ? "Describe the scene, the action and the mood. Type @ to bring in a character." : "What should this video be about? Type @ to bring in another agent, e.g. reacting to a viral trend in my niche…"}
                   rows={4}
                 />
                 <div className="mt-2 flex flex-wrap items-center gap-2">

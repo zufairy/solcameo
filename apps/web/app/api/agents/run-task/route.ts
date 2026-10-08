@@ -1,3 +1,5 @@
+import { withTicker } from "@/lib/marketingCaption";
+import { marketPath } from "@/lib/solstar/marketSlug";
 import { preparePaidAgentVideo } from "@/lib/server/preparePaidAgentVideo";
 import { refreshAgentFunds } from "@/lib/server/agentWallet";
 import { cleanReferenceUrls } from "@/lib/explore/referenceImages";
@@ -1970,6 +1972,9 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       : input.exactOutput === true || !scriptCaption
         ? await generatePostCaption(agent, ctx, { topic, hook: hookText ?? "", scriptText: typeof input.topic === "string" ? input.topic : topic, ...(xOnly ? { platform: "x" as const } : {}) }).catch(() => scriptCaption)
         : scriptCaption;
+    // Every post names the coin: add the influencer's $TICKER and market link when the written caption has none.
+    const coinForCaption = effectiveAutoPost && autoPostCaption ? await new ConvexHttpClient(CONVEX_URL).query(api.influencers.coinOfMint, { mintAddress: (agent as unknown as { mintAddress: string }).mintAddress }).catch(() => null) : null;
+    const autoPostCaptionFinal = coinForCaption ? withTicker(autoPostCaption, { ticker: coinForCaption.ticker, url: `https://solcameo.com${marketPath({ characterId: coinForCaption.characterId, ticker: coinForCaption.ticker })}` }) : autoPostCaption;
 
     // The FINAL rendered length (fitted script, else the Director's rolled length).
     const finalDurationSeconds = ((scriptResult as Record<string, unknown>)._fittedSeconds as number | undefined) ?? directives.durationSeconds;
@@ -2096,7 +2101,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
         const platforms = Array.isArray(ap.platforms) ? ap.platforms.map(String).filter(Boolean) : [];
         // High-converting, hashtag-free caption written from the video (computed
         // above); fall back to the script's caption (hashtag-stripped) if empty.
-        const caption = autoPostCaption || buildPostCaption({
+        const caption = autoPostCaptionFinal || buildPostCaption({
           hook: hookText,
           scriptCaption: typeof (scriptResult as Record<string, unknown>).caption === "string"
             ? (scriptResult as Record<string, unknown>).caption as string : "",

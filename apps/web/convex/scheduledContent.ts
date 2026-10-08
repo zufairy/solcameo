@@ -1,3 +1,6 @@
+import { videoLaunchCaption, cleanMarketingText } from "../lib/marketingCaption";
+import { marketPath } from "../lib/solstar/marketSlug";
+import { enqueueVideoMilestone } from "./contentControl";
 import { v } from "convex/values";
 import { mutation, query, internalQuery, internalMutation, internalAction, type MutationCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
@@ -882,7 +885,7 @@ export async function autoScheduleVideoToX(ctx: MutationCtx, job: { mintAddress:
   const id = await ctx.db.insert("scheduledContent", {
     mintAddress: job.mintAddress, scheduledFor: firstSlot, status: "scheduled", topic, platforms: ["x"], videoUrl: job.videoUrl,
     taskId: job.taskId, auto: true, createdAt: now,
-    caption: await autoCaption(ctx, agent, topic),
+    caption: await autoCaption(ctx, agent, (job.videoNote ?? "").trim()),
   });
   // Newest content first: re-deal the waiting automatic rows into the slots, freshest to the earliest.
   const waiting = [...xRows.filter((r) => r.status === "scheduled" && r.auto === true), (await ctx.db.get(id))!].sort((a, b) => (b.createdAt - a.createdAt) || (b._creationTime - a._creationTime));
@@ -893,11 +896,9 @@ export async function autoScheduleVideoToX(ctx: MutationCtx, job: { mintAddress:
 }
 
 async function autoCaption(ctx: MutationCtx, agent: Doc<"influencers">, topic: string) {
-  const { videoLaunchCaption, cleanMarketingText } = await import("../lib/marketingCaption");
-  const { marketPath } = await import("../lib/solstar/marketSlug");
   const token = agent.solstarCharacterId ? await ctx.db.query("ssTokens").withIndex("by_character", (q) => q.eq("characterId", agent.solstarCharacterId!)).first() : null;
-  if (token?.ticker && token.network === "mainnet") return videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic, url: `https://solcameo.com${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` });
-  return cleanMarketingText(`${topic}\n\n${agent.name}`).slice(0, 270);
+  if (token?.ticker) return videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic, url: `https://solcameo.com${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` });
+  return cleanMarketingText(topic ? `${topic} ${agent.name}` : `new video from ${agent.name}`).slice(0, 270);
 }
 
 /** Posted rows whose live views are due a refresh (oldest synced first), for the analytics sync. */
@@ -924,8 +925,56 @@ export const recordViews = mutation({
     if (!row) return { ok: false, updated: false };
     const next = Math.max(row.viewCount ?? 0, Math.max(0, Math.floor(viewCount)));
     await ctx.db.patch(id, { viewCount: next, viewsSyncedAt: Date.now(), ...(postUrl && !row.postUrl ? { postUrl } : {}), ...(platformPostId && !row.platformPostId ? { platformPostId } : {}) });
-    const { enqueueVideoMilestone } = await import("./contentControl");
     await enqueueVideoMilestone(ctx, { mintAddress: row.mintAddress, views: next, key: `sched:${id}`, postUrl: row.postUrl, platform: row.postPlatform, platformPostId: row.platformPostId, videoUrl: row.videoUrl });
     return { ok: true, updated: next !== (row.viewCount ?? 0) };
+  },
+});
+
+/**
+ * Catch-up for generated videos that never got posted although the influencer has X connected (videos made before X was
+ * connected, or by a flow that missed the hook). Oldest first, so the newest ends up with the earliest slot: the freshest
+ * goes out right away and the rest follow every 8 hours. Videos the owner already posted by hand are left alone.
+ */
+export const autoScheduleBacklog = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const jobs = await ctx.db.query("videoRenderJobs").order("desc").take(400);
+    const cutoff = Date.now() - 30 * 86_400_000;
+    const seen = new Set<string>();
+    let queued = 0, checked = 0;
+    for (const job of [...jobs].reverse()) {
+      if (checked >= 60) break;
+      if (job.phase !== "done" || !job.videoUrl || job.autoPost || !job.mintAddress || job._creationTime < cutoff || seen.has(job.videoUrl)) continue;
+      seen.add(job.videoUrl);
+      checked++;
+      const task = await ctx.db.get(job.taskId);
+      const raw = (task as { output?: unknown } | null)?.output;
+      let out: { post?: { status?: string } } | null = null;
+      try { out = typeof raw === "string" ? JSON.parse(raw) : (raw as typeof out) ?? null; } catch { /* unreadable output: treat as not posted */ }
+      if (out?.post?.status === "posted") continue;
+      const before = (await ctx.db.query("scheduledContent").withIndex("by_mint_video", (q) => q.eq("mintAddress", job.mintAddress).eq("videoUrl", job.videoUrl)).collect()).length;
+      await autoScheduleVideoToX(ctx, { mintAddress: job.mintAddress, videoUrl: job.videoUrl, videoNote: job.videoNote, taskId: job.taskId, autoPost: job.autoPost });
+      const after = (await ctx.db.query("scheduledContent").withIndex("by_mint_video", (q) => q.eq("mintAddress", job.mintAddress).eq("videoUrl", job.videoUrl)).collect()).length;
+      if (after > before) queued++;
+    }
+    return { checked, queued };
+  },
+});
+
+/** Rewrites the caption of automatic posts that are still waiting, so improvements to the wording reach what is already queued. */
+export const refreshAutoCaptions = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const waiting = await ctx.db.query("scheduledContent").withIndex("by_status", (q) => q.eq("status", "scheduled")).take(200);
+    let updated = 0;
+    for (const row of waiting) {
+      if (!row.auto) continue;
+      const agent = await ctx.db.query("influencers").withIndex("by_mint", (q) => q.eq("mintAddress", row.mintAddress)).first();
+      if (!agent) continue;
+      const job = row.videoUrl ? (await ctx.db.query("videoRenderJobs").order("desc").take(300)).find((j) => j.videoUrl === row.videoUrl) : undefined;
+      await ctx.db.patch(row._id, { caption: await autoCaption(ctx, agent, (job?.videoNote ?? "").trim()) });
+      updated++;
+    }
+    return { updated };
   },
 });

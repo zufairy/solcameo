@@ -2,6 +2,8 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { selfOrigin } from "@/lib/server/selfOrigin";
 import { writeViralCaption } from "@/lib/server/viralCaption";
+import { withTicker } from "@/lib/marketingCaption";
+import { marketPath } from "@/lib/solstar/marketSlug";
 
 export type AutoPostResult = { ok: true; caption: string } | { ok: false; caption?: string; error: string };
 
@@ -12,7 +14,10 @@ export async function autoPostToX(opts: { mint: string; videoUrl: string; refere
   if (!secret || !url) return { ok: false, error: "Posting is not configured." };
   const agent = await new ConvexHttpClient(url).query(api.influencers.getByMintServer, { mintAddress: opts.mint, authSecret: secret }).catch(() => null);
   if (!agent) return { ok: false, error: "Agent not found." };
-  const caption = await writeViralCaption({ name: agent.name, niche: agent.niche ?? undefined, bio: (agent as { bio?: string }).bio, referenceTitle: opts.referenceTitle, scene: opts.scene });
+  const rawCaption = await writeViralCaption({ name: agent.name, niche: agent.niche ?? undefined, bio: (agent as { bio?: string }).bio, referenceTitle: opts.referenceTitle, scene: opts.scene });
+  // Every post names the coin: the $TICKER and its market link are added when the written caption has none.
+  const coin = await new ConvexHttpClient(url).query(api.influencers.coinOfMint, { mintAddress: opts.mint }).catch(() => null);
+  const caption = withTicker(rawCaption, coin ? { ticker: coin.ticker, url: `https://solcameo.com${marketPath({ characterId: coin.characterId, ticker: coin.ticker })}` } : null);
   try {
     const res = await fetch(`${selfOrigin()}/api/social/post`, {
       method: "POST",

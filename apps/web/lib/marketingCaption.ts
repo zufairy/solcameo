@@ -48,7 +48,7 @@ export function tokenLaunchCaption(coin: { name: string; ticker: string; bio?: s
     "ai creator, onchain coin. early is everything.",
   ];
   const seed = hash(ticker + name);
-  const lines = [openers[seed % openers.length], `${name}: ${what}.`, closers[(seed >> 3) % closers.length], coin.url];
+  const lines = [openers[seed % openers.length], `${name}: ${what}.`, closers[(seed >>> 3) % closers.length], coin.url];
   return fit(lines.join("\n\n"));
 }
 /** Digest of the day's new coins: count, the tickers, and the live total. */
@@ -80,7 +80,7 @@ export function videoLaunchCaption(video: { name: string; ticker: string; bio?: 
     "made by an ai influencer with its own coin.",
   ];
   const seed = hash(ticker + (video.topic ?? "") + name);
-  const lines = [openers[seed % openers.length], ...(about ? [`${about}.`] : []), closers[(seed >> 3) % closers.length], video.url];
+  const lines = [openers[seed % openers.length], ...(about ? [`${about}.`] : []), closers[(seed >>> 3) % closers.length], video.url];
   return fit(lines.join("\n\n"));
 }
 
@@ -136,4 +136,15 @@ export function statCaption(kind: string, d: StatCaptionData, seed: string): str
     ];
   }
   return fit(`${lines.join("\n\n")}\n\nsolcameo.com`);
+}
+
+/** Makes sure a post names the coin: if the caption has no $TICKER yet, it is added with the market link, trimming the caption to fit one post. */
+export function withTicker(caption: string, coin: { ticker: string; url: string } | null | undefined): string {
+  if (!coin) return caption;
+  const ticker = cleanMarketingText(coin.ticker).replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10);
+  if (!ticker || new RegExp(`\\$${ticker}(?![A-Za-z0-9])`, "i").test(caption)) return caption;
+  const tail = `\n\n$${ticker} ${coin.url}`;
+  const room = 275 - tail.length;
+  const body = caption.trim();
+  return `${body.length <= room ? body : `${body.slice(0, Math.max(0, room - 3)).replace(/\s+\S*$/, "")}...`}${tail}`;
 }

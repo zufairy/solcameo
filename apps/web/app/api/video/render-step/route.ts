@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isModerationError, nextFallbackEngine, parseTried } from "@/lib/builder/moderationFallback";
+import { higgsfieldConfigured } from "@/lib/server/higgsfield";
 import { MOTION_SWAP_FORMAT_ID, motionReferenceFromBible, renderMotionSwap } from "@/lib/server/motionSwap";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -258,6 +260,8 @@ export async function POST(req: NextRequest) {
     velloWatermark?: boolean;
   };
   const baseArgs = JSON.parse(job.renderArgs) as GenerateVideoArgs & { overlays?: OverlayConfig; renderCostUsdc?: number };
+  // After a moderation fallback the job runs on a different engine than the one the render was first planned for.
+  if (job.kieModel && (baseArgs as { videoModel?: string }).videoModel !== job.kieModel) (baseArgs as { videoModel?: string }).videoModel = job.kieModel;
 
   // FAIL-SAFE overlays: only re-route through the "overlay" phase when an overlay
   // is actually enabled. No overlays → the render→posting/done flow is unchanged.
@@ -342,6 +346,23 @@ export async function POST(req: NextRequest) {
 
   // On any thrown error: retry the same phase up to MAX_PHASE_ATTEMPTS, else fail.
   const retryOrFail = async (message: string) => {
+    // The engine's content filter said no. Never drop the face to get past it: hand the same references to the next engine
+    // in the moderation ladder (the storyboard and every reference stay as they are), and only fail once none is left.
+    if (job.phase === "video" && isModerationError(message)) {
+      const tried = [...new Set([...parseTried(job.triedEngines), job.kieModel])];
+      const next = nextFallbackEngine({ current: job.kieModel, tried, seconds: Number(baseArgs.durationSeconds) || 5, hasHiggsfield: higgsfieldConfigured() });
+      if (next) {
+        console.warn(`[render-step] ${job.kieModel} rejected the render (${message.slice(0, 120)}); keeping the references and moving to ${next.kieModel}`);
+        await convex.mutation(api.videoRenderJobs.patch, {
+          authSecret: SECRET, id, kieModel: next.kieModel, triedEngines: JSON.stringify(tried), attempts: 0, clipIndex: 0, seedanceState: "", veoTaskId: "",
+          statusMessage: `That engine's filter declined it. Retrying on ${next.label}, keeping your face reference…`,
+        });
+        fireNextStep(origin, jobId, job.driveToken);
+        return NextResponse.json({ ok: true, phase: job.phase, fallback: next.kieModel });
+      }
+      await failAll("Every video engine's content filter declined this reference. Try a different, clearer photo of the face (front-facing, no text or logos) and generate again. You were not charged.");
+      return NextResponse.json({ ok: false, phase: "failed", error: message });
+    }
     const attempts = (job.attempts ?? 0) + 1;
     if (attempts < MAX_PHASE_ATTEMPTS) {
       await convex.mutation(api.videoRenderJobs.patch, { authSecret: SECRET, id, attempts, statusMessage: `Hiccup — retrying (${attempts})…` });

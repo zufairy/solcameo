@@ -115,6 +115,9 @@ export const patch = mutation({
     videoNote: v.optional(v.string()),
     attempts: v.optional(v.number()),
     error: v.optional(v.string()),
+    /** Moderation fallback: switch the job to the next engine and remember which ones already said no. */
+    kieModel: v.optional(v.string()),
+    triedEngines: v.optional(v.string()),
     authSecret: v.string(),
   },
   handler: async (ctx, { id, authSecret, ...rest }) => {

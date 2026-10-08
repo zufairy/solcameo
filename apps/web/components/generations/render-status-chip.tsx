@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- agent avatars hosted on remote storage */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Check, Film } from "lucide-react";
@@ -21,6 +21,7 @@ export function RenderStatusChip() {
   // One running video shows its own smooth percent; several show their average.
   const pct = active.length > 1 ? Math.round(active.reduce((n, j) => n + j.progress, 0) / active.length) : smooth;
   const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
   const ids = unseen.map((j) => j.id).join(",");
   // Having the list open counts as seeing whatever has finished.
   useEffect(() => { if (open && ids) markSeen(ids.split(",")); }, [open, ids]);
@@ -28,7 +29,7 @@ export function RenderStatusChip() {
   const rendering = active.length > 0;
   const ready = !rendering && unseen.length > 0;
   const failedOnly = ready && unseen.every((j) => j.state === "failed");
-  const list = jobs.slice(0, 6);
+  const list = jobs.slice(0, 12);
   if (!jobs.length) return null;
 
   return (
@@ -56,13 +57,13 @@ export function RenderStatusChip() {
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[min(92vw,360px)] gap-0 rounded-[8px] border border-white/[0.14] bg-[#0f1113]/92 p-2.5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <p className="text-[12px] font-semibold text-white">{rendering ? "Making your videos" : "Your videos"}</p>
-          <Link href="/generations" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#d7ff00] hover:underline">All generations <ArrowUpRight className="size-3" /></Link>
+      <PopoverContent align="end" sideOffset={8} positionMethod="fixed" collisionPadding={12} className="w-[min(92vw,360px)] max-h-[min(var(--available-height,80vh),560px)] gap-0 overflow-hidden rounded-[8px] border border-white/[0.14] bg-[#0f1113] p-0 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-3.5 py-2.5">
+          <p className="text-[12px] font-semibold text-white">{rendering ? `Making ${active.length === 1 ? "your video" : `${active.length} videos`}` : "Your videos"}</p>
+          <Link href="/generations" onClick={close} className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#d7ff00] hover:underline">All generations <ArrowUpRight className="size-3" /></Link>
         </div>
-        <div className="space-y-1.5">
-          <AnimatePresence initial={false}>{list.map((job) => <RenderCard key={job.id} job={job} compact onOpen={() => setOpen(false)} />)}</AnimatePresence>
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain p-2.5 [scrollbar-color:rgba(255,255,255,0.18)_transparent] [scrollbar-width:thin]">
+          <AnimatePresence initial={false}>{list.map((job) => <RenderCard key={job.id} job={job} compact onOpen={close} />)}</AnimatePresence>
         </div>
       </PopoverContent>
     </Popover>

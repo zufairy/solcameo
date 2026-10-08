@@ -29,9 +29,11 @@ export async function payAndPost<T extends Record<string, unknown>>(args: {
   pending: { current: string | undefined };
   /** Plain-language progress for the screen: "Paying…", "Confirming on Solana…", "Starting your video…". */
   onStatus?: (note: string) => void;
+  /** Called when the visitor has to sign in or connect a wallet first, so the caller can open its login popup. */
+  onAuthNeeded?: () => void;
 }): Promise<T> {
-  const { url, payload, publicKey, signTransaction, pending, onStatus } = args;
-  if (!publicKey || !signTransaction) throw new Error("Connect your wallet to pay for this video.");
+  const { url, payload, publicKey, signTransaction, pending, onStatus, onAuthNeeded } = args;
+  if (!publicKey || !signTransaction) { onAuthNeeded?.(); throw new Error("Sign in or connect a wallet to pay, then press Generate again."); }
   const say = (note: string) => onStatus?.(note);
   // A payment waiting to be used is remembered as the plain signature (USDC) or "swap:<signature>" (bought via Jupiter).
   const sigOf = (v?: string) => v?.replace(/^swap:/, "");
@@ -42,6 +44,7 @@ export async function payAndPost<T extends Record<string, unknown>>(args: {
 
   say("Checking the price…");
   let { res, data } = await call(pending.current);
+  if (res.status === 401) { onAuthNeeded?.(); throw new Error("Your session expired. Sign in again, then press Generate."); }
   if (res.status === 402 && data.code === "payment_required" && data.treasury && data.owedUsd) {
     const owed = data.owedUsd;
     const connection = failoverConnection({ network: getNetwork() });

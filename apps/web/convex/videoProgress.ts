@@ -9,6 +9,8 @@ import type { Id } from "./_generated/dataModel";
  * Reads are kept small on purpose: render jobs are large documents, so only the few active or recent ones are opened.
  */
 const RECENT_MS = 24 * 3_600_000;
+/** A render still "pending" or "running" after this long never reported back; it is not shown as live. */
+const STALE_ACTIVE_MS = 2 * 24 * 3_600_000;
 const MAX_AGENTS = 15;
 const MAX_JOBS = 12;
 
@@ -45,6 +47,7 @@ export const mine = query({
         if (t.type !== "create_video" || seen.has(t._id)) continue;
         const active = t.status === "pending" || t.status === "running";
         const finished = t.status === "succeeded" || t.status === "failed";
+        if (active && (t.startedAt ?? t._creationTime) < now - STALE_ACTIVE_MS) continue;
         if (!active && !(finished && (t.completedAt ?? t._creationTime) > now - RECENT_MS)) continue;
         seen.add(t._id);
         tasks.push({ id: t._id as string, taskId: t._id, status: t.status, title: t.title, startedAt: t.startedAt, completedAt: t.completedAt, created: t._creationTime, output: t.output, errorMessage: t.errorMessage, agent });

@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- agent avatars and storyboard frames hosted on remote storage */
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -27,6 +27,8 @@ export function markSeen(ids: string[]) {
   seenListeners.forEach((l) => l());
 }
 
+const STALE_MS = 2 * 24 * 3_600_000;
+
 /** Every render of the signed-in account, live, plus which finished ones are still unseen. */
 export function useLiveRenders() {
   const { authenticated, profile } = useSupabaseAuth();
@@ -34,12 +36,17 @@ export function useLiveRenders() {
   const jobs = useQuery(api.videoProgress.mine, authenticated && wallets.length ? { creatorWallets: wallets } : "skip");
   const seenRaw = useSyncExternalStore(subscribeSeen, readSeen, () => "[]");
   const seen = useMemo(() => new Set<string>(JSON.parse(seenRaw) as string[]), [seenRaw]);
+  // Re-checked once a minute so a tab left open overnight still drops what has gone stale.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(id); }, []);
   return useMemo(() => {
-    const list = jobs ?? [];
+    // Anything older than two days is noise: a failed video nobody retried, or a render that never reported back.
+    const cutoff = now - STALE_MS;
+    const list = (jobs ?? []).filter((j) => (j.finishedAt ?? j.updatedAt ?? j.startedAt) > cutoff);
     const active = list.filter((j) => j.state === "queued" || j.state === "rendering");
     const unseen = list.filter((j) => (j.state === "done" || j.state === "failed") && !seen.has(j.id));
     return { jobs: list, active, unseen, loading: jobs === undefined && authenticated };
-  }, [jobs, seen, authenticated]);
+  }, [jobs, seen, authenticated, now]);
 }
 
 /**
@@ -53,7 +60,7 @@ export function useSmoothProgress(job: Pick<RenderJob, "progress" | "state">): n
   const ceiling = Math.min(96, target + 7);
   useEffect(() => {
     if (job.state === "done" || reduced) return;
-    const id = window.setInterval(() => setShown((s) => (s < target ? Math.min(target, s + Math.max(1, (target - s) * 0.25)) : Math.min(ceiling, s + 0.1))), 300);
+    const id = window.setInterval(() => setShown((s) => (s < target ? Math.min(target, s + Math.max(1, (target - s) * 0.5)) : Math.min(ceiling, s + 0.3))), 1000);
     return () => window.clearInterval(id);
   }, [target, ceiling, job.state, reduced]);
   if (job.state === "done") return 100;
@@ -64,24 +71,29 @@ const STEPS = [["storyboard", "Storyboard"], ["video", "Rendering"], ["posting",
 const stepIndex = (job: RenderJob) => (job.state === "done" ? 3 : Math.max(0, STEPS.findIndex(([p]) => p === job.phase)));
 const elapsed = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`; };
 
-/** Ticks once a second while a render is running, for the elapsed timer. */
+/** One shared clock for every elapsed timer on screen: a single interval no matter how many cards are rendering. */
+const tickListeners = new Set<() => void>();
+let tickNow = Date.now(), tickTimer: ReturnType<typeof setInterval> | undefined;
+const subscribeTick = (l: () => void) => {
+  tickListeners.add(l);
+  if (!tickTimer) tickTimer = setInterval(() => { tickNow = Date.now(); tickListeners.forEach((fn) => fn()); }, 1000);
+  return () => { tickListeners.delete(l); if (!tickListeners.size && tickTimer) { clearInterval(tickTimer); tickTimer = undefined; } };
+};
+const noopSubscribe = () => () => {};
 function useTick(on: boolean) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { if (!on) return; const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, [on]);
-  return now;
+  return useSyncExternalStore(on ? subscribeTick : noopSubscribe, () => (on ? tickNow : 0), () => 0);
 }
 
 /** One render with its live bar, pipeline steps and status line. `compact` is the popover size. */
-export function RenderCard({ job, compact = false, onOpen }: { job: RenderJob; compact?: boolean; onOpen?: () => void }) {
+function RenderCardBase({ job, compact = false, onOpen }: { job: RenderJob; compact?: boolean; onOpen?: () => void }) {
   const pct = useSmoothProgress(job);
   const live = job.state === "queued" || job.state === "rendering";
   const now = useTick(live);
   const step = stepIndex(job);
   const failed = job.state === "failed", done = job.state === "done";
   return (
-    <motion.article layout initial={{ opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ type: "spring", stiffness: 380, damping: 34 }}
-      className={`relative overflow-hidden rounded-[6px] border border-white/[0.12] bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-xl ${compact ? "p-3" : "p-4"}`}>
-      {live && <motion.span aria-hidden className="pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" initial={{ x: "-120%" }} animate={{ x: "420%" }} transition={{ duration: 2.4, ease: "linear", repeat: Infinity }} />}
+    <motion.article initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}
+      className={`relative overflow-hidden rounded-[6px] border border-white/[0.12] bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ${compact ? "p-3" : "p-4"}`}>
       <div className="relative flex items-center gap-3">
         <div className={`relative grid shrink-0 place-items-center overflow-hidden rounded-[5px] bg-white/10 ring-1 ring-white/15 ${compact ? "size-11" : "size-14"}`}>
           {job.poster || job.agentAvatar ? <img src={(done && job.poster) || job.agentAvatar || job.poster || ""} alt="" className="size-full object-cover" /> : <Film className="size-5 text-white/40" />}
@@ -100,7 +112,7 @@ export function RenderCard({ job, compact = false, onOpen }: { job: RenderJob; c
       {!failed && (
         <div className="relative mt-3">
           <div className="h-1.5 overflow-hidden rounded-[2px] bg-white/10">
-            <motion.div className={`h-full ${done ? "bg-[#d7ff00]" : "bg-[linear-gradient(90deg,#9bbf00,#d7ff00)] shadow-[0_0_12px_rgba(215,255,0,0.55)]"}`} animate={{ width: `${pct}%` }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} />
+            <div className={`h-full transition-[width] duration-1000 ease-linear ${done ? "bg-[#d7ff00]" : "bg-[linear-gradient(90deg,#9bbf00,#d7ff00)]"}`} style={{ width: `${pct}%` }} />
           </div>
           {!compact && (
             <ol className="mt-2.5 flex justify-between text-[11px] font-medium">
@@ -122,6 +134,10 @@ export function RenderCard({ job, compact = false, onOpen }: { job: RenderJob; c
     </motion.article>
   );
 }
+
+const sameJob = (a: RenderJob, b: RenderJob) => a.id === b.id && a.state === b.state && a.progress === b.progress && a.phase === b.phase && a.message === b.message && a.updatedAt === b.updatedAt && a.poster === b.poster;
+/** Re-renders only when its own job actually changed, so a busy list stays cheap. */
+export const RenderCard = memo(RenderCardBase, (p, n) => sameJob(p.job, n.job) && p.compact === n.compact && p.onOpen === n.onOpen);
 
 /**
  * The live section at the top of /generations: everything rendering now, then what just finished. Opening the page

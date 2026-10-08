@@ -49,3 +49,18 @@ it("stops and tells the user when the wallet refuses to pay", async () => {
   m.sendUsdc.mockResolvedValue({ ok: false, error: "Insufficient USDC." });
   await expect(pay()).rejects.toThrow("Insufficient USDC.");
 });
+
+it("opens the sign-in popup instead of failing silently when no wallet is connected", async () => {
+  const onAuthNeeded = vi.fn();
+  vi.stubGlobal("fetch", vi.fn());
+  await expect(payAndPost({ url: "/x", payload: {}, publicKey: null, signTransaction: undefined, pending: { current: undefined }, onAuthNeeded })).rejects.toThrow(/sign in or connect a wallet/i);
+  expect(onAuthNeeded).toHaveBeenCalledTimes(1);
+  expect(fetch).not.toHaveBeenCalled();
+});
+it("opens the sign-in popup when the session has expired (401)", async () => {
+  const onAuthNeeded = vi.fn();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply(401, { error: "Unauthorized" })));
+  await expect(payAndPost({ url: "/x", payload: {}, publicKey: key, signTransaction: (async (t: unknown) => t) as never, pending: { current: undefined }, onAuthNeeded })).rejects.toThrow(/session expired/i);
+  expect(onAuthNeeded).toHaveBeenCalledTimes(1);
+  expect(m.sendUsdc).not.toHaveBeenCalled();
+});
