@@ -729,7 +729,7 @@ export const globalVideoFeed = query({
         posterUrl: r.storyboardImageUrl ?? null,
         caption: r.autoPost?.caption || r.videoNote || "",
         postUrl: sc?.postUrl ?? null,
-        mint: r.mintAddress,
+        mint: r.mintAddress || r.cameoMint || "",
         viralScore: null,
         // _creationTime, not updatedAt: any later patch (an Editor re-burn,
         // a status write) bumped updatedAt and floated old renders back to

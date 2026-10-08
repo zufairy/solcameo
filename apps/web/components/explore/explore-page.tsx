@@ -16,8 +16,10 @@ import {
   Search,
   ChevronRight,
   CalendarClock,
+  ImagePlus,
   Upload,
   Wand2,
+  X,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
@@ -51,6 +53,7 @@ import { ExploreSelect } from "./ExploreSelect";
 import { ReferencePlayer } from "./ReferencePlayer";
 import { referenceAffinity } from "@/lib/explore/recommendations";
 import { castToken } from "@/lib/explore/castKey";
+import { MAX_REFERENCE_IMAGES } from "@/lib/explore/referenceImages";
 import { cameoReferencePrompt, modelForReference, referenceEstimate, engineSeconds, estimateModelUsd, EXPLORE_MODELS, type ExploreModel } from "@/lib/explore/models";
 import {
   formatGenerationUsd,
@@ -67,6 +70,8 @@ type Feed = {
   refreshedAt?: string;
 };
 const PROMPT_REFERENCES: ReferenceVideo[] = promptReferences.items;
+/** Select value for "no influencer": the viewer uploads their own pictures and pays from their own wallet. */
+const NO_INFLUENCER = "__none__";
 const GREEN =
   "rounded-lg bg-[#d7ff00] text-black shadow-none hover:bg-[#e4ff59]";
 
@@ -209,6 +214,16 @@ function ReferenceCard({
   );
 }
 
+/** The "no influencer" choice: the viewer uploads their own pictures and pays from their own wallet. */
+function NoInfluencerRow() {
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      <span className="grid size-16 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/[0.06] text-white/70"><ImagePlus className="size-6" /></span>
+      <span className="min-w-0 text-left"><span className="block truncate text-[15px] font-extrabold uppercase tracking-wide text-white">No influencer</span><span className="block text-[11px] text-zinc-500">Upload your own pictures · pay from your wallet</span></span>
+    </span>
+  );
+}
+
 function Generator({
   mint,
   primaryName,
@@ -221,10 +236,13 @@ function Generator({
   onClose,
   uploadedFile,
   own = true,
+  custom = false,
   cameoPortrait,
 }: {
   /** False for an influencer the viewer does not own: its public portrait is used and the viewer pays from their own wallet. */
   own?: boolean;
+  /** No influencer: the viewer's own uploaded pictures are the cast. */
+  custom?: boolean;
   cameoPortrait?: string;
   mint: string;
   primaryName: string;
@@ -241,8 +259,34 @@ function Generator({
   const [uploadError, setUploadError] = useState("");
   const [ownPortrait, setPortrait] = useState<string>();
   const [ownLoading, setLoading] = useState(true);
-  const portrait = own ? ownPortrait : cameoPortrait;
-  const loading = own ? ownLoading : false;
+  // Pictures the viewer uploads: their own face, a friend, a product. With no influencer they are the whole cast.
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [payNote, setPayNote] = useState("");
+  const photoInput = useRef<HTMLInputElement>(null);
+  const portrait = custom ? photos[0] : own ? ownPortrait : cameoPortrait;
+  const loading = custom ? false : own ? ownLoading : false;
+  /** Uploaded pictures that ride along after the portrait and the tagged cast. */
+  const extraPhotos = custom ? photos.slice(1) : photos;
+  const photoTokens = extraPhotos.map((_, i) => `Photo${(custom ? 2 : 1) + i}`);
+  async function addPhotos(files: File[]) {
+    const room = MAX_REFERENCE_IMAGES - photos.length;
+    const picked = files.filter((f) => f.type.startsWith("image/")).slice(0, Math.max(0, room));
+    if (!picked.length) { if (files.length) setPhotoError(room <= 0 ? `You can add up to ${MAX_REFERENCE_IMAGES} pictures.` : "Choose image files."); return; }
+    setPhotoBusy(true); setPhotoError("");
+    const stored = await Promise.all(picked.map(async (file) => {
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error("Could not read the file")); r.readAsDataURL(file); });
+        const res = await fetch("/api/upload-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ base64 }) });
+        const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+        if (!res.ok || !data.url) throw new Error(data.error ?? `Upload failed (${res.status})`);
+        return data.url;
+      } catch (e) { setPhotoError(e instanceof Error ? e.message : "Upload failed"); return null; }
+    }));
+    setPhotos((prev) => [...new Set([...prev, ...stored.filter((u): u is string => !!u)])].slice(0, MAX_REFERENCE_IMAGES));
+    setPhotoBusy(false);
+  }
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const paidSig = useRef<string | undefined>(undefined);
   const [cameoRun, setCameoRun] = useState<{ status?: "pending" | "error"; url?: string; error?: string; paid?: boolean } | null>(null);
@@ -251,7 +295,7 @@ function Generator({
   const [cast, setCast] = useState<CameoMember[]>([]);
   const [autoPost, setAutoPost] = useState(false);
   const estimate = estimateModelUsd(model, item.duration, resolution);
-  const { runs, start } = useMotionRuns(mint);
+  const { runs, start } = useMotionRuns(mint || "custom");
   const run = runs[0];
   // Grok, Veo, Seedance and Gemini render through the agent's normal video path, paid from the same agent wallet.
   const [engineTask, setEngineTask] = useState<Id<"agentTasks"> | null>(null);
@@ -297,8 +341,8 @@ function Generator({
       }
       // Not awaited: the charge and submission happen inside, and the run reports `paid` the moment they succeed, while this
       // function returns so the upload spinner does not outlive the payment.
-      void start({ mode, videoUrl, imageUrls: [portrait, ...cast.map(c => c.avatarUrl)].slice(0, 8), prompt, resolution: resolution as GenjutsuResolution, title: item.title,
-        ...(uploadedFile ? {} : { poster: item.thumbUrl, explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map(c => c.token)], autoPost: xConnected && autoPost } }),
+      void start({ mode, videoUrl, imageUrls: [portrait, ...cast.map(c => c.avatarUrl), ...extraPhotos].slice(0, 8), prompt, resolution: resolution as GenjutsuResolution, title: item.title,
+        ...(uploadedFile ? {} : { poster: item.thumbUrl, explore: { referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map(c => c.token), ...photoTokens], castHints: cast.filter((c) => !c.self && c.mintAddress).map((c) => ({ token: c.token, mintAddress: c.mintAddress })), autoPost: xConnected && autoPost } }),
       });
     } catch (e) { setUploadError(e instanceof Error ? e.message : "Could not upload your video"); }
     finally { setUploading(false); }
@@ -311,8 +355,8 @@ function Generator({
       setCameoRun({ status: "pending" });
       try {
         const { requestId } = await payAndPost<{ requestId: string }>({
-          url: "/api/explore/cameo-motion", publicKey, signTransaction, pending: paidSig,
-          payload: { cameoMint: mint, referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token)], mode, resolution, prompt, extraImageUrls: cast.map((c) => c.avatarUrl) },
+          url: "/api/explore/cameo-motion", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+          payload: { ...(custom ? {} : { cameoMint: mint }), referenceId: item.id, referencePage: item.page, castTokens: [castToken(primaryName), ...cast.map((c) => c.token), ...photoTokens], castHints: cast.filter((c) => !c.self && c.mintAddress).map((c) => ({ token: c.token, mintAddress: c.mintAddress })), mode, resolution, prompt, extraImageUrls: [...(custom ? [photos[0]] : []), ...cast.map((c) => c.avatarUrl), ...extraPhotos] },
         });
         paidSig.current = undefined; // the render has started; this payment is spent
         setCameoRun({ status: "pending", paid: true });
@@ -332,8 +376,8 @@ function Generator({
     setEngineStarting(true); setEngineTask(null);
     try {
       const data = await payAndPost<{ taskId?: string }>({
-        url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
-        payload: { cameoMint: mint, prompt: (prompt.trim() || `${item.title}. ${item.description}`).slice(0, 900), videoEngine: model.engine, quality: resolution, seconds: engineSeconds(model, item.duration), aspect: "9:16" },
+        url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+        payload: { ...(custom ? {} : { cameoMint: mint }), referenceImageUrls: [...(custom ? [photos[0]] : []), ...extraPhotos], castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl, ...(c.mintAddress ? { mintAddress: c.mintAddress } : {}) })), prompt: (prompt.trim() || `${item.title}. ${item.description}`).slice(0, 900), videoEngine: model.engine, quality: resolution, seconds: engineSeconds(model, item.duration), aspect: "9:16" },
       });
       if (!data.taskId) throw new Error("The video could not start.");
       paidSig.current = undefined;
@@ -365,7 +409,8 @@ function Generator({
             skipStoryboard: true,
             noPersona: true,
             exactOutput: true,
-            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl, ...(c.mintAddress ? { mintAddress: c.mintAddress } : {}) })).slice(0, 5) } : {}),
+            ...(extraPhotos.length ? { referenceImageUrls: extraPhotos } : {}),
           },
           triggeredBy: "explore",
         }),
@@ -380,7 +425,7 @@ function Generator({
     }
   }
   useEffect(() => {
-    if (!own) return; // someone else's influencer uses its public portrait, passed in
+    if (!own || custom) return; // someone else's influencer (or no influencer) has no saved portrait to load
     const controller = new AbortController();
     fetch(`/api/character?mint=${encodeURIComponent(mint)}`, {
       signal: controller.signal,
@@ -397,7 +442,7 @@ function Generator({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [mint, own]);
+  }, [mint, own, custom]);
   return (
     <div className="space-y-4">
       {loading ? (
@@ -427,8 +472,30 @@ function Generator({
           </Link>
         </p>
       )}
+      <div className="space-y-2 rounded-xl border-2 border-white/15 bg-white/[0.03] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-white">{custom ? "Your pictures" : "Add your own pictures"} <span className="font-normal text-zinc-500">· {photos.length}/{MAX_REFERENCE_IMAGES}</span></span>
+          <span className="text-[11px] text-zinc-500">{custom ? "Faces, a product or a scene. The first is the lead." : "Yourself, a friend, a product."}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {photos.map((url, i) => (
+            <span key={url} className="relative size-14 shrink-0 overflow-hidden rounded-xl border-2 border-white/20">
+              {/* eslint-disable-next-line @next/next/no-img-element -- the viewer's own upload */}
+              <img src={url} alt={`Picture ${i + 1}`} className="size-full object-cover" />
+              <button type="button" aria-label={`Remove picture ${i + 1}`} disabled={busy} onClick={() => setPhotos((prev) => prev.filter((u) => u !== url))} className="absolute inset-0 grid place-items-center bg-black/65 text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100"><X className="size-4" /></button>
+            </span>
+          ))}
+          {photos.length < MAX_REFERENCE_IMAGES && (
+            <button type="button" disabled={photoBusy || busy} onClick={() => photoInput.current?.click()} className="grid size-14 shrink-0 place-items-center rounded-xl border-2 border-dashed border-white/25 text-zinc-300 transition-colors hover:border-[#d7ff00] hover:text-[#d7ff00] disabled:opacity-50" aria-label="Add pictures" title="Add pictures">
+              {photoBusy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-5" />}
+            </button>
+          )}
+          <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) void addPhotos(files); e.target.value = ""; }} />
+        </div>
+        {photoError && <p role="alert" className="text-xs text-red-400">{photoError}</p>}
+      </div>
       {portrait && (
-        <CameoPrompt mint={mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
+        <CameoPrompt mint={custom ? "" : mint} primaryName={primaryName} primaryImage={portrait} item={item} mode={mode} value={prompt} onChange={setPrompt} onCast={setCast} />
       )}
 
       {portrait && !uploadedFile && xConnected && model.kind === "genjutsu" && (
@@ -439,15 +506,15 @@ function Generator({
         </label>
       )}
       {(paying || rendering) && (
-        <RenderProgress stage={paying ? "paying" : "rendering"} poster={item.thumbUrl} amount={estimate !== null ? formatGenerationUsd(estimate) : undefined} agentName={primaryName} onClose={onClose} />
+        <RenderProgress stage={paying ? "paying" : "rendering"} poster={item.thumbUrl} amount={estimate !== null ? formatGenerationUsd(estimate) : undefined} agentName={primaryName} payer={own && !custom ? "agent" : "you"} note={(!own || custom) && paying ? payNote : undefined} onClose={onClose} />
       )}
       <Button
         className={`h-11 w-full ${GREEN}`}
         disabled={
-          !portrait || loading || busy || estimate === null || (!own && !!uploadedFile)
+          !portrait || loading || busy || estimate === null || (!own && !!uploadedFile) || photoBusy
         }
         onClick={() =>
-          !own ? void startCameo() : model.kind === "engine"
+          !own || custom ? void startCameo() : model.kind === "engine"
             ? void startEngine()
             : void startMotion()
         }
@@ -469,7 +536,7 @@ function Generator({
         {own
           ? <>{estimate !== null ? `${formatGenerationUsd(estimate)} is charged from this agent's wallet and includes the Solcameo fee (15% or $1, whichever is higher). ` : ""}
             Once paid, the render runs in the background and the finished video appears in My agents. {model.kind === "genjutsu" ? "It is also saved to your agent’s motion library." : ""}{autoPost && xConnected ? " It will be posted to X automatically." : ""}</>
-          : <>{estimate !== null ? `${formatGenerationUsd(estimate)} is paid in USDC from your own wallet to Solcameo, fee included. ` : ""}{primaryName} is not yours, so the video is made for you and shown here. Keep this window open until it finishes.</>}
+          : <>{estimate !== null ? `${formatGenerationUsd(estimate)} is paid in USDC from your own wallet to Solcameo, fee included. ` : ""}{custom ? "No influencer is used" : `${primaryName} is not yours`}, so the video is made for you and shown here. Keep this window open until it finishes.</>}
       </p>
       {(failure || uploadError) && (
         <p role="alert" className="text-sm text-red-400">
@@ -1025,7 +1092,9 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                     onDrop={e => { e.preventDefault(); setDragging(false); if (!generating) chooseVideo(e.dataTransfer.files?.[0]); }}
                     className={`mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-left transition-colors ${dragging ? "border-[#d7ff00] bg-[#d7ff00]/10" : uploadedFile ? "border-white/15 bg-white/[0.04] hover:bg-white/[0.07]" : "flex-col border-white/20 bg-white/5 p-6 text-center hover:bg-white/10"} ${generating ? "pointer-events-none opacity-60" : ""}`}
                   >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/15 bg-black/30 text-[#d7ff00]"><Upload className="size-5" /></span>
+                    {uploadedFile && selected.videoUrl
+                      ? <span className="relative size-14 shrink-0 overflow-hidden rounded-xl border-2 border-[#d7ff00]/60 bg-black"><video src={selected.videoUrl} muted loop autoPlay playsInline aria-label="Your uploaded video" className="size-full object-cover" /></span>
+                      : <span className="grid size-14 shrink-0 place-items-center rounded-xl border-2 border-dashed border-white/25 bg-black/30 text-[#d7ff00]"><Upload className="size-5" /></span>}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-white">{uploadedFile ? uploadedFile.name : dragging ? "Drop your video" : "Upload or drop your own video"}</span>
                       <span className="block text-xs text-zinc-400">{uploadedFile ? `${(uploadedFile.size / 1048576).toFixed(1)} MB · click to replace` : "MP4, MOV or WebM · 4–30 seconds · up to 150 MB"}</span>
@@ -1156,28 +1225,30 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                     >
                       <SelectTrigger
                         aria-label="Your influencer"
-                        className="mt-2 h-[68px] w-full border-white/10 bg-white/5 px-2.5 text-white"
+                        className="mt-2 h-[88px] w-full border-white/10 bg-white/5 px-2.5 text-white"
                       >
                         <SelectValue placeholder="Choose an influencer">
                           {(value: string | null) => {
+                            if (value === NO_INFLUENCER) return <NoInfluencerRow />;
                             const o = others.find((x) => x.mintAddress === value);
-                            if (o) return <AgentOption large name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />;
+                            if (o) return <AgentOption xl name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />;
                             const a = agents?.find((x) => x.mintAddress === value);
-                            return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
+                            return a ? <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
                           }}
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
+                      <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(34rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
+                        {!fixedMint && <SelectItem value={NO_INFLUENCER} className="min-h-[88px] py-3 pl-2"><NoInfluencerRow /></SelectItem>}
                         {!!agents?.length && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                           {agents.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2">
-                              <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2">
+                              <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}
                         {!fixedMint && others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                           {others.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2">
-                              <AgentOption large name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2">
+                              <AgentOption xl name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}
                       </SelectContent>
@@ -1186,9 +1257,10 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                   {mint && !mediaError && (!customVideo || !!uploadedFile) ? (
                     <Generator
                       key={`${mint}:${selected.id}`}
-                      mint={mint}
-                      primaryName={agents?.find((a) => a.mintAddress === mint)?.name ?? cameoAgent?.name ?? "Character"}
-                      own={!cameoAgent}
+                      mint={mint === NO_INFLUENCER ? "" : mint}
+                      custom={mint === NO_INFLUENCER}
+                      primaryName={mint === NO_INFLUENCER ? "Photo 1" : agents?.find((a) => a.mintAddress === mint)?.name ?? cameoAgent?.name ?? "Character"}
+                      own={!cameoAgent && mint !== NO_INFLUENCER}
                       cameoPortrait={cameoAgent?.avatarUrl}
                       item={selected}
                       resolution={resolution}

@@ -2333,6 +2333,8 @@ export default defineSchema({
     // Unguessable per-job token — the render-step chain authenticates with this
     // instead of a shared env secret, so the chain works without a server restart.
     driveToken: v.string(),
+    /** The influencer this render features when someone else paid for it (Explore with a cameo): lets the video show under that influencer's coin without making it theirs. */
+    cameoMint: v.optional(v.string()),
     kieModel: v.string(),            // agent's selected video engine slug (veo3_fast / veo3 / seedance…)
     phase: v.string(),              // "storyboard" | "video" | "posting" | "done" | "failed"
     statusMessage: v.string(),       // human progress text for the card's viewing place

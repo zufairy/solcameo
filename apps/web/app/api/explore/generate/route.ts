@@ -1,4 +1,5 @@
 import { identityStills } from "@/lib/server/identityStill";
+import { mergeCast } from "@/lib/server/mentionCast";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
@@ -41,10 +42,13 @@ export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(url);
   const agent = await convex.query(api.influencers.getByMintServer, { mintAddress: a.mint, authSecret: secret });
   // The influencer and every tagged cameo go to the engine as clear still faces, never animated GIFs.
-  const images = await identityStills(rawImages, agent);
+  const stills = await identityStills(rawImages, agent);
+  // Everyone tagged with @ in the prompt is checked against the real influencer, so each one's face is in the cast.
+  const cast = await mergeCast({ prompt: typeof body.prompt === "string" ? body.prompt : "", castTokens: body.castTokens, imageUrls: stills, hints: body.castHints, excludeMint: a.mint });
+  const images = cast.imageUrls;
   const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
 
-  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", body.castTokens, images.length, mode);
+  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", cast.castTokens, images.length, mode);
   const runId = `explore:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
   if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });

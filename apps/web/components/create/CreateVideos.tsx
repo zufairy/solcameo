@@ -83,6 +83,7 @@ export function CreateVideos() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   const [task, setTask] = useState<Id<"agentTasks"> | null>(null);
+  const [payNote, setPayNote] = useState("");
   const [fundOpen, setFundOpen] = useState(false);
 
   const engineId = engineOverride ?? pickableVideoEngine(walletPaid ? undefined : agent?.videoEngine);
@@ -146,8 +147,8 @@ export function CreateVideos() {
   async function generateWalletPaid(text: string) {
     if (!cameo && !attachedList.length) throw new Error("Add at least one reference image first: a face, product or scene to build the video from.");
     const data = await payAndPost<{ taskId?: string }>({
-      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
-      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attachedList, ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
+      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attachedList, ...(cast.length ? { castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}), ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
     });
     if (!data.taskId) throw new Error("The video could not start.");
     paidSig.current = undefined; // the render has started; this payment is spent
@@ -336,7 +337,7 @@ export function CreateVideos() {
 
       {(running && !videoUrl) && (
         <div className="mt-5">
-          <RenderProgress stage={starting || (waitingOnPayment && !payGaveUp) ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name ?? cameo?.name} onClose={reset} />
+          <RenderProgress stage={starting || (waitingOnPayment && !payGaveUp) ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name ?? cameo?.name} payer={walletPaid ? "you" : "agent"} note={walletPaid && starting ? payNote : undefined} onClose={reset} />
         </div>
       )}
       {videoUrl && (

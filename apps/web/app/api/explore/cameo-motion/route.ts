@@ -7,6 +7,8 @@ import { priceUsd } from "@/lib/server/exploreBilling";
 import { getUserWallet, requireAuth } from "@/lib/server/requireAuth";
 import { publicPortrait, requireWalletPayment, roundUsd, walletFail } from "@/lib/server/walletPaidGeneration";
 import { ConvexHttpClient } from "convex/browser";
+import { identityStills } from "@/lib/server/identityStill";
+import { mergeCast } from "@/lib/server/mentionCast";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -22,8 +24,11 @@ const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\/
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return walletFail("Invalid body", 400);
-  const portrait = typeof body.cameoMint === "string" ? await publicPortrait(body.cameoMint) : null;
-  if (!portrait) return walletFail("That influencer has no portrait to use yet.", 400);
+  const portrait = typeof body.cameoMint === "string" && body.cameoMint ? await publicPortrait(body.cameoMint) : null;
+  const uploads = (Array.isArray(body.extraImageUrls) ? body.extraImageUrls : []).filter(https);
+  // An influencer's portrait, or (with no influencer) the viewer's own uploaded pictures.
+  if (body.cameoMint && !portrait) return walletFail("That influencer has no portrait to use yet.", 400);
+  if (!portrait && !uploads.length) return walletFail("Add at least one picture to use in the video.", 400);
   const ref = typeof body.referenceId === "string" ? await resolveReference(body.referenceId, body.referencePage) : null;
   if (!ref) return walletFail("This reference video is no longer available. Pick another one.", 400);
   const mode = body.mode === "object-swap" ? "object-swap" : "motion-transfer";
@@ -32,10 +37,13 @@ export async function POST(req: NextRequest) {
   if (owed === null) return walletFail("This reference must be between 4 and 30 seconds.", 400);
   const price = roundUsd(owed);
   // The portrait first, then any extra characters the user tagged into the scene.
-  const images = [portrait.imageUrl, ...(Array.isArray(body.extraImageUrls) ? body.extraImageUrls : []).filter(https)].slice(0, 8);
-  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", body.castTokens, images.length, mode);
+  const stills = await identityStills([...(portrait ? [portrait.imageUrl] : []), ...uploads].slice(0, 8));
+  // Everyone tagged with @ in the prompt is checked against the real influencer, so each one's face is in the cast.
+  const cast = await mergeCast({ prompt: typeof body.prompt === "string" ? body.prompt : "", castTokens: body.castTokens, imageUrls: stills, hints: body.castHints, excludeMint: typeof body.cameoMint === "string" ? body.cameoMint : undefined });
+  const images = cast.imageUrls;
+  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", cast.castTokens, images.length, mode);
 
-  const paid = await requireWalletPayment(req, { owed: price, signature: body.paymentSignature, payer: body.payer });
+  const paid = await requireWalletPayment(req, { owed: price, signature: body.paymentSignature, payer: body.payer, viaSwap: body.payMethod === "swap" });
   if ("error" in paid) return paid.error;
   const { convex, secret, signature, claim } = paid;
   // The same payment again: give back its job, unless it failed, in which case start it again for free.

@@ -1,4 +1,5 @@
 import { identityStills } from "@/lib/server/identityStill";
+import { mergeCast } from "@/lib/server/mentionCast";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -56,11 +57,13 @@ export async function POST(req: NextRequest) {
   const agent = await c.convex.query(api.influencers.getByMintServer, { mintAddress: a.mint, authSecret: c.secret }).catch(() => null);
   const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
   // Faces reach the engine as clear stills, never animated GIFs.
-  const imageUrls = await identityStills(rawImageUrls, agent);
+  const stills = await identityStills(rawImageUrls, agent);
+  const cast = await mergeCast({ prompt: text(body.prompt, 4000), castTokens: body.castTokens, imageUrls: stills, hints: body.castHints, excludeMint: a.mint });
+  const imageUrls = cast.imageUrls;
   try {
     const id = await c.convex.mutation(api.scheduledRecreations.create, {
       authSecret: c.secret, mintAddress: a.mint, referenceId: ref.id, referenceTitle: ref.title,
-      referencePoster: ref.thumbUrl, videoUrl: ref.videoUrl, durationSec: ref.duration, autoPost, imageUrls, prompt: withCastKey(text(body.prompt, 4000), body.castTokens, imageUrls.length, mode), mode, resolution, runAt, repeat,
+      referencePoster: ref.thumbUrl, videoUrl: ref.videoUrl, durationSec: ref.duration, autoPost, imageUrls, prompt: withCastKey(text(body.prompt, 4000), cast.castTokens, imageUrls.length, mode), mode, resolution, runAt, repeat,
       repeatCount: typeof body.repeatCount === "number" ? body.repeatCount : undefined,
     });
     return NextResponse.json({ id });

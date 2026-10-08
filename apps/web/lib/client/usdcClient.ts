@@ -1,6 +1,5 @@
 "use client";
 
-import { failoverConnection } from "@/lib/solana/failoverConnection";
 import { useEffect, useState, useCallback } from "react";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
@@ -14,6 +13,7 @@ import {
 } from "@solana/spl-token";
 import { getUsdcMint, getNetwork } from "@/lib/solana/network";
 import { rpcTry, rpcCandidates } from "@/lib/solana/rpc";
+import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "@/lib/solana/landTransaction";
 
 // IMPORTANT — derive BOTH the RPC and the USDC mint from the SAME source
 // (network.ts → NEXT_PUBLIC_SOLANA_NETWORK) so the transaction's blockhash
@@ -57,13 +57,6 @@ export function checkFunding(opts: {
     usdcShort: needUsdc ? opts.budget - usdc : 0,
     solShort: needSol ? gasFloor - sol : 0,
   };
-}
-
-/** A connection pinned to the app's configured network (devnet by default).
- *  Used for the SIGNING path (sendUsdc), where getRpcUrl keeps devnet on the
- *  public endpoint so the blockhash matches Phantom's own RPC. */
-function rpc(): Connection {
-  return failoverConnection({ network: NETWORK });
 }
 
 /** Live USDC balance of the connected wallet. Polls every 20s + refetch on demand. */
@@ -169,8 +162,6 @@ export async function sendUsdc(opts: {
     return { ok: false, error: "Agent has no valid payout wallet." };
   }
 
-  const connection = rpc();
-
   try {
     // Idempotency: a prior attempt for this payment timed out unconfirmed. Check
     // the ledger (incl. history) before re-sending — if it landed, return it and
@@ -204,16 +195,22 @@ export async function sendUsdc(opts: {
     }
 
     const tx = new Transaction();
+    let makesAccount = false;
 
     // Create recipient ATA if needed (sender pays the ~0.002 SOL rent).
     try {
       await rpcTry(RPC_CANDIDATES, async (c) => getAccount(c, toAta, "confirmed"));
     } catch (e) {
       if (e instanceof TokenAccountNotFoundError) {
+        makesAccount = true;
         tx.add(createAssociatedTokenAccountInstruction(publicKey, toAta, toKey, USDC_MINT));
       }
     }
 
+    // A compute limit sized to a plain transfer and a market-rate priority fee, so the payment lands in seconds.
+    const units = makesAccount ? 70_000 : 40_000;
+    const priority = await estimatePriorityPrice([fromAta.toBase58(), toAta.toBase58()], units);
+    tx.instructions.unshift(...computeBudgetInstructions(units, priority));
     tx.add(createTransferInstruction(
       fromAta, toAta, publicKey,
       Math.floor(amountUsdc * 10 ** USDC_DECIMALS),
@@ -225,19 +222,19 @@ export async function sendUsdc(opts: {
     tx.recentBlockhash = blockhash;
 
     const signed = await signTransaction(tx);
-    const sig = await rpcTry(RPC_CANDIDATES, async (c) => c.sendRawTransaction(signed.serialize(), { maxRetries: 3 }));
+    const raw = signed.serialize();
+    const sig = await rpcTry(RPC_CANDIDATES, async (c) => c.sendRawTransaction(raw, { maxRetries: 0 }));
     try {
-      const conf = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-      if (conf.value.err) {
-        return { ok: false, error: `Payment failed on-chain: ${JSON.stringify(conf.value.err)}` };
-      }
-      return { ok: true, signature: sig };
+      // Re-broadcast the same signed bytes to every RPC while polling every node at once, instead of waiting on one socket.
+      const result = await landTransaction({ raw, signature: sig, lastValidBlockHeight, urls: RPC_CANDIDATES, maxMs: 40_000 });
+      if (result === "confirmed") return { ok: true, signature: sig };
+      if (result === "expired") return { ok: false, error: "The payment did not reach the network in time, so nothing was deducted. Please try again." };
+      return { ok: false, unconfirmed: true, signature: sig, error: "Payment sent. Confirming it on-chain…" };
     } catch (confErr) {
-      // Broadcast succeeded but confirmation timed out / blockheight exceeded — the
-      // transfer MAY have landed. Return unconfirmed WITH the signature so the
-      // caller re-checks the ledger on retry instead of double-sending.
-      console.warn(`[sendUsdc] confirmation unresolved for ${sig}: ${confErr instanceof Error ? confErr.message : confErr}`);
-      return { ok: false, unconfirmed: true, signature: sig, error: "Payment sent but not yet confirmed. We'll verify on-chain — do not pay again." };
+      const message = confErr instanceof Error ? confErr.message : String(confErr);
+      if (/failed on-chain/i.test(message)) return { ok: false, error: `Payment failed on-chain: ${message.slice(0, 100)}` };
+      console.warn(`[sendUsdc] confirmation unresolved for ${sig}: ${message}`);
+      return { ok: false, unconfirmed: true, signature: sig, error: "Payment sent. Confirming it on-chain…" };
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

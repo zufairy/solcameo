@@ -44,7 +44,7 @@ function GradientField({ reduced, intensity = 1 }: { reduced: boolean | null; in
  * What the person sees after pressing Generate: the wallet being charged, a short "payment confirmed" moment the instant
  * it lands, then a calm glass-and-gradient rendering state with a clear note that the video will be waiting in My agents.
  */
-export function RenderProgress({ stage, amount, agentName, onClose }: { stage: Stage; amount?: string; agentName?: string; poster?: string; onClose?: () => void }) {
+export function RenderProgress({ stage, amount, agentName, onClose, payer = "agent", note }: { stage: Stage; amount?: string; agentName?: string; poster?: string; onClose?: () => void; /** Whose wallet pays: the agent's own, or the viewer's (someone else's influencer, or none). */ payer?: "agent" | "you"; /** The live step while paying: "Swapping SOL to USDC with Jupiter…", "Confirming on Solana…". */ note?: string }) {
   const reduced = useReducedMotion();
   const [celebrate, setCelebrate] = useState(false);
   const [step, setStep] = useState(0);
@@ -88,8 +88,8 @@ export function RenderProgress({ stage, amount, agentName, onClose }: { stage: S
                 <svg viewBox="0 0 24 24" className="size-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="square"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 0V6a2 2 0 0 1 2-2h12M16 14h2" /></svg>
               </span>
               <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold tracking-tight text-white">Paying from {agentName ? `${agentName}’s` : "the agent"} wallet</p>
-                <p className="mt-0.5 text-[12px] text-white/60">{amount ? `${amount} on-chain` : "Settling on-chain"} · usually a few seconds</p>
+                <p className="text-[13.5px] font-semibold tracking-tight text-white">{payer === "you" ? "Paying from your wallet" : <>Paying from {agentName ? `${agentName}’s` : "the agent"} wallet</>}</p>
+                <p className="mt-0.5 text-[12px] text-white/60">{note ? note : amount ? `${amount} on-chain · usually a few seconds` : "Settling on-chain · usually a few seconds"}</p>
               </div>
             </motion.div>
           )}

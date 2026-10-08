@@ -20,6 +20,8 @@ export async function verifyUsdcDeposit(opts: {
    *  reached this node yet — BUG-025b) should pass a getReadRpcUrl() connection and
    *  retry: reads never touch the wallet, so the flake-tolerant READ rpc is correct. */
   connection?: Connection;
+  /** The payer bought the USDC in the same transaction (a Jupiter swap straight into the receiving wallet), so its USDC did not drop. Bind the payment to the transaction's signer instead. */
+  viaSwap?: boolean;
 }): Promise<{ creditedUsdc: number }> {
   const { txSignature, escrowOwner, usdcMint, minAmountUsdc, expectedSender } = opts;
   const conn = opts.connection ?? getRpcConnection();
@@ -48,7 +50,10 @@ export async function verifyUsdcDeposit(opts: {
   // Bind the deposit to the wallet that funded it. Without this, a caller could
   // present someone else's deposit tx and claim the shares against their own
   // wallet — the signed transfer is the proof of ownership for wallet-only buys.
-  if (expectedSender && expectedSender !== escrowOwner) {
+  if (expectedSender && expectedSender !== escrowOwner && opts.viaSwap) {
+    const signer = tx.transaction.message.accountKeys.find((k) => k.signer)?.pubkey.toBase58();
+    if (signer !== expectedSender) throw new Error(`deposit was not funded by the connected wallet ${expectedSender.slice(0, 4)}…${expectedSender.slice(-4)}`);
+  } else if (expectedSender && expectedSender !== escrowOwner) {
     const sent = ownedUsdc(pre, expectedSender) - ownedUsdc(post, expectedSender);
     if (sent < minAmountUsdc - 1e-6) {
       throw new Error(

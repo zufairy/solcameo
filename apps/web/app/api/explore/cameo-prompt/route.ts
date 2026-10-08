@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { beginAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { authorizeCharacterOwner } from "@/lib/server/characterAuth";
+import { requireAuth } from "@/lib/server/requireAuth";
 import { assertPublicHttpUrl } from "@/lib/server/downloader";
 import { callClaudeText, callGeminiVision } from "@/lib/server/kie-claude";
 
@@ -45,8 +46,14 @@ async function toDataUrl(url: string): Promise<string | null> {
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  const a = await authorizeCharacterOwner(req, typeof body.mintAddress === "string" ? body.mintAddress : null);
-  if (a.error) return a.error;
+  // The owner of the lead influencer is billed from its wallet. Anyone else signed in (someone else's influencer, or no
+  // influencer at all, with their own pictures) gets the same helper for free: the prompt costs a fraction of a cent.
+  const ownerAuth = typeof body.mintAddress === "string" && body.mintAddress ? await authorizeCharacterOwner(req, body.mintAddress) : null;
+  if (!ownerAuth || ownerAuth.error) {
+    const auth = await requireAuth(req);
+    if (auth.error) return auth.error;
+  }
+  const ownerMint = ownerAuth && !ownerAuth.error ? ownerAuth.mint : null;
 
   const cast = (Array.isArray(body.cast) ? body.cast : [])
     .slice(0, 8)
@@ -58,7 +65,7 @@ export async function POST(req: NextRequest) {
     .filter((c) => c.token);
   if (!cast.length) return NextResponse.json({ error: "No cast" }, { status: 400 });
 
-  const billing = await beginAgentGeneration(req, a.mint, "llm_message");
+  const billing = ownerMint ? await beginAgentGeneration(req, ownerMint, "llm_message") : { error: undefined, refund: async () => undefined };
   if (billing.error) return billing.error;
 
   const system = body.mode === "object-swap" ? SYSTEM_SWAP : SYSTEM_MOTION;

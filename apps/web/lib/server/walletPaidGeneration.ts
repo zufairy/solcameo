@@ -22,7 +22,7 @@ export type WalletPayment = {
   claim: { kind: "fresh" | "existing"; taskId: string | null; requestId: string | null };
 };
 
-export async function requireWalletPayment(req: NextRequest, args: { owed: number; signature: unknown; payer: unknown }): Promise<{ error: NextResponse } | WalletPayment> {
+export async function requireWalletPayment(req: NextRequest, args: { owed: number; signature: unknown; payer: unknown; viaSwap?: boolean }): Promise<{ error: NextResponse } | WalletPayment> {
   const auth = await requireAuth(req);
   if (auth.error) return { error: auth.error };
   const treasury = studioTreasury();
@@ -38,7 +38,7 @@ export async function requireWalletPayment(req: NextRequest, args: { owed: numbe
   const convex = new ConvexHttpClient(url);
   const account = getUserWallet(auth.user) ?? `user:${auth.user.id}`;
 
-  try { await waitForUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: args.owed, expectedSender: payer }); }
+  try { await waitForUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: args.owed, expectedSender: payer, viaSwap: args.viaSwap }); }
   catch (e) { return { error: walletFail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this video." : "We could not confirm your payment yet. Try again in a moment.", 402, { code: "payment_unconfirmed" }) }; }
   try {
     const claim = await convex.mutation(api.describeVideo.claim, { authSecret: secret, account, txSignature: signature, amountUsd: args.owed });

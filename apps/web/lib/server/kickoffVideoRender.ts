@@ -40,6 +40,8 @@ export async function kickoffVideoRender(args: {
   autoPost?: RenderAutoPost;
   /** Idempotency key tying this render to its payment (e.g. a hire tx signature). */
   renderKey?: string;
+  /** Explore cameo: the influencer featured when someone else paid, so the video shows under that influencer. */
+  cameoMint?: string;
 }): Promise<Id<"videoRenderJobs">> {
   // Unguessable per-job credential — the render-step chain authenticates with it,
   // so the chain never stalls on a missing shared env secret.
@@ -57,6 +59,7 @@ export async function kickoffVideoRender(args: {
     authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     taskId: args.taskId,
     mintAddress: args.mintAddress,
+    ...(args.cameoMint ? { cameoMint: args.cameoMint } : {}),
     sessionId: args.sessionId || args.mintAddress,
     driveToken,
     kieModel: args.kieModel,

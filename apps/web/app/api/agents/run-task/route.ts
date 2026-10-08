@@ -1888,20 +1888,19 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       if (!castInput.some((c) => c.imageUrl === imageUrl)) castInput.push({ token: `image${i + 2}`, imageUrl });
     }
     castInput.splice(MAX_CAST);
-    // Every tagged influencer goes to the engine as a clear still of its face: its minted still when we know which agent it is,
-    // otherwise the first frame of an animated profile picture (Kie and Higgsfield drop GIFs and then invent a face).
+    // Tagged influencers: read from the prompt itself and matched to the real influencer on the server (the browser's list is only
+    // a hint), each with a minted still the engine can actually fetch. A tag never renders without its face.
     {
-      const mintByToken = new Map<string, string>();
-      for (const m of Array.isArray(input.mentionCast) ? input.mentionCast : []) {
-        const o = (m && typeof m === "object" ? m : {}) as { token?: unknown; mintAddress?: unknown };
-        if (typeof o.token === "string" && typeof o.mintAddress === "string" && /^[A-Za-z0-9_-]{3,120}$/.test(o.mintAddress)) mintByToken.set(o.token.replace(/[^\w-]/g, "").slice(0, 40), o.mintAddress);
+      const { resolveMentions } = await import("@/lib/server/mentionCast");
+      const found = await resolveMentions({ prompt: typeof input.topic === "string" ? input.topic : "", hints: input.mentionCast, excludeMint: (agent as unknown as { mintAddress?: string }).mintAddress, max: MAX_CAST });
+      for (const f of found) {
+        const at = castInput.findIndex((c) => c.token.toLowerCase() === f.token.toLowerCase());
+        if (at >= 0) castInput[at] = { token: castInput[at].token, imageUrl: f.imageUrl };
+        else if (castInput.length < MAX_CAST) castInput.push({ token: f.token, imageUrl: f.imageUrl });
       }
+      // Anything the browser sent that is still an animated picture becomes a still frame.
       const { identityStills } = await import("@/lib/server/identityStill");
-      await Promise.all(castInput.map(async (c) => {
-        const castMint = mintByToken.get(c.token);
-        const castAgent = castMint ? await new ConvexHttpClient(CONVEX_URL).query(api.influencers.getByMint, { mintAddress: castMint }).catch(() => null) : null;
-        c.imageUrl = (await identityStills([c.imageUrl], castAgent))[0] ?? c.imageUrl;
-      }));
+      await Promise.all(castInput.map(async (c) => { c.imageUrl = (await identityStills([c.imageUrl]))[0] ?? c.imageUrl; }));
     }
     const mentionRefs = [...castInput.map((c) => c.imageUrl), ...(Array.isArray(input.mentionRefImageUrls) ? input.mentionRefImageUrls : [])]
       .filter((u): u is string => typeof u === "string" && /^https:\/\/\S{1,2000}$/.test(u.trim()))

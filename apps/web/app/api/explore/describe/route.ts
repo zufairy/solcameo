@@ -3,6 +3,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { publicPortrait, requireWalletPayment, roundUsd, walletFail } from "@/lib/server/walletPaidGeneration";
 import { normalizeImageForKie, normalizeImagesForKie } from "@/lib/server/imageForKie";
+import { identityStills } from "@/lib/server/identityStill";
+import { resolveMentions } from "@/lib/server/mentionCast";
 import { cleanReferenceUrls, extrasToCast, splitReferences } from "@/lib/explore/referenceImages";
 import { kickoffVideoRender } from "@/lib/server/kickoffVideoRender";
 import { getVideoEngine, selectableVideoEngines, videoCostForLength, videoLengthOptions } from "@/lib/builder/agentTypes";
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
   // The server prices it: provider cost plus the Solcameo fee, no storyboard image.
   const owed = roundUsd(videoCostForLength(getVideoEngine(engine.id), seconds, quality));
 
-  const paid = await requireWalletPayment(req, { owed, signature: body.paymentSignature, payer: body.payer });
+  const paid = await requireWalletPayment(req, { owed, signature: body.paymentSignature, payer: body.payer, viaSwap: body.payMethod === "swap" });
   if ("error" in paid) return paid.error;
   const { convex, secret, account, signature, payer, claim } = paid;
   // The same payment again: hand back its render, unless that render failed, in which case run it again for free.
@@ -67,8 +69,16 @@ export async function POST(req: NextRequest) {
     if (!avatarUrl) throw new Error("reference image could not be prepared");
     // Every extra picture is re-hosted the same way and reaches the engine as a named reference (the render packs them into
     // the engine's image slots, and into one contact sheet where the engine takes only one or two).
-    const extraUrls = await normalizeImagesForKie(split.extras);
-    const castRefs = extrasToCast(extraUrls);
+    // People tagged in the prompt (@Name): found from the prompt itself and matched to the real influencer on the server, each with a
+    // picture the engine can fetch. The cameo being filmed is not tagged twice.
+    const found = await resolveMentions({ prompt, hints: body.castMentions, excludeMint: cameoMint || undefined, max: 5 });
+    const mentionUrls = await Promise.all(found.map((m) => normalizeImageForKie(m.imageUrl)));
+    const mentions = found.map((m, i) => ({ token: m.token, imageUrl: mentionUrls[i] ?? m.imageUrl }));
+    const extraUrls = await normalizeImagesForKie(await identityStills(split.extras));
+    const castRefs = [
+      ...mentions,
+      ...extrasToCast(extraUrls, 2 + mentions.length),
+    ];
     const sessionId = `describe:${account}`;
     const taskId = (await convex.mutation(api.agentTasks.create, {
       authSecret: secret, sessionId, type: "create_video", title: `${who ? `${who}: ` : "Video: "}${prompt.slice(0, 60)}`, triggeredBy: "explore",
@@ -87,6 +97,7 @@ export async function POST(req: NextRequest) {
         renderCostUsdc: owed, overlays: {}, memories: [], knowledge: [], skills: [],
       },
       renderKey: `describe:${signature}:${Date.now()}`,
+      ...(cameoMint ? { cameoMint } : {}),
     });
     return NextResponse.json({ taskId, costUsd: owed });
   } catch (e) {

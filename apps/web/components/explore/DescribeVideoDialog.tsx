@@ -31,7 +31,7 @@ type Status = Record<string, { status: string; videoUrl?: string; error?: string
 function NoInfluencerOption() {
   return (
     <span className="flex items-center gap-3">
-      <span className="grid size-12 shrink-0 place-items-center rounded-[8px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
+      <span className="grid size-16 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/[0.06]"><UserRound className="size-5 text-white/70" /></span>
       <span className="min-w-0 text-left"><span className="block text-sm font-semibold">No influencer</span><span className="block text-[11px] text-zinc-500">Pay from your wallet</span></span>
     </span>
   );
@@ -79,6 +79,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   const [task, setTask] = useState<Id<"agentTasks"> | null>(null);
+  const [payNote, setPayNote] = useState("");
   const [fundOpen, setFundOpen] = useState(false);
   const [fundWallet, setFundWallet] = useState<string | undefined>();
 
@@ -129,8 +130,9 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
   async function generateWalletPaid(text: string) {
     if (!cameo && !attached.length) throw new Error("Add a reference image first: a face, product or scene to build the video from.");
     const data = await payAndPost<{ taskId?: string }>({
-      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig,
-      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attached, ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
+      url: "/api/explore/describe", publicKey, signTransaction, pending: paidSig, onStatus: setPayNote,
+      // Every face reaches the engine: the picked influencer (server side), anyone tagged in the prompt, and your own uploads.
+      payload: { prompt: text, videoEngine: engineId, quality, seconds, aspect, referenceImageUrls: attached, ...(cast.length ? { castMentions: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}), ...(cameo ? { cameoMint: cameo.mintAddress } : {}) },
     });
     if (!data.taskId) throw new Error("The video could not start.");
     paidSig.current = undefined; // the render has started; this payment is spent
@@ -199,20 +201,20 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               <label className="block text-xs font-medium text-zinc-400">
                 Influencer
                 <Select value={noInfluencer ? NONE : cameo ? cameo.mintAddress : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
-                  <SelectTrigger aria-label="Your influencer" className="mt-2 h-[68px] w-full border-white/10 bg-white/5 px-2.5 text-white">
+                  <SelectTrigger aria-label="Your influencer" className="mt-2 h-[88px] w-full border-white/10 bg-white/5 px-2.5 text-white">
                     <SelectValue placeholder="Choose an influencer">
-                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption large name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
+                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption xl name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
-                    <SelectItem value={NONE} className="min-h-[68px] py-2 pl-2"><NoInfluencerOption /></SelectItem>
+                  <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(34rem,var(--available-height))] border-white/10 bg-[#14171a]/95 p-1.5 text-white">
+                    <SelectItem value={NONE} className="min-h-[88px] py-3 pl-2"><NoInfluencerOption /></SelectItem>
                     {agents.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                       {agents.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2"><AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                     {others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                       {others.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[88px] py-3 pl-2"><AgentOption xl name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                   </SelectContent>
                 </Select>
@@ -275,7 +277,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               </div>
 
               {running && !videoUrl && (
-                <RenderProgress stage={starting || !state || waitingOnPayment ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} onClose={() => onOpenChange(false)} />
+                <RenderProgress stage={starting || !state || waitingOnPayment ? "paying" : "rendering"} amount={formatRetailUsd(priceUsd)} agentName={agent?.name} payer={walletPaid ? "you" : "agent"} note={walletPaid && starting ? payNote : undefined} onClose={() => onOpenChange(false)} />
               )}
               {videoUrl && (
                 <div className="space-y-3">

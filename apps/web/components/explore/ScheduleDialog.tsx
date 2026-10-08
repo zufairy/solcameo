@@ -111,7 +111,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
     try {
       const res = await fetch("/api/explore/schedule", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, referencePage: item.page, castTokens: [castToken(agent?.name ?? "Character"), ...cast.map((c) => c.token)], autoPost: xConnected && autoPost, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
+        body: JSON.stringify({ mintAddress: effMint, referenceId: item.id, referencePage: item.page, castTokens: [castToken(agent?.name ?? "Character"), ...cast.map((c) => c.token)], castHints: cast.filter((c) => !c.self && c.mintAddress).map((c) => ({ token: c.token, mintAddress: c.mintAddress })), autoPost: xConnected && autoPost, imageUrls: [portrait!, ...cast.map((c) => c.avatarUrl)].slice(0, 8), prompt, mode, resolution, runAt, repeat, repeatCount: count }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Could not schedule this video.");

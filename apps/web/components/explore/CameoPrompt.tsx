@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { castToken } from "@/lib/explore/castKey";
 import type { ReferenceVideo } from "@/lib/explore/feed";
 
-export interface CameoMember { token: string; name: string; avatarUrl: string; ticker?: string; self?: boolean }
+export interface CameoMember { token: string; name: string; avatarUrl: string; ticker?: string; self?: boolean; mintAddress?: string }
 
 const tokenOf = castToken;
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
@@ -60,7 +60,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "mot
       const token = tokenOf(a.name);
       if (seen.has(token.toLowerCase())) continue;
       seen.add(token.toLowerCase());
-      out.push({ token, name: a.name, avatarUrl: https(a.avatarUrl) ? a.avatarUrl : "", ticker: a.ticker ?? undefined });
+      out.push({ token, name: a.name, avatarUrl: https(a.avatarUrl) ? a.avatarUrl : "", ticker: a.ticker ?? undefined, mintAddress: a.mintAddress });
     }
     for (const u of uploads) if (!seen.has(u.token.toLowerCase())) out.push(u);
     return out;
@@ -102,8 +102,8 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "mot
     if (!query) return;
     const el = ref.current;
     const caret = el?.selectionStart ?? value.length;
-    const next = `${value.slice(0, query.start)}@${member.token} ${value.slice(caret)}`;
-    onChange(next);
+    const after = value.slice(caret), gap = /^\s/.test(after) ? "" : " "; // reuse a space that is already there
+    onChange(`${value.slice(0, query.start)}@${member.token}${gap}${after}`);
     setQuery(null);
     requestAnimationFrame(() => { const pos = query.start + member.token.length + 2; el?.focus(); el?.setSelectionRange(pos, pos); });
   }
@@ -124,7 +124,7 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "mot
       const n = uploads.length + 1;
       const member: CameoMember = { token: `Photo${n}`, name: `Photo ${n}`, avatarUrl: data.url };
       setUploads((u) => [...u, member]);
-      onChange(`${value}${value && !/\s$/.test(value) ? " " : ""}@${member.token} `);
+      onChange(`${value.replace(/\s+$/, "")}${value.trim() ? " " : ""}@${member.token} `);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -227,28 +227,28 @@ export function CameoPrompt({ mint, primaryName, primaryImage, item, mode = "mot
             else if (e.key === "Escape") setQuery(null);
           }}
           placeholder="Describe the scene, or @ another agent to bring them in…"
-          className={`w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-transparent caret-white outline-none transition-colors selection:bg-white/25 selection:text-transparent placeholder:text-zinc-500 focus:border-white/25`}
+          className={`w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-transparent caret-white outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [overflow-wrap:anywhere] transition-colors selection:bg-white/25 selection:text-transparent placeholder:text-zinc-500 focus:border-white/25`}
         />
         {/* Mirror layer: shows the text with @mentions highlighted. Only the mention chips take pointer events, for the hover card. */}
         {!reveal && (
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent">
-            <div className="whitespace-pre-wrap break-words p-3 text-sm text-white" style={{ transform: `translateY(${-scrollTop}px)` }}>
+            <div className="whitespace-pre-wrap [overflow-wrap:anywhere] p-3 text-sm text-white" style={{ transform: `translateY(${-scrollTop}px)` }}>
               {segments.map((seg, i) => seg.member ? (
                 <span key={i}
                   onMouseDown={(e) => { e.preventDefault(); ref.current?.focus(); }}
                   onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover({ m: seg.member!, x: r.left + r.width / 2, y: r.top }); }}
                   onMouseLeave={() => setHover(null)}
-                  className="pointer-events-auto cursor-pointer rounded-[4px] bg-[#d7ff00]/15 font-bold text-[#d7ff00] ring-1 ring-[#d7ff00]/25 transition-colors hover:bg-[#d7ff00]/25">{seg.text}</span>
+                  className="pointer-events-auto cursor-pointer rounded-[5px] bg-[#d7ff00]/15 text-[#d7ff00] [text-shadow:0_0_0.7px_currentColor] shadow-[0_0_0_1px_rgba(215,255,0,0.22)] transition-colors hover:bg-[#d7ff00]/25">{seg.text}</span>
               ) : <span key={i}>{seg.text}</span>)}
               {value.endsWith("\n") ? "\u200b" : null}
             </div>
           </div>
         )}
         {reveal && (
-          <div aria-live="polite" className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg p-3 text-sm leading-[1.4] text-white">
+          <div aria-live="polite" className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg p-3 text-sm text-white">
             {reveal.map((w, i) => (
               <motion.span key={i} initial={{ opacity: 0, filter: "blur(8px)", y: 4 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} transition={{ delay: i * 0.022, duration: 0.35, ease: "easeOut" }}
-                className={w.startsWith("@") ? "font-bold text-[#d7ff00]" : undefined}>{w}</motion.span>
+                className={w.startsWith("@") ? "text-[#d7ff00] [text-shadow:0_0_0.7px_currentColor]" : undefined}>{w}</motion.span>
             ))}
           </div>
         )}

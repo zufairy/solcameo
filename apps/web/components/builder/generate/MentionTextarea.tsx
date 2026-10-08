@@ -91,7 +91,8 @@ export function MentionTextarea({ value, onChange, placeholder, rows = 3, disabl
     if (!query) return;
     const el = ref.current;
     const caret = el?.selectionStart ?? value.length;
-    onChange(`${value.slice(0, query.start)}@${member.token} ${value.slice(caret)}`);
+    const after = value.slice(caret), gap = /^\s/.test(after) ? "" : " "; // reuse a space that is already there
+    onChange(`${value.slice(0, query.start)}@${member.token}${gap}${after}`);
     setQuery(null);
     requestAnimationFrame(() => { const pos = query.start + member.token.length + 2; el?.focus(); el?.setSelectionRange(pos, pos); });
   }
@@ -111,17 +112,17 @@ export function MentionTextarea({ value, onChange, placeholder, rows = 3, disabl
           else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); pick(matches[active]); }
           else if (e.key === "Escape") setQuery(null);
         }}
-        className={`w-full resize-none bg-transparent p-0 ${textClass} text-transparent caret-white outline-none selection:bg-white/25 selection:text-transparent placeholder:text-zinc-500 ${className}`}
+        className={`w-full resize-none bg-transparent p-0 ${textClass} text-transparent caret-white outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [overflow-wrap:anywhere] selection:bg-white/25 selection:text-transparent placeholder:text-zinc-500 ${className}`}
       />
       {/* Mirror layer: the same text with @tags highlighted. Only the tag chips take pointer events, for the hover card. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className={`whitespace-pre-wrap break-words ${textClass} text-white`} style={{ transform: `translateY(${-scrollTop}px)` }}>
+        <div className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${textClass} text-white`} style={{ transform: `translateY(${-scrollTop}px)` }}>
           {segments.map((seg, i) => seg.member ? (
             <span key={i}
               onMouseDown={(e) => { e.preventDefault(); ref.current?.focus(); }}
               onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover({ m: seg.member!, x: r.left + r.width / 2, y: r.top }); }}
               onMouseLeave={() => setHover(null)}
-              className="pointer-events-auto cursor-pointer rounded-[4px] bg-[#d7ff00]/15 font-bold text-[#d7ff00] ring-1 ring-[#d7ff00]/25 transition-colors hover:bg-[#d7ff00]/25">{seg.text}</span>
+              className="pointer-events-auto cursor-pointer rounded-[5px] bg-[#d7ff00]/15 text-[#d7ff00] [text-shadow:0_0_0.7px_currentColor] shadow-[0_0_0_1px_rgba(215,255,0,0.22)] transition-colors hover:bg-[#d7ff00]/25">{seg.text}</span>
           ) : <span key={i}>{seg.text}</span>)}
           {value.endsWith("\n") ? "​" : null}
         </div>

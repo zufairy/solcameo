@@ -31,6 +31,8 @@ export const create = mutation({
      *  templated from — carried alongside renderArgs so the feed/feedback loop
      *  don't have to parse the renderArgs JSON to find it. */
     formatId: v.optional(v.string()),
+    /** Explore cameo: the influencer shown in the video when the viewer (not the influencer's owner) paid. */
+    cameoMint: v.optional(v.string()),
     authSecret: v.string(),
   },
   handler: async (ctx, args) => {
@@ -49,6 +51,7 @@ export const create = mutation({
       autoPost: args.autoPost,
       ...(args.renderKey ? { renderKey: args.renderKey } : {}),
       ...(args.formatId ? { formatId: args.formatId } : {}),
+      ...(args.cameoMint ? { cameoMint: args.cameoMint } : {}),
       attempts: 0,
       updatedAt: Date.now(),
     });
