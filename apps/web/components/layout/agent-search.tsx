@@ -41,7 +41,7 @@ function fmtEarnings(n: number): string {
 export function AgentSearch() {
   const router = useRouter();
   // Projected query — this mounts on every route; never subscribe it to full docs.
-  const agents = useQuery(api.influencers.listSearchable) ?? [];
+  const agents = useQuery(api.influencers.listSearchable, {}) ?? [];
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);

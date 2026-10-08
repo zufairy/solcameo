@@ -67,11 +67,19 @@ export const listAll = query({
  *  drops both: no escrow join (the dropdown never shows TVL) and ~95% smaller
  *  rows, so the subscription only re-fires with data the search actually uses. */
 export const listSearchable = query({
-  args: {},
-  handler: async (ctx) => {
+  // liveNetwork: keep only agents whose Solstar token is minted and live on that network (same rule as listByCreators).
+  args: { liveNetwork: v.optional(v.union(v.literal("devnet"), v.literal("mainnet"))) },
+  handler: async (ctx, { liveNetwork }) => {
     // Bounded: an unbounded collect() of whole influencer documents eventually exceeds Convex's per-query read limits.
-    const docs = await ctx.db.query("influencers").order("desc").take(500);
-    const tickers = await Promise.all(docs.map(async (d) => (d.solstarTokenId ? (await ctx.db.get(d.solstarTokenId))?.ticker : undefined)));
+    const all = await ctx.db.query("influencers").order("desc").take(500);
+    const allTokens = await Promise.all(all.map((d) => (d.solstarTokenId ? ctx.db.get(d.solstarTokenId) : null)));
+    const keep = all.map((_, i) => {
+      if (!liveNetwork) return true;
+      const t = allTokens[i];
+      return !!t && t.network === liveNetwork && !!t.mint && ["live", "graduated", "migrated"].includes(t.state);
+    });
+    const docs = all.filter((_, i) => keep[i]);
+    const tickers = allTokens.filter((_, i) => keep[i]).map((t) => t?.ticker);
     return docs.map((d, i) => ({
       _id: d._id,
       mintAddress: d.mintAddress,

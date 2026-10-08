@@ -30,7 +30,7 @@ type Status = Record<string, { status: string; videoUrl?: string; error?: string
 function NoInfluencerOption() {
   return (
     <span className="flex items-center gap-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-[8px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
+      <span className="grid size-12 shrink-0 place-items-center rounded-[8px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
       <span className="min-w-0 text-left"><span className="block text-sm font-semibold">No influencer</span><span className="block text-[11px] text-zinc-500">Pay from your wallet</span></span>
     </span>
   );
@@ -45,7 +45,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
 }) {
   const [picked, setPicked] = useState(defaultMint ?? "");
   // Anyone's influencer can be used: yours bill the agent's own wallet, anyone else's is paid for from the viewer's wallet.
-  const everyone = useQuery(api.influencers.listSearchable, open ? {} : "skip");
+  const everyone = useQuery(api.influencers.listSearchable, open ? { liveNetwork: "mainnet" } : "skip");
   const owned = new Set((agents ?? []).map((a) => a.mintAddress));
   const cameo = picked && picked !== NONE && !owned.has(picked) ? (everyone ?? []).find((a) => a.mintAddress === picked) : undefined;
   const noInfluencer = picked === NONE || (agents !== undefined && !agents.length && !cameo);
@@ -197,20 +197,20 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
               <label className="block text-xs font-medium text-zinc-400">
                 Influencer
                 <Select value={noInfluencer ? NONE : cameo ? cameo.mintAddress : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
-                  <SelectTrigger aria-label="Your influencer" className="mt-2 h-14 w-full border-white/10 bg-white/5 px-2.5 text-white">
+                  <SelectTrigger aria-label="Your influencer" className="mt-2 h-[68px] w-full border-white/10 bg-white/5 px-2.5 text-white">
                     <SelectValue placeholder="Choose an influencer">
-                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
+                      {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = (everyone ?? []).find((x) => x.mintAddress === value && !owned.has(x.mintAddress)); if (o) return <AgentOption large name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents.find((x) => x.mintAddress === value); return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
-                    <SelectItem value={NONE} className="min-h-14 py-1.5 pl-2"><NoInfluencerOption /></SelectItem>
+                    <SelectItem value={NONE} className="min-h-[68px] py-2 pl-2"><NoInfluencerOption /></SelectItem>
                     {agents.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                       {agents.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                     {others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                       {others.map((a) => (
-                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
+                        <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
                       ))}</SelectGroup>}
                   </SelectContent>
                 </Select>

@@ -590,11 +590,11 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
   );
   const ownedAgents = useQuery(
     api.influencers.listByCreators,
-    wallets.length ? { creatorWallets: wallets } : "skip",
+    wallets.length ? { creatorWallets: wallets, liveNetwork: "mainnet" } : "skip",
   );
   const agents = fixedMint ? ownedAgents?.filter(a => a.mintAddress === fixedMint) : ownedAgents;
   // Anyone's influencer can be cameoed: yours bill the agent's wallet, anyone else's is paid for from the viewer's wallet.
-  const everyone = useQuery(api.influencers.listSearchable, selected && !fixedMint ? {} : "skip");
+  const everyone = useQuery(api.influencers.listSearchable, selected && !fixedMint ? { liveNetwork: "mainnet" } : "skip");
   const ownedMints = new Set((ownedAgents ?? []).map(a => a.mintAddress));
   const others = (everyone ?? []).filter(a => !ownedMints.has(a.mintAddress) && a.avatarUrl).slice(0, 300);
   const cameoAgent = mint && !ownedMints.has(mint) ? (everyone ?? []).find(a => a.mintAddress === mint) : undefined;
@@ -1156,28 +1156,28 @@ export function ExplorePage({ initial, short, fixedMint, persona = "", embedded 
                     >
                       <SelectTrigger
                         aria-label="Your influencer"
-                        className="mt-2 h-14 w-full border-white/10 bg-white/5 px-2.5 text-white"
+                        className="mt-2 h-[68px] w-full border-white/10 bg-white/5 px-2.5 text-white"
                       >
                         <SelectValue placeholder="Choose an influencer">
                           {(value: string | null) => {
                             const o = others.find((x) => x.mintAddress === value);
-                            if (o) return <AgentOption name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />;
+                            if (o) return <AgentOption large name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />;
                             const a = agents?.find((x) => x.mintAddress === value);
-                            return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
+                            return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer";
                           }}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
                         {!!agents?.length && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                           {agents.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
-                              <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2">
+                              <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}
                         {!fixedMint && others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                           {others.map((a) => (
-                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2">
-                              <AgentOption name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
+                            <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2">
+                              <AgentOption large name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} />
                             </SelectItem>
                           ))}</SelectGroup>}
                       </SelectContent>

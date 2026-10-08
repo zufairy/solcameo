@@ -49,12 +49,12 @@ const GLASS = "rounded-3xl border border-white/[0.12] bg-[linear-gradient(145deg
 export function CreateVideos() {
   const { profile } = useSupabaseAuth();
   const wallets = useMemo(() => [...new Set([...(profile?.walletAddresses ?? []), profile?.walletAddress].filter((w): w is string => !!w))], [profile]);
-  const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets } : "skip");
+  const agents = useQuery(api.influencers.listByCreators, wallets.length ? { creatorWallets: wallets, liveNetwork: "mainnet" } : "skip");
 
   const [directorOpen, setDirectorOpen] = useState(false);
   const [picked, setPicked] = useState("");
   // Anyone's influencer can be used: yours bill the agent's own wallet, anyone else's (or none) is paid from your wallet.
-  const everyone = useQuery(api.influencers.listSearchable, {});
+  const everyone = useQuery(api.influencers.listSearchable, { liveNetwork: "mainnet" });
   const owned = new Set((agents ?? []).map((a) => a.mintAddress));
   const others = (everyone ?? []).filter((a) => !owned.has(a.mintAddress) && a.avatarUrl).slice(0, 300);
   const cameo = picked && picked !== NONE && !owned.has(picked) ? others.find((a) => a.mintAddress === picked) : undefined;
