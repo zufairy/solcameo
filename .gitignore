@@ -144,3 +144,6 @@ target/
 feepayer.json
 treasury.json
 *-keypair.json
+
+# Scratch output from generating videos
+/output/vello-videos/

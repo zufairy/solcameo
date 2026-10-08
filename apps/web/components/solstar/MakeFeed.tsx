@@ -163,7 +163,8 @@ function Content() {
   const shown = (videos.length ? videos : fallbackVideos).map(video => {
     const market = video.characterId ? markets.get(video.characterId) : undefined;
     const cap = video.characterId ? caps[video.characterId] : undefined;
-    return { ...video, xPostUrl: xPosts.get(video.url), ticker: market?.ticker ?? video.ticker, cap: cap !== undefined ? formatUsdEstimate(String(Math.round(cap * 1e9)), solUsd) : market?.network === "paper" ? formatUsdEstimate(market.marketCapLamports, solUsd) : undefined };
+    const coin = market ? { state: market.state, network: market.network, changeBps: Number(market.changeBps), volume: formatUsdEstimate(market.volume24hLamports, solUsd), holders: market.holders, followers: market.followers, videos: market.videosPosted, xUrl: market.xUrl, websiteUrl: market.websiteUrl, sparkline: market.sparkline.map(String) } : undefined;
+    return { ...video, coin, xPostUrl: xPosts.get(video.url), ticker: market?.ticker ?? video.ticker, cap: cap !== undefined ? formatUsdEstimate(String(Math.round(cap * 1e9)), solUsd) : market?.network === "paper" ? formatUsdEstimate(market.marketCapLamports, solUsd) : undefined };
   });
   const poolIds = [...new Set(shown.filter(video => video.characterId && markets.get(video.characterId)?.dbcPool).map(video => video.characterId!))].sort().join(",");
   useEffect(() => {
@@ -208,8 +209,8 @@ function Content() {
     return () => { controller.abort(); clearInterval(timer); window.removeEventListener("solcameo:trade-confirmed", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [poolIds]);
   return (
-    <main className="min-h-full bg-[#181a1c] px-4 py-6 lg:px-8">
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <main className={`min-h-full bg-[#181a1c] px-4 lg:px-8 ${view === "feed" ? "py-3" : "py-6"}`}>
+      <div className={`flex items-center justify-between gap-3 ${view === "feed" ? "mb-3" : "mb-5"}`}>
         <h1 className="text-xl font-semibold text-zinc-100">Videos</h1>
         <div role="group" aria-label="Layout" className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-0.5">
           {([["feed", "Feed", Rows3], ["grid", "Grid", LayoutGrid]] as const).map(([id, label, Icon]) => (
