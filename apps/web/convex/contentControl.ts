@@ -1,9 +1,11 @@
 import { v } from "convex/values";
-import { query, mutation, internalAction, type MutationCtx } from "./_generated/server";
+import { query, mutation, internalAction, internalMutation, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { appFetch } from "./lib/appFetch";
 import { videoMilestoneIdentity } from "../lib/videoMilestoneKey";
-import { agentLaunchCaption, videoMilestoneCaption } from "../lib/marketingCaption";
+import { agentLaunchCaption, videoMilestoneCaption, tokenLaunchCaption, coinsDigestCaption } from "../lib/marketingCaption";
+import { marketPath } from "../lib/solstar/marketSlug";
 import { bestMilestone, nextSlot, postClass, type PostedEntry } from "../lib/contentQuota";
 
 function authorize(secret: string) {
@@ -22,6 +24,58 @@ export async function enqueueAgentAnnouncement(ctx: MutationCtx, agent: { mintAd
   });
   await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
 }
+const SITE = "https://solcameo.com";
+const LIVE_STATES = new Set(["live", "graduated", "migrated"]);
+/** A coin that just went live on mainnet: queue one announcement with a ticker-first caption and its card. */
+export async function enqueueTokenAnnouncement(ctx: MutationCtx, tokenId: Id<"ssTokens">) {
+  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
+  if (!settings) return; // An unconfigured marketing destination must not block a launch.
+  const token = await ctx.db.get(tokenId);
+  if (!token || token.network !== "mainnet" || !LIVE_STATES.has(token.state) || !token.ticker) return;
+  const dedupeKey = `token-launch:${tokenId}`;
+  if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return;
+  const character = await ctx.db.get(token.characterId);
+  const id = await ctx.db.insert("contentControlPosts", {
+    dedupeKey, source: "token", targetMint: settings.targetMint, tokenId, agentName: token.name,
+    caption: tokenLaunchCaption({ name: token.name, ticker: token.ticker, bio: character?.bio || token.description, category: character?.category, url: `${SITE}${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` }),
+    mediaUrl: character?.referenceImageUrl, kind: "photo", platforms: ["x"], status: "queued", attempts: 0, createdAt: Date.now(), updatedAt: Date.now(),
+  });
+  await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
+}
+/** Roundup of the coins minted in the last 24 hours. One per 6 hour window; nothing is posted on a quiet day. */
+async function enqueueCoinsDigest(ctx: MutationCtx, force: boolean) {
+  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
+  if (!settings) return { queued: false as const, reason: "Choose the auto-post account first" };
+  const now = Date.now(), live = (await ctx.db.query("ssTokens").withIndex("by_network", q => q.eq("network", "mainnet")).order("desc").take(500)).filter(t => LIVE_STATES.has(t.state) && t.ticker);
+  const fresh = live.filter(t => t.createdAt >= now - 24 * 3_600_000);
+  if (!fresh.length) return { queued: false as const, reason: "No coins were minted in the last 24 hours" };
+  const dedupeKey = force ? `coins-digest:manual:${now}` : `coins-digest:${Math.floor(now / (6 * 3_600_000))}`;
+  if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return { queued: false as const, reason: "Already queued for this window" };
+  const id = await ctx.db.insert("contentControlPosts", {
+    dedupeKey, source: "digest", targetMint: settings.targetMint, agentName: `${fresh.length} new coins`,
+    caption: coinsDigestCaption({ count: fresh.length, tickers: fresh.map(t => t.ticker), total: live.length, url: SITE }),
+    kind: "photo", platforms: ["x"], status: "queued", attempts: 0, createdAt: now, updatedAt: now,
+  });
+  await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
+  return { queued: true as const, id };
+}
+export const coinsDigestCron = internalMutation({ args: {}, handler: async (ctx) => { await enqueueCoinsDigest(ctx, false); } });
+export const coinsDigestNow = mutation({ args: { authSecret: v.string() }, handler: async (ctx, { authSecret }) => { authorize(authSecret); return await enqueueCoinsDigest(ctx, true); } });
+/** Data behind the coin cards: one coin (first, with its number) or the newest four, plus the 24 hour and total counts. */
+export const coinCardData = query({
+  args: { authSecret: v.string(), tokenId: v.optional(v.id("ssTokens")) },
+  handler: async (ctx, { authSecret, tokenId }) => {
+    authorize(authSecret);
+    const now = Date.now(), live = (await ctx.db.query("ssTokens").withIndex("by_network", q => q.eq("network", "mainnet")).order("desc").take(500)).filter(t => LIVE_STATES.has(t.state) && t.ticker);
+    const picked = tokenId ? [await ctx.db.get(tokenId)].filter((t): t is NonNullable<typeof t> => !!t) : live.filter(t => t.createdAt >= now - 24 * 3_600_000).slice(0, 4);
+    const coins = await Promise.all((picked.length ? picked : live.slice(0, 4)).map(async t => {
+      const c = await ctx.db.get(t.characterId);
+      return { name: t.name, ticker: t.ticker, imageUrl: c?.referenceImageUrl, category: c?.category, createdAt: t.createdAt };
+    }));
+    const number = tokenId ? Math.max(1, live.length - live.findIndex(t => t._id === tokenId)) : undefined;
+    return { coins, total: live.length, today: live.filter(t => t.createdAt >= now - 24 * 3_600_000).length, number };
+  },
+});
 /** A per-video milestone, captured atomically with the trusted measurement. */
 export async function enqueueVideoMilestone(ctx: MutationCtx, video: { mintAddress: string; views: number; key: string; postUrl?: string; platform?: string; platformPostId?: string; videoUrl?: string }) {
   if (!Number.isFinite(video.views) || video.views <= 10_000) return;
@@ -176,7 +230,7 @@ export const pending = query({
     // Held posts (daily quota / spacing / provider cap) are skipped until their slot; launches go before milestones.
     const groups = await Promise.all(statuses.map(async status => (await ctx.db.query("contentControlPosts").withIndex("by_status_and_updatedAt", q => q.eq("status", status)).take(40))
       .filter(p => !(p.notBefore && p.notBefore > now)).slice(0, 3)));
-    const rank = (p: { source: string }) => (p.source === "mint" ? 0 : p.source === "milestone" ? 1 : 2);
+    const rank = (p: { source: string }) => (p.source === "mint" || p.source === "token" ? 0 : p.source === "milestone" ? 1 : p.source === "digest" ? 2 : 3);
     return groups.flat().sort((a, b) => rank(a) - rank(b) || a.updatedAt - b.updatedAt);
   },
 });

@@ -212,7 +212,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
       const res = await api<{ jobs: { model: CharModel; requestId: string; ticket?: string; count?: number; ratio?: string }[] }>("/api/character/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, brief: preset?.brief || undefined, model: photoUrl ? "qwen" : model, photoUrls, aspectRatio: ratio, count, useFree: billing.useFree, ...payment }),
+        body: JSON.stringify({ mintAddress, draft: onboarding, tier, selection, brief: preset?.brief || undefined, model: photoUrl ? "nano" : model, photoUrls, aspectRatio: ratio, count, useFree: billing.useFree, ...payment }),
       });
       billing.settled();
       const startedAt = Date.now();
@@ -350,7 +350,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
                     {uploading ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}<span>{uploading ? "Uploading…" : "Add images"}</span>
                   </label>}
                 </div>
-                <p className="px-1 text-[11px] leading-5 text-zinc-500">{photoUrl ? "Qwen Edit uses all references in order. The first image is the primary identity." : "Add up to three references to use Qwen Edit, or create with Soul and Soul 2."}</p>
+                <p className="px-1 text-[11px] leading-5 text-zinc-500">{photoUrl ? "Nano Banana Pro keeps your face, applies your traits and makes every image a new pose in the same style." : "Add up to three references to use Nano Banana Pro, or create with Soul and Soul 2."}</p>
                 <Section title="Presets" count={PRESETS.length} icon={<Sparkles className="size-4" />} open={open.has("presets")} onToggle={() => setOpen(flip(open, "presets"))}>
                   <p className="px-1 pb-2 text-[11px] leading-5 text-zinc-500">Exact looks from the Higgsfield studio. Pick one to load its traits and original prompt, then generate. Every take gets a different pose.</p>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -384,7 +384,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
 
               <div className="space-y-2 border-t border-white/[0.06] p-3" style={{ background: SURFACE.panel }}>
                 <div className="flex gap-2">
-                  <select aria-label="Higgsfield model" value={photoUrl ? "qwen" : model === "soul2" ? "soul2" : "soul"} onChange={e => setModel(e.target.value as ModelChoice)} disabled={generating || !!photoUrl} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#202124] px-3 text-xs text-zinc-200"><option value="soul">Soul</option><option value="soul2">Soul 2</option><option value="qwen" disabled={!photoUrl}>Qwen Edit · references</option></select>
+                  <select aria-label="Higgsfield model" value={photoUrl ? "nano" : model === "soul2" ? "soul2" : "soul"} onChange={e => setModel(e.target.value as ModelChoice)} disabled={generating || !!photoUrl} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#202124] px-3 text-xs text-zinc-200"><option value="soul">Soul</option><option value="soul2">Soul 2</option><option value="nano" disabled={!photoUrl}>Nano Banana Pro · references</option></select>
                   <RatioSelect value={ratio} onChange={setRatio} disabled={generating} exclude={["4:5"]} />
                   <CountToggle value={count} onChange={setCount} disabled={generating} />
                 </div>

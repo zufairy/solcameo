@@ -12,8 +12,10 @@ export async function GET(req: NextRequest) {
     const session = unseal<{
       state: string;
       verifier: string;
-      mintAddress: string;
-      owner: string;
+      /** Set by Content Control: save straight to this profile (admin-initiated, no agent owner). */
+      profile?: string;
+      mintAddress?: string;
+      owner?: string;
       returnTo?: string;
       expires: number;
     }>(req.cookies.get("x_oauth")?.value ?? "");
@@ -26,12 +28,14 @@ export async function GET(req: NextRequest) {
     const code = req.nextUrl.searchParams.get("code");
     if (!code || req.nextUrl.searchParams.has("error"))
       throw new Error("X authorization was cancelled.");
-    const agent = await xDb().query(api.influencers.getByMintServer, {
-      mintAddress: session.mintAddress,
-      authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
-    });
-    if (!agent || agent.creatorWallet !== session.owner)
-      throw new Error("Agent ownership changed. Start again.");
+    if (!session.profile) {
+      const agent = await xDb().query(api.influencers.getByMintServer, {
+        mintAddress: session.mintAddress ?? "",
+        authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
+      });
+      if (!agent || agent.creatorWallet !== session.owner)
+        throw new Error("Agent ownership changed. Start again.");
+    }
     const t = await xToken({
       grant_type: "authorization_code",
       code,
@@ -50,7 +54,7 @@ export async function GET(req: NextRequest) {
     const user = (await res.json()).data;
     if (!res.ok || !user?.id)
       throw new Error("Unable to verify the connected X account.");
-    await saveX(resolveUsername(session.mintAddress), {
+    await saveX(session.profile ?? resolveUsername(session.mintAddress ?? ""), {
       access_token: t.access_token,
       refresh_token: t.refresh_token,
       expiresAt: Date.now() + t.expires_in * 1000,

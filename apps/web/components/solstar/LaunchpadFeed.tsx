@@ -86,8 +86,8 @@ function CharacterPost({ row }: { row: MarketRow }) {
       {episode ? <video ref={mirror} muted loop playsInline preload="metadata" src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" /> : <img src={row.imageUrl} alt="" className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" />}
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
     </div>
-    <div className="relative overflow-hidden rounded-[3px] bg-black/20 shadow-[0_30px_90px_rgba(0,0,0,0.55)] ring-1 ring-white/15" style={{ width: "min(100cqw, calc(100cqh * 0.5625))", aspectRatio: "9 / 16" }}>
-      {episode ? <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full object-contain" aria-label={`${row.name} latest episode`} /> : <img src={row.imageUrl} alt={row.name} className={`absolute inset-0 size-full object-cover transition-transform ease-out ${active && !reduced ? "scale-[1.12] duration-[6000ms]" : "scale-100 duration-700"}`} />}
+    <div className="relative h-full w-full overflow-hidden bg-black/20 lg:h-auto lg:w-[min(100cqw,calc(100cqh_*_0.5625))] lg:aspect-[9/16] lg:rounded-[3px] lg:shadow-[0_30px_90px_rgba(0,0,0,0.55)] lg:ring-1 lg:ring-white/15">
+      {episode ? <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={episode.videoUrl} poster={episode.posterUrl} className="absolute inset-0 size-full object-cover lg:object-contain" aria-label={`${row.name} latest episode`} /> : <img src={row.imageUrl} alt={row.name} className={`absolute inset-0 size-full object-cover transition-transform ease-out ${active && !reduced ? "scale-[1.12] duration-[6000ms]" : "scale-100 duration-700"}`} />}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 to-transparent" />
       <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2">
         {episode ? <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.12] py-1 pl-2 pr-2.5 text-[11px] font-medium tracking-tight text-white shadow-[0_4px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-2xl backdrop-saturate-150"><span className="size-1.5 rounded-full bg-[#d7ff00] shadow-[0_0_8px_#d7ff00]" />{episode.engine ?? "AI video"}</span> : <span />}
@@ -177,8 +177,8 @@ function TrendingPost({ item }: { item: TrendItem }) {
       <video ref={mirror} muted loop playsInline preload="metadata" src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full scale-125 object-cover opacity-80 blur-3xl saturate-[1.6]" />
       <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
     </div>
-    <div className="relative overflow-hidden rounded-[3px] bg-black/20 shadow-[0_30px_90px_rgba(0,0,0,0.55)] ring-1 ring-white/15" style={{ width: "min(100cqw, calc(100cqh * 0.5625))", aspectRatio: "9 / 16" }}>
-      <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full object-contain" aria-label={`${item.name} video`} />
+    <div className="relative h-full w-full overflow-hidden bg-black/20 lg:h-auto lg:w-[min(100cqw,calc(100cqh_*_0.5625))] lg:aspect-[9/16] lg:rounded-[3px] lg:shadow-[0_30px_90px_rgba(0,0,0,0.55)] lg:ring-1 lg:ring-white/15">
+      <video ref={video} controls muted={muted} onVolumeChange={(e) => { if (e.currentTarget.muted !== muted) setSound(!e.currentTarget.muted); }} preload="metadata" playsInline onEnded={advance} src={item.videoUrl} poster={item.posterUrl ?? undefined} className="absolute inset-0 size-full object-cover lg:object-contain" aria-label={`${item.name} video`} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 to-transparent" />
       <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2">
         <span />
@@ -217,7 +217,7 @@ function Discovery() {
   const live = useQuery(api.solstarMarket.listMarket, { sort: "new", network: LIVE_NETWORK, liveOnly: true });
   const rows = tab === "episodes" ? live?.filter(r => r.videosPosted > 0) : live;
   return <>
-    <div className="sticky top-0 z-10 flex items-stretch gap-5 border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">
+    <div className="sticky top-0 z-10 hidden items-stretch gap-5 lg:flex border-b border-white/10 feed-glass-header px-4" role="tablist" aria-label="Character discovery">
       {[["trending", "Trending"], ["launches", "New launches"], ["episodes", "Episodes"]].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`relative flex items-center gap-1.5 text-sm font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:text-white ${tab === value ? "text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{value === "trending" && <motion.span aria-hidden="true" className="inline-block bg-transparent text-sm leading-none" animate={reduced ? undefined : { rotate: [-7, 6, -7], scale: [1, 1.15, 1], y: [0, -1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>🔥</motion.span>}{label}</button>)}
     </div>
     <div role="tabpanel" aria-label={tab} className="max-h-[var(--feed-h,calc(100cqh-52px))] space-y-0 overflow-y-auto overscroll-contain snap-y snap-mandatory bg-[#181a1c]">

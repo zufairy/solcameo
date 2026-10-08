@@ -9,7 +9,7 @@ import type { CharacterImage, ModelChoice, SavedCharacter, Tier } from "@/lib/ch
 export const maxDuration = 30;
 
 const TIERS: Tier[] = ["normal", "freak", "total"];
-const MODELS: ModelChoice[] = ["soul", "soul2", "both", "qwen"];
+const MODELS: ModelChoice[] = ["soul", "soul2", "both", "qwen", "nano"];
 
 /** An agent's one saved character (JSON + portraits both live in R2, not Convex). */
 export async function GET(req: NextRequest) {
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest) {
   const prefix = imagePublicUrl(`characters/${a.mint}/`);
   const okImage = (v: unknown): v is CharacterImage =>
     !!v && typeof v === "object" &&
-    ((v as CharacterImage).model === "qwen" || (v as CharacterImage).model === "soul" || (v as CharacterImage).model === "soul2" || (v as CharacterImage).model === "reference") &&
+    ((v as CharacterImage).model === "qwen" || (v as CharacterImage).model === "nano" || (v as CharacterImage).model === "soul" || (v as CharacterImage).model === "soul2" || (v as CharacterImage).model === "reference") &&
     typeof (v as CharacterImage).url === "string" && (v as CharacterImage).url.startsWith(prefix);
   const ratioOf = (v: CharacterImage) => (typeof v.ratio === "string" && /^\d{1,2}:\d{1,2}$/.test(v.ratio) ? { ratio: v.ratio } : {});
   if (!okImage(body.image)) return NextResponse.json({ error: "Pick a generated portrait to save" }, { status: 400 });

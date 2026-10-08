@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import { contentControlAdmin } from "@/lib/server/contentControlAuth";
+import { randomBytes } from "node:crypto";
+import { xConfigured, seal, pkce, removeX, X_SCOPES } from "@/lib/server/xApi";
 import { generateConnectUrl, getProfile, isConfigured, resolveUsername } from "@/lib/server/uploadPost";
 import { MARKETING_PROFILE, compatiblePlatforms } from "@/lib/server/contentPublishing";
 import { cleanMarketingText } from "@/lib/marketingCaption";
@@ -12,6 +14,9 @@ export const maxDuration = 60;
 const target = z.string().min(1).max(150).optional();
 const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("connect"), targetMint: target }),
+  z.object({ action: z.literal("x-connect"), targetMint: target }),
+  z.object({ action: z.literal("x-disconnect"), targetMint: target }),
+  z.object({ action: z.literal("digest") }),
   z.object({ action: z.literal("settings"), targetMint: target, autoAnnounce: z.boolean().optional(), autoMilestones: z.boolean().optional() }),
   z.object({ action: z.literal("publish"), targetMint: target, caption: z.string().min(1).max(5000), kind: z.enum(["text", "photo", "video"]), mediaUrl: z.string().url().optional(), key: z.string().uuid() }),
   z.object({ action: z.literal("retry"), id: z.string().min(1) }),
@@ -44,11 +49,26 @@ export async function POST(req: NextRequest) {
       await auth.convex.mutation(api.contentControl.retry, { authSecret, id: body.id as Id<"contentControlPosts"> });
       return NextResponse.json({ ok: true });
     }
+    if (body.action === "digest") return NextResponse.json(await auth.convex.mutation(api.contentControl.coinsDigestNow, { authSecret }));
     if (body.targetMint) {
       const agent = await auth.convex.query(api.influencers.getByMintServer, { authSecret, mintAddress: body.targetMint });
       if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
     const username = body.targetMint ? resolveUsername(body.targetMint) : MARKETING_PROFILE;
+    if (body.action === "x-disconnect") {
+      if (xConfigured()) await removeX(username);
+      return NextResponse.json({ ok: true });
+    }
+    if (body.action === "x-connect") {
+      // Direct X API (OAuth 2.0 + PKCE). The signed cookie carries the profile, so the shared callback saves the token to this account.
+      if (!xConfigured()) return NextResponse.json({ error: "X is not configured. Set X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI and X_TOKEN_ENCRYPTION_KEY on the server." }, { status: 503 });
+      const state = randomBytes(32).toString("base64url"), verifier = randomBytes(32).toString("base64url");
+      const url = new URL("https://x.com/i/oauth2/authorize");
+      url.search = new URLSearchParams({ response_type: "code", client_id: process.env.X_CLIENT_ID!, redirect_uri: process.env.X_REDIRECT_URI!, scope: X_SCOPES, state, code_challenge: pkce(verifier), code_challenge_method: "S256" }).toString();
+      const res = NextResponse.json({ ok: true, url: url.toString() });
+      res.cookies.set("x_oauth", seal({ state, verifier, profile: username, returnTo: `/admin/content-control${body.targetMint ? `?targetMint=${encodeURIComponent(body.targetMint)}` : ""}`, expires: Date.now() + 600000 }), { httpOnly: true, secure: req.nextUrl.protocol === "https:", sameSite: "lax", maxAge: 600, path: "/api/social/x" });
+      return res;
+    }
     if (body.action === "connect") {
       const url = await generateConnectUrl(username, { redirectUrl: `${req.nextUrl.origin}/admin/content-control${body.targetMint ? `?targetMint=${encodeURIComponent(body.targetMint)}` : ""}`, title: "Connect Vello marketing accounts", description: "Connect accounts for Content Control publishing." });
       return NextResponse.json({ ok: true, url });

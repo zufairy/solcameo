@@ -4,10 +4,11 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { checkInternalSecret } from "@/lib/server/requireAuth";
 import { getProfile, resolveUsername } from "@/lib/server/uploadPost";
-import { publishContent, pollContent, retryContent, MARKETING_PROFILE } from "@/lib/server/contentPublishing";
+import { type PublishOutcome, publishRouted, pollContent, retryContent, MARKETING_PROFILE } from "@/lib/server/contentPublishing";
 import { createMilestoneCard } from "@/lib/server/milestoneCard";
 import { createMilestoneVideo } from "@/lib/server/milestoneVideo";
 import { createLaunchCard, createLaunchVideo } from "@/lib/server/launchCard";
+import { createCoinCard, createCoinVideo } from "@/lib/server/coinCard";
 import { withMentions, xHandle, xMentions } from "@/lib/server/xMention";
 import { isProviderCapError, providerCapRetryAt } from "@/lib/contentQuota";
 export const runtime = "nodejs";
@@ -59,13 +60,21 @@ export async function POST(req: NextRequest) {
             try { await attach(await createLaunchCard(post), "photo"); } catch (err) { console.error("[content-control] launch card failed, using avatar", err); }
           }
         }
+        else if ((post.source === "token" || post.source === "digest") && !post.mediaUrl?.includes("/marketing/coins/")) {
+          // Coin cards: a looping 3D card video, then a still card, then the plain agent image already on the post.
+          try { await attach(await createCoinVideo(post), "video"); }
+          catch (e) {
+            console.error("[content-control] animated coin card failed, using still", e);
+            try { await attach(await createCoinCard(post), "photo"); } catch (err) { console.error("[content-control] coin card failed, using agent image", err); }
+          }
+        }
         // Mention the agent's own X account when it has one connected (never the account that is posting).
         if (post.source === "mint" || post.source === "milestone") {
           const mentions = await xMentions(convex, authSecret, [post.agentMint], xHandle(profile.connected.x));
           prepared = { ...prepared, caption: withMentions(prepared.caption, mentions) };
         }
       }
-      const result = post.requestId ? await retryContent(post.requestId) : await publishContent(prepared, username);
+      const result: PublishOutcome = post.requestId ? await retryContent(post.requestId) : await publishRouted(prepared, username);
       if (result.status === "failed" && isProviderCapError(result.error)) {
         // X says this account is out of posts for now: keep the post queued and retry in an hour instead of failing it.
         await convex.mutation(api.contentControl.finish, { authSecret, id: post._id, status: "queued", error: "X daily posting cap reached, retrying in an hour", notBefore: providerCapRetryAt(Date.now()) });

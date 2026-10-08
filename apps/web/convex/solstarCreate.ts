@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { assertSecret } from "./lib/solstarAuth";
 import { recordFeedEvent } from "./solstarFeed";
+import { enqueueTokenAnnouncement } from "./contentControl";
 import { shortWallet } from "../lib/solstar/feed";
 import { normalizeText } from "../lib/solstar/text";
 import { PAPER_VIRTUAL_SOL, PAPER_VIRTUAL_TOKENS } from "../lib/solstar/economics";
@@ -196,6 +197,7 @@ export const finalizeDbcLaunch = mutation({
     if (token?.state === "live" && token.mint === a.mint && token.dbcConfig === a.config && token.dbcPool === a.pool) return { mint: a.mint };
     if (!token || token.mint !== a.mint || token.state !== "pending") throw new Error("launch_conflict");
     await ctx.db.patch(token._id, { network: a.network, state: "live", mint: a.mint, dbcConfig: a.config, dbcPool: a.pool, launchSignature: a.launchSignature, ...(a.economy ? {economy:a.economy} : {}), ...(a.treasuryWallet ? {treasuryWallet:a.treasuryWallet} : {}) });
+    if (a.network === "mainnet") await enqueueTokenAnnouncement(ctx, token._id);
     const budget = await ctx.db.query("ssBudgets").withIndex("by_token", q => q.eq("tokenId", token._id)).first();
     if (budget) await ctx.db.patch(budget._id, { network: a.network, fundedLamports: 0n, reservedLamports: 0n, spentLamports: 0n });
     if (a.economy === "sustainable-v1") {

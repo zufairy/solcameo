@@ -17,7 +17,7 @@ export type Tile = {
   startedAt: number;
 };
 
-export const MODEL_LABEL: Record<CharModel, string> = { soul: "Soul", soul2: "Soul 2", reference: "Reference edit", qwen: "Qwen Image 3" };
+export const MODEL_LABEL: Record<CharModel, string> = { soul: "Soul", soul2: "Soul 2", reference: "Reference edit", qwen: "Qwen Image 3", nano: "Nano Banana Pro" };
 
 const cssRatio = (r: string) => r.replace(":", " / ");
 
@@ -148,7 +148,7 @@ function Hero({ prompt }: { prompt: string | null }) {
         Your influencer,<br />your viral hit
       </h3>
       <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-zinc-400">
-        Build your AI influencer with the face, body, and style you want. Choose traits and a ratio, then generate with Qwen. Finished portraits are saved to History.
+        Build your AI influencer with the face, body, and style you want. Choose traits and a ratio, then generate with Nano Banana Pro. Finished portraits are saved to History.
       </p>
       <AnimatePresence>
         {prompt && (

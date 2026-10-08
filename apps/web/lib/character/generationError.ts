@@ -4,7 +4,7 @@ export function generationError(status: string, error?: string): string {
   if (status === "canceled") return "Generation canceled";
   if (error?.trim()) {
     if (/model.*temporarily unavailable/i.test(error)) {
-      return "Higgsfield's Qwen model is temporarily unavailable. Your reference image and traits remain in the builder. Try generating again later; no fallback model will be charged.";
+      return "The image model is temporarily unavailable. Your reference image and traits remain in the builder. Try again in a moment; you were not charged.";
     }
     return error.trim();
   }

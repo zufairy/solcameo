@@ -19,7 +19,7 @@ import { safeFetchToBuffer } from "@/lib/server/downloader";
 import { pixelizeLogo, sprite, type PxGrid, type Sprite } from "@/lib/server/pixelLogo";
 import { solanaPixels } from "@/lib/server/solanaPixels";
 
-export type MaterialKind = "network" | "minted" | "leaderboard" | "engine" | "pulse" | "social" | "launch";
+export type MaterialKind = "network" | "minted" | "leaderboard" | "engine" | "pulse" | "social" | "launch" | "coin" | "coins";
 export interface MaterialAgent { avatarUrl?: string; name: string; handle: string; views: number; posted: number; generated: number }
 export interface MaterialMint { avatarUrl?: string; name: string; handle: string; ago: string; /** The agent's niche, shown as a tag on the launch card. */ niche?: string; /** ISO country code for the pixel flag on the launch card. */ country?: string }
 export interface MaterialData {
@@ -173,14 +173,14 @@ const AvatarRow = ({ agents, x, y }: { agents: MaterialAgent[]; x: number; y: nu
 const badgeGfx = (cx: number, cy: number, r: number, hot: boolean, t: number) =>
   `${hot ? `<circle cx="${cx}" cy="${cy}" r="${r + 7 + 5 * Math.sin(t * Math.PI * 2)}" fill="none" stroke="${LIME}" stroke-opacity=".3"/>` : ""}<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hot ? LIME : "#151a16"}" stroke="${hot ? LIME : "rgba(255,255,255,.22)"}" stroke-width="1.5"/>`;
 
-function Shell({ a, logo = true, children }: { a: Assets; logo?: boolean; children: ReactNode }) {
+function Shell({ a, logo = true, footer = true, children }: { a: Assets; logo?: boolean; footer?: boolean; children: ReactNode }) {
   return (
     <div style={{ width: W, height: H, display: "flex", position: "relative", fontFamily: "Jakarta", color: INK }}>
       {logo && <div style={{ position: "absolute", left: M, top: 38, display: "flex", alignItems: "center" }}>
         <img src={a.mark.url} alt="Vello mark" width={a.mark.w} height={a.mark.h} style={{ marginRight: 14 }} />
         <img src={a.word.url} alt="Vello" width={a.word.w} height={a.word.h} />
       </div>}
-      <T x={M} y={H - 40} size={12} font="Grotesk" ls={4} color={FAINT} upper>velloagents.com</T>
+      {footer && <T x={M} y={H - 40} size={12} font="Grotesk" ls={4} color={FAINT} upper>velloagents.com</T>}
       {children}
     </div>
   );
@@ -206,7 +206,7 @@ ${inner}
 
 /** `layers` are text snippets rasterised once and placed (and animated) by `gfx`; `frames` makes the GIF a seamless loop with no end hold. */
 interface Layer { id: string; w: number; h: number; node: ReactNode }
-interface Design { label: string; gfx: (t: number, img: Record<string, string>, meta: Record<string, { x0: number; x1: number }>) => string; animLogo?: boolean; text: (a: Assets) => ReactNode; layers?: Layer[]; frames?: number; delay?: number; still?: number }
+interface Design { /** Solcameo-branded card: no Vello logo or footer from the shell. */ bare?: boolean; label: string; gfx: (t: number, img: Record<string, string>, meta: Record<string, { x0: number; x1: number }>) => string; animLogo?: boolean; text: (a: Assets) => ReactNode; layers?: Layer[]; frames?: number; delay?: number; still?: number }
 
 const TAU = Math.PI * 2;
 const seg = (t: number, start: number, dur: number) => Math.min(1, Math.max(0, (t - start) / dur));
@@ -854,12 +854,135 @@ function launch(d: MaterialData, a: Assets, x: DesignExtra): Design {
   };
 }
 
-const DESIGNS: Record<MaterialKind, (d: MaterialData, a: Assets, x: DesignExtra) => Design> = { network, minted, leaderboard, engine, pulse, social, launch };
+/* ── Solcameo coins: 3D trading-card animations ───────────────────────────── */
+
+/** Projects a card's four corners (TL, TR, BL, BR) with a yaw/pitch and perspective; `zl` pushes along the card normal (thickness). */
+function cardCorners(cx: number, cy: number, ox: number, oz: number, yaw: number, pitch: number, w: number, h: number, zl = 0) {
+  const F = 1100, cy_ = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  return ([[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]] as const).map(([x, y]) => {
+    const X = x * cy_ + zl * sy, Z = -x * sy + zl * cy_;
+    const Y2 = y * cp - Z * sp, Z2 = y * sp + Z * cp;
+    const s = F / (F + Z2 + oz);
+    return { x: cx + (X + ox) * s, y: cy + Y2 * s, s };
+  });
+}
+type Corners = ReturnType<typeof cardCorners>;
+const poly = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+/** One 3D card: extruded edge, then the face drawn through the affine map of its projected corners, with a sheen that follows the angle. */
+function coinCardGfx(i: number, c: Corners, back: Corners, w: number, h: number, art: string | undefined, img: Record<string, string>, ids: { tk: string; nm: string; ft: string }, yaw: number, alpha: number) {
+  const [tl, tr, bl, br] = c, [btl, btr, bbl, bbr] = back;
+  const a = (tr.x - tl.x) / w, b = (tr.y - tl.y) / w, cc = (bl.x - tl.x) / h, d = (bl.y - tl.y) / h;
+  const edge = (p: typeof tl, q: typeof tl, bp: typeof tl, bq: typeof tl, shade: number) => `<polygon points="${poly([p, q, bq, bp])}" fill="#1c2406" stroke="${LIME}" stroke-opacity="${shade}" stroke-width=".8"/>`;
+  const art_ = Math.round(w - 36), ax = (w - art_) / 2;
+  const sheen = w * (0.5 + 1.15 * Math.sin(yaw + 0.4)) - 60;
+  const face = `<g transform="matrix(${a.toFixed(4)} ${b.toFixed(4)} ${cc.toFixed(4)} ${d.toFixed(4)} ${tl.x.toFixed(1)} ${tl.y.toFixed(1)})">
+<defs><clipPath id="cl${i}"><rect width="${w}" height="${h}" rx="${Math.round(w * 0.075)}"/></clipPath><linearGradient id="cg${i}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1b2108"/><stop offset=".55" stop-color="#0c0f0e"/><stop offset="1" stop-color="#10160a"/></linearGradient></defs>
+<g clip-path="url(#cl${i})"><rect width="${w}" height="${h}" fill="url(#cg${i})"/>
+<rect x="${ax}" y="${ax}" width="${art_}" height="${art_}" rx="${Math.round(w * 0.05)}" fill="#0a0d0b" stroke="rgba(200,240,42,.28)"/>
+<circle cx="${w / 2}" cy="${ax + art_ / 2}" r="${(art_ * 0.44).toFixed(1)}" fill="${LIME}" fill-opacity=".1"/>
+${art ? `<image xlink:href="${art}" x="${(w - art_ * 0.84) / 2}" y="${ax + art_ * 0.08}" width="${(art_ * 0.84).toFixed(1)}" height="${(art_ * 0.84).toFixed(1)}"/>` : ""}
+${img[ids.tk] ? `<image xlink:href="${img[ids.tk]}" x="0" y="${ax + art_ + 6}" width="${w}" height="${Math.round(w * 0.19)}"/>` : ""}
+${img[ids.nm] ? `<image xlink:href="${img[ids.nm]}" x="0" y="${ax + art_ + 6 + Math.round(w * 0.19)}" width="${w}" height="${Math.round(w * 0.09)}"/>` : ""}
+${img[ids.ft] ? `<image xlink:href="${img[ids.ft]}" x="0" y="${h - Math.round(w * 0.075) - 10}" width="${w}" height="${Math.round(w * 0.06)}"/>` : ""}
+<rect x="${sheen.toFixed(1)}" y="-40" width="120" height="${h + 80}" fill="url(#sheen)" opacity="1" transform="skewX(-18)"/><rect x="${(sheen + 30).toFixed(1)}" y="-40" width="26" height="${h + 80}" fill="#fff" fill-opacity=".05" transform="skewX(-18)"/></g>
+<rect x=".5" y=".5" width="${w - 1}" height="${h - 1}" rx="${Math.round(w * 0.075)}" fill="none" stroke="${LIME}" stroke-opacity=".6"/></g>`;
+  const cx = (tl.x + br.x) / 2, base_ = Math.max(bl.y, br.y, bbl.y, bbr.y) + 28;
+  const shadow = `<ellipse cx="${cx.toFixed(1)}" cy="${base_.toFixed(1)}" rx="${(Math.abs(br.x - bl.x) * 0.5 + 20).toFixed(1)}" ry="${(12 * tl.s).toFixed(1)}" fill="#000" fill-opacity="${(0.5 * alpha).toFixed(2)}" filter="url(#glow)"/>`;
+  return `<g opacity="${alpha.toFixed(3)}">${shadow}${`<polygon points="${poly([btl, btr, bbr, bbl])}" fill="#10150a"/>`}${edge(tl, tr, btl, btr, 0.5)}${edge(tr, br, btr, bbr, 0.5)}${edge(br, bl, bbr, bbl, 0.3)}${edge(bl, tl, bbl, btl, 0.3)}${face}</g>`;
+}
+const tickerOf = (m: { handle: string }) => clean(m.handle, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "COIN";
+/** Satori layers for one card face: ticker, coin name and footer. Sizes scale with the card width. */
+function coinCardLayers(i: number, m: { name: string; handle: string }, w: number): Layer[] {
+  const tk = `$${tickerOf(m)}`, th = Math.round(w * 0.19), ts = Math.min(Math.round(w * 0.17), Math.floor((w - 16) / Math.max(1, tk.length * 0.6)));
+  return [
+    { id: `tk${i}`, w, h: th, node: <div style={{ display: "flex", width: w, height: th, alignItems: "center", justifyContent: "center", fontFamily: "Fraunces", fontWeight: 600, fontSize: ts, letterSpacing: -ts * 0.03, color: LIME, whiteSpace: "nowrap" }}>{tk}</div> },
+    { id: `nm${i}`, w, h: Math.round(w * 0.09), node: <div style={{ display: "flex", width: w, justifyContent: "center", fontFamily: "Manrope", fontWeight: 500, fontSize: Math.round(w * 0.06), color: "#FFFFFF", whiteSpace: "nowrap" }}>{nameOf(m)}</div> },
+    { id: `ft${i}`, w, h: Math.round(w * 0.06), node: <T x={w / 2} y={0} w={w} align="center" size={Math.max(8, Math.round(w * 0.034))} font="Grotesk" ls={3} upper color={MUTE}>solcameo · on solana</T> },
+  ];
+}
+const brandLayers = (foot: string): Layer[] => [
+  { id: "brand", w: 320, h: 44, node: <div style={{ display: "flex", alignItems: "center", fontFamily: "Manrope", fontWeight: 500, fontSize: 30, letterSpacing: -0.8, color: "#FFFFFF" }}>solcameo<span style={{ color: LIME, marginLeft: 3 }}>.</span></div> },
+  { id: "foot", w: 760, h: 16, node: <T x={0} y={0} w={760} size={12} font="Grotesk" ls={4} upper color={FAINT}>{foot}</T> },
+];
+
+/** Single new coin: one big card swings in from the side, then sways in 3D beside the coin's stats. */
+function coin(d: MaterialData, a: Assets): Design {
+  const m = d.minted[0] ?? { name: "New Coin", handle: "COIN", ago: "just now" };
+  const nm = nameOf(m), ticker = tickerOf(m), no = Math.max(1, d.launchNo ?? d.totalAgents), CW = 330, CH = 440;
+  const tsize = Math.min(104, Math.max(46, Math.floor(520 / Math.max(1, (ticker.length + 1) * 0.6))));
+  const nsize = Math.min(60, Math.max(32, Math.floor(520 / Math.max(1, nm.length * 0.56))));
+  const TILE = [{ x: 650, w: 236, prefix: "#", value: String(no), color: LIME, hot: true }, { x: 906, w: 236, prefix: "", value: String(d.mintedToday), color: INK, hot: false }];
+  const layers: Layer[] = [
+    ...brandLayers("solcameo.com · ai influencers on solana"),
+    ...coinCardLayers(0, m, CW),
+    { id: "kick", w: 480, h: 20, node: <Label x={0} y={0} w={480} size={14} color={LIME}>New coin · live on Solana</Label> },
+    { id: "name", w: 540, h: 78, node: <div style={{ display: "flex", width: 540, whiteSpace: "nowrap", fontFamily: "Manrope", fontWeight: 500, fontSize: nsize, lineHeight: 1.15, letterSpacing: -nsize * 0.035, color: "#FFFFFF" }}>{nm}</div> },
+    { id: "tick", w: 540, h: Math.round(tsize * 1.2), node: <div style={{ display: "flex", width: 540, whiteSpace: "nowrap", fontFamily: "Fraunces", fontWeight: 600, fontSize: tsize, lineHeight: 1.1, letterSpacing: -tsize * 0.03, color: LIME }}>${ticker}</div> },
+    ...(m.niche ? [{ id: "niche", w: 420, h: 30, node: <div style={{ display: "flex", width: 420 }}><div style={{ display: "flex", alignItems: "center", height: 28, padding: "0 14px", borderRadius: 14, border: "1px solid rgba(200,240,42,.5)", backgroundColor: "rgba(200,240,42,.1)", fontFamily: "Grotesk", fontSize: 12, letterSpacing: 3, color: LIME, textTransform: "uppercase", whiteSpace: "nowrap" }}>{clean(m.niche, 28)}</div></div> }] : []),
+    { id: "l0", w: 236, h: 14, node: <T x={118} y={0} w={236} align="center" size={11} font="Grotesk" ls={2.6} upper color={MUTE}>Coin number</T> },
+    { id: "c0", w: 236, h: 14, node: <T x={118} y={0} w={236} align="center" size={11} font="Grotesk" ls={2.2} upper color={FAINT}>{`of ${full(d.totalAgents)} on solcameo`}</T> },
+    { id: "l1", w: 236, h: 14, node: <T x={118} y={0} w={236} align="center" size={11} font="Grotesk" ls={2.6} upper color={MUTE}>Minted in 24h</T> },
+    { id: "c1", w: 236, h: 14, node: <T x={118} y={0} w={236} align="center" size={11} font="Grotesk" ls={2.2} upper color={FAINT}>{`Launched ${m.ago}`}</T> },
+    { id: "cta", w: 440, h: 40, node: <div style={{ display: "flex", alignItems: "baseline", whiteSpace: "nowrap" }}><span style={{ fontFamily: "Manrope", fontWeight: 500, fontSize: 28, letterSpacing: -0.8, color: "#FFFFFF" }}>Early is everything.</span><span style={{ fontFamily: "Fraunces", fontWeight: 600, fontSize: 32, letterSpacing: -0.8, color: LIME, marginLeft: 10 }}>Trade it.</span></div> },
+  ];
+  return {
+    label: "New coin", bare: true, layers, frames: 64, delay: 70, still: 0.8, animLogo: true, text: () => null,
+    gfx: (t, img) => {
+      const out = 1 - seg(t, 0.94, 0.06), step = Math.floor(t * 8);
+      const e = outBack(seg(t, 0, 0.26)), rise = (1 - Math.min(1, e)) * 90;
+      const yaw = (1 - Math.min(1, outCubic(seg(t, 0, 0.3)))) * 2.4 + 0.5 * Math.sin(TAU * t), pitch = 0.07 * Math.sin(TAU * 2 * t + 1);
+      const c = cardCorners(330, 352 - rise + 5 * Math.sin(TAU * 2 * t), 0, 0, yaw, pitch, CW, CH), back = cardCorners(330, 352 - rise + 5 * Math.sin(TAU * 2 * t), 0, 0, yaw, pitch, CW, CH, 18);
+      const haze = `<ellipse cx="${330 + 40 * Math.cos(TAU * t)}" cy="${350 + 20 * Math.sin(TAU * 2 * t)}" rx="460" ry="320" fill="url(#haze)"/>`;
+      const card = coinCardGfx(0, c, back, CW, CH, m.avatarUrl, img, { tk: "tk0", nm: "nm0", ft: "ft0" }, yaw, Math.min(1, outCubic(seg(t, 0, 0.1))));
+      const tiles = TILE.map((tl, i) => {
+        const f = outBack(seg(t, 0.34 + i * 0.1, 0.22)), al = Math.min(1, seg(t, 0.34 + i * 0.1, 0.1) * 2), vp = outCubic(seg(t, 0.44 + i * 0.1, 0.3));
+        if (al <= 0) return "";
+        const y = 396;
+        return `<g opacity="${al}" transform="translate(0 ${((1 - Math.min(1, f)) * 40).toFixed(1)})">${slab(tl.x, y, tl.w, 112, 10, tl.hot, t, i * 0.4)}${img[`l${i}`] ? `<image xlink:href="${img[`l${i}`]}" x="${tl.x}" y="${y + 16}" width="${tl.w}" height="14"/>` : ""}${pxText(tl.prefix + String(Math.round(Number(tl.value) * vp)), tl.prefix + tl.value, tl.x + tl.w / 2, y + 44, fitCell(tl.prefix + tl.value, tl.w - 60, 5), tl.color, tl.hot, t, i)}${img[`c${i}`] ? `<image xlink:href="${img[`c${i}`]}" x="${tl.x}" y="${y + 112 - 24}" width="${tl.w}" height="14"/>` : ""}</g>`;
+      }).join("");
+      const cf = seg(t, 0.52, 0.22), slide = Math.round(((1 - outCubic(cf)) * 240) / 8) * 8;
+      const cta = cf > 0 ? `<g opacity="${Math.min(1, cf * 3)}" transform="translate(${slide} 0)">${slab(650, 530, 492, 64, 10, true, t, 0.6)}${img.cta ? `<image xlink:href="${img.cta}" x="676" y="${530 + 12}" width="440" height="40"/>` : ""}${pixSprite(ARROW, 1092 + (step % 4) * 3, 530 + 20, 4.4, LIME)}</g>` : "";
+      const kd = outCubic(seg(t, 0.06, 0.14));
+      return base(`<g opacity="${out}">${haze}${dustGfx(t)}${layerAt(img, t, "brand", M, 34, 320, 44, 0, 0.14, 8)}${layerAt(img, t, "foot", M, H - 40, 760, 16, 0.1, 0.14, 0)}${solanaMark(t)}${card}<g opacity="${kd}"><rect x="650" y="${123 + (1 - kd) * 12}" width="8" height="8" fill="${LIME}" fill-opacity="${step % 2 === 0 ? 1 : 0.35}"/></g>${layerAt(img, t, "kick", 668, 116, 480, 20, 0.06, 0.14, 12)}${layerAt(img, t, "name", 650, 144, 540, 78, 0.12, 0.2, 18)}${layerAt(img, t, "tick", 650, 214, 540, Math.round(tsize * 1.2), 0.2, 0.2, 14)}${layerAt(img, t, "niche", 650, 214 + Math.round(tsize * 1.2) + 10, 420, 30, 0.3, 0.16, 10)}${tiles}${cta}</g>`);
+    },
+  };
+}
+
+/** Digest of the newest coins: a cover-flow carousel of 3D cards orbiting the centre, with the day's mint count above. */
+function coins(d: MaterialData, a: Assets): Design {
+  const list = d.minted.slice(0, 4), n = Math.max(1, list.length), CW = 210, CH = 280, R = 330;
+  const todayN = Math.max(d.mintedToday, list.length), tickers = list.map((m) => `$${tickerOf(m)}`).join("  ·  ");
+  const layers: Layer[] = [
+    ...brandLayers(tickers || "solcameo.com"),
+    ...list.flatMap((m, i) => coinCardLayers(i, m, CW)),
+    { id: "kick", w: 520, h: 20, node: <Label x={0} y={0} w={520} size={14} color={LIME}>Fresh on Solana · last 24h</Label> },
+    { id: "big", w: 900, h: 92, node: <div style={{ display: "flex", alignItems: "baseline", whiteSpace: "nowrap", fontSize: 72, lineHeight: 1.1, letterSpacing: -2.4 }}><span style={{ fontFamily: "Manrope", fontWeight: 500, color: "#FFFFFF" }}>{full(todayN)} new {todayN === 1 ? "coin" : "coins"}</span><span style={{ fontFamily: "Fraunces", fontWeight: 600, color: LIME, marginLeft: 16 }}>minted.</span></div> },
+    { id: "sub", w: 760, h: 26, node: <div style={{ display: "flex", fontFamily: "Manrope", fontWeight: 500, fontSize: 20, color: MUTE, whiteSpace: "nowrap" }}>{`${full(d.totalAgents)} AI influencer coins live on solcameo.com`}</div> },
+  ];
+  return {
+    label: "New coins", bare: true, layers, frames: 96, delay: 70, still: 0.18, animLogo: true, text: () => null,
+    gfx: (t, img) => {
+      const out = 1 - seg(t, 0.95, 0.05), intro = outCubic(seg(t, 0, 0.2));
+      const haze = `<ellipse cx="${600 + 120 * Math.cos(TAU * t)}" cy="440" rx="620" ry="260" fill="url(#haze)"/>`;
+      const items = list.map((m, i) => {
+        const phi = TAU * (t + i / n), x = R * Math.sin(phi) * intro, z = R * (1 - Math.cos(phi)) * 0.95;
+        const yaw = -0.85 * Math.sin(phi), cy = 452 + 7 * Math.sin(TAU * (2 * t + i * 0.3)) - (1 - intro) * 60, pitch = 0.05;
+        return { i, m, z, c: cardCorners(600, cy, x, z, yaw, pitch, CW, CH), back: cardCorners(600, cy, x, z, yaw, pitch, CW, CH, 14), yaw, alpha: 0.55 + 0.45 * ((1 + Math.cos(phi)) / 2) };
+      }).sort((p, q) => q.z - p.z);
+      const cards = items.map((it) => coinCardGfx(it.i, it.c, it.back, CW, CH, it.m.avatarUrl, img, { tk: `tk${it.i}`, nm: `nm${it.i}`, ft: `ft${it.i}` }, it.yaw, Math.min(1, it.alpha * intro * 1.2))).join("");
+      const kd = outCubic(seg(t, 0.04, 0.14));
+      return base(`<g opacity="${out}">${haze}${dustGfx(t)}${layerAt(img, t, "brand", M, 34, 320, 44, 0, 0.14, 8)}${solanaMark(t)}<g opacity="${kd}"><rect x="${M}" y="${112 + (1 - kd) * 10}" width="8" height="8" fill="${LIME}"/></g>${layerAt(img, t, "kick", M + 18, 105, 520, 20, 0.04, 0.14, 10)}${layerAt(img, t, "big", M, 126, 900, 92, 0.08, 0.2, 18)}${layerAt(img, t, "sub", M, 222, 760, 26, 0.16, 0.18, 10)}${cards}${layerAt(img, t, "foot", M, H - 40, 760, 16, 0.1, 0.14, 0)}</g>`);
+    },
+  };
+}
+
+const DESIGNS: Record<MaterialKind, (d: MaterialData, a: Assets, x: DesignExtra) => Design> = { network, minted, leaderboard, engine, pulse, social, launch, coin, coins };
 
 /* ── render ───────────────────────────────────────────────────────────────── */
 
 async function textLayer(design: Design, a: Assets) {
-  const svg = await satori(<Shell a={a} logo={!design.animLogo}>{design.text(a)}</Shell>, { width: W, height: H, fonts: a.fonts });
+  const svg = await satori(<Shell a={a} logo={!design.animLogo && !design.bare} footer={!design.bare}>{design.text(a)}</Shell>, { width: W, height: H, fonts: a.fonts });
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 

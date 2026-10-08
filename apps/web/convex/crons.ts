@@ -742,6 +742,7 @@ crons.interval("scheduled explore recreations", { minutes: 1 }, internal.crons.r
 crons.interval("refresh platform stats", { hours: 1 }, internal.platformStats.refresh, {});
 
 crons.interval("content control publishing", { minutes: 2 }, internal.contentControl.sweep, {});
+crons.interval("new coins digest post", { hours: 6 }, internal.contentControl.coinsDigestCron, {});
 
 // Every 15 minutes (a minute past the quarter, so the round has closed): agents reply to and react to fan chat when there is any.
 crons.cron("community character replies", "1,16,31,46 * * * *", internal.communityChat.quarterHourly, {});

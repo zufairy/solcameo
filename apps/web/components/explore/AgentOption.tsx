@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- remote avatars */
 /** Influencer row: portrait, bold all-caps name, ticker chip. */
-export function AgentOption({ name, ticker, avatarUrl, large }: { name: string; ticker?: string; avatarUrl?: string; large?: boolean }) {
-  const box = large ? "size-12" : "size-10";
+export function AgentOption({ name, ticker, avatarUrl, large, xl }: { name: string; ticker?: string; avatarUrl?: string; large?: boolean; xl?: boolean }) {
+  const box = xl ? "size-16" : large ? "size-12" : "size-10";
   return (
     <span className="flex min-w-0 items-center gap-3">
       {avatarUrl ? <img src={avatarUrl} alt="" className={`${box} shrink-0 rounded-lg object-cover ring-1 ring-white/15`} /> : <span className={`grid ${box} shrink-0 place-items-center rounded-lg bg-white/10 text-sm font-bold`}>{name.slice(0, 1).toUpperCase()}</span>}

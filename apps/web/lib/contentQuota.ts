@@ -1,14 +1,15 @@
 /* Daily posting budget for AUTOMATIC Content Control posts (pure, shared by Convex and the tests).
 
    X lets one account post 20 times per rolling 24 hours (provider cap). We spend that budget by post type:
-     launch        new agent minted           up to 10 a day, spaced 15 minutes apart
+     launch        new agent or coin minted   up to 10 a day, spaced 15 minutes apart
+     digest        new coins roundup          up to 2 a day, spaced 6 hours apart
      milestone100k a video past 100k views    up to 2 a day, spaced 6 hours apart
      milestone10k  a video past 10k views     1 a day
    Those add up to 13, and automatic posts stop once the account has used 17 of the 20, so
    a manual post always has room. Anything over its quota is not dropped: it waits in the
    queue and goes out at the first free slot (milestones: the highest-viewed one goes first). */
 
-export type PostClass = "launch" | "milestone100k" | "milestone10k" | "manual";
+export type PostClass = "launch" | "digest" | "milestone100k" | "milestone10k" | "manual";
 
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 export const X_DAILY_CAP = 20;
@@ -16,13 +17,15 @@ export const X_DAILY_CAP = 20;
 export const MANUAL_RESERVE = 3;
 export const POST_LIMITS: Record<PostClass, { perDay: number; gapMs: number }> = {
   launch: { perDay: 10, gapMs: 15 * 60_000 },
+  digest: { perDay: 2, gapMs: 6 * HOUR },
   milestone100k: { perDay: 2, gapMs: 6 * HOUR },
   milestone10k: { perDay: 1, gapMs: 0 },
   manual: { perDay: Infinity, gapMs: 0 },
 };
 
 export function postClass(post: { source: string; milestoneViews?: number }): PostClass {
-  if (post.source === "mint") return "launch";
+  if (post.source === "mint" || post.source === "token") return "launch";
+  if (post.source === "digest") return "digest";
   if (post.source === "milestone") return (post.milestoneViews ?? 0) > 100_000 ? "milestone100k" : "milestone10k";
   return "manual";
 }
@@ -48,7 +51,7 @@ export function nextSlot(cls: PostClass, history: PostedEntry[], now: number): S
 }
 
 /** The provider's own "daily posting cap" rejection — retry later instead of failing the post. */
-export const isProviderCapError = (message: string | undefined | null) => /daily posting cap|used_last_24h|posting cap on x/i.test(message ?? "");
+export const isProviderCapError = (message: string | undefined | null) => /daily posting cap|used_last_24h|posting cap on x|X request failed \(429\)/i.test(message ?? "");
 /** When to retry after a provider cap rejection. */
 export const providerCapRetryAt = (now: number) => now + HOUR;
 

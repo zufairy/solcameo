@@ -25,10 +25,10 @@ export function SolstarHome() {
       <section aria-label="Callouts" className="min-w-0 bg-[linear-gradient(110deg,transparent_25%,rgba(110,231,183,0.035))]">
         <HomeCallouts />
       </section>
-    </div> : <Tabs defaultValue="feed" className="gap-0 [--feed-h:calc(100cqh-100px)]">
-      <TabsList className="h-12 w-full rounded-none border-b border-white/10 bg-transparent p-1">
-        <TabsTrigger value="feed">Characters</TabsTrigger>
-        <TabsTrigger value="trending">Callouts</TabsTrigger>
+    </div> : <Tabs defaultValue="feed" className="gap-0 [--feed-h:calc(100cqh-108px)]">
+      <TabsList className="h-14 w-full rounded-none border-b border-white/10 bg-transparent p-1.5">
+        <TabsTrigger value="feed" className="h-full text-base font-semibold">Characters</TabsTrigger>
+        <TabsTrigger value="trending" className="h-full text-base font-semibold">Callouts</TabsTrigger>
       </TabsList>
       <TabsContent value="feed" className="mt-0"><LaunchpadFeed /></TabsContent>
       <TabsContent value="trending" className="mt-0"><HomeCallouts /></TabsContent>

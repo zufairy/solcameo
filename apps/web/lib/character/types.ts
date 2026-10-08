@@ -3,8 +3,8 @@ export const ANIMAL_TIERS = ["insects", "frogs", "cats", "dogs", "capybaras", "b
 export type AnimalTier = (typeof ANIMAL_TIERS)[number];
 export type Tier = HumanTier | AnimalTier;
 export const isAnimalTier = (t: string): t is AnimalTier => (ANIMAL_TIERS as readonly string[]).includes(t);
-export type CharModel = "soul" | "soul2" | "reference" | "qwen";
-export type ModelChoice = "soul" | "soul2" | "both" | "qwen";
+export type CharModel = "soul" | "soul2" | "reference" | "qwen" | "nano";
+export type ModelChoice = "soul" | "soul2" | "both" | "qwen" | "nano";
 
 export interface CharOption {
   id: string;

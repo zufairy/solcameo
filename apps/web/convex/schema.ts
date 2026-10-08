@@ -115,7 +115,7 @@ export default defineSchema({
   }).index("by_key", ["key"]),
   contentControlPosts: defineTable({
     videoPostKey: v.optional(v.string()), dedupeKey: v.string(), source: v.string(), targetMint: v.optional(v.string()),
-    agentMint: v.optional(v.string()), agentName: v.optional(v.string()),
+    agentMint: v.optional(v.string()), agentName: v.optional(v.string()), tokenId: v.optional(v.id("ssTokens")),
     milestoneViews: v.optional(v.number()), videoUrl: v.optional(v.string()), postUrl: v.optional(v.string()), platform: v.optional(v.string()),
     caption: v.string(), mediaUrl: v.optional(v.string()), kind: v.string(),
     platforms: v.array(v.string()), status: v.string(), error: v.optional(v.string()),

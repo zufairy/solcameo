@@ -1,7 +1,10 @@
 import sharp from "sharp";
 import { safeFetchToBuffer } from "./downloader";
-import { getApiKey, extractFailedPlatforms, extractPostIds, xTweetText } from "./uploadPost";
+import { getApiKey, extractFailedPlatforms, extractPostIds } from "./uploadPost";
 import { cleanMarketingText } from "../marketingCaption";
+import { postX, readX, xConfigured } from "./xApi";
+import { putImage } from "./imageStorage";
+import { xTweetText } from "./uploadPost";
 
 export const MARKETING_PROFILE = "vello_marketing";
 export { compatiblePlatforms } from "../contentPlatforms";
@@ -84,4 +87,31 @@ export async function retryContent(requestId: string) {
   const data = await res.json();
   if (!res.ok || data.success === false) throw new Error(data.error || data.message || `Retry failed (${res.status})`);
   return { status: "submitted", requestId, result: JSON.stringify(data).slice(0, 20000) };
+}
+
+/** X goes straight to the X API (OAuth 2 user token, media upload, then the post). Keeps line breaks; the text is cut to fit one post. */
+export async function publishViaX(post: { _id: string; caption: string; kind: string; mediaUrl?: string }, profile: string): Promise<{ status: string; error?: string; requestId?: string; result?: string }> {
+  let urls: string[] = [];
+  if (post.kind !== "text" && post.mediaUrl) {
+    if (post.kind === "photo") {
+      // X rejects SVG and oversized avatars: decode safely and upload a bounded JPEG instead.
+      const { buffer } = await safeFetchToBuffer(post.mediaUrl, { maxBytes: 20 * 1024 * 1024, timeoutMs: 15_000 });
+      const jpeg = await sharp(buffer, { limitInputPixels: 40_000_000 }).rotate().resize(1600, 1600, { fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 88 }).toBuffer();
+      urls = [(await putImage(jpeg, "image/jpeg", { key: `marketing/x/${post._id}.jpg` })).url];
+    } else urls = [post.mediaUrl];
+  }
+  const sent = await postX(profile, xTweetText(post.caption.replace(/<[^>]*>/g, "").replace(/\s*[—–]\s*/g, ", ")), urls, post.kind === "video");
+  if (!sent.ok) return { status: "failed", error: String((sent.data as { error?: string }).error ?? "X posting failed"), result: JSON.stringify(sent.data).slice(0, 20000) };
+  return { status: "posted", requestId: sent.postIds?.x, result: JSON.stringify(sent.data).slice(0, 20000) };
+}
+/** X through the X API when the posting account is connected there, everything else through Upload-Post. */
+export type PublishOutcome = { status: string; error?: string; requestId?: string; result?: string };
+export async function publishRouted(post: { _id: string; caption: string; kind: string; mediaUrl?: string; platforms: string[] }, profile: string): Promise<PublishOutcome> {
+  const direct = post.platforms.includes("x") && xConfigured() && !!(await readX(profile));
+  if (!direct) return publishContent(post, profile);
+  const x = await publishViaX(post, profile);
+  const rest = post.platforms.filter(p => p !== "x");
+  if (x.status !== "posted" || !rest.length) return x;
+  const other = await publishContent({ ...post, platforms: rest }, profile);
+  return other.status === "failed" ? { ...other, error: `Posted to X. ${other.error ?? "Other platforms failed"}` } : other;
 }

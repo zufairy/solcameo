@@ -5,9 +5,10 @@ import { refundStudioRun, reserveStudioImages } from "@/lib/server/studioGenBill
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { authorizeCharacterScope, issueCharacterJobTicket } from "@/lib/server/characterDraft";
-import { HfError, submitImage, submitReferenceEdit } from "@/lib/server/higgsfield";
+import { HfError, submitImage } from "@/lib/server/higgsfield";
+import { createStudioImageTask, hostReferencesForKie, kieConfigured } from "@/lib/server/kieStudioImage";
 import { imagePublicUrl, putImage } from "@/lib/server/imageStorage";
-import { POSES, buildPrompt, isBuildable, sanitizeSelection } from "@/lib/character/spec";
+import { POSES, TEMPLATES, buildPrompt, buildTemplatePrompt, isBuildable, sanitizeSelection } from "@/lib/character/spec";
 import { isAnimalTier } from "@/lib/character/types";
 import type { Tier } from "@/lib/character/types";
 export const maxDuration = 60;
@@ -31,11 +32,14 @@ export async function POST(req: NextRequest) {
   const photoUrls = references as string[];
   const hasReferences = photoUrls.length > 0;
   const model = body.model === "soul" ? "soul" : "soul2";
-  if (body.model === "qwen" && !hasReferences) return NextResponse.json({ error: "Qwen requires a reference image. Choose Soul or Soul 2." }, { status: 400 });
+  if ((body.model === "qwen" || body.model === "nano") && !hasReferences) return NextResponse.json({ error: "Nano Banana Pro needs a reference image. Choose Soul or Soul 2." }, { status: 400 });
   // Every candidate gets its own pose, starting from a random one, so a batch never repeats a stance.
   const poseStart = Math.floor(Math.random() * POSES.length);
+  // One template per batch: every take shares backdrop, light and lens, and only the pose changes, so the set reads as one concept.
+  const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
   const promptFor = (index: number) => {
     const pose = POSES[(poseStart + index) % POSES.length];
+    if (hasReferences) return buildTemplatePrompt(selection, tier, { pose, template, photo: true, brief: brief || undefined });
     return brief
       ? `${brief} POSE FOR THIS TAKE (overrides any pose instruction above): ${pose}.`
       : buildPrompt(selection, tier, { photo: hasReferences, pose });
@@ -58,6 +62,8 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+  // KIE only reliably accepts public PNG references, so they are re-hosted once for the whole batch.
+  const kieRefs = hasReferences && kieConfigured() ? await hostReferencesForKie(photoUrls, a.mint).then(hosted => hosted.length ? hosted : photoUrls) : photoUrls;
   try {
     const results = await Promise.allSettled(Array.from({ length: count }, async (_, index) => {
       const billingRunId = billingRuns[index];
@@ -65,19 +71,23 @@ export async function POST(req: NextRequest) {
       try {
       const key = `${a.mint}:${batch}:${index}`.slice(0,120);
       const prompt = promptFor(index);
-      let usedModel: "reference" | "soul" | "soul2" = hasReferences ? "reference" : model;
+      let usedModel: "nano" | "soul" | "soul2" = hasReferences ? "nano" : model;
+      let provider: "kie" | "higgsfield" = "higgsfield";
       let requestId: string;
       if (hasReferences) {
-        try { requestId = await submitReferenceEdit(prompt, photoUrls, ratio, key); }
-        catch (error) {
-          // The editing model refused or failed to start: fall back to Soul with the upload as its reference instead of failing the run.
-          if (!(error instanceof HfError) || error.code === "credits" || error.code === "auth") throw error;
+        try {
+          if (!kieConfigured()) throw new HfError("KIE is not configured", 503, "upstream");
+          requestId = await createStudioImageTask({ prompt, refs: kieRefs, aspectRatio: ratio });
+          provider = "kie";
+        } catch (error) {
+          // Nano Banana Pro could not start: fall back to Soul with the upload as its reference instead of failing the run.
+          if (error instanceof HfError && (error.code === "credits" || error.code === "auth")) throw error;
           requestId = await submitImage("higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1, image_reference_url: photoUrls[0] }, `${key}:soul`.slice(0, 120));
           usedModel = "soul";
         }
       } else requestId = await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
       accepted = true;
-      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, model: usedModel, requestId, count: 1, ratio, createdAt: Date.now() };
+      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, provider, model: usedModel, requestId, count: 1, ratio, createdAt: Date.now() };
       // Register every accepted job before returning: refresh recovery does not depend on browser memory.
       await putImage(Buffer.from(JSON.stringify(job)), "application/json", { key: `characters/${a.mint}/jobs/${requestId}.json` });
       return { ...job, ticket: issueCharacterJobTicket(a.mint, requestId) };

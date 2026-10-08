@@ -460,7 +460,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-semibold text-white">
-                    {token.ticker}
+                    ${token.ticker.replace(/^\$/, "")}
                   </h1>
                   {token.mint && <button
                     type="button"
@@ -585,7 +585,7 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
               </p>
             )}
             <div className="px-4 pt-4 text-xs text-zinc-500">
-              {token.ticker}/USD · {mcap ? "Market cap" : "Price"} · {minutes < 1 ? `${Math.round(minutes * 60)}s` : `${minutes} min`} ·{" "}
+              ${token.ticker.replace(/^\$/, "")}/USD · {mcap ? "Market cap" : "Price"} · {minutes < 1 ? `${Math.round(minutes * 60)}s` : `${minutes} min`} ·{" "}
               {token.network === "paper"
                 ? "Vello paper ledger"
                 : "Confirmed app trades · observed pool prices"}

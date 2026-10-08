@@ -46,7 +46,7 @@ it("shows the builder for an agent without a character and enables Generate afte
   expect(gen.disabled).toBe(false);
   const selector = host.querySelector<HTMLSelectElement>('select[aria-label="Higgsfield model"]')!;
   expect(selector.value).toBe("soul2");
-  expect([...selector.options].map(option => option.value)).toEqual(["soul", "soul2", "qwen"]);
+  expect([...selector.options].map(option => option.value)).toEqual(["soul", "soul2", "nano"]);
   expect(selector.options[2].disabled).toBe(true);
   expect(host.querySelector<HTMLInputElement>('input[aria-label="Upload reference images"]')?.multiple).toBe(true);
 });
@@ -72,10 +72,10 @@ it("asks to mint first when there is no mint address", async () => {
   expect(host.textContent).toContain("Mint your agent");
 });
 
-it("uses Qwen for multiple references and restores Soul after removing them", async () => {
+it("uses Nano Banana Pro for multiple references and restores Soul after removing them", async () => {
   await act(async () => root.render(<CharacterTab onboarding initialCharacter={{version:1,tier:"normal",selection:{gender:["female"]},prompt:"p",model:"soul2",image:{model:"soul2",url:"https://test/image.jpg"},candidates:[],photoUrls:["https://test/one.jpg","https://test/two.jpg"],updatedAt:1}} />));
   const selector = host.querySelector<HTMLSelectElement>('select[aria-label="Higgsfield model"]')!;
-  expect(selector.value).toBe("qwen");
+  expect(selector.value).toBe("nano");
   expect(selector.disabled).toBe(true);
   expect(host.querySelectorAll('img[alt^="Reference"]')).toHaveLength(2);
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Remove reference 2"]')!.click());

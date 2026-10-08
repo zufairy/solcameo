@@ -150,7 +150,8 @@ const ANIMAL_PHRASE: Record<string, (label: string) => string> = {
   facial_hair: (l) => (l.toLowerCase() === "clean" ? "" : `${l.toLowerCase()} whisker styling`),
 };
 
-export function buildPrompt(sel: Selection, tier: Tier, opts: { sheet?: boolean; photo?: boolean; pose?: string } = {}): string {
+/** The selected traits as prose, plus the tier's tone, shared by every prompt builder. */
+function traitSummary(sel: Selection, tier: Tier) {
   const parts: string[] = [];
   const animal = isAnimalTier(tier);
   let species: string | undefined;
@@ -170,11 +171,16 @@ export function buildPrompt(sel: Selection, tier: Tier, opts: { sheet?: boolean;
   }
   const tone = animal ? "expressive, characterful, rich fur, feather or shell texture" : tier === "normal" ? "natural, realistic features" : tier === "freak" ? "bold, striking, exaggerated features" : "extreme, otherworldly, highly exaggerated features";
   const subject = parts.length ? parts.join("; ") : animal ? "" : "a person";
-  if (opts.photo && animal) return `Edit the supplied reference image into one anthropomorphic ${(species ?? ANIMAL_NOUN[tier]).toLowerCase()} character. The selected animal type overrides the reference subject's species: use an animal head and species-appropriate anatomy, never a human wearing an animal costume. Retain recognizable styling, clothing, colors, pose, framing, background, lighting, and visual medium from the reference unless a selected trait changes it. Apply these selected traits: ${subject || "the selected animal type"}. ${tone}. Create one coherent character, no collage or text.`;
+  return { subject, tone, animal, species, parts };
+}
+
+export function buildPrompt(sel: Selection, tier: Tier, opts: { sheet?: boolean; photo?: boolean; pose?: string } = {}): string {
+  const { subject, tone, animal, species } = traitSummary(sel, tier);
+  if (opts.photo && animal) return `Edit the supplied reference image into one anthropomorphic ${(species ?? ANIMAL_NOUN[tier as AnimalTier]).toLowerCase()} character. The selected animal type overrides the reference subject's species: use an animal head and species-appropriate anatomy, never a human wearing an animal costume. Retain recognizable styling, clothing, colors, pose, framing, background, lighting, and visual medium from the reference unless a selected trait changes it. Apply these selected traits: ${subject || "the selected animal type"}. ${tone}. Create one coherent character, no collage or text.`;
   if (opts.photo) return `Edit the supplied reference image in place. Keep the face and identity of the person in the reference photo. Apply ONLY these selected changes: ${subject}. Selected intensity: ${tier === "normal" ? "natural, realistic" : tier === "freak" ? "bold, exaggerated for the selected traits only" : "extreme for the selected traits only"}. Preserve every unselected feature, the same person, facial identity, pose, expression, framing, camera angle, background, clothing, lighting, and visual medium. A selected trait overrides only its corresponding feature; leave everything else unchanged. Do not invent extra traits, replace the subject, restyle the image, create a collage, or add text. Preserve original composition; extend edges only if needed for the requested aspect ratio.`;
   const pose = opts.pose ?? "Front-facing, standing";
   let prompt = animal
-    ? `Full-body character reference portrait of one anthropomorphic ${(species ?? ANIMAL_NOUN[tier]).toLowerCase()} character standing upright on two legs like a person, in clothes${subject ? `: ${subject}` : ""}. ${tone}. ${pose}, studio lighting, clean white backdrop, photorealistic, sharp focus, highly detailed.`
+    ? `Full-body character reference portrait of one anthropomorphic ${(species ?? ANIMAL_NOUN[tier as AnimalTier]).toLowerCase()} character standing upright on two legs like a person, in clothes${subject ? `: ${subject}` : ""}. ${tone}. ${pose}, studio lighting, clean white backdrop, photorealistic, sharp focus, highly detailed.`
     : `Full-body character reference portrait of one person: ${subject}. ${tone}. ${pose}, studio lighting, clean white backdrop, photorealistic, sharp focus, highly detailed.`;
   if (opts.sheet) {
     const plan = referencePlan(sel).options;
@@ -184,7 +190,7 @@ export function buildPrompt(sel: Selection, tier: Tier, opts: { sheet?: boolean;
 }
 
 export const MODELS: { id: CharModel; label: string; blurb: string; endpoint: string; ref: boolean }[] = [
-  { id: "qwen", label: "Qwen Image 3", blurb: "Generate with Qwen through Higgsfield", endpoint: "alibaba/qwen-image-3/text-to-image", ref: false },
+  { id: "nano", label: "Nano Banana Pro", blurb: "Your reference photos plus selected traits, via KIE", endpoint: "kie/nano-banana-pro", ref: true },
   { id: "soul", label: "Soul", blurb: "Photoreal, uses your selection as a visual reference", endpoint: "higgsfield-ai/soul/standard", ref: true },
   { id: "soul2", label: "Soul 2", blurb: "Newest model, prompt-driven", endpoint: "higgsfield-ai/soul/v2/standard", ref: false },
 ];
@@ -200,3 +206,37 @@ export const POSES = [
   "Hands in pockets, relaxed slouch, head tilted",
   "Low three-quarter angle looking up at the camera, one arm raised in a wave",
 ];
+
+/** One shared look per batch: every take uses the same backdrop, light and lens, and only the pose changes. */
+export const TEMPLATES = [
+  "seamless warm light-grey studio backdrop, soft front-left key light with a subtle rim light, 85mm lens, neutral colour grade",
+  "clean white cyclorama studio, bright even softbox light, 85mm lens, crisp neutral colour grade",
+  "deep charcoal studio backdrop, soft side key light with gentle fill, 85mm lens, cinematic colour grade",
+  "seamless pastel peach studio backdrop, soft diffused light, 85mm lens, warm clean colour grade",
+  "seamless cool blue-grey studio backdrop, soft top-left key light, 85mm lens, cool clean colour grade",
+];
+
+/**
+ * Prompt for a portrait made from the user's reference photos. The selected traits are hard requirements, the photos
+ * only supply identity, and the whole batch shares one template so the results read as a set of different poses of
+ * the same concept rather than copies of the upload.
+ */
+export function buildTemplatePrompt(sel: Selection, tier: Tier, opts: { pose: string; template: string; photo: boolean; brief?: string }): string {
+  const { subject, tone, animal, species } = traitSummary(sel, tier);
+  const noun = animal ? `one anthropomorphic ${(species ?? ANIMAL_NOUN[tier as AnimalTier]).toLowerCase()} character standing upright on two legs like a person, in clothes` : "one person";
+  const lines = [
+    `Create ${noun} as a full-body character portrait, head to toe in frame with comfortable headroom, subject centred. One subject only.`,
+    opts.brief ? `Style direction: ${opts.brief}` : "",
+    `SET TEMPLATE (identical for every image in this set): ${opts.template}.`,
+    `POSE FOR THIS IMAGE: ${opts.pose}.`,
+    subject ? `CHARACTER, every item must be clearly visible exactly as written, none dropped, swapped or softened: ${subject}.` : "",
+    `Style: ${tone}.`,
+    opts.photo
+      ? (animal
+        ? "The attached reference photo(s) are inspiration only: take their overall vibe, colour palette and personality. The selected animal type always wins, so use an animal head and species-appropriate anatomy, never a human in an animal costume. Do not reuse the reference pose, framing, background, lighting or clothing."
+        : "The attached reference photo(s) supply IDENTITY only: keep the same face, facial structure, skin tone and apparent age so the result is clearly the same person. Do NOT reuse the reference pose, framing, camera angle, background, lighting, expression or clothing. Build a brand-new image. Wherever a selected trait differs from the reference (hair, outfit, accessories, features), the selected trait wins.")
+      : "",
+    "Photorealistic, sharp focus, highly detailed. No collage, grid, text, logo or watermark. No extra people, extra limbs or cropped feet.",
+  ];
+  return lines.filter(Boolean).join(" ");
+}
