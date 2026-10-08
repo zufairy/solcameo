@@ -32,7 +32,7 @@ const NONE = "__none__";
 function NoInfluencerOption() {
   return (
     <span className="flex items-center gap-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-[10px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
+      <span className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-white/15 bg-white/[0.06]"><UserRound className="size-4 text-white/70" /></span>
       <span className="min-w-0 text-left"><span className="block text-sm font-semibold">No influencer</span><span className="block text-[11px] text-zinc-500">Pay from your wallet</span></span>
     </span>
   );
@@ -95,6 +95,7 @@ export function CreateVideos() {
 
   // The paying wallet, read live so the balance is never stale.
   const wallet = agent?.agentWallet ?? undefined;
+  const [unit, setUnit] = useState<"usdc" | "sol">("usdc");
   const [funds, setFunds] = useState<{ usdc: number; sol: number } | null>(null);
   useEffect(() => {
     if (!wallet) { setFunds(null); return; } // eslint-disable-line react-hooks/set-state-in-effect
@@ -237,20 +238,20 @@ export function CreateVideos() {
             <label className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               Influencer
               <Select value={noInfluencer ? NONE : cameo ? cameo.mintAddress : mint} onValueChange={(v) => { setPicked(v ?? ""); setEngineOverride(null); paidSig.current = undefined; reset(); }}>
-                <SelectTrigger aria-label="Agent" className="mt-1.5 h-12 w-full rounded-2xl border-white/10 bg-white/5 px-2.5 text-white">
+                <SelectTrigger aria-label="Agent" className="mt-1.5 h-[68px] w-full rounded-2xl border-white/10 bg-white/5 px-3 text-white">
                   <SelectValue placeholder={agents === undefined ? "Loading…" : "Choose an influencer"}>
-                    {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = others.find((x) => x.mintAddress === value); if (o) return <AgentOption name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents?.find((x) => x.mintAddress === value); return a ? <AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
+                    {(value: string | null) => { if (value === NONE) return <NoInfluencerOption />; const o = others.find((x) => x.mintAddress === value); if (o) return <AgentOption large name={o.name} ticker={o.ticker} avatarUrl={o.avatarUrl} />; const a = agents?.find((x) => x.mintAddress === value); return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
-                  <SelectItem value={NONE} className="min-h-14 py-1.5 pl-2"><NoInfluencerOption /></SelectItem>
+                  <SelectItem value={NONE} className="min-h-[68px] py-2 pl-2"><NoInfluencerOption /></SelectItem>
                   {!!agents?.length && <SelectGroup><SelectLabel className="px-2 pt-1 text-[11px] text-zinc-500">Yours · paid from the agent&apos;s wallet</SelectLabel>
                     {agents.map((a) => (
-                      <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
+                      <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>
                     ))}</SelectGroup>}
                   {others.length > 0 && <SelectGroup><SelectLabel className="px-2 pt-2 text-[11px] text-zinc-500">Anyone else · you pay from your wallet</SelectLabel>
                     {others.map((a) => (
-                      <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-14 py-1.5 pl-2"><AgentOption name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
+                      <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.ticker} avatarUrl={a.avatarUrl} /></SelectItem>
                     ))}</SelectGroup>}
                 </SelectContent>
               </Select>
@@ -266,13 +267,18 @@ export function CreateVideos() {
               <div className="text-right">
                 <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">Wallet</p>
                 <p className="mt-0.5 flex items-center justify-end gap-1.5 text-[15px] font-semibold tabular-nums text-white">
-                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />{funds ? `$${funds.usdc.toFixed(2)}` : "···"}
+                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />{funds ? (unit === "sol" ? `${funds.sol.toFixed(3)} SOL` : `$${funds.usdc.toFixed(2)}`) : "···"}
                   <button type="button" onClick={() => setFundOpen(true)}
                     className="ml-1.5 inline-flex h-7 items-center gap-1 rounded-full border border-white/25 bg-white/[0.09] px-2.5 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(255,255,255,0.04),0_8px_22px_-10px_rgba(215,255,0,0.45)] backdrop-blur-xl transition-all hover:border-[#d7ff00]/50 hover:bg-white/[0.15] active:scale-95 focus-visible:outline-2 focus-visible:outline-[#d7ff00]">
                     <span className="grid size-3.5 place-items-center rounded-full bg-[#d7ff00] text-black"><Plus className="size-2.5" strokeWidth={3} /></span>Fund
                   </button>
                 </p>
-                {funds && funds.sol > 0 && <p className="text-[10.5px] tabular-nums text-zinc-500">+ {funds.sol.toFixed(3)} SOL, swapped to USDC when needed</p>}
+                <span role="group" aria-label="Wallet currency" className="mt-1.5 inline-flex rounded-[6px] border border-white/[0.14] bg-white/[0.05] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl">
+                  {(["usdc", "sol"] as const).map((u) => (
+                    <button key={u} type="button" aria-pressed={unit === u} onClick={() => setUnit(u)}
+                      className={`h-6 rounded-[4px] px-2.5 text-[10.5px] font-semibold uppercase tracking-wide transition-all active:scale-95 ${unit === u ? "bg-gradient-to-b from-white/[0.28] to-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]" : "text-zinc-500 hover:text-zinc-200"}`}>{u}</button>
+                  ))}
+                </span>
               </div>
             )}
           </div>
