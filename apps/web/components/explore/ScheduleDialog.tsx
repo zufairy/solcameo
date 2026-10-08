@@ -159,11 +159,11 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
                   <motion.div key="form" initial={false} className="space-y-5">
                     <label className="block text-xs text-zinc-400">Your influencer
                       <Select value={mint} onValueChange={(v) => setMint(v ?? "")}>
-                        <SelectTrigger aria-label="Your influencer" className="mt-1.5 h-[68px] w-full border-white/10 bg-white/5 px-2.5 text-white">
-                          <SelectValue placeholder="Choose an influencer">{(value: string | null) => { const a = agents?.find((x) => x.mintAddress === value); return a ? <AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}</SelectValue>
+                        <SelectTrigger size="auto" aria-label="Your influencer" className="mt-1.5 min-h-[96px] w-full border-white/10 bg-white/5 px-2.5 text-white">
+                          <SelectValue placeholder="Choose an influencer">{(value: string | null) => { const a = agents?.find((x) => x.mintAddress === value); return a ? <AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /> : "Choose an influencer"; }}</SelectValue>
                         </SelectTrigger>
                         <SelectContent alignItemWithTrigger={false} sideOffset={8} className="max-h-[min(22rem,var(--available-height))] border-white/10 bg-[#17191d] p-1.5 text-white">
-                          {agents?.map((a) => <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[68px] py-2 pl-2"><AgentOption large name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>)}
+                          {agents?.map((a) => <SelectItem key={a.mintAddress} value={a.mintAddress} className="min-h-[96px] py-3.5 pl-2.5"><AgentOption xl name={a.name} ticker={a.coinTicker} avatarUrl={a.avatarUrl} /></SelectItem>)}
                         </SelectContent>
                       </Select>
                     </label>
