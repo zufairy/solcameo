@@ -25,6 +25,14 @@ function adminEmailSet(): Set<string> {
   return new Set<string>([...OWNER_EMAILS.map((e) => e.toLowerCase()), ...env]);
 }
 
+/** Wallets that are admins. A verified sign-in whose wallet is listed here (or in ADMIN_SEED_WALLETS) is promoted, so
+ *  an owner who logs in with a wallet instead of an email still gets in. */
+const OWNER_WALLETS = ["ABiPJkc3oZACHgnLdAR6UYjXCHjnSG7ueaimZGy3DUMa"];
+function adminWalletSet(): Set<string> {
+  const env = (process.env.ADMIN_SEED_WALLETS ?? "").split(",").map((w) => w.trim()).filter(Boolean);
+  return new Set<string>([...OWNER_WALLETS, ...env]);
+}
+
 /* ── Internal DB ops (no auth — only called by verified actions) ─────────── */
 
 export const getBySupabaseId = internalQuery({
@@ -47,6 +55,14 @@ export const getById = internalQuery({
  *  (e.g. an attacker probing it) become admin. */
 /** How often an unchanged signed-in user may rewrite their presence rows. */
 const PRESENCE_WRITE_MS = 2 * 60_000;
+
+export const grantAdmin = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    if (user && user.isAdmin !== true) await ctx.db.patch(userId, { isAdmin: true });
+  },
+});
 
 export const upsertFromSupabase = internalMutation({
   args: {
@@ -351,6 +367,8 @@ export const whoami = action({
     // auto-link it so it shows as a linked wallet on the account.
     const { walletAddress, ...profile } = await verifyToken(accessToken);
     const userId = await ctx.runMutation(internal.users.upsertFromSupabase, profile);
+    // The wallet comes from the verified token, never the client, so an allowlisted wallet is a trusted admin signal.
+    if (walletAddress && adminWalletSet().has(walletAddress)) await ctx.runMutation(internal.users.grantAdmin, { userId });
     const user = await ctx.runQuery(internal.users.getById, { userId });
     if (!user) return null;
     if (walletAddress) {
