@@ -59,3 +59,20 @@ it.each(["insects", "frogs", "cats", "dogs", "capybaras", "birds"])("generates %
   expect(mocks.soul.mock.calls[0][0]).toBe("higgsfield-ai/soul/v2/standard");
   expect(mocks.soul.mock.calls[0][1].prompt).toContain("anthropomorphic");
 });
+it("falls back to Soul with the upload as its reference when the editing model fails to start", async () => {
+  const { HfError } = await import("@/lib/server/higgsfield");
+  const image = "https://images.test/characters/draft-owner/photo/reference.jpg";
+  mocks.edit.mockRejectedValue(Object.assign(new HfError("upstream down", 502, "upstream"), { code: "upstream", status: 502 }));
+  mocks.soul.mockResolvedValue("soul-job");
+  const res = await POST(request({ photoUrl: image }));
+  expect(res.status).toBe(200);
+  expect((await res.json()).jobs[0]).toMatchObject({ model: "soul", requestId: "soul-job" });
+  expect(mocks.soul.mock.calls[0][1]).toMatchObject({ image_reference_url: image });
+});
+it("does not fall back when the failure is credits, so the run is refunded and reported", async () => {
+  const { HfError } = await import("@/lib/server/higgsfield");
+  mocks.edit.mockRejectedValue(Object.assign(new HfError("no credits", 402, "credits"), { code: "credits", status: 402 }));
+  const res = await POST(request({ photoUrl: "https://images.test/characters/draft-owner/photo/reference.jpg" }));
+  expect(res.status).toBe(402);
+  expect(mocks.soul).not.toHaveBeenCalled();
+});

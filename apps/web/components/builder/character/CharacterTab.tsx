@@ -203,7 +203,7 @@ export function CharacterTab({ mintAddress, agentName, onboarding = false, onCha
     if (!canGenerate) { onNeedLogin?.(); return; }
     if ((!mintAddress && !onboarding) || !ready || generating || uploading) return;
     setError(null);
-    // Free allowance first, then a $0.50 USDC transfer from the account wallet to Solcameo. Null = top-up popup is open.
+    // Free allowance first, then a $0.10 USDC transfer from the account wallet to Solcameo. Null = top-up popup is open.
     const payment = await billing.prepare(count);
     if (!payment) return;
     const id = ++runId.current;

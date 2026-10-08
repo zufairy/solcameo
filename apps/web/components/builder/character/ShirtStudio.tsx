@@ -87,7 +87,7 @@ function Studio({ tile, mintAddress, draft, billing, onClose, onResult, onUse }:
   async function run() {
     if (!ready || phase === "working" || billing.paying) return;
     setError("");
-    // One run id per click: engine fallbacks reuse it, so the free image or the $0.50 is only taken once.
+    // One run id per click: engine fallbacks reuse it, so the free image or the $0.10 is only taken once.
     const runId = crypto.randomUUID();
     const payment = await billing.prepare(1);
     if (!payment) return;

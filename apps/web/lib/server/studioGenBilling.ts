@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { requireAuth, getUserWallet, walletBelongsToUser, type AuthUser } from "./requireAuth";
 import { dbcTreasury } from "./dbcTreasury";
 import { generationCollectionWallet } from "./generationCollectionWallet";
-import { verifyUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
+import { waitForUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
 import { getUsdcMint } from "@/lib/solana/network";
 import { STUDIO_IMAGE_USD, studioCostUsd } from "@/lib/studio/pricing";
 
@@ -31,7 +31,6 @@ export async function studioQuota(user: AuthUser) {
 export type StudioReserve = { error: NextResponse; refund?: never } | { error?: never; refund: () => Promise<void> };
 
 const fail = (error: string, status: number, extra: Record<string, unknown> = {}) => NextResponse.json({ error, ...extra }, { status });
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 /**
  * Cover `runIds` (one per image): free allowance when `useFree`, then refunded credits, then the on-chain
@@ -55,11 +54,8 @@ export async function reserveStudioImages(req: NextRequest, args: { runIds: stri
       if (!signature) return { error: fail(`Pay $${owed.toFixed(2)} USDC from your wallet to generate.`, 402, { code: "payment_required", owedUsd: owed, images: r.needPaid, treasury }) };
       if (!/^[1-9A-HJ-NP-Za-km-z]{60,100}$/.test(signature)) return { error: fail("Invalid payment signature", 400) };
       if (!walletBelongsToUser(auth.user, payer)) return { error: fail("Pay from a wallet linked to your account.", 403) };
-      let verified = false;
-      for (let attempt = 0; attempt < 4 && !verified; attempt++) {
-        try { await verifyUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: owed, expectedSender: payer }); verified = true; }
-        catch (e) { if (attempt === 3) return { error: fail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this generation." : "We could not confirm your payment on-chain yet. Retry in a moment, you will not be charged twice.", 402, { code: "payment_unconfirmed" }) }; await sleep(1200); }
-      }
+      try { await waitForUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: owed, expectedSender: payer }); }
+      catch (e) { return { error: fail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this generation." : "We could not confirm your payment on-chain yet. Retry in a moment, you will not be charged twice.", 402, { code: "payment_unconfirmed" }) }; }
       r = await convex().mutation(api.studioGen.reserve, { ...base, txSignature: signature });
       if (!r.ok) return { error: fail("Payment could not be applied.", 402, { code: "payment_unconfirmed" }) };
     }

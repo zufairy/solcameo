@@ -1,3 +1,4 @@
+import { isGiphyUrl } from "../lib/solstar/calloutMedia";
 import { v } from "convex/values";
 import {
   query,
@@ -44,6 +45,8 @@ export const post = mutation({
     author: v.string(),
     body: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    /** A GIPHY GIF picked in the chat; validated here and stored like an image. */
+    gifUrl: v.optional(v.string()),
     authorImage: v.optional(v.string()),
     authSecret: v.string(),
   },
@@ -53,7 +56,7 @@ export const post = mutation({
     if (character?.status !== "approved")
       throw new Error("character_not_found");
     const body = a.body.trim().replace(/[\u0000-\u0008]/g, "");
-    if ((!body && !a.imageStorageId) || body.length > 1000)
+    if ((!body && !a.imageStorageId && !a.gifUrl) || body.length > 1000)
       throw new Error("invalid_body");
     let imageUrl: string | undefined;
     if (a.imageStorageId) {
@@ -62,11 +65,15 @@ export const post = mutation({
         !file ||
         file.size <= 0 ||
         file.size > 5 * 1024 * 1024 ||
-        !["image/png", "image/jpeg", "image/webp"].includes(file.contentType ?? "")
+        !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.contentType ?? "")
       )
         throw new Error("invalid_image");
       imageUrl = (await ctx.storage.getUrl(a.imageStorageId)) ?? undefined;
       if (!imageUrl) throw new Error("invalid_image");
+    }
+    if (a.gifUrl) {
+      if (a.imageStorageId || a.gifUrl.length > 2048 || !isGiphyUrl(a.gifUrl)) throw new Error("invalid_image");
+      imageUrl = a.gifUrl;
     }
     const recent = await ctx.db
       .query("ssCommunityMessages")

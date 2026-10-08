@@ -3,7 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { getUserWallet, requireAuth, walletBelongsToUser, type AuthUser } from "./requireAuth";
 import { studioTreasury } from "./studioGenBilling";
-import { verifyUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
+import { waitForUsdcDeposit } from "@/lib/trader/verifyUsdcDeposit";
 import { getUsdcMint } from "@/lib/solana/network";
 
 /**
@@ -38,14 +38,8 @@ export async function requireWalletPayment(req: NextRequest, args: { owed: numbe
   const convex = new ConvexHttpClient(url);
   const account = getUserWallet(auth.user) ?? `user:${auth.user.id}`;
 
-  let verified = false;
-  for (let attempt = 0; attempt < 4 && !verified; attempt++) {
-    try { await verifyUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: args.owed, expectedSender: payer }); verified = true; }
-    catch (e) {
-      if (attempt === 3) return { error: walletFail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this video." : "We could not confirm your payment yet. Try again in a moment.", 402, { code: "payment_unconfirmed" }) };
-      await new Promise((r) => setTimeout(r, 1200));
-    }
-  }
+  try { await waitForUsdcDeposit({ txSignature: signature, escrowOwner: treasury, usdcMint: process.env.NEXT_PUBLIC_USDC_MINT || getUsdcMint(), minAmountUsdc: args.owed, expectedSender: payer }); }
+  catch (e) { return { error: walletFail(e instanceof Error && /funded|credited/.test(e.message) ? "That payment does not match this video." : "We could not confirm your payment yet. Try again in a moment.", 402, { code: "payment_unconfirmed" }) }; }
   try {
     const claim = await convex.mutation(api.describeVideo.claim, { authSecret: secret, account, txSignature: signature, amountUsd: args.owed });
     return { user: auth.user, account, payer, signature, convex, secret, claim };

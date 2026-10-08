@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const batch = randomUUID();
   const walletFunded = body.draft !== true;
   const billingRuns = Array.from({ length: count }, (_, index) => `character:${batch}:${index}`);
-  // Onboarding (draft) generations are paid by the signed-in account: free allowance first, then $0.50 per image.
+  // Onboarding (draft) generations are paid by the signed-in account: free allowance first, then $0.10 per image.
   if (!walletFunded) {
     const studio = await reserveStudioImages(req, { runIds: billingRuns, fresh: true, useFree: body.useFree !== false, paymentSignature: body.paymentSignature, payer: body.payer });
     if (studio.error) return studio.error;
@@ -65,9 +65,19 @@ export async function POST(req: NextRequest) {
       try {
       const key = `${a.mint}:${batch}:${index}`.slice(0,120);
       const prompt = promptFor(index);
-      const requestId = hasReferences ? await submitReferenceEdit(prompt, photoUrls, ratio, key) : await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
+      let usedModel: "reference" | "soul" | "soul2" = hasReferences ? "reference" : model;
+      let requestId: string;
+      if (hasReferences) {
+        try { requestId = await submitReferenceEdit(prompt, photoUrls, ratio, key); }
+        catch (error) {
+          // The editing model refused or failed to start: fall back to Soul with the upload as its reference instead of failing the run.
+          if (!(error instanceof HfError) || error.code === "credits" || error.code === "auth") throw error;
+          requestId = await submitImage("higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1, image_reference_url: photoUrls[0] }, `${key}:soul`.slice(0, 120));
+          usedModel = "soul";
+        }
+      } else requestId = await submitImage(model === "soul2" ? "higgsfield-ai/soul/v2/standard" : "higgsfield-ai/soul/standard", { prompt, aspect_ratio: ratio, resolution: "720p", batch_size: 1 }, key);
       accepted = true;
-      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, model: hasReferences ? "reference" as const : model, requestId, count: 1, ratio, createdAt: Date.now() };
+      const job = { billingRunId: walletFunded ? billingRunId : undefined, studioRunId: walletFunded ? undefined : billingRunId, model: usedModel, requestId, count: 1, ratio, createdAt: Date.now() };
       // Register every accepted job before returning: refresh recovery does not depend on browser memory.
       await putImage(Buffer.from(JSON.stringify(job)), "application/json", { key: `characters/${a.mint}/jobs/${requestId}.json` });
       return { ...job, ticket: issueCharacterJobTicket(a.mint, requestId) };

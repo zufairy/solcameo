@@ -6,7 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { ArrowUp, Loader2, Clapperboard, ImagePlus, MessageSquare, X, ChevronDown } from "lucide-react";
+import { ArrowUp, Loader2, Clapperboard, ImagePlus, Smile, MessageSquare, X, ChevronDown } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -14,8 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BrandAvatar } from "@/components/brand/BrandAvatar";
+import { ChatGifPicker, type ChatGif } from "./ChatGifPicker";
 
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Full-screen image viewer: blurred backdrop, spring-in image, Esc or click to close. */
@@ -108,6 +109,8 @@ export function MarketCharacterChat({
   const [error, setError] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [gif, setGif] = useState<ChatGif | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
   const [zoomed, setZoomed] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -133,7 +136,7 @@ export function MarketCharacterChat({
   function attach(next: File | null | undefined) {
     if (!next) return;
     if (!IMAGE_TYPES.includes(next.type)) {
-      setError("Use a PNG, JPEG or WebP image.");
+      setError("Use a PNG, JPEG, WebP or GIF image.");
       return;
     }
     if (next.size > IMAGE_MAX_BYTES) {
@@ -141,6 +144,7 @@ export function MarketCharacterChat({
       return;
     }
     setError("");
+    setGif(null);
     setFile(next);
     textarea.current?.focus();
   }
@@ -202,7 +206,7 @@ export function MarketCharacterChat({
       login();
       return;
     }
-    if ((!input.trim() && !file) || busy) return;
+    if ((!input.trim() && !file && !gif) || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -234,12 +238,15 @@ export function MarketCharacterChat({
           characterId,
           message: input.trim(),
           ...(imageStorageId ? { imageStorageId } : {}),
+          ...(gif ? { gifUrl: gif.url } : {}),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setInput("");
       setFile(null);
+      setGif(null);
+      setGifOpen(false);
       if (fileInput.current) fileInput.current.value = "";
       follow.current = true;
     } catch (e) {
@@ -364,7 +371,7 @@ export function MarketCharacterChat({
                             src={m.imageUrl}
                             alt="Shared in chat"
                             loading="lazy"
-                            className="max-h-56 w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
+                            className={`max-h-56 w-full transition-transform duration-300 ${/giphy\.com/.test(m.imageUrl) ? "object-contain" : "object-cover hover:scale-[1.03]"}`}
                           />
                         </button>
                       )}
@@ -431,8 +438,16 @@ export function MarketCharacterChat({
           setDragging(false);
           attach(e.dataTransfer.files[0]);
         }}
-        className="shrink-0 border-t border-white/10"
+        className="relative shrink-0 border-t border-white/10"
       >
+        <AnimatePresence>
+          {gifOpen && (
+            <ChatGifPicker
+              onPick={(picked) => { setGif(picked); setFile(null); if (fileInput.current) fileInput.current.value = ""; setGifOpen(false); setError(""); textarea.current?.focus(); }}
+              onClose={() => setGifOpen(false)}
+            />
+          )}
+        </AnimatePresence>
         {error && (
           <p role="alert" className="bg-red-500/10 px-3 py-2 text-xs text-red-300">
             {error}
@@ -442,7 +457,7 @@ export function MarketCharacterChat({
           className={`rounded-none border-0 bg-[#0e0f11] shadow-none transition-colors dark:bg-[#0e0f11] ${dragging ? "bg-[#d7ff00]/5 ring-1 ring-inset ring-[#d7ff00]/50" : ""}`}
         >
           <AnimatePresence initial={false}>
-            {preview && (
+            {(preview || gif) && (
               <InputGroupAddon align="block-start" className="p-0">
                 <motion.div
                   initial={reduced ? false : { opacity: 0, height: 0 }}
@@ -452,12 +467,13 @@ export function MarketCharacterChat({
                 >
                   <div className="relative m-2.5 mb-0 w-fit">
                     {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
-                    <img src={preview} alt="Attached image" className="h-20 rounded-[10px] object-cover ring-1 ring-white/10" />
+                    <img src={gif?.url ?? preview ?? ""} alt={gif ? gif.alt : "Attached image"} className="h-20 rounded-[10px] object-cover ring-1 ring-white/10" />
                     <button
                       type="button"
-                      aria-label="Remove image"
+                      aria-label={gif ? "Remove GIF" : "Remove image"}
                       onClick={() => {
                         setFile(null);
+                        setGif(null);
                         if (fileInput.current) fileInput.current.value = "";
                       }}
                       className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-zinc-300 ring-1 ring-white/20 hover:text-white"
@@ -515,7 +531,24 @@ export function MarketCharacterChat({
               >
                 <ImagePlus />
               </TooltipTrigger>
-              <TooltipContent>Attach image · PNG, JPEG or WebP</TooltipContent>
+              <TooltipContent>Attach image · PNG, JPEG, WebP or GIF</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <InputGroupButton
+                    aria-label="Add GIF"
+                    aria-expanded={gifOpen}
+                    size="xs"
+                    disabled={busy}
+                    onClick={() => (authenticated ? setGifOpen((o) => !o) : login())}
+                    className={`gap-1 px-1.5 text-[10px] font-extrabold tracking-wide ${gifOpen ? "bg-white/10 text-[#d7ff00]" : "text-zinc-400 hover:text-white"}`}
+                  />
+                }
+              >
+                <Smile className="size-3.5" />GIF
+              </TooltipTrigger>
+              <TooltipContent>Add a GIF</TooltipContent>
             </Tooltip>
             <span className="ml-1 text-[10px] tabular-nums text-zinc-600">{input.length > 800 ? `${1000 - input.length} left` : "Enter to send"}</span>
             <InputGroupButton
@@ -523,7 +556,7 @@ export function MarketCharacterChat({
               aria-label={authenticated ? "Send message" : "Sign in"}
               variant="default"
               size="icon-xs"
-              disabled={busy || (authenticated && !input.trim() && !file)}
+              disabled={busy || (authenticated && !input.trim() && !file && !gif)}
               onClick={authenticated ? undefined : login}
               className="ml-auto size-7 rounded-[6px] bg-[#d7ff00] text-black hover:bg-[#e4ff59] disabled:bg-white/10 disabled:text-zinc-500"
             >

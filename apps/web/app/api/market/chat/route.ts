@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/solstarRoute";
 import type { Id } from "@/convex/_generated/dataModel";
 import { createHash } from "node:crypto";
+import { isGiphyUrl } from "@/lib/solstar/calloutMedia";
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth.error) return auth.error;
@@ -19,17 +20,20 @@ export async function POST(req: NextRequest) {
     characterId?: string;
     message?: string;
     imageStorageId?: string;
+    gifUrl?: string;
   } | null;
   if (
     !isConvexIdString(body?.characterId) ||
     typeof body?.message !== "string" ||
-    (!body.message.trim() && !body.imageStorageId) ||
+    (!body.message.trim() && !body.imageStorageId && !body.gifUrl) ||
     body.message.length > 1000 ||
     (body.imageStorageId !== undefined &&
-      !isConvexIdString(body.imageStorageId))
+      !isConvexIdString(body.imageStorageId)) ||
+    (body.gifUrl !== undefined &&
+      (typeof body.gifUrl !== "string" || !isGiphyUrl(body.gifUrl)))
   )
     return NextResponse.json(
-      { error: "Write a message of up to 1,000 characters, or attach an image." },
+      { error: "Write a message of up to 1,000 characters, or attach an image or GIF." },
       { status: 400 },
     );
   const secret = internalSecret();
@@ -52,6 +56,7 @@ export async function POST(req: NextRequest) {
       ...(body.imageStorageId
         ? { imageStorageId: body.imageStorageId as Id<"_storage"> }
         : {}),
+      ...(body.gifUrl ? { gifUrl: body.gifUrl } : {}),
       author: `Fan ${createHash("sha256").update(auth.user.id).digest("hex").slice(0, 8)}`,
       authSecret: secret,
     });

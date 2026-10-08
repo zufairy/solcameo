@@ -1,5 +1,7 @@
-import type { Connection } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { getRpcConnection } from "./usdcTransfer";
+import { rpcCandidates } from "@/lib/solana/rpc";
+import { getNetwork } from "@/lib/solana/network";
 
 /** Verify (on devnet/mainnet) that `txSignature` is a confirmed tx that increased
  *  the USDC token balance OWNED BY `escrowOwner` by at least `minAmountUsdc`.
@@ -56,4 +58,34 @@ export async function verifyUsdcDeposit(opts: {
   }
 
   return { creditedUsdc: credited };
+}
+
+type DepositCheck = Parameters<typeof verifyUsdcDeposit>[0];
+
+/** The cluster saw the transaction and it does not pay what is owed, so waiting longer cannot change the answer. */
+const isDefinitive = (e: unknown) => e instanceof Error && /failed on-chain|credited|funded by/.test(e.message);
+
+/**
+ * Wait for a just-sent payment to be confirmed and verify it. A payment the wallet confirmed seconds ago may not have reached
+ * every RPC node yet, so each round asks all configured endpoints at once (first good answer wins) and a short pause
+ * separates rounds, up to `maxMs`. A transaction that is on-chain but does not match is rejected immediately.
+ */
+export async function waitForUsdcDeposit(opts: Omit<DepositCheck, "connection">, { maxMs = 25_000, urls }: { maxMs?: number; urls?: string[] } = {}): Promise<{ creditedUsdc: number }> {
+  const start = Date.now();
+  const endpoints = urls ?? rpcCandidates(getNetwork());
+  let pause = 350;
+  let last: unknown;
+  for (;;) {
+    try {
+      return await Promise.any(endpoints.map((url) => verifyUsdcDeposit({ ...opts, connection: new Connection(url, "confirmed") })));
+    } catch (e) {
+      const errors = e instanceof AggregateError ? (e.errors as unknown[]) : [e];
+      const definitive = errors.find(isDefinitive);
+      if (definitive) throw definitive;
+      last = errors[0] ?? e;
+    }
+    if (Date.now() - start + pause > maxMs) throw last instanceof Error ? last : new Error("deposit tx not found / not confirmed");
+    await new Promise((r) => setTimeout(r, pause));
+    pause = Math.min(Math.round(pause * 1.4), 1500);
+  }
 }
