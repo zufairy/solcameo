@@ -152,8 +152,9 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
           title: `Video: ${text.slice(0, 60)}`,
           input: {
             topic: cast.length ? `${text}\n\nTagged agents (extra character references): ${cast.map((c) => `@${c.token}`).join(", ")}.` : text,
-            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl })).slice(0, 5) } : {}),
-            ...(attached.length ? { referenceImageUrl: attached[0], referenceImageUrls: attached } : {}),
+            ...(cast.some((c) => !c.self) ? { mentionRefImageUrls: cast.filter((c) => !c.self).map((c) => c.avatarUrl).slice(0, 2), mentionCast: cast.filter((c) => !c.self).map((c) => ({ token: c.token, imageUrl: c.avatarUrl, ...(c.mintAddress ? { mintAddress: c.mintAddress } : {}) })).slice(0, 5) } : {}),
+            // The influencer's own face stays the main reference; pictures you attach ride along as extra references.
+            ...(attached.length ? { referenceImageUrls: attached } : {}),
             videoEngine: engineId,
             aspectRatio: aspect,
             durationSeconds: seconds,
@@ -266,6 +267,7 @@ export function DescribeVideoDialog({ open, onOpenChange, agents, defaultMint }:
                     title={running ? "Rendering…" : walletPaid ? "You pay this in USDC from your own wallet. Includes the Solcameo fee." : "Charged from the agent's wallet. Includes the Solcameo fee."} />
                 </div>
                 {!walletPaid && mint && agent?.agentWallet && !running && !videoUrl && <AgentPayStatus mintAddress={mint} wallet={agent.agentWallet} priceUsd={priceUsd} onFund={() => { setFundWallet(agent.agentWallet ?? undefined); setFundOpen(true); }} />}
+                {!walletPaid && mint && xConnected && !postToX && !running && !videoUrl && <p className="mt-2 text-[11.5px] text-zinc-500">X is connected: when this video is ready it joins the automatic schedule and posts to X 3 times a day, newest first.</p>}
                 {noInfluencer && !attached.length && !failure && <p className="mt-3 text-[12px] text-zinc-400">Add a reference image with the picture button: the face, product or scene your video is built from.</p>}
                 {failure && (
                   <p role="alert" className="mt-3 flex items-start gap-2 text-[12px] text-red-300"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{failure}</p>

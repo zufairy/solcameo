@@ -54,7 +54,7 @@ export async function buildFundSwapTransaction(args: { payer: PublicKey; agentWa
     method: "POST", headers: { "Content-Type": "application/json", ...headers() }, signal: AbortSignal.timeout(12_000), cache: "no-store",
     body: JSON.stringify({
       quoteResponse: quote, userPublicKey: args.payer.toBase58(), destinationTokenAccount: agentAta.toBase58(), wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true,
-      prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 300_000, priorityLevel: "high" } },
+      prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 100_000, priorityLevel: "high" } },
     }),
   });
   const built = (await res.json().catch(() => ({}))) as {

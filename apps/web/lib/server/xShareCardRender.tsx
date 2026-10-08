@@ -9,11 +9,11 @@
    are arranged around it:
      MEMBER    triptych  clip · data · clip          10px mono, dot grid
      SILVER    deck      3D stack · data · clip       8px cool duotone, double frame
-     GOLD      the VELLO MEMBERSHIP physical card as a three-card hand — MEMBER
+     GOLD      the SOLCAMEO MEMBERSHIP physical card as a three-card hand — MEMBER
                and SILVER fanned behind the gold card — xShareDesigns/membershipCard
-     PLATINUM  the first VELLO MEMBERSHIP physical card with its original
+     PLATINUM  the first SOLCAMEO MEMBERSHIP physical card with its original
                animation — xShareDesigns/membershipCard
-     BLACK     the premium VELLO BLACK card: black + gold foil, crest rings,
+     BLACK     the premium SOLCAMEO BLACK card: black + gold foil, crest rings,
                sweeping foil sheen — xShareDesigns/blackCard
 
    Cost model (why this is cheap): satori lays out the text ONCE per card.
@@ -23,6 +23,7 @@
    and the whole loop is encoded in one go from a raw strip. Stats come from
    Convex, never the client, so a card can't claim views an agent lacks. */
 
+import { LOGO_FILE as BRAND_LOGO, LOGO_CUT } from "@/lib/server/brandLogo";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import satori from "satori";
@@ -52,7 +53,7 @@ export interface ShareAgentData {
   look?: "graphite" | "silver";
   /** Cinzel serif title across the top of the card (replaces any badge). */
   headline?: string;
-  /** Replaces the "MEMBER · VELLO ACCESS" eyebrow above the counter. */
+  /** Replaces the "MEMBER · SOLCAMEO ACCESS" eyebrow above the counter. */
   eyebrow?: string;
 }
 
@@ -262,7 +263,7 @@ const SOCIAL_PATHS: Record<string, string> = {
 };
 
 /** The live brand logo — the same file the app header renders. */
-const LOGO_FILE = join(process.cwd(), "assets", "lo.png");
+const LOGO_FILE = BRAND_LOGO;
 /** Brand lime, sampled from the logo mark. */
 const BRAND_LIME = "#C8F02A";
 
@@ -282,8 +283,8 @@ function loadAssets(): Promise<Assets> {
       readFile(LOGO_FILE),
     ]);
     const lw = (await sharp(logoSrc).metadata()).width ?? 1000;
-    const mark = { left: 0, width: Math.round(lw * 0.235) };
-    const word = { left: Math.round(lw * 0.235), width: lw - Math.round(lw * 0.235) };
+    const mark = { left: 0, width: Math.round(lw * LOGO_CUT) };
+    const word = { left: Math.round(lw * LOGO_CUT), width: lw - Math.round(lw * LOGO_CUT) };
     const [markGrid, wordGrid] = await Promise.all([pixelizeLogo(logoSrc, mark, 9), pixelizeLogo(logoSrc, word, 46)]);
     const [headMark, headWord, markBig] = await Promise.all([
       sprite(markGrid, 2, 1, BRAND_LIME, 0.55),
@@ -506,7 +507,7 @@ function AnalyticsText({ box, data, accent, next }: { box: Box; data: ShareAgent
           <div style={{ display: "flex", fontSize: value.length > 9 ? 14 : 22, color: "#F2F2EF", marginTop: 8, whiteSpace: "nowrap" }}>{value}</div>
         </div>
       ))}
-      <div style={{ ...mono(8.5, "rgba(255,255,255,0.42)", 2), position: "absolute", left: 34, top: box.h - 30 }}>LIVE · TRACKED BY VELLO</div>
+      <div style={{ ...mono(8.5, "rgba(255,255,255,0.42)", 2), position: "absolute", left: 34, top: box.h - 30 }}>LIVE · TRACKED BY SOLCAMEO</div>
     </div>
   );
 }
@@ -575,7 +576,7 @@ function TextLayer({ data, tier, assets, avatar, memberId, labels, geo, layout, 
       </div>
 
       {/* footer */}
-      <div style={{ ...mono(10.5, "rgba(255,255,255,0.34)"), position: "absolute", left: 48, top: 636 }}>VELLOAGENTS.COM</div>
+      <div style={{ ...mono(10.5, "rgba(255,255,255,0.34)"), position: "absolute", left: 48, top: 636 }}>SOLCAMEO.COM</div>
       <div style={{ position: "absolute", left: MID.x, top: 633, width: MID.w, display: "flex", justifyContent: "center", fontFamily: "Manrope", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{tier.tagline}</div>
       {plats.length > 0 ? (
         <div style={{ position: "absolute", right: 48, top: 632, display: "flex", alignItems: "center" }}>

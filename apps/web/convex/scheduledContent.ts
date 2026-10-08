@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation, internalAction, type MutationCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { dripContentRewardSubmitBody, durablePostIdsFromOutput } from "../lib/server/dripContentRewardSubmit";
@@ -623,7 +623,7 @@ export const drainDueClips = internalAction({
         if (outStatus && outStatus !== "posted") {
           throw new Error((outNote || `not posted (${outStatus})`).slice(0, 200));
         }
-        await ctx.runMutation(internal.scheduledContent.markStatus, { id: row._id, status: "posted", postedAt: Date.now() });
+        await ctx.runMutation(internal.scheduledContent.markStatus, { id: row._id, status: "posted", postedAt: Date.now(), ...(postUrl ? { postUrl } : {}), ...((postPlatform || row.platforms?.[0]) ? { postPlatform: postPlatform || row.platforms[0] } : {}), ...(platformPostId ? { platformPostId } : {}), ...(uploadPostRequestId ? { uploadPostRequestId } : {}) });
         // Patch the originating clip → posted (+ permalink + platform) via the join.
         // The post GENUINELY PUBLISHED (we passed the outStatus check above), so the
         // clip's posted truth must be stamped REGARDLESS of whether the sched row
@@ -806,8 +806,12 @@ export const markStatus = internalMutation({
     error: v.optional(v.string()),
     scheduledFor: v.optional(v.number()),
     retryCount: v.optional(v.number()),
+    postUrl: v.optional(v.string()),
+    postPlatform: v.optional(v.string()),
+    platformPostId: v.optional(v.string()),
+    uploadPostRequestId: v.optional(v.string()),
   },
-  handler: async (ctx, { id, status, taskId, postedAt, error, scheduledFor, retryCount }) => {
+  handler: async (ctx, { id, status, taskId, postedAt, error, scheduledFor, retryCount, postUrl, postPlatform, platformPostId, uploadPostRequestId }) => {
     const row = await ctx.db.get(id);
     if (!row) return { applied: false };
     // Terminal states (cancelled / posted) reject ANY non-self transition — an
@@ -823,6 +827,10 @@ export const markStatus = internalMutation({
     if (error !== undefined) patch.error = error;
     if (scheduledFor !== undefined) patch.scheduledFor = scheduledFor;
     if (retryCount !== undefined) patch.retryCount = retryCount;
+    if (postUrl) patch.postUrl = postUrl;
+    if (postPlatform) patch.postPlatform = postPlatform;
+    if (platformPostId) patch.platformPostId = platformPostId;
+    if (uploadPostRequestId) patch.uploadPostRequestId = uploadPostRequestId;
     // Stamp when a row enters "posting" so the reaper can revert it if a cron
     // tick dies mid-post.
     if (status === "posting") patch.postingStartedAt = Date.now();
@@ -843,5 +851,81 @@ export const claimForPosting = internalMutation({
     if (!row || row.status !== "scheduled") return { claimed: false };
     await ctx.db.patch(id, { status: "posting", postingStartedAt: Date.now() });
     return { claimed: true };
+  },
+});
+
+/* ── Automatic X schedule ───────────────────────────────────────────────────── */
+
+/** Three posts a day: one every 8 hours. */
+export const AUTO_X_GAP_MS = 8 * 3_600_000;
+const isXConnected = (agent: Doc<"influencers">) =>
+  (agent.connectedPlatforms ?? []).some((p) => p === "x" || p === "twitter") || !!agent.connectedSocialAccounts?.x;
+
+/**
+ * A video was just rendered for an agent with X connected: queue it to post on X, three a day, newest first. The first slot
+ * is right away when nothing went out in the last 8 hours; each later slot is 8 hours after the one before. When several
+ * videos wait, the freshest takes the nearest slot, so the feed always leads with the latest content. Videos that already
+ * post themselves (autoPost) and clips already queued are left alone.
+ */
+export async function autoScheduleVideoToX(ctx: MutationCtx, job: { mintAddress: string; videoUrl: string; videoNote?: string; taskId?: Id<"agentTasks">; autoPost?: unknown }) {
+  if (job.autoPost) return;
+  const agent = await ctx.db.query("influencers").withIndex("by_mint", (q) => q.eq("mintAddress", job.mintAddress)).first();
+  if (!agent || !isXConnected(agent)) return;
+  const rows = await ctx.db.query("scheduledContent").withIndex("by_mint", (q) => q.eq("mintAddress", job.mintAddress)).order("desc").take(300);
+  if (rows.some((r) => r.videoUrl === job.videoUrl && ["scheduled", "posting", "posted"].includes(r.status))) return;
+  const now = Date.now();
+  const xRows = rows.filter((r) => r.platforms.includes("x"));
+  // The last X post that went out or is going out: the next slot is a full gap after it.
+  const lastOut = Math.max(0, ...xRows.filter((r) => r.status === "posting" || r.status === "posted").map((r) => r.postedAt ?? r.scheduledFor));
+  const firstSlot = Math.max(now + 2 * 60_000, lastOut + AUTO_X_GAP_MS);
+  const topic = (job.videoNote ?? "").trim().slice(0, 200) || `New video from ${agent.name}`;
+  const id = await ctx.db.insert("scheduledContent", {
+    mintAddress: job.mintAddress, scheduledFor: firstSlot, status: "scheduled", topic, platforms: ["x"], videoUrl: job.videoUrl,
+    taskId: job.taskId, auto: true, createdAt: now,
+    caption: await autoCaption(ctx, agent, topic),
+  });
+  // Newest content first: re-deal the waiting automatic rows into the slots, freshest to the earliest.
+  const waiting = [...xRows.filter((r) => r.status === "scheduled" && r.auto === true), (await ctx.db.get(id))!].sort((a, b) => (b.createdAt - a.createdAt) || (b._creationTime - a._creationTime));
+  for (let i = 0; i < waiting.length; i++) {
+    const at = firstSlot + i * AUTO_X_GAP_MS;
+    if (waiting[i].scheduledFor !== at) await ctx.db.patch(waiting[i]._id, { scheduledFor: at });
+  }
+}
+
+async function autoCaption(ctx: MutationCtx, agent: Doc<"influencers">, topic: string) {
+  const { videoLaunchCaption, cleanMarketingText } = await import("../lib/marketingCaption");
+  const { marketPath } = await import("../lib/solstar/marketSlug");
+  const token = agent.solstarCharacterId ? await ctx.db.query("ssTokens").withIndex("by_character", (q) => q.eq("characterId", agent.solstarCharacterId!)).first() : null;
+  if (token?.ticker && token.network === "mainnet") return videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic, url: `https://solcameo.com${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` });
+  return cleanMarketingText(`${topic}\n\n${agent.name}`).slice(0, 270);
+}
+
+/** Posted rows whose live views are due a refresh (oldest synced first), for the analytics sync. */
+export const dueForViewSyncByMints = query({
+  args: { authSecret: v.string(), mintAddresses: v.array(v.string()), limit: v.optional(v.number()) },
+  handler: async (ctx, { authSecret, mintAddresses, limit }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    const out: Doc<"scheduledContent">[] = [];
+    for (const mint of mintAddresses.slice(0, 25)) {
+      const rows = await ctx.db.query("scheduledContent").withIndex("by_mint", (q) => q.eq("mintAddress", mint)).order("desc").take(120);
+      out.push(...rows.filter((r) => r.status === "posted" && (r.postUrl || r.uploadPostRequestId) && Date.now() - (r.viewsSyncedAt ?? 0) > 4 * 60_000));
+    }
+    return out.sort((a, b) => (a.viewsSyncedAt ?? 0) - (b.viewsSyncedAt ?? 0)).slice(0, limit ?? 60)
+      .map((r) => ({ _id: r._id, mintAddress: r.mintAddress, postUrl: r.postUrl ?? null, platform: r.postPlatform ?? r.platforms[0] ?? "x", viewCount: r.viewCount ?? 0, uploadPostRequestId: r.uploadPostRequestId ?? null, platformPostId: r.platformPostId ?? null }));
+  },
+});
+
+/** Store a fresh live view count (never lower than what was seen) and feed the 100k milestone check. */
+export const recordViews = mutation({
+  args: { authSecret: v.string(), id: v.id("scheduledContent"), viewCount: v.number(), postUrl: v.optional(v.string()), platformPostId: v.optional(v.string()) },
+  handler: async (ctx, { authSecret, id, viewCount, postUrl, platformPostId }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    const row = await ctx.db.get(id);
+    if (!row) return { ok: false, updated: false };
+    const next = Math.max(row.viewCount ?? 0, Math.max(0, Math.floor(viewCount)));
+    await ctx.db.patch(id, { viewCount: next, viewsSyncedAt: Date.now(), ...(postUrl && !row.postUrl ? { postUrl } : {}), ...(platformPostId && !row.platformPostId ? { platformPostId } : {}) });
+    const { enqueueVideoMilestone } = await import("./contentControl");
+    await enqueueVideoMilestone(ctx, { mintAddress: row.mintAddress, views: next, key: `sched:${id}`, postUrl: row.postUrl, platform: row.postPlatform, platformPostId: row.platformPostId, videoUrl: row.videoUrl });
+    return { ok: true, updated: next !== (row.viewCount ?? 0) };
   },
 });

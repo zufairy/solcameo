@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { appFetch } from "./lib/appFetch";
 import { videoMilestoneIdentity } from "../lib/videoMilestoneKey";
-import { agentLaunchCaption, videoMilestoneCaption, tokenLaunchCaption, coinsDigestCaption } from "../lib/marketingCaption";
+import { agentLaunchCaption, videoMilestoneCaption, tokenLaunchCaption, coinsDigestCaption, videoLaunchCaption } from "../lib/marketingCaption";
 import { marketPath } from "../lib/solstar/marketSlug";
 import { bestMilestone, nextSlot, postClass, type PostedEntry } from "../lib/contentQuota";
 
@@ -76,15 +76,37 @@ export const coinCardData = query({
     return { coins, total: live.length, today: live.filter(t => t.createdAt >= now - 24 * 3_600_000).length, number };
   },
 });
+/**
+ * A new video for a coin, posted as soon as it is rendered: the video itself with a caption that names the $TICKER and the
+ * influencer. Agents without a live mainnet coin are skipped (no ticker to promote). One post per render job.
+ */
+export async function enqueueVideoAnnouncement(ctx: MutationCtx, job: { _id: Id<"videoRenderJobs">; mintAddress: string; videoUrl?: string; videoNote?: string }) {
+  if (!job.videoUrl) return;
+  const settings = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
+  if (!settings) return;
+  const dedupeKey = `video-new:${job._id}`;
+  if (await ctx.db.query("contentControlPosts").withIndex("by_dedupeKey", q => q.eq("dedupeKey", dedupeKey)).unique()) return;
+  const agent = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", job.mintAddress)).first();
+  if (!agent?.solstarCharacterId) return;
+  const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", agent.solstarCharacterId!)).first();
+  if (!token || token.network !== "mainnet" || !LIVE_STATES.has(token.state) || !token.ticker) return;
+  const id = await ctx.db.insert("contentControlPosts", {
+    dedupeKey, source: "video", targetMint: settings.targetMint, agentMint: job.mintAddress, tokenId: token._id, agentName: agent.name,
+    caption: videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic: job.videoNote, url: `${SITE}${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` }),
+    mediaUrl: job.videoUrl, kind: "video", platforms: ["x"], status: "queued", attempts: 0, createdAt: Date.now(), updatedAt: Date.now(),
+  });
+  await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });
+}
 /** A per-video milestone, captured atomically with the trusted measurement. */
 export async function enqueueVideoMilestone(ctx: MutationCtx, video: { mintAddress: string; views: number; key: string; postUrl?: string; platform?: string; platformPostId?: string; videoUrl?: string }) {
-  if (!Number.isFinite(video.views) || video.views <= 10_000) return;
+  // Only the 100k tier is announced now; every new coin video is posted when it is made (see enqueueVideoAnnouncement).
+  if (!Number.isFinite(video.views) || video.views <= 100_000) return;
   const config = await ctx.db.query("contentControlSettings").withIndex("by_key", q => q.eq("key", "marketing")).unique();
   const agent = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", video.mintAddress)).first();
   if (!agent) return;
   const identity = videoMilestoneIdentity(video);
   // Two milestones per video: the first measurement past 10k, and a second one past 100k.
-  const tier = video.views > 100_000 ? "100k" : "10k";
+  const tier = "100k";
   const dedupeKey = `video-${tier}:${video.mintAddress}:${video.key}`;
   const videoPostKey = `video-${tier}:${video.mintAddress}:${identity}`;
   if (await ctx.db.query("contentControlPosts").withIndex("by_videoPostKey", q => q.eq("videoPostKey", videoPostKey)).first()) return;
@@ -159,7 +181,7 @@ export const claim = mutation({
         .map(p => ({ cls: postClass(p), at: p.publishedAt ?? p.updatedAt })).filter(h => h.at > cutoff);
       const slot = nextSlot(cls, history, now);
       if (!slot.ok) { await ctx.db.patch(id, { notBefore: slot.notBefore, error: `Scheduled: ${slot.reason}. Posts at ${new Date(slot.notBefore).toISOString()}`, updatedAt: now }); return null; }
-      if (cls === "milestone10k" || cls === "milestone100k") {
+      if (cls === "milestone100k") {
         // One slot, several waiting: the most-viewed milestone takes it.
         const waiting = (await ctx.db.query("contentControlPosts").withIndex("by_status_and_updatedAt", q => q.eq("status", "queued")).take(100))
           .filter(p => p.source === "milestone" && postClass(p) === cls && !(p.notBefore && p.notBefore > now));
@@ -230,7 +252,7 @@ export const pending = query({
     // Held posts (daily quota / spacing / provider cap) are skipped until their slot; launches go before milestones.
     const groups = await Promise.all(statuses.map(async status => (await ctx.db.query("contentControlPosts").withIndex("by_status_and_updatedAt", q => q.eq("status", status)).take(40))
       .filter(p => !(p.notBefore && p.notBefore > now)).slice(0, 3)));
-    const rank = (p: { source: string }) => (p.source === "mint" || p.source === "token" ? 0 : p.source === "milestone" ? 1 : p.source === "digest" ? 2 : 3);
+    const rank = (p: { source: string }) => (p.source === "mint" || p.source === "token" ? 0 : p.source === "video" ? 1 : p.source === "milestone" ? 2 : p.source === "digest" ? 3 : 4);
     return groups.flat().sort((a, b) => rank(a) - rank(b) || a.updatedAt - b.updatedAt);
   },
 });

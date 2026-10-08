@@ -49,7 +49,7 @@ export function MaterialTile({ data, title, description, index, render, autoAnim
   }, [dataKey, render, autoAnimate]);
   async function exportGif() {
     setBusy(true); setError("");
-    try { downloadBlob(gif?.blob ?? await render(data, "gif"), `vello-${data.kind}-${data.date.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.gif`); }
+    try { downloadBlob(gif?.blob ?? await render(data, "gif"), `solcameo-${data.kind}-${data.date.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.gif`); }
     catch (e) { setError(e instanceof Error ? e.message : "Download failed."); }
     finally { setBusy(false); }
   }

@@ -12,6 +12,9 @@ const CLIPS_RECORD = makeFunctionReference<"mutation">("clipJobs:recordViewCount
 // Pass 2: campaign submissions — a separate store (campaignId required there).
 const SUBS_DUE = makeFunctionReference<"query">("submissions:dueForScrapeByMints");
 const SUBS_RECORD = makeFunctionReference<"mutation">("submissions:recordScrapedViews");
+// Pass 4: generated videos posted from the schedule (automatic 3-a-day X posts and manual drips), which have no clip row.
+const SCHED_DUE = makeFunctionReference<"query">("scheduledContent:dueForViewSyncByMints");
+const SCHED_RECORD = makeFunctionReference<"mutation">("scheduledContent:recordViews");
 
 export { LIST_BY_CREATORS };
 
@@ -103,11 +106,12 @@ export async function syncViewsForMints(opts: {
     return { scanned: 0, measured: 0, updated: 0, errors: 0, clipsDueCount: 0, withHandleCount: 0, backfillCount: 0, subsDueCount: 0, debug: [] };
   }
 
-  const [clipsDue, subsDue] = await Promise.all([
+  const [clipsDue, subsDue, schedDue] = await Promise.all([
     (convex.query(CLIPS_DUE, { authSecret: secret, mintAddresses, limit: clipsLimit }).catch(() => [])) as Promise<DueRow[]>,
     (convex
       .query(SUBS_DUE, { authSecret: secret, mintAddresses, limit: subsLimit })
       .catch(() => [])) as Promise<(Omit<DueRow, "mintAddress"> & { influencerMint: string })[]>,
+    (convex.query(SCHED_DUE, { authSecret: secret, mintAddresses, limit: subsLimit }).catch(() => [])) as Promise<DueRow[]>,
   ]);
 
   const withHandle = clipsDue.filter((r) => r.postUrl || r.uploadPostRequestId || r.platformPostId);
@@ -116,13 +120,13 @@ export async function syncViewsForMints(opts: {
   // Total is known the instant both due-lists resolve — every row across all
   // three passes increments the SAME `scanned` counter exactly once, so this
   // is a real denominator, not an estimate.
-  const total = clipsDue.length + subsDue.length;
+  const total = clipsDue.length + subsDue.length + schedDue.length;
   onProgress?.(0, total);
   const reportProgress = () => onProgress?.(scanned, total);
 
   // Passes are disjoint row-sets (direct vs backfill vs campaign) writing to
   // independent Convex rows, so they run CONCURRENTLY rather than sequentially.
-  await Promise.all([runDirectPass(), runBackfillPass(), runCampaignPass()]);
+  await Promise.all([runDirectPass(), runBackfillPass(), runCampaignPass(), runScheduledPass()]);
 
   // ── Pass 1: direct, per-row (has a handle already) ──────────────────────
   async function runDirectPass() {
@@ -299,6 +303,35 @@ export async function syncViewsForMints(opts: {
       }
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, Math.max(1, rows.length)) }, () => runOne()));
+  }
+
+  // ── Pass 4: scheduled / auto-posted generated videos ─────────────────────
+  async function runScheduledPass() {
+    let idx = 0;
+    async function runOne() {
+      while (idx < schedDue.length) {
+        if (Date.now() - startedAt > deadlineMs) break;
+        const row = schedDue[idx++];
+        scanned += 1;
+        reportProgress();
+        try {
+          const r = await fetchUploadPostViews({ platform: row.platform, requestId: row.uploadPostRequestId, postUrl: row.postUrl, mintAddress: row.mintAddress });
+          if (r.ok) {
+            measured += 1;
+            const rec = (await convex.mutation(SCHED_RECORD, {
+              authSecret: secret, id: row._id as never, viewCount: r.views,
+              ...(r.postUrl ? { postUrl: r.postUrl } : {}), ...(r.platformPostId ? { platformPostId: r.platformPostId } : {}),
+            })) as { ok: boolean; updated: boolean };
+            if (rec.updated) updated += 1;
+            pushDebug(row._id, "scheduled", row.platform, `ok:${r.views}views${rec.updated ? "" : ":not-newer"}`);
+          } else pushDebug(row._id, "scheduled", row.platform, `fail:${r.reason}`);
+        } catch (e) {
+          errors += 1;
+          console.warn(`[analyticsSync] scheduled row ${row._id} errored:`, e instanceof Error ? e.message : e);
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, Math.max(1, schedDue.length)) }, () => runOne()));
   }
 
   return {

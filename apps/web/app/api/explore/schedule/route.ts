@@ -1,3 +1,4 @@
+import { identityStills } from "@/lib/server/identityStill";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -43,8 +44,8 @@ export async function POST(req: NextRequest) {
 
   const ref = typeof body.referenceId === "string" ? await resolveReference(body.referenceId, body.referencePage) : null;
   if (!ref) return NextResponse.json({ error: "This reference video is no longer available. Pick another one." }, { status: 400 });
-  const imageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
-  if (!imageUrls.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
+  const rawImageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
+  if (!rawImageUrls.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
   const runAt = Number(body.runAt);
   if (!Number.isFinite(runAt)) return NextResponse.json({ error: "Pick a time" }, { status: 400 });
   const mode = body.mode === "object-swap" ? "object-swap" : "motion-transfer";
@@ -54,6 +55,8 @@ export async function POST(req: NextRequest) {
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const agent = await c.convex.query(api.influencers.getByMintServer, { mintAddress: a.mint, authSecret: c.secret }).catch(() => null);
   const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
+  // Faces reach the engine as clear stills, never animated GIFs.
+  const imageUrls = await identityStills(rawImageUrls, agent);
   try {
     const id = await c.convex.mutation(api.scheduledRecreations.create, {
       authSecret: c.secret, mintAddress: a.mint, referenceId: ref.id, referenceTitle: ref.title,

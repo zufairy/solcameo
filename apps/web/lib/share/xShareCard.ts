@@ -3,10 +3,10 @@
    of React / Node, so the renderer (lib/server/xShareCardRender.tsx), the API
    routes, the /dev/x-cards gallery and the tests all agree.
 
-   Design language: VELLO MEMBERSHIP — a premium, minimal card system in the
+   Design language: SOLCAMEO MEMBERSHIP — a premium, minimal card system in the
    spirit of a charge-card family. Each reach tier is its own MATERIAL, not a
    colour swap: matte graphite, brushed silver, gold, iridescent platinum, and
-   the invite-only VELLO BLACK (1B+ tracked views). The "digital" signature is
+   the invite-only SOLCAMEO BLACK (1B+ tracked views). The "digital" signature is
    the custom pixel V mark and a 5×7 pixel-matrix view counter.
 
    A card is seeded by (agent mint, views, identity, shuffle nonce): the same
@@ -78,10 +78,10 @@ export interface ShareVariant {
   sparkles: ShareSparkle[];
 }
 
-/** Membership tiers, lowest first. 1B+ tracked views earns VELLO BLACK. */
+/** Membership tiers, lowest first. 1B+ tracked views earns SOLCAMEO BLACK. */
 export const SHARE_TIERS: ShareTier[] = [
   {
-    min: 0, label: "MEMBER", zone: "Vello Access", tagline: "The count has started.", material: "graphite",
+    min: 0, label: "MEMBER", zone: "Solcameo Access", tagline: "The count has started.", material: "graphite",
     accent: "#EDEDEA", bg: "#07070A", glow: "rgba(255,255,255,0.07)",
     card: {
       stops: ["#2c2d31", "#1b1c1f", "#111214", "#1d1e21"], ink: "#F1F1EF", inkMuted: "rgba(241,241,239,0.45)",
@@ -117,7 +117,7 @@ export const SHARE_TIERS: ShareTier[] = [
     },
   },
   {
-    min: 1_000_000_000, label: "VELLO BLACK", zone: "Invite Only", tagline: "By invitation only.", material: "black",
+    min: 1_000_000_000, label: "SOLCAMEO BLACK", zone: "Invite Only", tagline: "By invitation only.", material: "black",
     accent: "#CDAE6E", bg: "#030303", glow: "rgba(205,174,110,0.09)",
     card: {
       stops: ["#151517", "#08080a", "#0e0e10", "#050506"], ink: "#ECE6D8", inkMuted: "rgba(236,230,216,0.42)",
@@ -228,7 +228,7 @@ export function platformNames(ids: string[]): string[] {
 
 // Leave room for X's t.co link accounting and Upload-Post's 275-char x_title cap.
 export const X_POST_LIMIT = 270;
-export const SHARE_LINK = "https://velloagents.com/market";
+export const SHARE_LINK = "https://solcameo.com/market";
 
 export function marketLinkFor(mint: string): string {
   return `${SHARE_LINK}/${encodeURIComponent(mint)}`;
@@ -252,7 +252,7 @@ export function sanitizePostText(raw: string): string {
 export function finalizePostText(raw: string, mint: string): string {
   const link = marketLinkFor(mint);
   let body = sanitizePostText(raw)
-    .replace(/(?:https?:\/\/)?(?:www\.)?velloagents\.com(?:\/[^\s]*)?/gi, "")
+    .replace(/(?:https?:\/\/)?(?:www\.)?(?:solcameo|velloagents)\.com(?:\/[^\s]*)?/gi, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
   const room = X_POST_LIMIT - link.length - 2;

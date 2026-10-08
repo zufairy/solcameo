@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Satori renders these embedded assets into PNG/GIF, not browser HTML. */
 /* ════════ Dev post material — premium 1200×675 X cards ════════
    Same design language as the X share cards (/dev/x-cards): near-black glass,
-   the pixelated VELLO logo, the 5×7 pixel-matrix counter and brand lime.
+   the pixelated SOLCAMEO logo, the 5×7 pixel-matrix counter and brand lime.
 
    Two cheap layers per card:
      text layer  satori lays out every label / name ONCE → transparent PNG
@@ -18,6 +18,7 @@ import sharp from "sharp";
 import { safeFetchToBuffer } from "@/lib/server/downloader";
 import { pixelizeLogo, sprite, type PxGrid, type Sprite } from "@/lib/server/pixelLogo";
 import { solanaPixels } from "@/lib/server/solanaPixels";
+import { LOGO_FILE as BRAND_LOGO, LOGO_CUT } from "@/lib/server/brandLogo";
 
 export type MaterialKind = "network" | "minted" | "leaderboard" | "engine" | "pulse" | "social" | "launch" | "coin" | "coins";
 export interface MaterialAgent { avatarUrl?: string; name: string; handle: string; views: number; posted: number; generated: number }
@@ -41,7 +42,7 @@ const LIME = "#C8F02A";
 const INK = "#F2F2EF";
 const MUTE = "rgba(242,242,239,0.56)";
 const FAINT = "rgba(242,242,239,0.34)";
-const LOGO_FILE = join(process.cwd(), "assets", "lo.png");
+const LOGO_FILE = BRAND_LOGO;
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -126,8 +127,8 @@ function loadAssets(): Promise<Assets> {
     const f = (n: string) => readFile(join(process.cwd(), "public", "fonts", "captions", n));
     const [anton, jakarta, grotesk, manrope, fraunces, logo] = await Promise.all([f("Anton-Regular.ttf"), f("PlusJakartaSans-SemiBold.ttf"), f("SpaceGrotesk-Medium.ttf"), f("Manrope-Medium.ttf"), f("Fraunces-SemiBold.ttf"), readFile(LOGO_FILE)]);
     const lw = (await sharp(logo).metadata()).width ?? 1000;
-    const cut = Math.round(lw * 0.235);
-    const [markGrid, wordGrid] = await Promise.all([pixelizeLogo(logo, { left: 0, width: cut }, 9), pixelizeLogo(logo, { left: cut, width: lw - cut }, 46)]);
+    const cut = Math.round(lw * LOGO_CUT);
+    const [markGrid, wordGrid] = await Promise.all([pixelizeLogo(logo, { left: 0, width: cut }, 15), pixelizeLogo(logo, { left: cut, width: lw - cut }, 104)]);
     const fonts: Font[] = [
       { name: "Manrope", data: toAB(manrope), weight: 500, style: "normal" },
       { name: "Fraunces", data: toAB(fraunces), weight: 600, style: "normal" },
@@ -177,10 +178,10 @@ function Shell({ a, logo = true, footer = true, children }: { a: Assets; logo?: 
   return (
     <div style={{ width: W, height: H, display: "flex", position: "relative", fontFamily: "Jakarta", color: INK }}>
       {logo && <div style={{ position: "absolute", left: M, top: 38, display: "flex", alignItems: "center" }}>
-        <img src={a.mark.url} alt="Vello mark" width={a.mark.w} height={a.mark.h} style={{ marginRight: 14 }} />
-        <img src={a.word.url} alt="Vello" width={a.word.w} height={a.word.h} />
+        <img src={a.mark.url} alt="Solcameo mark" width={a.mark.w} height={a.mark.h} style={{ marginRight: 14 }} />
+        <img src={a.word.url} alt="Solcameo" width={a.word.w} height={a.word.h} />
       </div>}
-      {footer && <T x={M} y={H - 40} size={12} font="Grotesk" ls={4} color={FAINT} upper>velloagents.com</T>}
+      {footer && <T x={M} y={H - 40} size={12} font="Grotesk" ls={4} color={FAINT} upper>solcameo.com</T>}
       {children}
     </div>
   );
@@ -206,7 +207,7 @@ ${inner}
 
 /** `layers` are text snippets rasterised once and placed (and animated) by `gfx`; `frames` makes the GIF a seamless loop with no end hold. */
 interface Layer { id: string; w: number; h: number; node: ReactNode }
-interface Design { /** Solcameo-branded card: no Vello logo or footer from the shell. */ bare?: boolean; label: string; gfx: (t: number, img: Record<string, string>, meta: Record<string, { x0: number; x1: number }>) => string; animLogo?: boolean; text: (a: Assets) => ReactNode; layers?: Layer[]; frames?: number; delay?: number; still?: number }
+interface Design { /** Solcameo-branded card: no Solcameo logo or footer from the shell. */ bare?: boolean; label: string; gfx: (t: number, img: Record<string, string>, meta: Record<string, { x0: number; x1: number }>) => string; animLogo?: boolean; text: (a: Assets) => ReactNode; layers?: Layer[]; frames?: number; delay?: number; still?: number }
 
 const TAU = Math.PI * 2;
 const seg = (t: number, start: number, dur: number) => Math.min(1, Math.max(0, (t - start) / dur));
@@ -228,7 +229,7 @@ const BUBBLES: Bubble[] = [
   { x: 150, y: 264, r: 52, blur: 0, op: 1, amp: 10, k: 1, ph: 0, delay: 0.05, agent: 0 },
 ];
 
-/** Animated pixel Vello logo: pixels pop in at random, the wordmark wipes in left to right, then a lime scan sweeps it and the mark glows. */
+/** Animated pixel Solcameo logo: pixels pop in at random, the wordmark wipes in left to right, then a lime scan sweeps it and the mark glows. */
 function logoGfx(a: Assets, t: number) {
   const H0 = Math.max(a.mark.h, a.word.h), my = 38 + (H0 - a.mark.h) / 2, wy = 38 + (H0 - a.word.h) / 2, wx = M + a.mark.w + 14;
   const mark = a.markGrid.cells.map((c) => {
@@ -282,7 +283,7 @@ function network(d: MaterialData, a: Assets): Design {
   const PW = 264, PG = 28, PX = (W - (PW * 3 + PG * 2)) / 2, PY = 452, PH = 112;
   const named = BUBBLES.map((b, i) => ({ b, i })).filter(({ b }) => b.agent !== undefined && b.blur < 1 && nodes[b.agent!]);
   const layers: Layer[] = [
-    { id: "kick", w: 600, h: 20, node: <Label x={300} y={0} w={600} align="center" color={LIME} size={14}>Vello Global Network</Label> },
+    { id: "kick", w: 600, h: 20, node: <Label x={300} y={0} w={600} align="center" color={LIME} size={14}>Solcameo Global Network</Label> },
     { id: "head", w: 1000, h: 84, node: <div style={{ position: "absolute", left: 0, top: 0, width: 1000, display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "nowrap" }}>
       <span style={{ fontFamily: "Manrope", fontWeight: 500, fontSize: 66, lineHeight: 1.1, letterSpacing: -2.4, color: "#FFFFFF" }}>Views generated</span>
       <span style={{ fontFamily: "Fraunces", fontWeight: 600, fontSize: 66, lineHeight: 1.1, letterSpacing: -2.4, color: LIME, marginLeft: 16 }}>this week</span>
@@ -631,7 +632,7 @@ function minted(d: MaterialData, a: Assets): Design {
   const prev = Math.floor(total / step0) * step0, next = prev + step0, prog = (total - prev) / step0;
   const rate = total > 0 ? Math.min(1, d.weekActive / total) : 0;
   const TILES = [
-    { x: 56, y: 394, w: 262, h: 116, label: "Total agents on Vello", value: total, bar: prog, cap: `Next milestone ${next.toLocaleString("en-US")}`, color: INK },
+    { x: 56, y: 394, w: 262, h: 116, label: "Total agents on Solcameo", value: total, bar: prog, cap: `Next milestone ${next.toLocaleString("en-US")}`, color: INK },
     { x: 340, y: 436, w: 262, h: 116, label: "Active this week", value: d.weekActive, bar: rate, cap: `${Math.round(rate * 100)}% of the roster`, color: LIME },
   ];
   const RX = 660, RW = 460, RH = 84, RG = 14, RY0 = 150;
@@ -657,7 +658,7 @@ function minted(d: MaterialData, a: Assets): Design {
     ]),
     ...(rows.length ? [] : [{ id: "empty", w: RW, h: 60, node: <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: RW }}>
       <span style={{ fontFamily: "Manrope", fontWeight: 500, fontSize: 30, letterSpacing: -0.5, color: "#FFFFFF" }}>Next mint starts the day</span>
-      <span style={{ fontFamily: "Grotesk", fontSize: 14, marginTop: 10, color: MUTE }}>mint an agent at velloagents.com</span>
+      <span style={{ fontFamily: "Grotesk", fontSize: 14, marginTop: 10, color: MUTE }}>mint an agent at solcameo.com</span>
     </div> }]),
   ];
   return {
@@ -705,7 +706,7 @@ async function loadSquareGrid(url?: string): Promise<DesignExtra["grid"]> {
   try {
     let buffer: Buffer;
     if (url.startsWith("data:")) buffer = Buffer.from(url.split(",")[1] ?? "", "base64");
-    else buffer = (await safeFetchToBuffer(new URL(url, process.env.NEXT_PUBLIC_APP_URL || "https://velloagents.com").href, { maxBytes: 5 * 1024 * 1024, timeoutMs: 6000 })).buffer;
+    else buffer = (await safeFetchToBuffer(new URL(url, process.env.NEXT_PUBLIC_APP_URL || "https://solcameo.com").href, { maxBytes: 5 * 1024 * 1024, timeoutMs: 6000 })).buffer;
     const { data } = await sharp(buffer, { limitInputPixels: 16_000_000 }).rotate().flatten({ background: "#151a16" })
       .resize(AV_N, AV_N, { fit: "cover", position: "attention" }).modulate({ saturation: 1.2 }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     return { n: AV_N, px: new Uint8Array(data) };
@@ -805,7 +806,7 @@ function launch(d: MaterialData, a: Assets, x: DesignExtra): Design {
   const layers: Layer[] = [
     { id: "kick", w: 400, h: 20, node: <Label x={0} y={0} w={400} size={14} color={LIME}>New operator</Label> },
     { id: "name", w: 604, h: 92, node: <div style={{ display: "flex", width: 604, whiteSpace: "nowrap", fontFamily: "Manrope", fontWeight: 500, fontSize: nsize, lineHeight: 1.1, letterSpacing: -nsize * 0.035, color: "#FFFFFF" }}>{nm}</div> },
-    { id: "handle", w: 604, h: 52, node: <div style={{ display: "flex", width: 604, whiteSpace: "nowrap", fontFamily: "Fraunces", fontWeight: 600, fontSize: 40, lineHeight: 1.1, letterSpacing: -1, color: LIME }}>{handleOf(m) ? `@${handleOf(m)}` : "Vello agent"}</div> },
+    { id: "handle", w: 604, h: 52, node: <div style={{ display: "flex", width: 604, whiteSpace: "nowrap", fontFamily: "Fraunces", fontWeight: 600, fontSize: 40, lineHeight: 1.1, letterSpacing: -1, color: LIME }}>{handleOf(m) ? `@${handleOf(m)}` : "Solcameo agent"}</div> },
     ...(m.niche ? [{ id: "niche", w: 480, h: 30, node: <div style={{ display: "flex", width: 480 }}>
       <div style={{ display: "flex", alignItems: "center", height: 28, padding: "0 14px", borderRadius: 14, border: "1px solid rgba(200,240,42,.5)", backgroundColor: "rgba(200,240,42,.1)", fontFamily: "Grotesk", fontSize: 12, letterSpacing: 3, color: LIME, textTransform: "uppercase", whiteSpace: "nowrap" }}>{clean(m.niche, 28)}</div>
     </div> }] : []),
@@ -993,7 +994,7 @@ async function loadAvatar(url?: string): Promise<string | undefined> {
   if (cached && cached.expires > Date.now()) return cached.image;
   const image = (async () => {
     try {
-      const absolute = new URL(url, process.env.NEXT_PUBLIC_APP_URL || "https://velloagents.com").href;
+      const absolute = new URL(url, process.env.NEXT_PUBLIC_APP_URL || "https://solcameo.com").href;
       const { buffer } = await safeFetchToBuffer(absolute, { maxBytes: 5 * 1024 * 1024, timeoutMs: 4000 });
       const mask = Buffer.from('<svg width="256" height="256"><circle cx="128" cy="128" r="128" fill="white"/></svg>');
       const png = await sharp(buffer, { limitInputPixels: 16_000_000 }).rotate().resize(256, 256, { fit: "cover" })

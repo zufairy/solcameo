@@ -6,7 +6,7 @@ import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 
-export interface Mention { token: string; name: string; avatarUrl: string; ticker?: string; self?: boolean }
+export interface Mention { token: string; name: string; avatarUrl: string; ticker?: string; self?: boolean; mintAddress?: string }
 
 const tokenOf = (name: string) => name.replace(/\s+/g, "").replace(/[^\w-]/g, "") || "agent";
 const https = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u);
@@ -46,7 +46,7 @@ export function MentionTextarea({ value, onChange, placeholder, rows = 3, disabl
       const token = tokenOf(a.name);
       if (seen.has(token.toLowerCase())) continue;
       seen.add(token.toLowerCase());
-      out.push({ token, name: a.name, avatarUrl: https(a.avatarUrl) ? a.avatarUrl : "", ticker: a.ticker ?? undefined });
+      out.push({ token, name: a.name, avatarUrl: https(a.avatarUrl) ? a.avatarUrl : "", ticker: a.ticker ?? undefined, mintAddress: a.mintAddress });
     }
     return out;
   }, [agents, selfMint, selfName, selfImage]);

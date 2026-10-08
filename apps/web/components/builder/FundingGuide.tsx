@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Check, Copy, Loader2, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Copy, Loader2, Sparkles, Wallet } from "lucide-react";
 import type { FundingPlan } from "@/lib/explore/fundingPlan";
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
@@ -25,6 +25,7 @@ export function FundingGuide({ plan, agentWallet, mintAddress, onSend, onSwap, o
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
   const copy = () => { if (agentWallet) void navigator.clipboard.writeText(agentWallet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); };
 
   async function swapInside(sol: number) {
@@ -78,12 +79,22 @@ export function FundingGuide({ plan, agentWallet, mintAddress, onSend, onSwap, o
     );
     action = agentWallet ? <button type="button" onClick={copy} className={BTN}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}{copied ? "Address copied" : "Copy agent address"}</button> : null;
   }
+  // Collapsed by default so it never crowds the form; one tap opens the full steps.
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5 rounded-xl border border-[#d7ff00]/25 bg-[#d7ff00]/[0.05] p-3.5">
-      <p className="flex items-center gap-2 text-[12.5px] font-semibold text-white"><Wallet className="size-3.5 text-[#d7ff00]" />{title}</p>
-      <div className="text-[12px] leading-5 text-zinc-300">{body}</div>
-      {action}
-      {error && <p role="alert" className="text-[11.5px] text-red-300">{error} You can also send USDC or SOL to the agent address below.</p>}
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-[#d7ff00]/25 bg-[#d7ff00]/[0.05]">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-2 px-3 py-2 text-left">
+        <Wallet className="size-3.5 shrink-0 text-[#d7ff00]" />
+        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{title}</span>
+        <span className="shrink-0 text-[10.5px] text-zinc-400">{open ? "Hide" : "How?"}</span>
+        <ChevronDown className={`size-3.5 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="space-y-2.5 border-t border-[#d7ff00]/15 px-3 pb-3 pt-2.5">
+          <div className="text-[12px] leading-5 text-zinc-300">{body}</div>
+          {action}
+        </div>
+      )}
+      {error && <p role="alert" className="px-3 pb-3 text-[11.5px] text-red-300">{error} You can also send USDC or SOL to the agent address below.</p>}
     </motion.div>
   );
 }

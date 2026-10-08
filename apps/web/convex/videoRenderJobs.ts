@@ -1,3 +1,5 @@
+import { enqueueVideoAnnouncement } from "./contentControl";
+import { autoScheduleVideoToX } from "./scheduledContent";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
@@ -121,7 +123,17 @@ export const patch = mutation({
     for (const [k, val] of Object.entries(rest)) {
       if (val !== undefined) patch[k] = val;
     }
+    const before = await ctx.db.get(id);
     await ctx.db.patch(id, patch);
+    // The render just finished: announce the new video (a coin's influencer only; best-effort, never blocks the render).
+    if (before && rest.phase === "done" && before.phase !== "done") {
+      const videoUrl = rest.videoUrl ?? before.videoUrl;
+      if (videoUrl) {
+        await enqueueVideoAnnouncement(ctx, { _id: id, mintAddress: before.mintAddress, videoUrl, videoNote: rest.videoNote ?? before.videoNote }).catch(() => undefined);
+        // The agent's own X account: queue it into the automatic 3-a-day schedule (skipped when it posts itself).
+        await autoScheduleVideoToX(ctx, { mintAddress: before.mintAddress, videoUrl, videoNote: rest.videoNote ?? before.videoNote, taskId: before.taskId, autoPost: before.autoPost }).catch(() => undefined);
+      }
+    }
   },
 });
 

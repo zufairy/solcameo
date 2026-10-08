@@ -617,7 +617,7 @@ export const globalVideoFeed = query({
     // Drip map first (videoUrl -> schedule/post state) so clips + renders can
     // read their scheduled time and posted state from the no-FK join key.
     const sched = await ctx.db.query("scheduledContent").order("desc").take(SCAN);
-    const schedByUrl = new Map<string, { status: string; scheduledFor: number | null; caption: string | null; posterUrl: string | null }>();
+    const schedByUrl = new Map<string, { status: string; scheduledFor: number | null; caption: string | null; posterUrl: string | null; postUrl?: string; postPlatform?: string; viewCount?: number }>();
     for (const s of sched) {
       if (!s.videoUrl || s.status === "cancelled" || schedByUrl.has(s.videoUrl)) continue;
       schedByUrl.set(s.videoUrl, {
@@ -625,6 +625,7 @@ export const globalVideoFeed = query({
         scheduledFor: s.scheduledFor ?? null,
         caption: s.caption?.trim() || null,
         posterUrl: s.storyboardImageUrl ?? null,
+        postUrl: s.postUrl, postPlatform: s.postPlatform, viewCount: s.viewCount,
       });
     }
     const stateFrom = (posted: boolean, schedStatus?: string): State => {
@@ -694,7 +695,7 @@ export const globalVideoFeed = query({
         videoUrl: s.videoUrl,
         posterUrl: s.storyboardImageUrl ?? null,
         caption: s.caption || s.topic || "",
-        postUrl: null,
+        postUrl: s.postUrl ?? null,
         mint: s.mintAddress,
         viralScore: null,
         // CREATION time, not postedAt: the influencer feed is "newest videos
@@ -704,10 +705,10 @@ export const globalVideoFeed = query({
         state: stateFrom(false, s.status),
         scheduledFor: s.scheduledFor ?? null,
         submissionId: null,
-        ownViewCount: null,
+        ownViewCount: s.viewCount ?? null,
         engine: engineByUrl.get(s.videoUrl) ?? null,
         formatId: s.formatId ?? null,
-        platform: null,
+        platform: s.postPlatform ?? null,
         platforms: s.platforms ?? null,
         taskId: s.taskId ?? null,
         prompt: s.topic?.trim() || null,
@@ -727,7 +728,7 @@ export const globalVideoFeed = query({
         videoUrl: r.videoUrl,
         posterUrl: r.storyboardImageUrl ?? null,
         caption: r.autoPost?.caption || r.videoNote || "",
-        postUrl: null,
+        postUrl: sc?.postUrl ?? null,
         mint: r.mintAddress,
         viralScore: null,
         // _creationTime, not updatedAt: any later patch (an Editor re-burn,
@@ -737,10 +738,10 @@ export const globalVideoFeed = query({
         state: stateFrom(false, sc?.status),
         scheduledFor: sc?.scheduledFor ?? null,
         submissionId: r.autoPost?.submissionId ?? null,
-        ownViewCount: null,
+        ownViewCount: sc?.viewCount ?? null,
         engine: r.kieModel ?? null,
         formatId: r.formatId ?? null,
-        platform: null,
+        platform: sc?.postPlatform ?? null,
         platforms: r.autoPost?.platforms ?? null,
         taskId: r.taskId ?? null,
         prompt: null,
@@ -932,10 +933,10 @@ export const videoFeedByMints = query({
         if (prev == null || su.viewCount > prev) viewsByPostUrl.set(su.postUrl, su.viewCount);
       }
 
-      const schedByUrl = new Map<string, { status: string }>();
+      const schedByUrl = new Map<string, { status: string; postUrl?: string; platformPostId?: string; postPlatform?: string; viewCount?: number }>();
       for (const s of sched) {
         if (!s.videoUrl || s.status === "cancelled" || schedByUrl.has(s.videoUrl)) continue;
-        schedByUrl.set(s.videoUrl, { status: s.status });
+        schedByUrl.set(s.videoUrl, { status: s.status, postUrl: s.postUrl, platformPostId: s.platformPostId, postPlatform: s.postPlatform, viewCount: s.viewCount });
       }
       const stateFrom = (posted: boolean, schedStatus?: string): Row["state"] => {
         if (posted || schedStatus === "posted") return "posted";
@@ -976,8 +977,8 @@ export const videoFeedByMints = query({
           videoUrl: s.videoUrl,
           posterUrl: s.storyboardImageUrl ?? null,
           caption: s.caption || s.topic || "",
-          postUrl: null,
-          platformPostId: null,
+          postUrl: s.postUrl ?? null,
+          platformPostId: s.platformPostId ?? null,
           mint,
           createdAt: s.createdAt,
           title: (s.topic ?? "").trim(),
@@ -985,8 +986,8 @@ export const videoFeedByMints = query({
           prompt: (s.topic ?? "").trim(),
           taskId: s.taskId ?? null,
           state: stateFrom(false, s.status),
-          viewCount: null,
-          platform: undefined,
+          viewCount: s.viewCount ?? null,
+          platform: s.postPlatform ?? undefined,
           viralScore: undefined,
         });
       }
@@ -999,8 +1000,8 @@ export const videoFeedByMints = query({
           videoUrl: r.videoUrl,
           posterUrl: r.storyboardImageUrl ?? null,
           caption: r.autoPost?.caption || r.videoNote || "",
-          postUrl: null,
-          platformPostId: null,
+          postUrl: sc?.postUrl ?? null,
+          platformPostId: sc?.platformPostId ?? null,
           mint,
           // Creation time — updatedAt moves on every re-burn and reorders old videos.
           createdAt: r._creationTime,
@@ -1009,8 +1010,8 @@ export const videoFeedByMints = query({
           prompt: "",
           taskId: r.taskId ?? null,
           state: stateFrom(false, sc?.status),
-          viewCount: null,
-          platform: undefined,
+          viewCount: sc?.viewCount ?? null,
+          platform: sc?.postPlatform ?? undefined,
           viralScore: undefined,
         });
       }

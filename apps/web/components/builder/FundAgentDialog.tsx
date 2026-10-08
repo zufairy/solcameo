@@ -19,6 +19,10 @@ import { planFunding, swapFeeSol } from "@/lib/explore/fundingPlan";
 import { useSolUsd } from "@/lib/client/useSolUsd";
 
 type Funds = { sol: number; usdc: number };
+/** SOL left in your wallet when you send SOL: the network fee plus a priority-fee cushion (a plain transfer costs about 0.00001). */
+const SOL_TRANSFER_KEEP = 0.0015;
+/** A new system account must hold this much to exist, so a first SOL deposit below it is rejected by the network. */
+const SOL_MIN_FIRST_DEPOSIT = 0.001;
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const money = (v: number | undefined, token: FundToken) => v == null ? "···" : token === "USDC" ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : `${v.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL`;
 
@@ -121,7 +125,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
   }, []);
 
   const feeSol = swapFeeSol((agent?.usdc ?? 0) > 0);
-  const available = swap ? (mine && quote ? Math.max(0, mine.sol - feeSol) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - 0.005) : undefined;
+  const available = swap ? (mine && quote ? Math.max(0, mine.sol - feeSol) : undefined) : token === "USDC" ? mine?.usdc : mine ? Math.max(0, mine.sol - SOL_TRANSFER_KEEP) : undefined;
   const presets = token === "USDC" ? [1, 5, 10, 25] : [0.05, 0.1, 0.25, 0.5];
 
   // Price the swap as the amount changes, then keep it live: re-quote every 4 seconds so the price on screen is always current.
@@ -189,7 +193,8 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
     if (!publicKey || !signTransaction) { setError("Connect your wallet first."); setStep("error"); return; }
     if (!agentWallet) { setError("The agent wallet is still being set up. Try again in a moment."); setStep("error"); return; }
     if (!(num > 0)) { setError("Enter an amount greater than 0."); setStep("error"); return; }
-    if (available != null && num > available) { setError(token === "USDC" ? `You only have $${available.toFixed(2)} USDC.` : `You only have ${available.toFixed(4)} SOL spare after fees.`); setStep("error"); return; }
+    if (available != null && num > available) { setError(token === "USDC" ? `You only have $${available.toFixed(2)} USDC.` : `You can send up to ${available.toFixed(4)} SOL (your wallet holds ${(mine?.sol ?? 0).toFixed(4)} SOL and keeps ${SOL_TRANSFER_KEEP} for the network fee). Tap Max to send that.`); setStep("error"); return; }
+    if (token === "SOL" && (agent?.sol ?? 0) < SOL_MIN_FIRST_DEPOSIT && num * 0.97 < SOL_MIN_FIRST_DEPOSIT) { setError(`A new wallet needs at least ${SOL_MIN_FIRST_DEPOSIT} SOL for its first deposit. Send ${(SOL_MIN_FIRST_DEPOSIT / 0.97 + 0.0001).toFixed(4)} SOL or more.`); setStep("error"); return; }
     setStep("approving"); setError("");
     try {
       const { sig: signature } = await sendFundingTransfer({ connection, publicKey, signTransaction, agentWallet, token, amount: num });

@@ -91,7 +91,7 @@ async function swapTokens(agent: { wallet: string; secret: string }, swap: { inp
   // Keyless: the Metis router through the free endpoint; we land the transaction on our own RPC, so the wallet pays its own fee.
   const quoteRes = await fetch(`https://lite-api.jup.ag/swap/v1/quote?${new URLSearchParams({ inputMint: swap.inputMint, outputMint: swap.outputMint, amount: String(swap.amount), slippageBps: String(SWAP_SLIPPAGE_BPS), restrictIntermediateTokens: "true" })}`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
   if (!quoteRes.ok) return { ok: false, reason: "quote_failed" };
-  const swapRes = await post("https://lite-api.jup.ag/swap/v1/swap", { quoteResponse: await quoteRes.json(), userPublicKey: agent.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 200_000, priorityLevel: "high" } } });
+  const swapRes = await post("https://lite-api.jup.ag/swap/v1/swap", { quoteResponse: await quoteRes.json(), userPublicKey: agent.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 100_000, priorityLevel: "high" } } });
   const built = (await swapRes.json().catch(() => ({}))) as { swapTransaction?: string; lastValidBlockHeight?: number };
   if (!swapRes.ok || !built.swapTransaction) return { ok: false, reason: "swap_build_failed" };
   const tx = VersionedTransaction.deserialize(Buffer.from(built.swapTransaction, "base64"));

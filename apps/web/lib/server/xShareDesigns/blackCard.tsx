@@ -1,8 +1,8 @@
-/* ════════ Share on X — the premium VELLO BLACK card ════════
+/* ════════ Share on X — the premium SOLCAMEO BLACK card ════════
    Restored from 56d67500 — the original premium, invite-only design: black +
    gold foil, engine-turned hairlines, engraved corner brackets, a dense
    typographic column and the embossed black membership card with its crest
-   rings. It serves the VELLO BLACK tier (see ../xShareCardRender.tsx).
+   rings. It serves the SOLCAMEO BLACK tier (see ../xShareCardRender.tsx).
 
    Animated cheaply: background, card and crest are laid out ONCE; per frame
    a gold foil sheen sweeps the card (a tiny clipped SVG) and the view count
@@ -140,10 +140,10 @@ function Background({ g, memberId }: { g: Geo; memberId: string }) {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", width: 46, height: 34, borderRadius: 7, backgroundImage: "linear-gradient(135deg, #e8cf95, #86692f)", border: "1px solid rgba(0,0,0,0.35)" }} />
-            <div style={{ display: "flex", fontFamily: "Archivo", fontSize: 15, letterSpacing: 3, color: "rgba(236,230,216,0.55)" }}>VELLO</div>
+            <div style={{ display: "flex", fontFamily: "Archivo", fontSize: 15, letterSpacing: 3, color: "rgba(236,230,216,0.55)" }}>SOLCAMEO</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
-            <div style={{ display: "flex", fontFamily: "Anton", fontSize: 44, letterSpacing: 1, color: GOLD }}>VELLO BLACK</div>
+            <div style={{ display: "flex", fontFamily: "Anton", fontSize: 44, letterSpacing: 1, color: GOLD }}>SOLCAMEO BLACK</div>
             <div style={{ display: "flex", fontFamily: "Grotesk", fontSize: 14, letterSpacing: 3, color: "rgba(236,230,216,0.5)", marginTop: 4 }}>INVITE ONLY</div>
           </div>
           <div style={{ display: "flex", marginTop: 18, fontFamily: "Grotesk", fontSize: 19, letterSpacing: 3, color: "rgba(236,230,216,0.78)" }}>{`•••• •••• •••• ${memberId.slice(-4)}`}</div>
@@ -155,12 +155,12 @@ function Background({ g, memberId }: { g: Geo; memberId: string }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, border: `1px solid ${GOLD}`, borderRadius: 4, marginRight: 10 }}>
           <div style={{ display: "flex", fontFamily: "Archivo", fontSize: 11, color: GOLD }}>V</div>
         </div>
-        <div style={{ display: "flex", fontFamily: "Archivo", fontSize: 13, letterSpacing: 3, color: "rgba(255,255,255,0.85)" }}>VELLO</div>
+        <div style={{ display: "flex", fontFamily: "Archivo", fontSize: 13, letterSpacing: 3, color: "rgba(255,255,255,0.85)" }}>SOLCAMEO</div>
         <div style={{ display: "flex", width: 1, height: 12, backgroundColor: "rgba(255,255,255,0.2)", marginLeft: 12, marginRight: 12 }} />
         <div style={{ display: "flex", fontFamily: "Grotesk", fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.4)" }}>MEMBERSHIP</div>
       </div>
       <div style={{ position: "absolute", right: 40, top: 32, display: "flex", fontFamily: "Grotesk", fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.35)" }}>{`N° ${memberId}`}</div>
-      <div style={{ position: "absolute", left: g.textLeft, top: CARD_H - 46, display: "flex", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>velloagents.com</div>
+      <div style={{ position: "absolute", left: g.textLeft, top: CARD_H - 46, display: "flex", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>solcameo.com</div>
     </div>
   );
 }

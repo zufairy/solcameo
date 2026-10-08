@@ -28,7 +28,7 @@ describe("tierFor / compactNumber", () => {
     expect(tierFor(500_000).label).toBe("SILVER");
     expect(tierFor(2_000_000).label).toBe("GOLD");
     expect(tierFor(20_000_000).label).toBe("PLATINUM");
-    expect(tierFor(1_200_000_000).label).toBe("VELLO BLACK");
+    expect(tierFor(1_200_000_000).label).toBe("SOLCAMEO BLACK");
   });
   it("gives every tier its own material, card face and accent — not a colour swap", () => {
     expect(SHARE_TIERS.map((t) => t.material)).toEqual(["graphite", "silver", "gold", "platinum", "black"]);
@@ -37,7 +37,7 @@ describe("tierFor / compactNumber", () => {
     expect(pickVariant("mintA", 999, 1).tier.material).toBe("graphite");
     expect(pickVariant("mintA", 1_000_000_000, 1).tier.material).toBe("black");
   });
-  it("shows honest progress to the next tier, and none past VELLO BLACK", () => {
+  it("shows honest progress to the next tier, and none past SOLCAMEO BLACK", () => {
     expect(nextTierFor(0)).toMatchObject({ tier: { label: "SILVER" }, progress: 0 });
     expect(nextTierFor(550_000)?.tier.label).toBe("GOLD");
     expect(nextTierFor(550_000)?.progress).toBeCloseTo(0.5, 5);
@@ -66,9 +66,9 @@ describe("post copy", () => {
     const long = finalizePostText("word ".repeat(120), mint);
     expect(long.length).toBeLessThanOrEqual(X_POST_LIMIT);
     expect(long.endsWith(marketLinkFor(mint))).toBe(true);
-    const oldLink = "https://velloagents.com/market/OldAgent";
+    const oldLink = "https://solcameo.com/market/OldAgent";
     const updated = finalizePostText(`hi ${oldLink}`, mint);
-    expect(updated.match(/velloagents\.com/g)).toHaveLength(1);
+    expect(updated.match(/solcameo\.com/g)).toHaveLength(1);
     expect(updated.endsWith(marketLinkFor(mint))).toBe(true);
   });
   it("opens a user-reviewed X composer with this agent's final marketplace link", () => {

@@ -55,5 +55,9 @@ export async function publicPortrait(mint: string): Promise<{ name: string; imag
   const url = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!url || !mint) return null;
   const agent = await new ConvexHttpClient(url).query(api.influencers.getByMint, { mintAddress: mint }).catch(() => null);
-  return agent?.avatarUrl && /^https:\/\//.test(agent.avatarUrl) ? { name: agent.name, imageUrl: agent.avatarUrl } : null;
+  if (!agent) return null;
+  // The influencer's minted still first (a still face is what the engine can read), else its profile picture as a still frame.
+  const stills = (await import("./identityStill")).identityStills;
+  const best = agent.avatarStills?.find((u: string) => /^https:\/\//.test(u) && !/\.gif(\?|#|$)/i.test(u)) ?? (agent.avatarUrl && /^https:\/\//.test(agent.avatarUrl) ? (await stills([agent.avatarUrl], agent))[0] : "");
+  return best ? { name: agent.name, imageUrl: best } : null;
 }

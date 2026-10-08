@@ -42,7 +42,7 @@ export function rpcCandidates(network?: ReturnType<typeof getNetwork>): string[]
   // The browser path keeps the shared public endpoint as a last resort behind the dedicated one, so a hiccup (or a
   // rate limit on the public Helius key) can't stop a transfer from landing.
   const publicUrl = n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : n === "testnet" ? "https://api.testnet.solana.com" : "https://api.devnet.solana.com";
-  const browserRelay = typeof window !== "undefined" ? [`${window.location.origin}/api/solana-rpc?network=${n}`] : [];
+  const browserRelay = typeof window !== "undefined" && window.location ? [`${window.location.origin}/api/solana-rpc?network=${n}`] : [];
   return [...new Set([...browserRelay, ...getRpcCandidates(n), publicUrl])];
 }
 

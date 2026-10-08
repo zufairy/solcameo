@@ -2268,6 +2268,15 @@ export default defineSchema({
     // templated from, when known. Optional — no backfill. Lets the feed expose
     // which rotation format produced this row so the feedback chip can target it.
     formatId: v.optional(v.string()),
+    /** Queued by the automatic 3-a-day X schedule (see autoScheduleVideoToX), not by hand. */
+    auto: v.optional(v.boolean()),
+    /** Where it was published and how it is measured: set when the drip posts it, then the analytics sync fills viewCount. */
+    postUrl: v.optional(v.string()),
+    postPlatform: v.optional(v.string()),
+    platformPostId: v.optional(v.string()),
+    uploadPostRequestId: v.optional(v.string()),
+    viewCount: v.optional(v.number()),
+    viewsSyncedAt: v.optional(v.number()),
   })
     .index("by_mint", ["mintAddress"])
     .index("by_status", ["status"])

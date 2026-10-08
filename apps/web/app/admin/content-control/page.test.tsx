@@ -50,7 +50,7 @@ describe("Content Control page", () => {
     await act(async () => { select.value = "agent1"; select.dispatchEvent(new Event("change", { bubbles: true })); await new Promise(resolve => setTimeout(resolve, 25)); });
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
     expect(select.options.length).toBe(2);
-    expect(container.textContent).toContain("Selected destination: mila");
+    expect(container.textContent).toContain("Selected account: mila");
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("targetMint=agent1"))).toBe(true);
   });
 });

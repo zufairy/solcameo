@@ -1,3 +1,4 @@
+import { identityStills } from "@/lib/server/identityStill";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
@@ -27,11 +28,10 @@ export async function POST(req: NextRequest) {
 
   const ref = typeof body.referenceId === "string" ? await resolveReference(body.referenceId, body.referencePage) : null;
   if (!ref) return NextResponse.json({ error: "This reference video is no longer available. Pick another one." }, { status: 400 });
-  const images = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
-  if (!images.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
+  const rawImages = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(https).slice(0, 8);
+  if (!rawImages.length) return NextResponse.json({ error: "Add at least one character image" }, { status: 400 });
   const mode = body.mode === "object-swap" ? "object-swap" : "motion-transfer";
   const resolution = (["480p", "720p", "1080p"].includes(body.resolution as string) ? body.resolution : "720p") as "480p" | "720p" | "1080p";
-  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", body.castTokens, images.length, mode);
   const price = priceUsd(ref.duration, resolution);
   if (price === null) return NextResponse.json({ error: "This reference must be between 4 and 30 seconds." }, { status: 400 });
 
@@ -40,8 +40,11 @@ export async function POST(req: NextRequest) {
   if (!url || !secret) return NextResponse.json({ error: "Generation is not configured." }, { status: 503 });
   const convex = new ConvexHttpClient(url);
   const agent = await convex.query(api.influencers.getByMintServer, { mintAddress: a.mint, authSecret: secret });
+  // The influencer and every tagged cameo go to the engine as clear still faces, never animated GIFs.
+  const images = await identityStills(rawImages, agent);
   const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
 
+  const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", body.castTokens, images.length, mode);
   const runId = `explore:${randomUUID()}`;
   const charge = await chargeExploreRun(a.mint, runId, price);
   if (!charge.ok) return NextResponse.json({ error: CHARGE_MESSAGES[charge.reason] ?? "Could not charge the agent wallet.", code: charge.reason, mintAddress: a.mint, required: price }, { status: charge.reason === "billing_unavailable" || charge.reason === "payment_failed" ? 503 : 402 });

@@ -1,11 +1,11 @@
 /* ════════ Share on X — animated membership-card renderer ════════
-   Renders the 1200×675 VELLO MEMBERSHIP card frame by frame and encodes the
+   Renders the 1200×675 SOLCAMEO MEMBERSHIP card frame by frame and encodes the
    loop to an animated GIF with sharp. The static PNG (renderShareCard) is one
    settled frame of the same animation, so the in-app preview, the /dev/x-cards
    gallery and the posted media are all one design.
 
    Digital identity:
-   - The REAL Vello logo (assets/lo.png) is pixelated at load time — its alpha
+   - The REAL Solcameo logo (assets/lo.png) is pixelated at load time — its alpha
      and shading are sampled into a pixel grid — and used for the header lockup
      and the card emblem. Nothing hand-drawn stands in for the brand.
    - The agent's profile image is pixelated and "resolves" from coarse blocks
@@ -25,6 +25,7 @@
    by sharp's native librsvg straight onto the baked backdrop. Stats come from
    Convex, never the client, so a card can't claim views an agent doesn't have. */
 
+import { LOGO_FILE as BRAND_LOGO, LOGO_CUT } from "@/lib/server/brandLogo";
 import type { ReactNode } from "react";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -36,7 +37,7 @@ import {
   type ShareLayout, type ShareMaterial, type ShareTier, type ShareVariant,
 } from "@/lib/share/xShareCard";
 
-/* Restored from bcc4ea5b ("the first card design"): the VELLO MEMBERSHIP
+/* Restored from bcc4ea5b ("the first card design"): the SOLCAMEO MEMBERSHIP
    physical card with its original animation. It now serves the PLATINUM tier
    of the share-card system (see ../xShareCardRender.tsx); stats loading and
    caching live in the main renderer. */
@@ -154,7 +155,7 @@ const SOCIAL_PATHS: Record<string, string> = {
 };
 
 /** The live brand logo — the same file the app header renders. */
-const LOGO_FILE = join(process.cwd(), "assets", "lo.png");
+const LOGO_FILE = BRAND_LOGO;
 /** Brand lime, sampled from the logo mark. */
 const BRAND_LIME = "#C8F02A";
 
@@ -208,8 +209,8 @@ async function pixelizeLogo(src: Buffer, region: { left: number; width: number }
 async function loadLogo(): Promise<Logo> {
   const src = await readFile(LOGO_FILE);
   const w = (await sharp(src).metadata()).width ?? 1000;
-  const mark = { left: 0, width: Math.round(w * 0.235) };
-  const word = { left: Math.round(w * 0.235), width: w - Math.round(w * 0.235) };
+  const mark = { left: 0, width: Math.round(w * LOGO_CUT) };
+  const word = { left: Math.round(w * LOGO_CUT), width: w - Math.round(w * LOGO_CUT) };
   const [markLg, markSm, wordGrid, wordSm] = await Promise.all([
     pixelizeLogo(src, mark, 20),
     pixelizeLogo(src, mark, 9),
@@ -723,7 +724,7 @@ function Frame({ data, v, t, face, backdrop, socialIcons, sprites, mosaics }: {
         </div>
       )}
 
-      <div style={{ position: "absolute", left: 40, bottom: 30, display: "flex", fontFamily: "Grotesk", fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.32)", opacity: outro }}>VELLOAGENTS.COM</div>
+      <div style={{ position: "absolute", left: 40, bottom: 30, display: "flex", fontFamily: "Grotesk", fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.32)", opacity: outro }}>SOLCAMEO.COM</div>
       <div style={{ position: "absolute", right: 40, bottom: 28, display: "flex", fontFamily: "Fraunces", fontSize: 14, letterSpacing: 0.5, color: tier.accent, opacity: outro * 0.85 }}>{tier.tagline}</div>
     </div>
   );
