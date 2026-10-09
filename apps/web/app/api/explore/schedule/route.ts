@@ -78,8 +78,12 @@ export async function GET(req: NextRequest) {
   const c = client();
   if (!c) return NextResponse.json({ items: [] });
   const rows = await c.convex.query(api.scheduledRecreations.listForMint, { authSecret: c.secret, mintAddress: a.mint }).catch(() => []);
+  const posts = await c.convex.query(api.scheduledContent.listByMint, { mintAddress: a.mint });
   return NextResponse.json({
-    items: rows.map((r) => ({ id: r._id, title: r.referenceTitle, poster: r.referencePoster, runAt: r.runAt, repeat: r.repeat, remaining: r.remaining, status: r.status, resolution: r.resolution, mode: r.mode, resultUrl: r.resultUrl, error: r.error, postStatus: r.postStatus, postError: r.postError })),
+    items: rows.map((r) => {
+      const post = posts.find(p => p.videoUrl === r.resultUrl && p.status === "posted") ?? posts.find(p => p.videoUrl === r.resultUrl);
+      return { id: r._id, title: r.referenceTitle, poster: r.referencePoster, runAt: r.runAt, repeat: r.repeat, remaining: r.remaining, status: r.status, resolution: r.resolution, mode: r.mode, resultUrl: r.resultUrl, error: r.error, postStatus: post?.status ?? r.postStatus, postError: post ? post.error : r.postError };
+    }),
   }, { headers: { "Cache-Control": "no-store" } });
 }
 

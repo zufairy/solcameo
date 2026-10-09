@@ -1,5 +1,7 @@
 "use client";
 
+import { RepostVideoButton } from "@/components/social/repost-video-button";
+
 import { useMemo, useRef, useState, type ReactNode } from "react";
 
 import { createPortal } from "react-dom";
@@ -48,6 +50,7 @@ export type CalendarStatus =
   | "cancelled";
 
 export interface CalendarEntry {
+  mintAddress?: string;
   /** Stable key. */
   id: string;
   /** Effective epoch-ms for placement (postedAt for posted, else scheduledFor). */
@@ -883,6 +886,7 @@ function HoverPreview({
         <p className="mt-1 line-clamp-3 text-[13px] font-medium leading-snug text-white">
           {entry.label}
         </p>
+        {entry.status === "failed" && entry.mintAddress && entry.videoUrl && <RepostVideoButton mintAddress={entry.mintAddress} videoUrl={entry.videoUrl} title={entry.label} />}
         {onRequestDelete ? (
           <button
             type="button"

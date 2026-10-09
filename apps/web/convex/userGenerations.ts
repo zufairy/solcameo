@@ -19,11 +19,14 @@ type Row = {
   /** clip rows only: the source video this was cut from, so the UI can label
    *  it "Clip of <source>" instead of a bare unrelated "new video". */
   sourceUrl?: string;
+  mintAddress?: string;
+  postStatus?: string;
+  postError?: string;
 };
 
-function parseVideoOutput(output?: string): { videoUrl?: string; topic?: string; caption?: string } {
+function parseVideoOutput(output?: string): { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string } } {
   if (!output) return {};
-  try { return JSON.parse(output) as { videoUrl?: string; topic?: string; caption?: string }; } catch { return {}; }
+  try { return JSON.parse(output) as { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string } }; } catch { return {}; }
 }
 
 export const listForUser = query({
@@ -59,7 +62,13 @@ export const listForUser = query({
         if (t.type !== "create_video" || t.status !== "succeeded") continue;
         const o = parseVideoOutput(t.output);
         if (!o.videoUrl) continue;
-        push({ id: t._id as string, kind: "agent", title: o.topic || o.caption || t.title || "Generated video", videoUrl: o.videoUrl, agentName: name, createdAt: t.completedAt ?? t._creationTime });
+        push({ id: t._id as string, kind: "agent", title: o.topic || o.caption || t.title || "Generated video", videoUrl: o.videoUrl, mintAddress, postStatus: o.post?.status, postError: o.post?.error, agentName: name, createdAt: t.completedAt ?? t._creationTime });
+      }
+
+      const recreations = await ctx.db.query("scheduledRecreations").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).order("desc").take(80);
+      for (const recreation of recreations) {
+        if (!recreation.resultUrl) continue;
+        push({ id: String(recreation._id), kind: "recreate", mintAddress, title: recreation.referenceTitle, videoUrl: recreation.resultUrl, agentName: name, postStatus: recreation.postStatus, postError: recreation.postError, createdAt: recreation.updatedAt });
       }
 
       // ── Clips (clipping-pipeline output) ─────────────────────────────────
@@ -71,15 +80,15 @@ export const listForUser = query({
         .withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress))
         .order("desc")
         .take(80);
-      const jobIds = [...new Set(clips.filter((c) => c.status === "ready" || c.status === "posted" || c.status === "posting").map((c) => c.jobId))];
+      const jobIds = [...new Set(clips.filter((c) => c.status === "ready" || c.status === "posted" || c.status === "posting" || c.status === "failed").map((c) => c.jobId))];
       const jobById = new Map<string, string | undefined>();
       for (const jobId of jobIds) {
         const job = await ctx.db.get(jobId);
         jobById.set(jobId as string, job?.sourceUrl);
       }
       for (const c of clips) {
-        if (!c.clipUrl || (c.status !== "ready" && c.status !== "posted" && c.status !== "posting")) continue;
-        push({ id: c._id as string, kind: "clip", title: c.title || c.captionText || "Clip", videoUrl: c.clipUrl, agentName: name, sourceUrl: jobById.get(c.jobId as string), createdAt: c.postedAt ?? c._creationTime });
+        if (!c.clipUrl || (c.status !== "ready" && c.status !== "posted" && c.status !== "posting" && c.status !== "failed")) continue;
+        push({ id: c._id as string, kind: "clip", title: c.title || c.captionText || "Clip", videoUrl: c.clipUrl, mintAddress, postStatus: c.status, postError: c.failReason, agentName: name, sourceUrl: jobById.get(c.jobId as string), createdAt: c.postedAt ?? c._creationTime });
       }
     }
 
@@ -121,6 +130,14 @@ export const listForUser = query({
       }
     }
 
-    return rows.sort((a, b) => b.createdAt - a.createdAt).slice(0, 150);
+    const visible = rows.sort((a, b) => b.createdAt - a.createdAt).slice(0, 150);
+    // Surface the durable queue state rather than a stale generation's failed output.
+    for (const row of visible) {
+      if (!row.mintAddress || !row.videoUrl) continue;
+      const posts = await ctx.db.query("scheduledContent").withIndex("by_mint_video", q => q.eq("mintAddress", row.mintAddress!).eq("videoUrl", row.videoUrl!)).collect();
+      const post = posts.find(p => p.status === "posted") ?? posts.sort((a, b) => b._creationTime - a._creationTime)[0];
+      if (post) { row.postStatus = post.status; row.postError = post.error; }
+    }
+    return visible;
   },
 });

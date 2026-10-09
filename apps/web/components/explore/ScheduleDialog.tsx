@@ -1,4 +1,6 @@
 "use client";
+
+import { RepostVideoButton } from "@/components/social/repost-video-button";
 /* eslint-disable @next/next/no-img-element -- remote media */
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -239,9 +241,10 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
                         {r.poster ? <img src={r.poster} alt="" className="size-10 shrink-0 rounded-md object-cover" /> : <span className="size-10 shrink-0 rounded-md bg-white/10" />}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium">{r.title}</p>
-                          <p className="truncate text-[11px] text-zinc-500">{new Date(r.runAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {r.resolution}{r.repeat !== "once" ? ` · ${r.repeat}` : ""}{r.error ? ` · ${r.error}` : ""}{r.postStatus === "posted" ? " · posted to X" : r.postStatus === "failed" ? ` · X post failed${r.postError ? `: ${r.postError}` : ""}` : ""}</p>
+                          <p className="truncate text-[11px] text-zinc-500">{new Date(r.runAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {r.resolution}{r.repeat !== "once" ? ` · ${r.repeat}` : ""}{r.error ? ` · ${r.error}` : ""}{r.postStatus === "scheduled" ? " · queued for X" : r.postStatus === "posting" ? " · posting to X" : r.postStatus === "posted" ? " · posted to X" : r.postStatus === "failed" ? ` · X post failed${r.postError ? `: ${r.postError}` : ""}` : ""}</p>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[r.status]?.cls ?? ""}`}>{STATUS[r.status]?.label ?? r.status}</span>
+                        {r.postStatus === "failed" && r.resultUrl && <RepostVideoButton mintAddress={effMint} videoUrl={r.resultUrl} title={r.title} />}
                         {r.status === "scheduled" && <button type="button" aria-label={`Cancel ${r.title}`} onClick={() => void cancel(r.id)} className="grid size-6 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-white/10 hover:text-white"><X className="size-3.5" /></button>}
                         {r.status === "completed" && r.resultUrl && <a href={r.resultUrl} target="_blank" rel="noreferrer" className="shrink-0 text-[11px] font-semibold text-[#d7ff00] underline">Open</a>}
                       </li>

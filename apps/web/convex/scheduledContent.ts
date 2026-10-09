@@ -219,6 +219,43 @@ export const reschedule = mutation({
   },
 });
 
+/** Explicit owner-authorized retry: reuse the video and the existing publication key. */
+export const repostVideo = mutation({
+  args: { mintAddress: v.string(), videoUrl: v.string(), title: v.string(), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, videoUrl, title, authSecret }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    const rows = await ctx.db.query("scheduledContent").withIndex("by_mint_video", q => q.eq("mintAddress", mintAddress).eq("videoUrl", videoUrl)).collect();
+    const active = rows.find(row => ["posted", "posting", "scheduled"].includes(row.status));
+    if (active) return { id: active._id, status: active.status };
+    const agent = await ctx.db.query("influencers").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).first();
+    if (!agent) throw new Error("Agent not found");
+    // Older inline publications have no schedule row: honor their saved receipt too.
+    const tasks = await ctx.db.query("agentTasks").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).order("desc").take(200);
+    for (const task of tasks) {
+      if (task.type !== "create_video") continue;
+      try {
+        const output = JSON.parse(task.output ?? "{}");
+        if (output.videoUrl === videoUrl && ["posted", "posting"].includes(output.post?.status)) return { status: output.post.status as string };
+      } catch { /* Older tasks may not have structured output. */ }
+    }
+    const clips = await ctx.db.query("clips").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).collect();
+    const clip = clips.find(row => row.clipUrl === videoUrl);
+    if (clip?.status === "posted" || clip?.status === "posting") return { status: clip.status };
+    // A failed clip must be ready again for the shared posting claim to succeed.
+    if (clip?.status === "failed") await ctx.db.patch(clip._id, { status: "ready", failReason: undefined, updatedAt: Date.now() });
+    const previous = rows.sort((a, b) => b._creationTime - a._creationTime)[0];
+    let id;
+    if (previous) {
+      id = previous._id;
+      await ctx.db.patch(id, { status: "scheduled", scheduledFor: Date.now(), retryCount: 0, error: undefined, postingStartedAt: undefined, platforms: ["x"] });
+    } else {
+      id = await ctx.db.insert("scheduledContent", { mintAddress, videoUrl, topic: title.slice(0, 200), caption: await autoCaption(ctx, agent, title), platforms: ["x"], auto: !clip, status: "scheduled", scheduledFor: Date.now(), createdAt: Date.now() });
+    }
+    await ctx.scheduler.runAfter(0, internal.scheduledContent.drainDueClips, {});
+    return { id, status: "scheduled" };
+  },
+});
+
 // ─── Cron runner support ─────────────────────────────────────────────────────
 
 /** Due, not-yet-fired scheduled content (scheduledFor <= now, status scheduled). */

@@ -2363,6 +2363,7 @@ function PostingCalendarSection({
         if (typeof eff !== "number" || !Number.isFinite(eff)) return null;
         return {
           id: `s_${r._id}`,
+          mintAddress,
           rowId: r._id,
           at: eff,
           status: toCalStatus(r.status),

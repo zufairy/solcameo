@@ -7,6 +7,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, Film, X, CalendarDays } from "lucide-react";
+import { RepostVideoButton } from "@/components/social/repost-video-button";
 import TabPageHeader from "./TabPageHeader";
 
 // Dark glassmorphism scheduler — same warm/green glow background + frosted
@@ -149,6 +150,11 @@ export default function SchedulePanel({ mintAddress }: { mintAddress?: string })
     return [...scheduled, ...generated.filter((g) => !scheduledTaskIds.has(g._id) && !scheduledUrls.has(g.videoUrl))];
   }, [rows, tasks]);
 
+  const selectedPreview = pinned ?? hovered;
+  const livePreview = selectedPreview
+    ? items.find(item => item._id === selectedPreview._id || (!!selectedPreview.videoUrl && item.videoUrl === selectedPreview.videoUrl)) ?? selectedPreview
+    : null;
+
   // Group items by day-key for fast cell lookup.
   const byDay = useMemo(() => {
     const map = new Map<string, ScheduledItem[]>();
@@ -233,7 +239,7 @@ export default function SchedulePanel({ mintAddress }: { mintAddress?: string })
       </AnimatePresence>
 
       {/* Preview popover, hover to peek, click to pin open */}
-      <PreviewPopover item={pinned ?? hovered} pinned={!!pinned} onClose={() => setPinned(null)} />
+      <PreviewPopover item={livePreview} pinned={!!pinned} mintAddress={mintAddress} onClose={() => setPinned(null)} />
 
       {items.length === 0 && rows !== undefined && (
         <div className="text-center py-14 text-zinc-500 text-[13px]">
@@ -374,7 +380,7 @@ function Chip({ item, showTime, onHover, onPin, onCancel }: {
 
 // ─── Hover preview popover ───────────────────────────────────────────────────
 
-function PreviewPopover({ item, pinned, onClose }: { item: ScheduledItem | null; pinned: boolean; onClose: () => void }) {
+function PreviewPopover({ item, pinned, onClose, mintAddress }: { item: ScheduledItem | null; pinned: boolean; onClose: () => void; mintAddress?: string }) {
   return (
     <AnimatePresence>
       {item && (
@@ -409,6 +415,7 @@ function PreviewPopover({ item, pinned, onClose }: { item: ScheduledItem | null;
             </div>
             <p className="text-[14px] font-bold text-white leading-snug">{item.topic}</p>
             {item.caption && <p className="text-[11.5px] text-zinc-400 mt-1 leading-relaxed line-clamp-3">{item.caption}</p>}
+            {item.status === "failed" && item.videoUrl && mintAddress && <RepostVideoButton mintAddress={mintAddress} videoUrl={item.videoUrl} title={item.topic} />}
             {item.status === "failed" && item.error && <p className="text-[11.5px] text-rose-300 mt-1 leading-relaxed">{item.error}</p>}
             {item.platforms.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">

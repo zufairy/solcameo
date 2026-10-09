@@ -8,6 +8,7 @@ import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { SettingsShell, blurIn } from "@/components/settings/settings-shell";
 import { motion } from "framer-motion";
 import { useHireStore } from "@/lib/client/hireStore";
+import { RepostVideoButton } from "@/components/social/repost-video-button";
 import { LiveRenders } from "@/components/generations/live-renders";
 import { Calendar, Download, Images, Layers, Play, X } from "lucide-react";
 
@@ -29,6 +30,9 @@ type GenRow = {
   createdAt: number;
   /** clip rows only: source video it was cut from. */
   sourceUrl?: string;
+  mintAddress?: string;
+  postStatus?: string;
+  postError?: string;
 };
 
 const KIND_LABEL: Record<GenRow["kind"], string> = {
@@ -168,6 +172,10 @@ function GenCard({ item, onOpen }: { item: GenRow; onOpen: (i: GenRow) => void }
           <Download className="size-[18px]" />
         </button>
       </div>
+
+      {item.mintAddress && item.videoUrl && !["posted", "posting", "scheduled"].includes(item.postStatus ?? "") && <RepostVideoButton mintAddress={item.mintAddress} videoUrl={item.videoUrl} title={item.title} failed={item.postStatus === "failed"} />}
+      {item.postError && <p className="mt-1 text-xs text-rose-300">{item.postError}</p>}
+      {item.postStatus && ["scheduled", "posting", "posted"].includes(item.postStatus) && <p className="mt-2 text-xs text-zinc-400">{item.postStatus === "scheduled" ? "Queued for X" : item.postStatus === "posting" ? "Posting…" : "Posted"}</p>}
 
       <p className="mt-3 line-clamp-2 text-[15px] font-medium leading-snug text-white" title={item.title}>
         {item.title}

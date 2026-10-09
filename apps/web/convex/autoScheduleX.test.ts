@@ -93,3 +93,47 @@ describe("catch-up for videos nobody posted", () => {
     expect((await t.mutation(internal.scheduledContent.autoScheduleBacklog, {})).queued).toBe(0); // and it never doubles up
   });
 });
+
+
+describe("explicit failed-video repost", () => {
+  it("re-arms the same failed row and resets its exhausted retry budget", async () => {
+    const { t, MINT, finish, rows } = await setup(["x"]);
+    await finish(1);
+    const original = (await rows())[0];
+    await t.run(ctx => ctx.db.patch(original._id, { status: "failed", error: "X failed", retryCount: 5 }));
+    const result = await t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl: original.videoUrl!, title: "Video", authSecret: SECRET });
+    expect(result.id).toBe(original._id);
+    expect(await rows()).toHaveLength(1);
+    expect((await rows())[0]).toMatchObject({ status: "scheduled", retryCount: 0, platforms: ["x"] });
+    expect((await rows())[0].error).toBeUndefined();
+    await t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl: original.videoUrl!, title: "Video", authSecret: SECRET });
+    expect(await rows()).toHaveLength(1);
+  });
+  it("leaves posted and in-flight videos alone", async () => {
+    const { t, MINT, finish, rows } = await setup(["x"]);
+    await finish(1);
+    const original = (await rows())[0];
+    for (const status of ["posted", "posting"]) {
+      await t.run(ctx => ctx.db.patch(original._id, { status }));
+      expect((await t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl: original.videoUrl!, title: "Video", authSecret: SECRET })).status).toBe(status);
+      expect((await rows())[0].status).toBe(status);
+    }
+  });
+  it("queues an old video once and exposes the live status in Generations", async () => {
+    const { t, MINT, rows } = await setup(["x"]);
+    const videoUrl = "https://v.test/old.mp4";
+    await t.run(ctx => ctx.db.insert("agentTasks", { mintAddress: MINT, sessionId: MINT, type: "create_video", status: "succeeded", title: "Old video", output: JSON.stringify({ videoUrl, post: { status: "failed", error: "old failure" } }) }));
+    const before = await t.query(api.userGenerations.listForUser, { creatorWallets: ["W"], privyUserId: "u" });
+    expect(before[0]).toMatchObject({ mintAddress: MINT, postStatus: "failed" });
+    await t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl, title: "Old video", authSecret: SECRET });
+    await t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl, title: "Old video", authSecret: SECRET });
+    expect(await rows()).toHaveLength(1);
+    const after = await t.query(api.userGenerations.listForUser, { creatorWallets: ["W"], privyUserId: "u" });
+    expect(after[0].postStatus).toBe("scheduled");
+    expect(after[0].postError).toBeUndefined();
+  });
+  it("rejects unauthenticated mutation calls", async () => {
+    const { t, MINT } = await setup(["x"]);
+    await expect(t.mutation(api.scheduledContent.repostVideo, { mintAddress: MINT, videoUrl: "https://v.test/1.mp4", title: "Video", authSecret: "wrong" })).rejects.toThrow("unauthorized");
+  });
+});
