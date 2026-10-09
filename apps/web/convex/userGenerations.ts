@@ -22,11 +22,14 @@ type Row = {
   mintAddress?: string;
   postStatus?: string;
   postError?: string;
+  postUrl?: string;
+  postPlatform?: string;
+  postedPlatforms?: string[];
 };
 
-function parseVideoOutput(output?: string): { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string } } {
+function parseVideoOutput(output?: string): { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string; url?: string; postUrl?: string; postPlatform?: string; platforms?: string[] } } {
   if (!output) return {};
-  try { return JSON.parse(output) as { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string } }; } catch { return {}; }
+  try { return JSON.parse(output) as { videoUrl?: string; topic?: string; caption?: string; post?: { status?: string; error?: string; url?: string; postUrl?: string; postPlatform?: string; platforms?: string[] } }; } catch { return {}; }
 }
 
 export const listForUser = query({
@@ -62,7 +65,7 @@ export const listForUser = query({
         if (t.type !== "create_video" || t.status !== "succeeded") continue;
         const o = parseVideoOutput(t.output);
         if (!o.videoUrl) continue;
-        push({ id: t._id as string, kind: "agent", title: o.topic || o.caption || t.title || "Generated video", videoUrl: o.videoUrl, mintAddress, postStatus: o.post?.status, postError: o.post?.error, agentName: name, createdAt: t.completedAt ?? t._creationTime });
+        push({ id: t._id as string, kind: "agent", title: o.topic || o.caption || t.title || "Generated video", videoUrl: o.videoUrl, mintAddress, postStatus: o.post?.status, postError: o.post?.error, postUrl: o.post?.postUrl ?? o.post?.url, postPlatform: o.post?.postPlatform, postedPlatforms: o.post?.platforms, agentName: name, createdAt: t.completedAt ?? t._creationTime });
       }
 
       const recreations = await ctx.db.query("scheduledRecreations").withIndex("by_mint", q => q.eq("mintAddress", mintAddress)).order("desc").take(80);
@@ -88,7 +91,7 @@ export const listForUser = query({
       }
       for (const c of clips) {
         if (!c.clipUrl || (c.status !== "ready" && c.status !== "posted" && c.status !== "posting" && c.status !== "failed")) continue;
-        push({ id: c._id as string, kind: "clip", title: c.title || c.captionText || "Clip", videoUrl: c.clipUrl, mintAddress, postStatus: c.status, postError: c.failReason, agentName: name, sourceUrl: jobById.get(c.jobId as string), createdAt: c.postedAt ?? c._creationTime });
+        push({ id: c._id as string, kind: "clip", title: c.title || c.captionText || "Clip", videoUrl: c.clipUrl, mintAddress, postStatus: c.status, postError: c.failReason, postUrl: c.postUrl, postPlatform: c.platform, postedPlatforms: c.platform ? [c.platform] : undefined, agentName: name, sourceUrl: jobById.get(c.jobId as string), createdAt: c.postedAt ?? c._creationTime });
       }
     }
 
@@ -136,7 +139,7 @@ export const listForUser = query({
       if (!row.mintAddress || !row.videoUrl) continue;
       const posts = await ctx.db.query("scheduledContent").withIndex("by_mint_video", q => q.eq("mintAddress", row.mintAddress!).eq("videoUrl", row.videoUrl!)).collect();
       const post = posts.find(p => p.status === "posted") ?? posts.sort((a, b) => b._creationTime - a._creationTime)[0];
-      if (post) { row.postStatus = post.status; row.postError = post.error; }
+      if (post) { row.postStatus = post.status; row.postError = post.error; row.postUrl = post.postUrl; row.postPlatform = post.postPlatform; row.postedPlatforms = post.platforms; }
     }
     return visible;
   },

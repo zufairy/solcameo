@@ -1,5 +1,7 @@
 "use client";
 
+import { GenerationPostActions, type GenerationPost } from "@/components/social/generation-post-actions";
+
 import { useSolUsd } from "@/lib/client/useSolUsd";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
@@ -4784,6 +4786,7 @@ function GenerationVideoCard({ task, onOpen, mintAddress, postCaption }: { task:
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-8">
         <p className="line-clamp-2 text-[11.5px] leading-snug text-white/80 drop-shadow">{shownCaption}</p>
+        {mintAddress && videoUrl && <GenerationPostActions mintAddress={mintAddress} videoUrl={videoUrl} title={shownCaption} post={parsed.post as GenerationPost | undefined} />}
       </div>
     </div>
   );
@@ -5011,11 +5014,12 @@ function ClipGenerationCard({ clip, onOpen, mintAddress, postCaption }: { clip: 
           </span>
         </span>
       )}
-      {!rendering && clip.status !== "failed" && (
+      {!rendering && (
         <>
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-8">
             <p className="line-clamp-2 text-[11.5px] leading-snug text-white/80 drop-shadow">{shownCaption}</p>
+            {mintAddress && clip.clipUrl && <GenerationPostActions mintAddress={mintAddress} videoUrl={clip.clipUrl} title={shownCaption} post={{ status: clip.status, postUrl: clip.postUrl, postPlatform: clip.platform, platforms: clip.platform ? [clip.platform] : undefined, error: clip.failReason }} />}
           </div>
         </>
       )}
