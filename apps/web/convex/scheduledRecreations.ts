@@ -111,8 +111,8 @@ export const markCompleted = mutation({
     gate(authSecret);
     const row = await ctx.db.get(id);
     await ctx.db.patch(id, { status: "completed", resultUrl, updatedAt: Date.now() });
-    // A replicated video that is not posting itself joins the agent's automatic X schedule (when X is connected).
-    if (row && !row.autoPost) await autoScheduleVideoToX(ctx, { mintAddress: row.mintAddress, videoUrl: resultUrl, videoNote: row.referenceTitle }).catch(() => undefined);
+    // An opted-in replicated video joins the agent's automatic X schedule (when X is connected).
+    if (row && row.autoPost) await autoScheduleVideoToX(ctx, { mintAddress: row.mintAddress, videoUrl: resultUrl, videoNote: row.referenceTitle }).catch(() => undefined);
   },
 });
 

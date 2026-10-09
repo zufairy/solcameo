@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const repeat = body.repeat === "daily" || body.repeat === "weekly" ? body.repeat : "once";
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const agent = await c.convex.query(api.influencers.getByMintServer, { mintAddress: a.mint, authSecret: c.secret }).catch(() => null);
-  const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
+  const autoPost = body.autoPost !== false && !!agent?.connectedPlatforms?.includes("x");
   // Faces reach the engine as clear stills, never animated GIFs.
   const stills = await identityStills(rawImageUrls, agent);
   const cast = await mergeCast({ prompt: text(body.prompt, 4000), castTokens: body.castTokens, imageUrls: stills, hints: body.castHints, excludeMint: a.mint });

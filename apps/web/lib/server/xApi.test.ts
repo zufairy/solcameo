@@ -9,6 +9,7 @@ vi.mock("convex/browser", () => ({
 }));
 vi.mock("./downloader", () => ({ safeFetchToBuffer: vi.fn() }));
 import { pkce, seal, unseal, xConfigured, xToken, postX } from "./xApi";
+import { safeFetchToBuffer } from "./downloader";
 beforeEach(() => {
   db.query.mockReset();
   db.mutation.mockReset();
@@ -69,6 +70,40 @@ describe("X posting", () => {
       "X_TOKEN_ENCRYPTION_KEY",
       Buffer.alloc(32, 7).toString("base64"),
     );
+  });
+  it("uploads video in chunks and finalizes before publishing, accepting an empty append response", async () => {
+    db.query.mockResolvedValue({ encrypted: seal(account) });
+    vi.mocked(safeFetchToBuffer).mockResolvedValue({ buffer: Buffer.alloc(5 * 1024 * 1024), mime: "video/mp4" } as never);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: "media1" } })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: "media1", processing_info: { state: "succeeded" } } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: "tweet1" } })));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await postX("agent", "caption $COIN", ["https://videos.test/clip.mp4"], true)).ok).toBe(true);
+    expect(fetchMock.mock.calls.map(c => c[0])).toEqual([
+      "https://api.x.com/2/media/upload/initialize",
+      "https://api.x.com/2/media/upload/media1/append",
+      "https://api.x.com/2/media/upload/media1/append",
+      "https://api.x.com/2/media/upload/media1/finalize",
+      "https://api.x.com/2/tweets",
+    ]);
+    expect(fetchMock.mock.calls[1][1].body.get("segment_index")).toBe("0");
+    expect(fetchMock.mock.calls[2][1].body.get("segment_index")).toBe("1");
+    expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty("Content-Type");
+    expect(JSON.parse(fetchMock.mock.calls[4][1].body).media.media_ids).toEqual(["media1"]);
+  });
+  it("never creates a post when X video processing fails", async () => {
+    db.query.mockResolvedValue({ encrypted: seal(account) });
+    vi.mocked(safeFetchToBuffer).mockResolvedValue({ buffer: Buffer.alloc(10), mime: "video/mp4" } as never);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: "media1" } })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: "media1", processing_info: { state: "failed" } } })));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await postX("agent", "caption", ["https://videos.test/clip.mp4"], true)).ok).toBe(false);
+    expect(fetchMock.mock.calls.some(c => String(c[0]).endsWith("/tweets"))).toBe(false);
   });
   it("posts as the connected account and returns its permalink", async () => {
     db.query.mockResolvedValue({ encrypted: seal(account) });

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   // Everyone tagged with @ in the prompt is checked against the real influencer, so each one's face is in the cast.
   const cast = await mergeCast({ prompt: typeof body.prompt === "string" ? body.prompt : "", castTokens: body.castTokens, imageUrls: stills, hints: body.castHints, excludeMint: a.mint });
   const images = cast.imageUrls;
-  const autoPost = body.autoPost === true && !!agent?.connectedPlatforms?.includes("x");
+  const autoPost = body.autoPost !== false && !!agent?.connectedPlatforms?.includes("x");
 
   const prompt = withCastKey(typeof body.prompt === "string" ? body.prompt : "", cast.castTokens, images.length, mode);
   const runId = `explore:${randomUUID()}`;

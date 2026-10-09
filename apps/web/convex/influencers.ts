@@ -616,12 +616,14 @@ export const setConnectedPlatforms = mutation({
     const nextAccounts = accounts
       ? Object.fromEntries(next.filter((p) => accounts[p]).map((p) => [p, accounts[p]]))
       : next.length === 0 ? {} : undefined;
-    if (prev.length === next.length && prev.every((p, i) => p === next[i])
+    const needsPostingDefaults = next.includes("x") && doc.clipConfig?.maxPerDay === undefined;
+    if (!needsPostingDefaults && prev.length === next.length && prev.every((p, i) => p === next[i])
       && (!nextAccounts || JSON.stringify(doc.connectedSocialAccounts ?? {}) === JSON.stringify(nextAccounts))) {
       return { ok: true as const, changed: false };
     }
     await ctx.db.patch(doc._id, {
       connectedPlatforms: next,
+      ...(needsPostingDefaults ? { clipConfig: { ...doc.clipConfig, maxPerDay: 3, postIntervalMs: 8 * 3_600_000 } } : {}),
       ...(nextAccounts ? { connectedSocialAccounts: nextAccounts } : {}),
       updatedAt: Date.now(),
     });

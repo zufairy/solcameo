@@ -6,7 +6,6 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { HfError, getStatus, submitVideo } from "@/lib/server/higgsfield";
 import { putVideo, r2Configured } from "@/lib/server/videoStorage";
 import { CHARGE_MESSAGES, chargeExploreRun, priceUsd, refundExploreRun } from "@/lib/server/exploreBilling";
-import { autoPostToX } from "@/lib/server/exploreAutoPost";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -77,11 +76,9 @@ export async function POST(req: NextRequest) {
         // Mark completed first so a slow post can never cause a second render pickup.
         await convex.mutation(api.scheduledRecreations.markCompleted, { authSecret: secret, id: row._id, resultUrl: url });
         stats.completed++;
-        if (row.autoPost) {
-          const post = await autoPostToX({ mint: row.mintAddress, videoUrl: url, referenceTitle: row.referenceTitle, scene: row.prompt });
-          await convex.mutation(api.scheduledRecreations.markPosted, { authSecret: secret, id: row._id, caption: post.caption, ...(post.ok ? {} : { error: post.error }) });
-          if (post.ok) stats.posted++;
-        }
+        // markCompleted atomically queues opted-in videos into the shared
+        // three-a-day X schedule. The scheduler records actual posting outcomes.
+
       } else if (Date.now() - row.updatedAt > 60 * 60_000) {
         await fail(row, "Timed out waiting for the render.");
       }

@@ -294,7 +294,7 @@ function Generator({
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState(() => cameoReferencePrompt(item, primaryName));
   const [cast, setCast] = useState<CameoMember[]>([]);
-  const [autoPost, setAutoPost] = useState(false);
+  const [autoPost, setAutoPost] = useState(true);
   const estimate = estimateModelUsd(model, item.duration, resolution);
   const { runs, start } = useMotionRuns(mint || "custom");
   const run = runs[0];

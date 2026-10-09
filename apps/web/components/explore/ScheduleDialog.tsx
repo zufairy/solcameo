@@ -63,7 +63,7 @@ function ScheduleBody({ item, agents, initialMint, mode: initialMode, resolution
   const [when, setWhen] = useState(() => toLocalInput(presets()[0].date));
   const [repeat, setRepeat] = useState<"once" | "daily" | "weekly">("once");
   const [count, setCount] = useState(7);
-  const [autoPost, setAutoPost] = useState(false);
+  const [autoPost, setAutoPost] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [cast, setCast] = useState<CameoMember[]>([]);
   const [portraitState, setPortraitState] = useState<{ mint: string; url?: string } | null>(null);

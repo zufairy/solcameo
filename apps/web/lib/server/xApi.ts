@@ -135,12 +135,13 @@ export async function postX(
         ...init,
         headers: {
           Authorization: `Bearer ${a.access_token}`,
-          "Content-Type": "application/json",
+          ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
           ...init.headers,
         },
         signal: AbortSignal.timeout(60000),
       });
-      const body = await res.json();
+      const responseText = await res.text();
+      const body = responseText ? JSON.parse(responseText) : {};
       if (!res.ok || body.errors?.length)
         throw new Error(
           `X request failed (${res.status}): ${body.detail ?? body.errors?.[0]?.detail ?? "Check permissions, credits, or reconnect X."}`,
@@ -156,19 +157,30 @@ export async function postX(
       });
       if (!(video ? mime.startsWith("video/") : mime.startsWith("image/")))
         throw new Error("Invalid X media type");
-      let data = (
-        await request("/media/upload", {
+      let data: { id?: string; processing_info?: { state: string; check_after_secs?: number } } | undefined;
+      if (video) {
+        data = (await request("/media/upload/initialize", {
           method: "POST",
-          body: JSON.stringify({
-            media: buffer.toString("base64"),
-            media_category: video
-              ? "tweet_video"
-              : mime.includes("gif")
-                ? "tweet_gif"
-                : "tweet_image",
-          }),
-        })
-      ).data;
+          body: JSON.stringify({ media_type: mime, total_bytes: buffer.length, media_category: "tweet_video" }),
+        })).data;
+        if (!data?.id) throw new Error("X returned no media ID");
+        const uploadId = data.id;
+        const chunkBytes = 4 * 1024 * 1024;
+        for (let offset = 0, segment = 0; offset < buffer.length; offset += chunkBytes, segment++) {
+          const form = new FormData();
+          form.set("segment_index", String(segment));
+          form.set("media", new Blob([new Uint8Array(buffer.subarray(offset, offset + chunkBytes))], { type: mime }), "video.mp4");
+          await request(`/media/upload/${encodeURIComponent(uploadId)}/append`, { method: "POST", body: form });
+        }
+        data = (await request(`/media/upload/${encodeURIComponent(uploadId)}/finalize`, { method: "POST" })).data;
+        if (!data) throw new Error("X returned no finalized media");
+        data.id ??= uploadId;
+      } else {
+        data = (await request("/media/upload", {
+          method: "POST",
+          body: JSON.stringify({ media: buffer.toString("base64"), media_category: mime.includes("gif") ? "tweet_gif" : "tweet_image" }),
+        })).data;
+      }
       if (!data?.id) throw new Error("X returned no media ID");
       const id = data.id;
       const deadline = Date.now() + 120000;
@@ -178,15 +190,8 @@ export async function postX(
       ) {
         if (data.processing_info.state === "failed" || Date.now() > deadline)
           throw new Error("X media processing failed or timed out");
-        await new Promise((r) =>
-          setTimeout(
-            r,
-            Math.min(
-              10,
-              Math.max(1, data.processing_info.check_after_secs ?? 1),
-            ) * 1000,
-          ),
-        );
+        const delayMs = Math.min(10, Math.max(1, data.processing_info.check_after_secs ?? 1)) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
         data = (
           await request(
             `/media/upload?command=STATUS&media_id=${encodeURIComponent(id)}`,

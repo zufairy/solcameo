@@ -558,6 +558,7 @@ export const drainDueClips = internalAction({
                 // never turns it into the caption for other platforms.
                 ...(row.topic ? { topic: row.topic } : {}),
                 skipAutoCaption: true,
+                ...(row.auto && !row.campaignId && !provContentRewardId ? { generateInfluencerCaption: true } : {}),
                 campaignId: row.campaignId,
                 // contentRewardId (recovered from the clip's job above) makes
                 // post_content resolve + append the content_reward brief's mandatory
@@ -871,21 +872,27 @@ const isXConnected = (agent: Doc<"influencers">) =>
  * post themselves (autoPost) and clips already queued are left alone.
  */
 export async function autoScheduleVideoToX(ctx: MutationCtx, job: { mintAddress: string; videoUrl: string; videoNote?: string; taskId?: Id<"agentTasks">; autoPost?: unknown }) {
-  if (job.autoPost) return;
+  const postConfig = job.autoPost as { platforms?: string[] } | undefined;
+  if (postConfig && (!postConfig.platforms?.length || postConfig.platforms.some(p => p === "x" || p === "twitter"))) return;
+  const task = job.taskId ? await ctx.db.get(job.taskId) : null;
+  let taskInput: Record<string, unknown> = {};
+  try { taskInput = JSON.parse(task?.input ?? "{}"); } catch { /* Legacy task inputs may not be JSON. */ }
+  if (taskInput.holdForApproval === true || taskInput.sample === true) return;
   const agent = await ctx.db.query("influencers").withIndex("by_mint", (q) => q.eq("mintAddress", job.mintAddress)).first();
   if (!agent || !isXConnected(agent)) return;
   const rows = await ctx.db.query("scheduledContent").withIndex("by_mint", (q) => q.eq("mintAddress", job.mintAddress)).order("desc").take(300);
-  if (rows.some((r) => r.videoUrl === job.videoUrl && ["scheduled", "posting", "posted"].includes(r.status))) return;
+  if (rows.some((r) => r.videoUrl === job.videoUrl && ["scheduled", "posting", "posted", "cancelled", "failed"].includes(r.status))) return;
   const now = Date.now();
   const xRows = rows.filter((r) => r.platforms.includes("x"));
   // The last X post that went out or is going out: the next slot is a full gap after it.
   const lastOut = Math.max(0, ...xRows.filter((r) => r.status === "posting" || r.status === "posted").map((r) => r.postedAt ?? r.scheduledFor));
   const firstSlot = Math.max(now + 2 * 60_000, lastOut + AUTO_X_GAP_MS);
-  const topic = (job.videoNote ?? "").trim().slice(0, 200) || `New video from ${agent.name}`;
+  const contentTopic = typeof taskInput.topic === "string" ? taskInput.topic : job.videoNote ?? "";
+  const topic = contentTopic.trim().slice(0, 200) || `New video from ${agent.name}`;
   const id = await ctx.db.insert("scheduledContent", {
     mintAddress: job.mintAddress, scheduledFor: firstSlot, status: "scheduled", topic, platforms: ["x"], videoUrl: job.videoUrl,
     taskId: job.taskId, auto: true, createdAt: now,
-    caption: await autoCaption(ctx, agent, (job.videoNote ?? "").trim()),
+    caption: await autoCaption(ctx, agent, contentTopic.trim()),
   });
   // Newest content first: re-deal the waiting automatic rows into the slots, freshest to the earliest.
   const waiting = [...xRows.filter((r) => r.status === "scheduled" && r.auto === true), (await ctx.db.get(id))!].sort((a, b) => (b.createdAt - a.createdAt) || (b._creationTime - a._creationTime));
@@ -944,7 +951,7 @@ export const autoScheduleBacklog = internalMutation({
     let queued = 0, checked = 0;
     for (const job of [...jobs].reverse()) {
       if (checked >= 60) break;
-      if (job.phase !== "done" || !job.videoUrl || job.autoPost || !job.mintAddress || job._creationTime < cutoff || seen.has(job.videoUrl)) continue;
+      if (job.phase !== "done" || !job.videoUrl || !job.mintAddress || job._creationTime < cutoff || seen.has(job.videoUrl)) continue;
       seen.add(job.videoUrl);
       checked++;
       const task = await ctx.db.get(job.taskId);
@@ -952,10 +959,21 @@ export const autoScheduleBacklog = internalMutation({
       let out: { post?: { status?: string } } | null = null;
       try { out = typeof raw === "string" ? JSON.parse(raw) : (raw as typeof out) ?? null; } catch { /* unreadable output: treat as not posted */ }
       if (out?.post?.status === "posted") continue;
+      if (job.autoPost && out?.post?.status !== "failed") continue;
       const before = (await ctx.db.query("scheduledContent").withIndex("by_mint_video", (q) => q.eq("mintAddress", job.mintAddress).eq("videoUrl", job.videoUrl)).collect()).length;
-      await autoScheduleVideoToX(ctx, { mintAddress: job.mintAddress, videoUrl: job.videoUrl, videoNote: job.videoNote, taskId: job.taskId, autoPost: job.autoPost });
+      await autoScheduleVideoToX(ctx, { mintAddress: job.mintAddress, videoUrl: job.videoUrl, videoNote: job.videoNote, taskId: job.taskId });
       const after = (await ctx.db.query("scheduledContent").withIndex("by_mint_video", (q) => q.eq("mintAddress", job.mintAddress).eq("videoUrl", job.videoUrl)).collect()).length;
       if (after > before) queued++;
+    }
+    // Explore completions use another render table, but share this same queue.
+    const recreations = await ctx.db.query("scheduledRecreations").withIndex("by_status_runAt", q => q.eq("status", "completed")).order("desc").take(100);
+    for (const row of recreations) {
+      if (!row.autoPost || !row.resultUrl || row.postStatus === "posted" || row._creationTime < cutoff) continue;
+      const before = await ctx.db.query("scheduledContent").withIndex("by_mint_video", q => q.eq("mintAddress", row.mintAddress).eq("videoUrl", row.resultUrl)).first();
+      if (before) continue;
+      await autoScheduleVideoToX(ctx, { mintAddress: row.mintAddress, videoUrl: row.resultUrl, videoNote: row.referenceTitle });
+      const after = await ctx.db.query("scheduledContent").withIndex("by_mint_video", q => q.eq("mintAddress", row.mintAddress).eq("videoUrl", row.resultUrl)).first();
+      if (after) queued++;
     }
     return { checked, queued };
   },

@@ -1072,10 +1072,17 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
     // if nothing is connected, so this is safe). This makes commissioned videos
     // post themselves to the connected socials, per the agent's configured skill.
     const installedSkillIds = ((agent as { installedSkills?: string[] }).installedSkills ?? []);
-    const effectiveAutoPost = isSample || holdForApproval
-      ? undefined
-      : (input.autoPost as Record<string, unknown> | undefined)
-        ?? (installedSkillIds.includes("social.uploadpost") ? { platforms: [] as string[] } : undefined);
+    const requestedAutoPost = (input.autoPost as Record<string, unknown> | undefined)
+      ?? (installedSkillIds.includes("social.uploadpost") ? { platforms: [] as string[] } : undefined);
+    const campaignPost = requestedAutoPost?.campaignId || requestedAutoPost?.contentRewardId;
+    const requestedPlatforms = Array.isArray(requestedAutoPost?.platforms) && requestedAutoPost.platforms.length
+      ? requestedAutoPost.platforms.map(String)
+      : (agent as { connectedPlatforms?: string[] }).connectedPlatforms ?? [];
+    const immediatePlatforms = requestedPlatforms.filter(p => p !== "x" && p !== "twitter");
+    const effectiveAutoPost = isSample || holdForApproval ? undefined
+      : campaignPost ? requestedAutoPost
+      : requestedAutoPost && immediatePlatforms.length ? { ...requestedAutoPost, platforms: immediatePlatforms }
+      : undefined;
 
     // Video Director — resolve per-video length + style from the agent's config.
     // Explicit input still wins. Seed varies per (agent, topic, minute) so length
@@ -2554,6 +2561,14 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       // Operator/LLM supplied copy — honor "no hashtags" UNLESS the Smart
       // Captions instruction explicitly asked for them (allowHashtags above).
       text = stripHashtags(text);
+    }
+
+    // Automatic influencer posts use the video topic; manual and campaign copy stays approved as supplied.
+    if (input.generateInfluencerCaption === true && targets.includes("x") && agent.mintAddress) {
+      const topic = typeof input.topic === "string" ? input.topic : text;
+      const written = await generatePostCaption(agent, ctx, { topic, hook: text, scriptText: topic, platform: "x" });
+      const coin = await new ConvexHttpClient(CONVEX_URL).query(api.influencers.coinOfMint, { mintAddress: agent.mintAddress }).catch(() => null);
+      text = coin ? withTicker(written || text, { ticker: coin.ticker, url: `https://solcameo.com${marketPath({ characterId: coin.characterId, ticker: coin.ticker })}` }) : written || text;
     }
 
     // Campaign account tag: if this post is for a campaign that REQUIRES tagging an
