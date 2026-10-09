@@ -1,7 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { refreshAgentFunds } from "./agentWallet";
-import { payOrBatch } from "./generationPayment";
+import { payForCharge } from "./generationPayment";
 import { topUpAgentFromSol } from "./solSwap";
 import { priceFor } from "@/lib/economy/servicePrices";
 import { holderDiscountForMint } from "./holderTier";
@@ -16,7 +16,7 @@ export async function chargeAgentGeneration(mintAddress: string, runId: string, 
     await refreshAgentFunds(mintAddress);
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
     const book = async () => convex.mutation(api.usage.recordUsage, {
-      mintAddress, service, qty, walletOnly: true, idemKey: `${runId}:skill:${service}`, holderDiscountPct: await holderDiscountForMint(mintAddress),
+      mintAddress, service, qty, walletOnly: true, requireTransfer: true, idemKey: `${runId}:skill:${service}`, holderDiscountPct: await holderDiscountForMint(mintAddress),
       authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
     });
     let charged = await book();
@@ -26,9 +26,9 @@ export async function chargeAgentGeneration(mintAddress: string, runId: string, 
       try { estimate = priceFor(service, qty) * 1.15; } catch { /* an unpriced service cannot be topped up */ }
       if (estimate > 0 && (await topUpAgentFromSol(mintAddress, estimate)).ok) { await refreshAgentFunds(mintAddress); charged = await book(); }
     }
-    if (!charged.ok) return charged;
+    if (!charged.ok || charged.costUsdc <= 0) return charged;
     if (!("paymentConfirmed" in charged && charged.paymentConfirmed)) {
-      const paid = await payOrBatch(mintAddress, charged.costUsdc);
+      const paid = await payForCharge(mintAddress, { requireTransfer: true });
       if (!paid.ok) { await refundImage(mintAddress, runId); return { ok: false as const, reason: "payment_failed" }; }
     }
     return charged;

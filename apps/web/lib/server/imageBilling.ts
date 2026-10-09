@@ -1,5 +1,5 @@
 import { refreshAgentFunds } from "./agentWallet";
-import { payOrBatch } from "./generationPayment";
+import { payForCharge } from "./generationPayment";
 import { topUpAgentFromSol } from "./solSwap";
 import { holderDiscountForMint } from "./holderTier";
 import { ConvexHttpClient } from "convex/browser";
@@ -19,12 +19,12 @@ export async function chargeImage(mint: string, runId: string, engine: Pick<Imag
   const qty = Math.max(1, Math.round(imagePriceUsd(engine) * 1000));
   try {
     await refreshAgentFunds(mint);
-    const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
+    const book = async () => convex().mutation(api.usage.recordUsage, { mintAddress: mint, service: SERVICE, qty, idemKey: `${runId}:skill:${SERVICE}`, walletOnly: true, requireTransfer: true, holderDiscountPct: await holderDiscountForMint(mint), authSecret: secret() });
     let r = await book();
     if (!r.ok && r.reason === "needs_funding" && (await topUpAgentFromSol(mint, imagePriceUsd(engine) * 1.15)).ok) { await refreshAgentFunds(mint); r = await book(); }
     if (!r.ok) return { ok: false, reason: r.reason ?? "needs_funding" };
     if (!("paymentConfirmed" in r && r.paymentConfirmed)) {
-      const paid = await payOrBatch(mint, r.costUsdc);
+      const paid = await payForCharge(mint, { requireTransfer: true });
       if (!paid.ok) { await refundImage(mint, runId); return { ok: false, reason: "payment_failed" }; }
     }
     return { ok: true, costUsdc: r.costUsdc };

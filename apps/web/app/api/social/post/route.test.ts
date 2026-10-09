@@ -21,6 +21,8 @@ const h = vi.hoisted(() => {
   process.env.NEXT_PUBLIC_CONVEX_URL = "https://example.convex.cloud";
   process.env.INTERNAL_CRON_SECRET = "cron-secret";
   return {
+    chargeMock: vi.fn(),
+    refundMock: vi.fn(),
     queryMock: vi.fn(),
     mutationMock: vi.fn(),
     uploadVideoMock: vi.fn(),
@@ -32,6 +34,8 @@ const h = vi.hoisted(() => {
   };
 });
 
+vi.mock("@/lib/server/agentGenerationBilling", () => ({ chargeAgentGeneration: h.chargeMock }));
+vi.mock("@/lib/server/imageBilling", () => ({ refundImage: h.refundMock }));
 vi.mock("@/lib/server/guardrails", () => ({
   runGuardrails: h.runGuardrailsMock,
   // Mirrors the real gate: an influencer install (installedSkills) OR a clipper
@@ -108,6 +112,7 @@ let markedResult: Record<string, unknown> = {};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.chargeMock.mockResolvedValue({ ok: true, costUsdc: 0.05 });
   h.authMock.mockResolvedValue({ internal: true }); // internal caller → skip SIWS owner gate
   h.queryMock.mockResolvedValue({ creatorWallet: "W", name: "Agent Zed", avatarUrl: "https://a/z.png", mintAddress: MINT });
   h.mutationMock.mockImplementation(async (ref: unknown) => {
@@ -351,4 +356,12 @@ describe("influencer X captions", () => {
     await POST(makeReq({ ...videoBody, platforms: ["x"], title: "The camera demo" }));
     expect(h.uploadVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: "The camera demo" }));
   });
+});
+
+it("does not publish when the agent transfer is unconfirmed", async () => {
+  h.chargeMock.mockResolvedValue({ ok: false, reason: "payment_failed" });
+  const res = await POST(makeReq(videoBody));
+  expect(res.status).toBe(502);
+  expect(h.uploadVideoMock).not.toHaveBeenCalled();
+  expect(h.refundMock).toHaveBeenCalled();
 });

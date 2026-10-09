@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { checkInternalSecret } from "@/lib/server/requireAuth";
 import { getSignatureStatus, getCurrentBlockHeight } from "@/lib/trader/usdcTransfer";
-import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED, type SweepResult } from "@/lib/economy/vaultSweep";
+import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED, ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL, ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL, type SweepResult } from "@/lib/economy/vaultSweep";
 import { parseInflight } from "@/lib/economy/settlementSentinel";
 import { STRAND_ALERT_AFTER_ATTEMPTS } from "@/lib/economy/constants";
 import { checkSettlementFeePayerSol } from "@/lib/economy/settlementSignerHealth";
@@ -228,6 +228,10 @@ async function recoverOne(
     return { settlementId: s.settlementId, result: "skipped", reason: sweep.reason ?? "sweep deferred for retry" };
   }
 
+  if (sweep.txSignature === ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL || sweep.txSignature === ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL) {
+    await convex.mutation(api.usage.releaseSettlement, { settlementId: id, claimToken, nowMs: Date.now(), retryDelayMs: 3600000, authSecret: secret });
+    return { settlementId: s.settlementId, result: "skipped", reason: sweep.txSignature };
+  }
   const paidSig = sweep.txSignature ?? ONCHAIN_FEE_ALREADY_PROCESSED;
   await convex.mutation(api.usage.markSettlementPaid, { settlementId: id, txSignature: paidSig, authSecret: secret });
   await reconcileAfterPay(convex, secret, s.mintAddress, agent.agentWallet); // MED-A

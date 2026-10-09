@@ -37,6 +37,10 @@ const h = vi.hoisted(() => {
   };
 });
 
+vi.mock("@/lib/server/agentGenerationBilling", () => ({ chargeAgentGeneration: async (mintAddress: string, runId: string, service: string) => {
+  try { return await h.mutationMock((await import("@/convex/_generated/api")).api.usage.recordUsage, { mintAddress, service, qty: 1, idemKey: `${runId}:skill:${service}`, walletOnly: true, requireTransfer: true, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" }); }
+  catch { return { ok: false, reason: "billing_unavailable" }; }
+} }));
 vi.mock("convex/browser", () => ({
   ConvexHttpClient: vi.fn().mockImplementation(() => ({ query: h.queryMock, mutation: h.mutationMock })),
 }));
@@ -227,7 +231,7 @@ describe("POST /api/video/clip — #23 billing backstop", () => {
     const calls = usageCalls();
     expect(calls).toHaveLength(1);
     expect(calls[0].service).toBe("clip.facetrack");
-    expect(calls[0].idemKey).toBeUndefined();
+    expect(calls[0].idemKey).toMatch(/^clip:.*:skill:/);
   });
 
   it("lets INTERNAL callers render without billing (cloud path bills separately)", async () => {
@@ -252,7 +256,7 @@ describe("POST /api/video/clip — #23 billing backstop", () => {
   // a documented run-start under-charge into a paid-then-zero-clips pool abort —
   // BUT only when there's proof precheck already ran for this run (else it's the
   // #23 direct-caller shape and must stay blocked).
-  it("PROCEEDS on a clean daily_cap denial when another skill deduped (genuine precheck dedup hit)", async () => {
+  it("BLOCKS on a clean daily_cap denial when another skill deduped (genuine precheck dedup hit)", async () => {
     // No pre-existing proof (hasRunSkillCharge snapshot = false), but one skill
     // returns duplicate:true — a genuine idempotency dedup that only happens when
     // precheck already charged it at run-start. That dedup alone proves precheck ran.
@@ -266,11 +270,11 @@ describe("POST /api/video/clip — #23 billing backstop", () => {
       ops: [{ op: "face_reframe" }, { op: "title_card", text: "T", durationSec: 1.5, style: {} }],
       billing: { mintAddress: MINT, runId: "run-1" },
     }));
-    expect(await res.json()).toMatchObject({ ok: true });
-    expect(h.renderMock).toHaveBeenCalled();
+    expect(await res.json()).toMatchObject({ ok: false });
+    expect(h.renderMock).not.toHaveBeenCalled();
   });
 
-  it("PROCEEDS on a clean daily_cap denial when hasRunSkillCharge proves precheck ran", async () => {
+  it("BLOCKS on a clean daily_cap denial when hasRunSkillCharge proves precheck ran", async () => {
     hasRunSkillChargeResult = true;
     h.mutationMock.mockResolvedValue({ ok: false, reason: "daily_cap", costUsdc: 0.43 });
     const res = await POST(makeReq({
@@ -278,11 +282,11 @@ describe("POST /api/video/clip — #23 billing backstop", () => {
       ops: [{ op: "face_reframe" }],
       billing: { mintAddress: MINT, runId: "run-1" },
     }));
-    expect(await res.json()).toMatchObject({ ok: true });
-    expect(h.renderMock).toHaveBeenCalled();
+    expect(await res.json()).toMatchObject({ ok: false });
+    expect(h.renderMock).not.toHaveBeenCalled();
   });
 
-  it("PROCEEDS on a mid-run needs_funding denial when precheck ran (funds dropped after run-start)", async () => {
+  it("BLOCKS on a mid-run needs_funding denial when precheck ran (funds dropped after run-start)", async () => {
     hasRunSkillChargeResult = true;
     h.mutationMock.mockResolvedValue({ ok: false, reason: "needs_funding", costUsdc: 0.43 });
     const res = await POST(makeReq({
@@ -290,7 +294,7 @@ describe("POST /api/video/clip — #23 billing backstop", () => {
       ops: [{ op: "face_reframe" }],
       billing: { mintAddress: MINT, runId: "run-1" },
     }));
-    expect(await res.json()).toMatchObject({ ok: true });
+    expect(await res.json()).toMatchObject({ ok: false });
   });
 
   it("STILL 402s a clean daily_cap denial when there is NO precheck proof (#23 direct caller)", async () => {

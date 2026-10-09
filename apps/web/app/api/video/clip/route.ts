@@ -1,3 +1,5 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
     const b = body.billing;
     const billedMint = b?.mintAddress?.trim();
     const draftSession = b?.sessionId?.trim();
-    const runId = b?.runId?.trim();
+    const runId = b?.runId?.trim() || `clip:${randomUUID()}`;
     const pricedSkills = derivePricedSkillsFromOps(body.ops);
     if (billedMint) {
       // Legacy step-metered render fee — preserved for callers that send `step`.
@@ -81,60 +83,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: false, error: metered.reason ?? "needs_funding", billing: metered }, { status: 402 });
         }
       }
-      // Charge each ops-derived priced skill. idemKey is EXACTLY the clip-precheck
-      // key (`${runId}:skill:${skillId}`, clip-precheck/route.ts) so a canvas run
-      // that already pre-charged at run-start dedups instead of double-billing.
-      // A THROWN charge fails CLOSED (503) — we cannot prove the priced work was
-      // metered.
-      //
-      // A CLEAN denial (ok:false) is subtler. `suspended` always blocks (never
-      // render for a suspended agent). For `daily_cap`/`needs_funding` we must
-      // distinguish two cases with the SAME shape:
-      //   • the #23 exploit — a direct caller that skipped precheck; block (402).
-      //   • the documented run-start UNDER-CHARGE — precheck already charged this
-      //     run's other skills but a concurrent same-agent run ate the daily-cap
-      //     headroom (or funds dropped) between run-start and this render. The
-      //     precheck's stance is proceed-under-charged (agent's favor); 402-ing
-      //     here instead takes the precheck-charged fees then delivers ZERO clips
-      //     (the canvas aborts the whole pool). So proceed WHEN precheck ran.
-      // Proof precheck ran = a dedup hit this loop (duplicate:true) OR a
-      // `${runId}:skill:*` ledger row that EXISTED BEFORE this request. The
-      // snapshot MUST be taken before the charge loop: this route's own charges
-      // write those exact rows, so querying after the loop would let a direct
-      // caller forge the proof from its own first (cheap) skill charge and get a
-      // later (expensive) skill free. runId is required for proof, so a proofless
-      // denial (incl. no runId) stays a hard block.
+      // Confirm each idempotent skill payment before any rendering starts.
       if (pricedSkills.length > 0) {
-        try {
-          const convex = new ConvexHttpClient(CONVEX_URL);
-          const precheckRanBefore = !!runId
-            && (await convex.query(api.usage.hasRunSkillCharge, { mintAddress: billedMint, runId }));
-          let sawPrecheckDedup = false;
-          let cleanDenial: { skillId: string; reason?: string } | null = null;
-          for (const skillId of pricedSkills) {
-            const r = await convex.mutation(api.usage.recordUsage, {
-              mintAddress: billedMint, service: skillId, qty: 1,
-              ...(runId ? { idemKey: `${runId}:skill:${skillId}` } : {}),
-              authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
-            });
-            if (r.ok) { if (r.duplicate) sawPrecheckDedup = true; continue; }
-            if (r.reason === "suspended") {
-              return NextResponse.json({ ok: false, error: "suspended", billing: r }, { status: 402 });
-            }
-            cleanDenial = { skillId, reason: r.reason }; // daily_cap / needs_funding
-          }
-          if (cleanDenial) {
-            // Only a PRE-EXISTING precheck row or a genuine idempotency dedup hit
-            // counts — never a fresh success from this loop.
-            const prechecked = sawPrecheckDedup || precheckRanBefore;
-            if (!prechecked) {
-              return NextResponse.json({ ok: false, error: cleanDenial.reason ?? "needs_funding" }, { status: 402 });
-            }
-            console.warn(`[clip-billing] skill ${cleanDenial.skillId} denied (${cleanDenial.reason}) but precheck ran for ${runId} — proceeding under-charged (agent's favor)`);
-          }
-        } catch (e) {
-          console.error(`[clip-billing] billing_unavailable (skill charge threw): ${e instanceof Error ? e.message : e}`);
-          return NextResponse.json({ ok: false, error: "billing_unavailable" }, { status: 503 });
+        for (const skillId of pricedSkills) {
+          const charge = await chargeAgentGeneration(billedMint, runId, skillId);
+          if (!charge.ok) return NextResponse.json({ ok: false, error: charge.reason }, {
+            status: ["needs_funding", "daily_cap", "suspended"].includes(charge.reason) ? 402 : 503,
+          });
         }
       }
     } else if (draftSession) {

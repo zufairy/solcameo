@@ -1,3 +1,5 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
+import { refundImage } from "@/lib/server/imageBilling";
 import { refreshAgentFunds } from "@/lib/server/agentWallet";
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
@@ -8,7 +10,7 @@ import { CLIP_SOURCE_MINUTE_ID, clipSkillRunCostWithOverrides, effectiveUnitPric
 import { effectiveSpendableUsdc } from "@/lib/economy/nav";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 /**
  * Pre-flight for a canvas clip run: can this agent afford it TODAY?
@@ -177,11 +179,7 @@ export async function POST(req: NextRequest) {
   //    same-session concurrency; cross-device is rare), where a later skill can
   //    hit the cap and be skipped → an UNDER-charge (agent's favor). Acceptable.
   //
-  // A per-skill charge that THROWS is treated as a hard failure (fail closed):
-  // we cannot prove the priced skill was metered, so we block the run rather
-  // than let it proceed unbilled. A clean DENIAL (ok:false, e.g. daily_cap on a
-  // later skill) is the documented under-charge edge above and is left as a
-  // warning so the rest of the run can proceed.
+  // Every priced skill must be paid on-chain before the canvas starts the run.
   const charged: { skillId: string; costUsdc: number }[] = [];
   if (runId) {
     for (const skillId of [...new Set(skillIds)]) {
@@ -193,9 +191,12 @@ export async function POST(req: NextRequest) {
       const effPrice = effectiveUnitPrice(skillId, priceOverrides[skillId]);
       if (!(typeof effPrice === "number" && effPrice > 0)) continue;
       try {
-        const r = await convex.mutation(api.usage.recordUsage, { mintAddress, service: skillId, qty: 1, idemKey: `${runId}:skill:${skillId}`, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+        const r = await chargeAgentGeneration(mintAddress, runId, skillId);
         if (r.ok) charged.push({ skillId, costUsdc: r.costUsdc });
-        else console.warn(`[clip-precheck] charge ${skillId} denied: ${r.reason}`);
+        else {
+          await refundImage(mintAddress, runId);
+          return NextResponse.json({ ok: false, reason: r.reason, estCostUsdc }, { status: r.reason === "needs_funding" ? 402 : 503 });
+        }
       } catch (e) {
         console.error(`[clip-precheck] precheck_unavailable (charge ${skillId} threw): ${e instanceof Error ? e.message : e}`);
         return NextResponse.json({ ok: false, reason: "precheck_unavailable", estCostUsdc }, { status: 503 });

@@ -2072,7 +2072,7 @@ export const process = internalAction({
       // the render. decideSkillChargeGate stops at the first non-ok skill, so we void
       // only what was actually charged.
       const gate = await decideSkillChargeGate(wiredSkillIds as string[], (skillId) =>
-        ctx.runMutation(api.usage.recordUsage, { mintAddress: job.mintAddress, service: skillId, qty: 1, idemKey: `${jobId}:skill:${skillId}`, authSecret }),
+        ctx.runMutation(api.usage.recordUsage, { mintAddress: job.mintAddress, service: skillId, qty: 1, walletOnly: true, requireTransfer: true, idemKey: `${jobId}:skill:${skillId}`, authSecret }),
       );
       if (gate.decision === "deny") {
         // A mid-loop denial (e.g. a daily-cap race after skill 1) leaves the EARLIER
@@ -2226,7 +2226,7 @@ export const process = internalAction({
         const minutes = Math.max(1, Math.ceil((dl.durationSeconds ?? 0) / 60));
         const durationGate = await decideSkillChargeGate([CLIP_SOURCE_MINUTE_ID], (skillId) =>
           ctx.runMutation(api.usage.recordUsage, {
-            mintAddress: job.mintAddress, service: skillId, qty: minutes,
+            mintAddress: job.mintAddress, service: skillId, qty: minutes, walletOnly: true, requireTransfer: true,
             idemKey: `${jobId}:skill:${skillId}`, authSecret,
           }),
         );

@@ -7,7 +7,7 @@ const h = vi.hoisted(() => {
 });
 vi.mock("convex/browser", () => ({ ConvexHttpClient: class { query = h.query; mutation = h.mutation; } }));
 vi.mock("@/convex/_generated/api", () => ({ api: { influencers: { getByMintServer: "getByMintServer" }, agentAccount: { reconcileEscrowToOnchainServer: "reconcile" }, usage: { settleTab: "settleTab", claimSettlement: "claim", markSettlementPaid: "paid", releaseSettlement: "release", markSettlementConfirmAmbiguous: "amb" } } }));
-vi.mock("@/lib/economy/vaultSweep", () => ({ sweepAgentTabOnchain: h.sweep, resolveAgentOnchainUsdc: h.onchain, ONCHAIN_FEE_ALREADY_PROCESSED: "processed" }));
+vi.mock("@/lib/economy/vaultSweep", () => ({ sweepAgentTabOnchain: h.sweep, resolveAgentOnchainUsdc: h.onchain, ONCHAIN_FEE_ALREADY_PROCESSED: "processed", ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL: "onchain:fee-exceeds-cap-terminal", ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL: "onchain:fee-treasury-misconfig-terminal" }));
 vi.mock("@/lib/server/referrals", () => ({ accrueReferralForSettlement: h.referral }));
 import { settleAgentEconomics } from "./settleAgent";
 
@@ -54,4 +54,11 @@ describe("settleAgentEconomics", () => {
     expect((await settleAgentEconomics("mint", { immediate: true })).status).toBe("accruing");
     expect(h.sweep).not.toHaveBeenCalled();
   });
+});
+
+it("never marks a failed treasury configuration as paid", async () => {
+  h.sweep.mockResolvedValue({ ok: true, txSignature: "onchain:fee-treasury-misconfig-terminal" });
+  expect(await settleAgentEconomics("mint", { immediate: true, requireTransfer: true })).toMatchObject({ status: "accruing" });
+  expect(h.mutation.mock.calls.some(([name]) => name === "paid")).toBe(false);
+  expect(h.mutation.mock.calls.some(([name]) => name === "release")).toBe(true);
 });

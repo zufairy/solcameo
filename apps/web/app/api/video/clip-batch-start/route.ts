@@ -1,3 +1,4 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
 import { NextRequest, NextResponse } from "next/server";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -106,6 +107,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "jobId+sourceUrl+clips+config required" }, { status: 400 });
   }
   if (!CONVEX_URL) return NextResponse.json({ error: "Convex URL not set" }, { status: 500 });
+
+  // Cloud clipping already booked these fees; confirm the same idempotent charges before rendering.
+  const paymentClient = new ConvexHttpClient(CONVEX_URL);
+  const billedJob = await paymentClient.query(api.clipJobs.getJob, { jobId: jobId as Id<"clipJobs"> });
+  if (!billedJob) return NextResponse.json({ error: "Clip job not found" }, { status: 404 });
+  const bookedFees = await paymentClient.query(api.usage.runChargesForPayment, { mintAddress: billedJob.mintAddress, runId: jobId, authSecret: SECRET() });
+  for (const fee of bookedFees) {
+    const payment = await chargeAgentGeneration(billedJob.mintAddress, jobId, fee.service, fee.qty);
+    if (!payment.ok) return NextResponse.json({ error: `Agent payment failed (${payment.reason})` }, { status: 503 });
+  }
 
   // Shared absolute deadline with cutPoll (passed by process); fall back to our own.
   const deadlineAt = typeof body.deadlineMs === "number" ? body.deadlineMs : Date.now() + CLIP_BATCH_MAX_MS;

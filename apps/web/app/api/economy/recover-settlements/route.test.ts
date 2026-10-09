@@ -46,6 +46,8 @@ vi.mock("@/lib/economy/vaultSweep", () => ({
   sweepAgentTabOnchain: h.sweepMock,
   resolveAgentOnchainUsdc: h.resolveMock,
   ONCHAIN_FEE_ALREADY_PROCESSED: "onchain:fee-record-exists",
+  ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL: "onchain:fee-exceeds-cap-terminal",
+  ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL: "onchain:fee-treasury-misconfig-terminal",
 }));
 vi.mock("@/lib/server/alert", () => ({ sendAlert: h.sendAlertMock }));
 
@@ -266,4 +268,18 @@ describe("POST /api/economy/recover-settlements — fee-payer SOL pre-flight (si
     expect(h.sweepMock).not.toHaveBeenCalled(); // nothing stranded this tick
     expect(h.queryMock).toHaveBeenCalled();
   });
+});
+
+it("leaves a treasury misconfiguration unpaid for repair instead of recording fake payment", async () => {
+  h.queryMock.mockImplementation(async (ref: unknown) => {
+    const name = getFunctionName(ref as Parameters<typeof getFunctionName>[0]);
+    if (name === "usage:listStrandedSettlements") return [{ ...strandedWithPriorSig("unused", 500), sentinel: null }];
+    if (name === "influencers:getByMintServer") return { agentWallet: "walletZ" };
+    return null;
+  });
+  h.sweepMock.mockResolvedValue({ ok: true, txSignature: "onchain:fee-treasury-misconfig-terminal" });
+  const res = await POST(makeReq());
+  expect((await res.json()).outcomes[0]).toMatchObject({ result: "skipped" });
+  expect(mutationNames()).not.toContain("usage:markSettlementPaid");
+  expect(mutationNames()).toContain("usage:releaseSettlement");
 });

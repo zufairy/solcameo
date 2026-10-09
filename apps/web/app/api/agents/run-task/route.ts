@@ -1,3 +1,5 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
+import { refundImage } from "@/lib/server/imageBilling";
 import { withTicker, ALERT_CAPTION_INSTRUCTION } from "@/lib/marketingCaption";
 import { marketPath } from "@/lib/solstar/marketSlug";
 import { preparePaidAgentVideo } from "@/lib/server/preparePaidAgentVideo";
@@ -2874,7 +2876,7 @@ const EXECUTORS: Record<TaskType, (agent: AgentDoc, ctx: AgentContext, input: Re
       output: { status: result.ok ? "posted" : "failed", type: contentType, platforms: targets, postUrl: postUrl ?? undefined, postPlatform: linkTarget, skipped, failed: result.failed, text: title, campaignSubmitted, ...(failNote ? { note: failNote } : {}), ...(platformPostId ? { platformPostId } : {}), ...(uploadPostRequestId ? { uploadPostRequestId } : {}), result: result.data },
       // Only bill a real publish — a 200 with a failed platform (result.ok=false
       // via the per-platform parser) must NOT cost the full social_post fee.
-      cost: result.ok ? SERVICE_PRICES.social_post : 0.001,
+      cost: result.ok ? SERVICE_PRICES.social_post : 0,
       memory: {
         kind: "performance",
         summary: result.ok
@@ -3475,7 +3477,7 @@ export async function POST(req: NextRequest) {
     const estimatedCost = await estimateTaskCost();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let agentWallet = (agent as any).agentWallet as string | undefined;
-    const walletBilling = taskType === "create_video" || agent.generationFunding === "agent_wallet" || !!agent.solstarCharacterId;
+    const walletBilling = taskType === "create_video" || taskType === "post_content" || agent.generationFunding === "agent_wallet" || !!agent.solstarCharacterId;
     // Every video, including samples and commissioned work, pays its provider
     // fee from the agent wallet. Internal callers may only bypass other tasks.
     const skipBalanceCheck = taskType !== "create_video" && input.skipBalanceCheck === true && auth.internal === true;
@@ -3797,8 +3799,21 @@ export async function POST(req: NextRequest) {
     // for this response. Everything (success, failure, billing, memory) writes
     // to the task doc either way, which is what every UI actually watches.
     const runExecution = async (): Promise<NextResponse> => {
+    let postConfirmed = false;
+    let postPaidCost = 0;
     try {
       input._x402TaskId = taskId;
+      if (taskType === "post_content") {
+        const runId = `post:${taskId}`;
+        const charge = await chargeAgentGeneration(mintAddress, runId, "social_post");
+        if (!charge.ok) {
+          const message = CHARGE_MESSAGES[charge.reason] ?? "The agent payment did not confirm. Posting has not started.";
+          await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+          return NextResponse.json({ ok: false, taskId, code: charge.reason, error: message }, { status: charge.reason === "needs_funding" ? 402 : 503 });
+        }
+        postPaidCost = charge.costUsdc;
+        await convex.mutation(api.agentTasks.markPrepaid, { id: taskId, usdc: charge.costUsdc, runId, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+      }
       const execution = taskType === "create_video"
         ? await preparePaidAgentVideo({
             convex, mintAddress, taskId, estimatedCost,
@@ -3810,7 +3825,10 @@ export async function POST(req: NextRequest) {
         await convex.mutation(api.agentTasks.fail, { id: taskId, errorMessage: message, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
         return NextResponse.json({ ok: false, taskId, error: execution.reason, code: execution.reason, message, mintAddress, required: estimatedCost }, { status: execution.reason === "needs_funding" ? 402 : 502 });
       }
-      const { output, cost, revenue, memory, deferVideo } = execution.result;
+      const { output, revenue, memory, deferVideo } = execution.result;
+      const cost = taskType === "post_content" ? (execution.result.output?.status === "posted" ? postPaidCost : 0) : execution.result.cost;
+      postConfirmed = taskType === "post_content" && output?.status === "posted";
+      if (taskType === "post_content" && !postConfirmed) await refundImage(mintAddress, `post:${taskId}`);
 
       // Slow video work is deferred to the CHUNKED, Vercel-safe render-step chain
       // (one Veo clip per ≤300s invocation) — NOT the old single Convex action,
@@ -3904,6 +3922,7 @@ export async function POST(req: NextRequest) {
       if (cost && cost > 0) await settleAgentEconomics(mintAddress, { immediate: true }).catch(() => {});
       return NextResponse.json({ ok: true, taskId, output, cost, revenue });
     } catch (execErr) {
+      if (taskType === "post_content" && !postConfirmed) await refundImage(mintAddress, `post:${taskId}`);
       const errorMessage = execErr instanceof Error ? execErr.message : "Execution failed";
       // Storyboard or partial-work cost is still real spend — bill it even on failure.
       // For create_video, the storyboard is a separately priced generation. We

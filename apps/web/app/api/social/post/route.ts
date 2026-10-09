@@ -1,3 +1,6 @@
+import { chargeAgentGeneration } from "@/lib/server/agentGenerationBilling";
+import { refundImage } from "@/lib/server/imageBilling";
+import { randomUUID } from "node:crypto";
 import { withTicker } from "@/lib/marketingCaption";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -261,7 +264,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const paymentRunId = `manual-post:${randomUUID()}`;
+  let publishConfirmed = false;
   try {
+    const charge = await chargeAgentGeneration(mintAddress, paymentRunId, "social_post");
+    if (!charge.ok) throw new Error(`Agent payment failed (${charge.reason}); nothing was posted.`);
     let result: PostResult;
     // Set only inside the video branch below when a guardrails check blocks the
     // post — read afterward (outside that branch) so the failure-release logic
@@ -276,7 +283,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (type === "text") {
-      result = await uploadText({ username, platforms: capable, title });
+      result = await uploadText({ username, platforms: capable, title: effectiveTitle });
     } else if (type === "photo") {
       const photoUrls = (body.mediaUrls ?? []).filter(Boolean);
       if (!photoUrls.length) return NextResponse.json({ ok: false, error: "mediaUrls is required for photo posts" }, { status: 400 });
@@ -441,6 +448,8 @@ export async function POST(req: NextRequest) {
     // service returned an empty results map), treat this as a real failure so
     // "Post now" doesn't show ✅ while the clip silently went nowhere. Only
     // applies when we had eligible platforms to post to (capable.length > 0).
+    publishConfirmed = posted.length > 0;
+    if (!publishConfirmed) await refundImage(mintAddress, paymentRunId);
     if (result.ok && posted.length === 0 && capable.length > 0) {
       // Release the claim badge "posting" → "ready" so the clip isn't stranded.
       if (clipClaimed && videoClipUrl) {
@@ -599,6 +608,7 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (err) {
+    if (!publishConfirmed) await refundImage(mintAddress, paymentRunId);
     // The upload threw (network/5xx/etc.). If we won the clip claim, release the
     // badge "posting" → "ready" so it isn't stranded; mirrors the !result.ok path.
     if (clipClaimed && videoClipUrl) {

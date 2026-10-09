@@ -3,7 +3,7 @@ import { generationCollectionWallet } from "@/lib/server/generationCollectionWal
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { accrueReferralForSettlement } from "@/lib/server/referrals";
-import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED } from "@/lib/economy/vaultSweep";
+import { sweepAgentTabOnchain, resolveAgentOnchainUsdc, ONCHAIN_FEE_ALREADY_PROCESSED, ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL, ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL } from "@/lib/economy/vaultSweep";
 import { after } from "next/server";
 import { takeRecentBalance } from "@/lib/server/balanceMemo";
 
@@ -108,6 +108,10 @@ export async function settleAgentEconomics(mintAddress: string, opts: { immediat
         authSecret: process.env.INTERNAL_CRON_SECRET ?? "",
       });
       return { status: "accruing", tabUsdc: claim.amountUsdc, reason: sweep.reason ?? "sweep deferred for retry" };
+    }
+    if (sweep.txSignature === ONCHAIN_FEE_EXCEEDS_CAP_TERMINAL || sweep.txSignature === ONCHAIN_FEE_TREASURY_MISCONFIG_TERMINAL) {
+      await convex.mutation(api.usage.releaseSettlement, { settlementId: settled.settlementId, claimToken, nowMs: Date.now(), retryDelayMs: 3600000, authSecret: process.env.INTERNAL_CRON_SECRET ?? "" });
+      return { status: "accruing", tabUsdc: claim.amountUsdc, reason: sweep.txSignature };
     }
     const paidSig = sweep.txSignature ?? ONCHAIN_FEE_ALREADY_PROCESSED;
     await convex.mutation(api.usage.markSettlementPaid, {

@@ -308,7 +308,7 @@ export const recordUsage = mutation({
         if (batch && !paymentConfirmed) {
           const settlementId = ctx.db.normalizeId("feeSettlements", batch);
           const settlement = settlementId ? await ctx.db.get(settlementId) : null;
-          paymentConfirmed = !!settlement?.paid && isPaidSig(settlement.txSignature);
+          paymentConfirmed = !!settlement?.paid && isPaidSig(settlement.txSignature) && !["onchain:fee-exceeds-cap-terminal", "onchain:fee-treasury-misconfig-terminal"].includes(settlement.txSignature ?? "");
           if (!paymentConfirmed) return { ok: false as const, reason: "payment_pending" as const };
         }
         const acctForDup = await ctx.db.query("agentAccount").withIndex("by_mint", (q) => q.eq("mintAddress", mintAddress)).unique();
@@ -905,5 +905,15 @@ export const settlementForRecovery = query({
       claimable: isClaimable(row.txSignature, nowMs),
       paid: isPaidSig(row.txSignature),
     };
+  },
+});
+
+/** The trusted clipping job's booked fees, used to confirm payment before rendering. */
+export const runChargesForPayment = query({
+  args: { mintAddress: v.string(), runId: v.string(), authSecret: v.string() },
+  handler: async (ctx, { mintAddress, runId, authSecret }) => {
+    if (!process.env.INTERNAL_CRON_SECRET || authSecret !== process.env.INTERNAL_CRON_SECRET) throw new Error("unauthorized");
+    const rows = await ctx.db.query("usageLedger").withIndex("by_mint_at", q => q.eq("mintAddress", mintAddress).gte("at", Date.now() - RUN_PROOF_LOOKBACK_MS)).collect();
+    return rows.filter(row => row.costUsdc > 0 && row.idemKey?.startsWith(`${runId}:skill:`)).map(row => ({ service: row.service, qty: row.qty }));
   },
 });

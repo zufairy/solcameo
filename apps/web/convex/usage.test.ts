@@ -216,6 +216,17 @@ describe("recordUsage retry payment proof", () => {
     await t.mutation(api.usage.markSettlementPaid, { settlementId: batch.settlementId, txSignature: "confirmed-signature", authSecret: SECRET });
     expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: true, paymentConfirmed: true });
   });
+  it("does not accept an old terminal treasury error as payment proof", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await fundAccount(t, 100);
+    const args = { mintAddress: MINT, service: "social_post", qty: 1, walletOnly: true, requireTransfer: true, idemKey: "post:skill:social_post", authSecret: SECRET };
+    await t.mutation(api.usage.recordUsage, args);
+    const batch = await t.mutation(api.usage.settleTab, { mintAddress: MINT, requireTransfer: true, authSecret: SECRET });
+    if (!batch.settled) throw new Error("expected settlement");
+    await t.mutation(api.usage.markSettlementPaid, { settlementId: batch.settlementId, txSignature: "onchain:fee-treasury-misconfig-terminal", authSecret: SECRET });
+    expect(await t.mutation(api.usage.recordUsage, args)).toMatchObject({ ok: false, reason: "payment_pending" });
+  });
   it("rejects an idempotency row voided by a failed run", async () => {
     const t = convexTest(schema, modules);
     await seedAccount(t);
