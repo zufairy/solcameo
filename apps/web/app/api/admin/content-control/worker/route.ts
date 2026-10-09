@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { checkInternalSecret } from "@/lib/server/requireAuth";
+import { readX } from "@/lib/server/xApi";
 import { getProfile, resolveUsername } from "@/lib/server/uploadPost";
 import { type PublishOutcome, publishRouted, pollContent, retryContent, MARKETING_PROFILE } from "@/lib/server/contentPublishing";
 import { createMilestoneCard } from "@/lib/server/milestoneCard";
@@ -36,13 +37,17 @@ export async function POST(req: NextRequest) {
       }
       continue;
     }
-    const post = await convex.mutation(api.contentControl.claim, { authSecret, id: entry._id as Id<"contentControlPosts"> });
+    const post = await convex.mutation(api.contentControl.claim, { authSecret, id: entry._id as Id<"contentControlPosts">, ...(body.retry === true ? { retry: true } : {}) });
     if (!post) continue;
     try {
       if (post.targetMint && !await convex.query(api.influencers.getByMintServer, { authSecret, mintAddress: post.targetMint })) throw new Error("The selected posting agent was deleted");
       const username = post.targetMint ? resolveUsername(post.targetMint) : MARKETING_PROFILE;
-      const profile = await getProfile(username);
-      const disconnected = post.platforms.filter(p => !profile.connected[p]);
+      const xOnly = post.platforms.every(p => p === "x" || p === "twitter");
+      const account = xOnly ? await readX(username) : null;
+      const profile: { connected: Record<string, { id?: string; handle?: string } | null> } = xOnly
+        ? { connected: { x: account ? { id: account.id, handle: account.handle } : null } }
+        : await getProfile(username);
+      const disconnected = post.platforms.filter(p => !profile.connected[p === "twitter" ? "x" : p]);
       if (disconnected.length) {
         const waiting = post.source !== "manual" && Date.now() - post.createdAt < 7 * 24 * 3_600_000;
         // Automatic posts wait (up to a week) and publish on their own once the account is connected.
@@ -93,6 +98,10 @@ export async function POST(req: NextRequest) {
         }
       }
       const result: PublishOutcome = post.requestId ? await retryContent(post.requestId) : await publishRouted(prepared, username);
+      if (result.status === "failed" && /credits depleted|credits exhausted|X.*request failed \(402\)/i.test(result.error ?? "")) {
+        await convex.mutation(api.contentControl.finish, { authSecret, id: post._id, status: "queued", error: "X API credits depleted. Add credits in the X Developer Console; this announcement will retry automatically.", notBefore: providerCapRetryAt(Date.now()) });
+        continue;
+      }
       if (result.status === "failed" && isProviderCapError(result.error)) {
         // X says this account is out of posts for now: keep the post queued and retry in an hour instead of failing it.
         await convex.mutation(api.contentControl.finish, { authSecret, id: post._id, status: "queued", error: "X daily posting cap reached, retrying in an hour", notBefore: providerCapRetryAt(Date.now()) });

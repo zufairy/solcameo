@@ -208,16 +208,16 @@ export const queue = mutation({
   },
 });
 export const claim = mutation({
-  args: { authSecret: v.string(), id: v.id("contentControlPosts") },
-  handler: async (ctx, { authSecret, id }) => {
+  args: { authSecret: v.string(), id: v.id("contentControlPosts"), retry: v.optional(v.boolean()) },
+  handler: async (ctx, { authSecret, id, retry }) => {
     authorize(authSecret);
     const post = await ctx.db.get(id);
-    if (!post || !["queued", "publishing"].includes(post.status)) return null;
+    if (!post || (!["queued", "publishing"].includes(post.status) && !(retry && post.status === "failed" && !post.requestId))) return null;
     if (post.status === "publishing" && post.updatedAt > Date.now() - 5 * 60_000) return null;
     const now = Date.now();
     if (post.status === "queued" && post.notBefore && post.notBefore > now) return null;
     const cls = postClass(post);
-    if (post.status === "queued" && cls !== "manual") {
+    if (post.status !== "publishing" && cls !== "manual") {
       // Daily budget: each automatic post type has its own quota, spacing and a shared reserve (see lib/contentQuota.ts).
       const cutoff = now - 24 * 3_600_000;
       const groups = await Promise.all(["posted", "submitted", "publishing"].map(status =>

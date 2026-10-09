@@ -117,7 +117,7 @@ export default function ContentControlPage() {
       {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300"><AlertCircle className="size-4 shrink-0" />{error}</div>}
       {message && <div role="status" className="flex items-center gap-2 rounded-xl border border-[#d7ff00]/20 bg-[#d7ff00]/10 p-4 text-sm text-lime-200"><CheckCircle2 className="size-4 shrink-0" />{message}</div>}
       {!data ? <div className="p-12 text-center text-zinc-400"><Loader2 className="mx-auto mb-3 size-5 animate-spin" />Loading Content Control</div> : <>
-        {!data.configured && <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">Set UPLOAD_POST_API_KEY on the app server to enable social connections and publishing.</div>}
+        {!data.configured && <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">Configure X_CLIENT_ID, X_CLIENT_SECRET, X_REDIRECT_URI and X_TOKEN_ENCRYPTION_KEY on the app server to enable direct X posting.</div>}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-2xl border border-white/10 bg-[#0d0d10] p-6 space-y-5">
             <div className="flex items-center gap-3"><div className="rounded-xl bg-[#d7ff00]/10 p-2.5 text-[#d7ff00]"><Send className="size-5" /></div><div><h2 className="font-semibold">Create a post</h2><p className="text-xs text-zinc-500 mt-1">One post, all compatible connected socials.</p></div></div>

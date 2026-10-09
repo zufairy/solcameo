@@ -107,6 +107,11 @@ export async function publishViaX(post: { _id: string; caption: string; kind: st
 /** X through the X API when the posting account is connected there, everything else through Upload-Post. */
 export type PublishOutcome = { status: string; error?: string; requestId?: string; result?: string };
 export async function publishRouted(post: { _id: string; caption: string; kind: string; mediaUrl?: string; platforms: string[] }, profile: string): Promise<PublishOutcome> {
+  if (post.platforms.length === 1 && ["x", "twitter"].includes(post.platforms[0])) {
+    if (!xConfigured()) return { status: "failed", error: "Direct X API is not configured on the server." };
+    if (!await readX(profile)) return { status: "failed", error: "Reconnect X on the selected Content Control account." };
+    return publishViaX(post, profile);
+  }
   const direct = post.platforms.includes("x") && xConfigured() && !!(await readX(profile));
   if (!direct) return publishContent(post, profile);
   const x = await publishViaX(post, profile);

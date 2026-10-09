@@ -2,7 +2,9 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 vi.mock("./downloader", () => ({ safeFetchToBuffer: vi.fn(async () => ({ buffer: new Uint8Array([1]) })) }));
 vi.mock("sharp", () => ({ default: () => { const chain = { rotate: () => chain, resize: () => chain, flatten: () => chain, jpeg: () => chain, toBuffer: async () => new Uint8Array([1, 2, 3]) }; return chain; } }));
-import { contentResult, publishContent, retryContent } from "./contentPublishing";
+const x = vi.hoisted(() => ({ configured: vi.fn(), read: vi.fn(), post: vi.fn() }));
+vi.mock("./xApi", () => ({ xConfigured: x.configured, readX: x.read, postX: x.post }));
+import { contentResult, publishContent, retryContent, publishRouted } from "./contentPublishing";
 import { compatiblePlatforms } from "../contentPlatforms";
 import { agentLaunchCaption } from "../marketingCaption";
 afterEach(() => vi.unstubAllGlobals());
@@ -52,5 +54,26 @@ describe("marketing publishing", () => {
     vi.stubGlobal("fetch", fetcher);
     expect(await retryContent("r")).toMatchObject({ status: "submitted", requestId: "r" });
     expect(fetcher.mock.calls[0][0]).toContain("posts/retry");
+  });
+});
+
+
+describe("Content Control direct X routing", () => {
+  it("publishes X-only content with no Upload-Post key or API request", async () => {
+    vi.stubEnv("UPLOAD_POST_API_KEY", "");
+    x.configured.mockReturnValue(true); x.read.mockResolvedValue({ id: "account" });
+    x.post.mockResolvedValue({ ok: true, data: { results: { x: { url: "https://x.com/account/status/42" } } }, postIds: { x: "42" } });
+    const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+    expect((await publishRouted({ _id: "event", caption: "New $ALG video", kind: "text", platforms: ["x"] }, "vello_marketing")).status).toBe("posted");
+    expect(x.post).toHaveBeenCalledWith("vello_marketing", "New $ALG video", [], false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+  it("does not fall back to Upload-Post when the direct connection is missing", async () => {
+    x.configured.mockReturnValue(true); x.read.mockResolvedValue(null);
+    const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+    const result = await publishRouted({ _id: "event", caption: "New coin", kind: "text", platforms: ["x"] }, "vello_marketing");
+    expect(result.status).toBe("failed"); expect(result.error).toContain("Reconnect X");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -55,7 +55,7 @@ export function nextSlot(cls: PostClass, history: PostedEntry[], now: number): S
 }
 
 /** The provider's own "daily posting cap" rejection — retry later instead of failing the post. */
-export const isProviderCapError = (message: string | undefined | null) => /daily posting cap|used_last_24h|posting cap on x|X request failed \(429\)/i.test(message ?? "");
+export const isProviderCapError = (message: string | undefined | null) => /daily posting cap|used_last_24h|posting cap on x|X(?: \/\S+)? request failed \(429\)/i.test(message ?? "");
 /** When to retry after a provider cap rejection. */
 export const providerCapRetryAt = (now: number) => now + HOUR;
 
