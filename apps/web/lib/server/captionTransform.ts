@@ -1,3 +1,4 @@
+import { ALERT_CAPTION_INSTRUCTION } from "../marketingCaption";
 import { callClaudeJSON } from "./kie-claude";
 import { sanitizeYoutubeTitle } from "../youtubeTitle";
 import type { TranscriptWord } from "./clipTypes";
@@ -126,6 +127,7 @@ export async function generatePostCaption(opts: { instruction: string; basis?: s
       "You write the SOCIAL CAPTION (the post description) for a short-form video clip. " +
       "Follow the operator's instruction EXACTLY for language, tone, length, @mentions and #hashtags. " +
       "Write it native and ready to publish: no preamble, no 'Caption:' label, no surrounding quotes. " +
+      ALERT_CAPTION_INSTRUCTION + " " +
       "If the instruction does not ask for hashtags, do not add any. Keep it under 300 characters. " +
       'Return ONLY JSON { "caption": "..." }.';
     const user =

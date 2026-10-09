@@ -1,3 +1,4 @@
+import { withoutPostLinks } from "../marketingCaption";
 import { sanitizeYoutubeTitle } from "../youtubeTitle";
 import { xConfigured, readX, postX, removeX } from "./xApi";
 /**
@@ -809,8 +810,15 @@ async function send(path: string, form: FormData, requested: string[] = []): Pro
  *  275 leaves room for upload-post's own handling). Cuts on a word boundary. */
 export const X_TWEET_MAX = 275;
 export function xTweetText(text: string | undefined | null): string {
-  const t = (text ?? "").replace(/\s+\n/g, "\n").trim();
+  const t = withoutPostLinks(text ?? "").replace(/\s+\n/g, "\n").trim();
   if (t.length <= X_TWEET_MAX) return t;
+  const tickers = [...new Set(t.match(/\$[A-Za-z][A-Za-z0-9]{0,9}\b/g) ?? [])];
+  const missed = tickers.filter(ticker => !t.slice(0, X_TWEET_MAX - 1).includes(ticker));
+  if (missed.length) {
+    const tail = ` ${missed.join(" ")}`;
+    const room = X_TWEET_MAX - tail.length - 1;
+    return `${t.slice(0, room).replace(/\s+\S*$/, "").trimEnd()}…${tail}`;
+  }
   const cut = t.slice(0, X_TWEET_MAX - 1);
   const space = cut.lastIndexOf(" ");
   return `${(space > X_TWEET_MAX * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;

@@ -1,3 +1,4 @@
+import { withoutPostLinks } from "../marketingCaption";
 import {
   createCipheriv,
   createDecipheriv,
@@ -129,6 +130,7 @@ export async function postX(
   video = false,
 ) {
   try {
+    text = withoutPostLinks(text);
     const a = await activeX(profile);
     const request = async (path: string, init: RequestInit = {}) => {
       const res = await fetch(`https://api.x.com/2${path}`, {

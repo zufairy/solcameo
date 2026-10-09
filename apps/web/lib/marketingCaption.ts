@@ -1,3 +1,13 @@
+/** X captions stay link-free, including old queued copy and bare domains. */
+export function withoutPostLinks(text: string): string {
+  return text.replace(/\[([^\]]+)\]\((?:https?:\/\/|www\.)[^)]+\)/gi, "$1")
+    .replace(/\b(?:https?:\/\/|www\.)[^\s<>]+/gi, "")
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,24}(?:\/[^\s<>]*)?/gi, "")
+    .split("\n").map(line => line.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export const ALERT_CAPTION_INSTRUCTION = "Write an alert-style caption: lead with a brief VIDEO ALERT or a specific attention-grabbing hook, give one concrete detail explaining what the video is about, then use light reverse psychology or an open question that invites watching the whole video before judging. Keep the payoff for the video. No URLs, bare domains, link-in-bio, invented scarcity, fabricated facts, profit promises or price predictions. Keep the coin ticker if provided. Rotate hooks; do not repeat a stock phrase on every post.";
+
 /** Public persona only. Keep launch copy human, concise and free of em dashes. */
 export function cleanMarketingText(value: string): string {
   return value.replace(/\s*[—–]\s*/g, ", ").replace(/<[^>]*>/g, "").replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
@@ -25,7 +35,7 @@ function bioHook(bio: string, max = 120): string {
   const hook = first.length > max ? `${first.slice(0, max - 1).replace(/\s+\S*$/, "")}...` : first;
   return hook.replace(/[.!]+$/, "");
 }
-const fit = (text: string) => (text.length <= 275 ? text : `${text.slice(0, 271).replace(/\s+\S*$/, "")}...`);
+const fit = (text: string) => { const clean = withoutPostLinks(text); return clean.length <= 275 ? clean : `${clean.slice(0, 271).replace(/\s+\S*$/, "")}...`; };
 /** One caption per new coin. Always names the $TICKER and ties it to what the agent does; the opener rotates by ticker so the feed never repeats. */
 export function tokenLaunchCaption(coin: { name: string; ticker: string; bio?: string; category?: string; url: string }): string {
   const ticker = cleanMarketingText(coin.ticker).replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10);
@@ -33,22 +43,10 @@ export function tokenLaunchCaption(coin: { name: string; ticker: string; bio?: s
   const hook = bioHook(coin.bio ?? "");
   const lane = cleanMarketingText(coin.category ?? "").toLowerCase().slice(0, 30);
   const what = hook || (lane ? `an ai influencer in ${lane}` : "an ai influencer that makes content on its own");
-  const openers = [
-    `$${ticker} just went live on solana.`,
-    `new coin alert: $${ticker}.`,
-    `$${ticker} is now tradable.`,
-    `fresh mint: $${ticker}.`,
-    `say hi to $${ticker}.`,
-  ];
-  const closers = [
-    "the agent posts, the coin moves. get in early.",
-    "it creates content every day. the coin trades from block one.",
-    "an ai influencer with its own coin. watch what it does next.",
-    "first holders see every video first.",
-    "ai creator, onchain coin. early is everything.",
-  ];
+  const openers = [`COIN ALERT: $${ticker}`, `NEW LAUNCH: $${ticker}`, `$${ticker} just launched on Solcameo.`];
+  const closers = ["Don't pick a side from the ticker alone. Meet the creator first.", "Another AI coin? Watch what its creator actually makes before deciding.", "Skip the hype. See the creator behind the ticker."];
   const seed = hash(ticker + name);
-  const lines = [openers[seed % openers.length], `${name}: ${what}.`, closers[(seed >>> 3) % closers.length], coin.url];
+  const lines = [openers[seed % openers.length], `${name}: ${what}.`, closers[(seed >>> 3) % closers.length]];
   return fit(lines.join("\n\n"));
 }
 /** Digest of the day's new coins: count, the tickers, and the live total. */
@@ -57,7 +55,7 @@ export function coinsDigestCaption(digest: { count: number; tickers: string[]; t
   const more = digest.count > shown.length ? ` and ${digest.count - shown.length} more` : "";
   const head = `${digest.count} new ${digest.count === 1 ? "coin" : "coins"} minted on solcameo in the last 24 hours.`;
   const body = shown.length ? `${shown.join(", ")}${more}. each one is an ai influencer with its own coin.` : "each one is an ai influencer with its own coin.";
-  return fit(`${head}\n\n${body}\n\n${digest.total} live now. ${digest.url}`);
+  return fit(`${head}\n\n${body}\n\n${digest.total} live now. Which creator deserves your attention?`);
 }
 
 /** One caption per new video of a coin: names the $TICKER and the influencer, hooks on what the video is about, rotates by ticker. */
@@ -65,22 +63,10 @@ export function videoLaunchCaption(video: { name: string; ticker: string; bio?: 
   const ticker = cleanMarketingText(video.ticker).replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10);
   const name = cleanMarketingText(video.name).slice(0, 50) || `$${ticker}`;
   const about = bioHook(video.topic ?? "", 110) || bioHook(video.bio ?? "", 110);
-  const openers = [
-    `new video from ${name}. $${ticker}`,
-    `${name} just posted. $${ticker}`,
-    `fresh drop from $${ticker}: ${name} is back on camera.`,
-    `$${ticker} content is live. ${name} made this one.`,
-    `watch what ${name} just made. $${ticker}`,
-  ];
-  const closers = [
-    "an ai influencer that posts on its own. the coin trades live.",
-    "the agent keeps creating, the coin keeps moving.",
-    "every video is made by the agent. trade it on solana.",
-    "ai creator, onchain coin. catch the next drop early.",
-    "made by an ai influencer with its own coin.",
-  ];
+  const openers = [`VIDEO ALERT: $${ticker}`, `$${ticker} DROP: ${name}`, `Before you scroll past $${ticker}...`];
+  const closers = ["Already made up your mind? Skip it. Otherwise watch the whole video first.", "Don't judge it from the first frame. Watch it through, then tell us your take.", "Another AI video? Watch this one before making that call."];
   const seed = hash(ticker + (video.topic ?? "") + name);
-  const lines = [openers[seed % openers.length], ...(about ? [`${about}.`] : []), closers[(seed >>> 3) % closers.length], video.url];
+  const lines = [openers[seed % openers.length], ...(about ? [`${about}.`] : []), closers[(seed >>> 3) % closers.length]];
   return fit(lines.join("\n\n"));
 }
 
@@ -135,15 +121,16 @@ export function statCaption(kind: string, d: StatCaptionData, seed: string): str
       pick([`the feed never sleeps. are you in it yet?`, `what would your numbers look like?`], seed + "b"),
     ];
   }
-  return fit(`${lines.join("\n\n")}\n\nsolcameo.com`);
+  return fit(`NETWORK ALERT\n\n${lines.join("\n\n")}`);
 }
 
-/** Makes sure a post names the coin: if the caption has no $TICKER yet, it is added with the market link, trimming the caption to fit one post. */
+/** Makes sure a post names the coin: if the caption has no $TICKER yet, it is added without a link, trimming the caption to fit one post. */
 export function withTicker(caption: string, coin: { ticker: string; url: string } | null | undefined): string {
+  caption = withoutPostLinks(caption);
   if (!coin) return caption;
   const ticker = cleanMarketingText(coin.ticker).replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10);
   if (!ticker || new RegExp(`\\$${ticker}(?![A-Za-z0-9])`, "i").test(caption)) return caption;
-  const tail = `\n\n$${ticker} ${coin.url}`;
+  const tail = `\n\n$${ticker}`;
   const room = 275 - tail.length;
   const body = caption.trim();
   return `${body.length <= room ? body : `${body.slice(0, Math.max(0, room - 3)).replace(/\s+\S*$/, "")}...`}${tail}`;

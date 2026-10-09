@@ -1,4 +1,4 @@
-import { withTicker } from "@/lib/marketingCaption";
+import { withTicker, ALERT_CAPTION_INSTRUCTION } from "@/lib/marketingCaption";
 import { marketPath } from "@/lib/solstar/marketSlug";
 import { preparePaidAgentVideo } from "@/lib/server/preparePaidAgentVideo";
 import { refreshAgentFunds } from "@/lib/server/agentWallet";
@@ -857,8 +857,9 @@ Rules for a caption built to travel, in ${agent.language || "the agent's languag
 - Keep an open loop: make people need to watch to the end to get it.
 - Close with ONE engagement trigger that invites a reply (a sharp either/or question or "reply with X"), not a generic "follow for more"${opts.campaignContext ? "; for this promotion the trigger should push people to check the product out" : ""}.
 - Plain, conversational, short lines. At most one emoji, and only if it adds meaning.${opts.platform === "x" ? "\n- This is for X: it must read well as a single post, under 240 characters, with no links." : ""}
+- ${ALERT_CAPTION_INSTRUCTION}
 - ABSOLUTELY NO hashtags. No hashtag list, not even one.
-- No "link in bio" unless a link truly exists. Under ${limit} characters.
+- No links or "link in bio". Under ${limit} characters.
 
 Return ONLY JSON: { "caption": "..." }`;
     const gen = await runReasoningStep(system, user);

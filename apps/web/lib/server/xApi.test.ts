@@ -71,6 +71,14 @@ describe("X posting", () => {
       Buffer.alloc(32, 7).toString("base64"),
     );
   });
+  it("strips links at the final X API boundary, including old queued captions", async () => {
+    db.query.mockResolvedValue({ encrypted: seal(account) });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { id: "post1" } })));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await postX("agent", "Watch $ALG explain AI. https://solcameo.com/market/alg solcameo.com", []);
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toBe("Watch $ALG explain AI.");
+  });
   it("uploads video in chunks and finalizes before publishing, accepting an empty append response", async () => {
     db.query.mockResolvedValue({ encrypted: seal(account) });
     vi.mocked(safeFetchToBuffer).mockResolvedValue({ buffer: Buffer.alloc(5 * 1024 * 1024), mime: "video/mp4" } as never);

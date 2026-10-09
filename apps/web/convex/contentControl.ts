@@ -126,7 +126,7 @@ export const coinCardData = query({
  * A new video for a coin, posted as soon as it is rendered: the video itself with a caption that names the $TICKER and the
  * influencer. Agents without a live mainnet coin are skipped (no ticker to promote). One post per render job.
  */
-export async function enqueueVideoAnnouncement(ctx: MutationCtx, job: { _id: Id<"videoRenderJobs">; mintAddress: string; videoUrl?: string; videoNote?: string }) {
+export async function enqueueVideoAnnouncement(ctx: MutationCtx, job: { _id: Id<"videoRenderJobs">; mintAddress: string; videoUrl?: string; videoNote?: string; taskId?: Id<"agentTasks"> }) {
   if (!job.videoUrl) return;
   const settings = await settingsFor(ctx);
   const dedupeKey = `video-new:${job._id}`;
@@ -135,9 +135,12 @@ export async function enqueueVideoAnnouncement(ctx: MutationCtx, job: { _id: Id<
   if (!agent?.solstarCharacterId) return;
   const token = await ctx.db.query("ssTokens").withIndex("by_character", q => q.eq("characterId", agent.solstarCharacterId!)).first();
   if (!token || token.network !== "mainnet" || !LIVE_STATES.has(token.state) || !token.ticker) return;
+  const task = job.taskId ? await ctx.db.get(job.taskId) : null;
+  let topic: string | undefined;
+  try { const input = JSON.parse(task?.input ?? "{}"); topic = typeof input.topic === "string" ? input.topic : undefined; } catch { /* Legacy tasks may not have JSON input. */ }
   const id = await ctx.db.insert("contentControlPosts", {
     dedupeKey, source: "video", targetMint: settings.targetMint, agentMint: job.mintAddress, tokenId: token._id, agentName: agent.name,
-    caption: videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic: job.videoNote, url: `${SITE}${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` }),
+    caption: videoLaunchCaption({ name: token.name || agent.name, ticker: token.ticker, bio: agent.description, topic, url: `${SITE}${marketPath({ characterId: String(token.characterId), ticker: token.ticker })}` }),
     mediaUrl: job.videoUrl, kind: "video", platforms: ["x"], status: "queued", attempts: 0, createdAt: Date.now(), updatedAt: Date.now(),
   });
   await ctx.scheduler.runAfter(0, internal.contentControl.dispatch, { id });

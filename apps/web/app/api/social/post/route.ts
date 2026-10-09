@@ -1,3 +1,4 @@
+import { withTicker } from "@/lib/marketingCaption";
 import { NextRequest, NextResponse } from "next/server";
 import {
   isConfigured,
@@ -266,6 +267,14 @@ export async function POST(req: NextRequest) {
     // post — read afterward (outside that branch) so the failure-release logic
     // can tell a guardrails block apart from a genuine upload-post failure.
     let guardrailBlock: { reasons: string[] } | null = null;
+    if (capable.includes("x")) {
+      const coin = await convex.query(api.influencers.coinOfMint, { mintAddress }).catch(() => null);
+      if (typeof coin?.ticker === "string") {
+        const tag = { ticker: coin.ticker, url: "" };
+        effectiveTitle = withTicker(effectiveTitle, tag);
+        if (effectiveDescription) effectiveDescription = withTicker(effectiveDescription, tag);
+      }
+    }
     if (type === "text") {
       result = await uploadText({ username, platforms: capable, title });
     } else if (type === "photo") {
