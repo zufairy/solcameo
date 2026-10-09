@@ -247,7 +247,7 @@ export const repostVideo = mutation({
     let id;
     if (previous) {
       id = previous._id;
-      await ctx.db.patch(id, { status: "scheduled", scheduledFor: Date.now(), retryCount: 0, error: undefined, postingStartedAt: undefined, platforms: ["x"] });
+      await ctx.db.patch(id, { status: "scheduled", scheduledFor: Date.now(), retryCount: 0, error: undefined, postingStartedAt: undefined, platforms: ["x"], ...(!clip && !previous.campaignId ? { auto: true } : {}) });
     } else {
       id = await ctx.db.insert("scheduledContent", { mintAddress, videoUrl, topic: title.slice(0, 200), caption: await autoCaption(ctx, agent, title), platforms: ["x"], auto: !clip, status: "scheduled", scheduledFor: Date.now(), createdAt: Date.now() });
     }

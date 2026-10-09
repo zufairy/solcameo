@@ -89,9 +89,10 @@ describe("X posting", () => {
       "https://api.x.com/2/media/upload/media1/finalize",
       "https://api.x.com/2/tweets",
     ]);
-    expect(fetchMock.mock.calls[1][1].body.get("segment_index")).toBe("0");
-    expect(fetchMock.mock.calls[2][1].body.get("segment_index")).toBe("1");
-    expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty("Content-Type");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).segment_index).toBe(0);
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).segment_index).toBe(1);
+    expect(fetchMock.mock.calls[1][1].headers["Content-Type"]).toBe("application/json");
+    expect(Buffer.from(JSON.parse(fetchMock.mock.calls[1][1].body).media, "base64")).toHaveLength(4 * 1024 * 1024);
     expect(JSON.parse(fetchMock.mock.calls[4][1].body).media.media_ids).toEqual(["media1"]);
   });
   it("never creates a post when X video processing fails", async () => {

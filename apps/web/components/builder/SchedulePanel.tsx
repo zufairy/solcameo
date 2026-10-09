@@ -233,13 +233,13 @@ export default function SchedulePanel({ mintAddress }: { mintAddress?: string })
           transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         >
           {view === "month"
-            ? <MonthGrid cursor={cursor} dayItems={dayItems} onHover={setHovered} onPin={setPinned} onCancel={(id) => void cancel(id)} />
-            : <TimeGrid days={view === "day" ? [cursor] : Array.from({ length: 7 }, (_, i) => addDays(addDays(cursor, -cursor.getDay()), i))} dayItems={dayItems} onHover={setHovered} onPin={setPinned} onCancel={(id) => void cancel(id)} />}
+            ? <MonthGrid cursor={cursor} dayItems={dayItems} onHover={(item) => { if (item) setHovered(item); }} onPin={setPinned} onCancel={(id) => void cancel(id)} />
+            : <TimeGrid days={view === "day" ? [cursor] : Array.from({ length: 7 }, (_, i) => addDays(addDays(cursor, -cursor.getDay()), i))} dayItems={dayItems} onHover={(item) => { if (item) setHovered(item); }} onPin={setPinned} onCancel={(id) => void cancel(id)} />}
         </motion.div>
       </AnimatePresence>
 
       {/* Preview popover, hover to peek, click to pin open */}
-      <PreviewPopover item={livePreview} pinned={!!pinned} mintAddress={mintAddress} onClose={() => setPinned(null)} />
+      <PreviewPopover item={livePreview} pinned={!!pinned} mintAddress={mintAddress} onClose={() => { setPinned(null); setHovered(null); }} />
 
       {items.length === 0 && rows !== undefined && (
         <div className="text-center py-14 text-zinc-500 text-[13px]">
@@ -392,7 +392,7 @@ function PreviewPopover({ item, pinned, onClose, mintAddress }: { item: Schedule
           className="fixed bottom-6 right-6 z-40 w-[300px] rounded-lg bg-[#141210]/90 backdrop-blur-2xl border border-white/10 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)] overflow-hidden"
           style={{ fontFamily: "var(--font-geist-sans, system-ui)" }}
         >
-          {pinned && (
+          {(pinned || item) && (
             <button onClick={onClose} className="absolute top-2 right-2 z-10 size-7 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors">
               <X className="size-3.5" />
             </button>

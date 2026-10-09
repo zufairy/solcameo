@@ -144,7 +144,7 @@ export async function postX(
       const body = responseText ? JSON.parse(responseText) : {};
       if (!res.ok || body.errors?.length)
         throw new Error(
-          `X request failed (${res.status}): ${body.detail ?? body.errors?.[0]?.detail ?? "Check permissions, credits, or reconnect X."}`,
+          `X ${path.split("?")[0]} request failed (${res.status}): ${body.errors?.[0]?.detail ?? body.errors?.[0]?.message ?? body.detail ?? body.message ?? "Check permissions, credits, or reconnect X."}`,
         );
       return body;
     };
@@ -167,10 +167,10 @@ export async function postX(
         const uploadId = data.id;
         const chunkBytes = 4 * 1024 * 1024;
         for (let offset = 0, segment = 0; offset < buffer.length; offset += chunkBytes, segment++) {
-          const form = new FormData();
-          form.set("segment_index", String(segment));
-          form.set("media", new Blob([new Uint8Array(buffer.subarray(offset, offset + chunkBytes))], { type: mime }), "video.mp4");
-          await request(`/media/upload/${encodeURIComponent(uploadId)}/append`, { method: "POST", body: form });
+          await request(`/media/upload/${encodeURIComponent(uploadId)}/append`, {
+            method: "POST",
+            body: JSON.stringify({ segment_index: segment, media: buffer.subarray(offset, offset + chunkBytes).toString("base64") }),
+          });
         }
         data = (await request(`/media/upload/${encodeURIComponent(uploadId)}/finalize`, { method: "POST" })).data;
         if (!data) throw new Error("X returned no finalized media");

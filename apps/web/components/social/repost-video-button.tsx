@@ -33,7 +33,7 @@ export function RepostVideoButton({ mintAddress, videoUrl, title = "Video", fail
   return <div className="mt-2" onClick={event => event.stopPropagation()}>
     <button type="button" disabled={busy || queued} onClick={() => void repost()} className="inline-flex items-center gap-1.5 rounded-md bg-lime-400/15 px-3 py-1.5 text-xs font-semibold text-lime-300 hover:bg-lime-400/25 disabled:opacity-60">
       {busy ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
-      {busy ? "Queuing…" : queued ? resultStatus === "posted" ? "Posted" : resultStatus === "posting" ? "Posting…" : "Queued" : failed ? "Repost to X" : "Post to X"}
+      {busy ? "Queuing…" : queued ? resultStatus === "posted" ? "Posted" : resultStatus === "posting" ? "Posting…" : "Queued" : failed ? "Retry X post" : "Post to X"}
     </button>
     {message && <p role="status" className="mt-1 text-[11px] text-zinc-400">{message}</p>}
   </div>;
