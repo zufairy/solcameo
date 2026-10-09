@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { timeAgo } from "./util";
+import { PostsOverview } from "./posts-overview";
 
 const LIST_POSTED = makeFunctionReference<"query">("clipJobs:listAllPostedClips");
 
@@ -262,6 +263,7 @@ type ToastState = {
 export function PostsSection() {
   const { accessToken } = useSupabaseAuth();
   const [queryLimit, setQueryLimit] = useState(PAGE);
+  const [now] = useState(() => Date.now());
   const rawClips = useQuery(LIST_POSTED, { limit: queryLimit }) as PostedClip[] | undefined;
 
   const [busy, setBusy]         = useState<string | null>(null);
@@ -355,6 +357,8 @@ export function PostsSection() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
+    <>
+    <PostsOverview clips={clips} now={now} />
     <div className="relative rounded-2xl border border-[#1e1e24] bg-[#0d0d10] overflow-hidden">
 
       {/* ── Header ── */}
@@ -613,5 +617,6 @@ export function PostsSection() {
       {/* Video preview panel */}
       {preview && <VideoPanel clip={preview} onClose={() => setPreview(null)} />}
     </div>
+    </>
   );
 }

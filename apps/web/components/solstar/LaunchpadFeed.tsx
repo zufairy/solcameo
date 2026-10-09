@@ -204,8 +204,9 @@ function TrendingFeed() {
     ...episodes.filter(e => !e.sample).map(e => ({ id: String(e.id), videoUrl: e.videoUrl, posterUrl: e.posterUrl, title: e.title, name: e.name, imageUrl: e.imageUrl, creatorWallet: e.creatorWallet, views: analytics.get(e.videoUrl)?.viewCount, ticker: e.ticker, characterId: String(e.characterId), engine: engineLabel((e as { engine?: string | null }).engine), at: e.createdAt })),
     ...(Array.isArray(created) ? [] : created.items).filter(v => v.characterId && mainnetIds.has(String(v.characterId))).map(v => ({ id: v.id, videoUrl: v.videoUrl, posterUrl: v.posterUrl, title: v.caption, name: v.agentName || "AI creator", imageUrl: v.agentAvatar, creatorWallet: v.creatorWallet, characterId: v.characterId ?? undefined, engine: engineLabel(v.engine), at: v.createdAt, views: v.viewCount })),
   ]
-    .filter(v => v.videoUrl && !seen.has(v.videoUrl) && !!seen.add(v.videoUrl))
     .sort((a, b) => b.at - a.at)
+    // A video can appear in both sources. Keep its newest entry before deduplicating.
+    .filter(v => v.videoUrl && !seen.has(v.videoUrl) && !!seen.add(v.videoUrl))
     .slice(0, 30);
   if (!all.length) return <div className="px-6 py-12"><EmptyArt slot={1} /><h2 className="text-lg font-semibold">Nothing trending yet</h2><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">The newest videos from every influencer show up here as soon as they are posted.</p></div>;
   return <>{all.map(v => <TrendingPost key={v.id} item={v} />)}</>;

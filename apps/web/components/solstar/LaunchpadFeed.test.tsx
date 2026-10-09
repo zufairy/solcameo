@@ -40,6 +40,21 @@ it("shows the newest videos in the Trending tab", async () => {
   expect(host.textContent).not.toContain("Veo 3");
   expect(host.textContent).not.toContain("Ghost");
   expect(host.textContent).toContain("$NOVA");
+  expect(Array.from(host.querySelectorAll('video[aria-label]')).map(v => v.getAttribute("src"))).toEqual([
+    "https://example.com/v1.mp4", "https://example.com/e1.mp4",
+  ]);
+});
+it("keeps the newest occurrence when an episode also appears in the created video feed", async () => {
+  const episodes = [
+    { id: "old-copy", characterId: "c1", name: "Nova", ticker: "NOVA", videoUrl: "https://example.com/shared.mp4", createdAt: 100, sample: false },
+    { id: "middle", characterId: "c1", name: "Nova", ticker: "NOVA", videoUrl: "https://example.com/middle.mp4", createdAt: 200, sample: false },
+  ];
+  const created = { items: [{ id: "new-copy", characterId: "c1", agentName: "Nova", videoUrl: "https://example.com/shared.mp4", createdAt: 300 }] };
+  mocks.query.mockImplementation((_ref, args) => args?.sort ? [{ characterId: "c1" }] : args?.kind === "ugc" ? created : args?.network ? episodes : null);
+  await mount();
+  expect(Array.from(host.querySelectorAll('video[aria-label]')).map(v => v.getAttribute("src"))).toEqual([
+    "https://example.com/shared.mp4", "https://example.com/middle.mp4",
+  ]);
 });
 it("only shows characters with published episodes in the episode tab", async () => {
   mocks.query.mockImplementation((_ref, args) => args?.network ? [] : args?.kind === "ugc" ? { items: [] } : args && Object.keys(args).length === 0 ? [] : null);

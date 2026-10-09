@@ -1,21 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { FunctionReturnType } from "convex/server";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
-import { Coins, TrendingUp, Cpu, Briefcase, Users, Landmark, ExternalLink } from "lucide-react";
+import { Landmark, ExternalLink } from "lucide-react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { getRpcUrl, getUsdcMint, getAccountExplorerUrl, getNetworkLabel } from "@/lib/solana/network";
 import { fmtUsd } from "./util";
+import { Dot, LimeHero, LimeLayout, LimeTile } from "./lime-panels";
+import { summarizeUsers, type OverviewRow } from "./users-overview";
 
 const USDC_DECIMALS = 6;
 
-type AdminUserRow = FunctionReturnType<typeof api.admin.listUsers>[number];
-type AgentRow = FunctionReturnType<typeof api.influencers.listAll>[number];
-type CampaignRow = FunctionReturnType<typeof api.campaigns.list>[number];
 
 // The official Vello platform treasury wallet — receives agent service-fee sweeps
 // and escrow protocol fees. Public env so the balance can be read client-side.
@@ -84,87 +82,61 @@ function useTreasuryBalance() {
   return bal;
 }
 
-function Kpi({ icon, label, value, sub, accent }: {
-  icon: React.ReactNode; label: string; value: string; sub: string; accent: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#1e1e24] bg-[#0d0d10] px-5 py-4 flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-zinc-600 text-[10px] uppercase tracking-widest">
-        {icon}<span>{label}</span>
-      </div>
-      <p className={`text-[22px] font-mono font-black tabular-nums tracking-tight leading-none ${accent}`}>{value}</p>
-      <p className="text-[10.5px] text-zinc-700">{sub}</p>
-    </div>
-  );
-}
-
-/** The Vello Treasury KPI — live on-chain balance of the official platform wallet. */
-function TreasuryKpi() {
+/** The platform treasury: live on-chain balance of the official wallet, in the same lime as the other tiles. */
+function TreasuryTile() {
   const bal = useTreasuryBalance();
   return (
-    <div className="rounded-2xl border border-[#1e1e24] bg-[#0d0d10] px-5 py-4 flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-zinc-600 text-[10px] uppercase tracking-widest">
-        <Landmark className="size-3" /><span>Vello Treasury</span>
-        <span className="ml-auto inline-flex items-center gap-1 text-emerald-500/80" title={`Live on-chain · ${getNetworkLabel()}`}>
-          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        </span>
-      </div>
-      <p className="text-[22px] font-mono font-black tabular-nums tracking-tight leading-none text-emerald-400">
-        {!TREASURY ? "—" : bal === null ? "…" : fmtUsd(bal.usdc)}
+    <div className="rounded-2xl bg-[#e4ff59] p-5 text-[#10140a]">
+      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#10140a]/60">
+        <Landmark className="size-3.5" />Treasury
+        <span className="ml-auto inline-flex items-center gap-1" title={`Live on-chain · ${getNetworkLabel()}`}><span className="size-1.5 animate-pulse rounded-full bg-[#10140a]" />Live</span>
       </p>
-      <div className="flex items-center justify-between gap-1 text-[10.5px] text-zinc-700">
+      <p className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums">{!TREASURY ? "—" : bal === null ? "…" : fmtUsd(bal.usdc)}</p>
+      <p className="mt-2 flex items-center justify-between gap-1 text-[12px] font-medium text-[#10140a]/65">
         <span className="tabular-nums">{bal === null ? "USDC" : `${bal.sol.toFixed(3)} SOL`}</span>
         {TREASURY ? (
-          <a
-            href={getAccountExplorerUrl(TREASURY)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 font-mono hover:text-zinc-400 transition-colors"
-            title="View treasury wallet on Solana explorer"
-          >
+          <a href={getAccountExplorerUrl(TREASURY)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-mono hover:text-black" title="View treasury wallet on Solana explorer">
             {TREASURY.slice(0, 4)}…{TREASURY.slice(-4)}<ExternalLink className="size-2.5" />
           </a>
-        ) : (
-          <span className="text-rose-500">wallet unset</span>
-        )}
-      </div>
+        ) : <span>wallet unset</span>}
+      </p>
     </div>
   );
 }
 
+const nf = (n: number) => n.toLocaleString("en-US");
+
+/** Admin home, trimmed to what this app runs on: people, influencers, videos, campaigns and the treasury. */
 export function OverviewSection() {
   const { accessToken } = useSupabaseAuth();
   const agents = useQuery(api.influencers.listAll) ?? [];
   const campaigns = useQuery(api.campaigns.list) ?? [];
   const listUsers = useAction(api.admin.listUsers);
-  const [userStats, setUserStats] = useState<{ total: number; admins: number } | null>(null);
+  const [users, setUsers] = useState<OverviewRow[] | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!accessToken) return;
-    listUsers({ accessToken })
-      .then((us) =>
-        setUserStats({
-          total: us.length,
-          admins: us.filter((u: AdminUserRow) => u.isAdmin).length,
-        }),
-      )
-      .catch(() => setUserStats(null));
+    listUsers({ accessToken }).then((rows) => { setUsers(rows as OverviewRow[]); setNow(Date.now()); }).catch(() => setUsers(null));
   }, [accessToken, listUsers]);
 
-  const totalTvl = agents.reduce((s: number, a: AgentRow) => s + a.tvl, 0);
-  const totalMonthly = agents.reduce((s: number, a: AgentRow) => s + a.monthlyEarnings, 0);
-  const activeCampaigns = campaigns.filter((c: CampaignRow) => c.status === "active").length;
+  const s = useMemo(() => summarizeUsers(users ?? [], now), [users, now]);
+  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
+  const loading = users === null;
+  const bars = s.daily.map((d) => ({ key: d.from, label: new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }), count: d.count }));
+  const trend = s.weekChange === null ? null : `${s.weekChange >= 0 ? "+" : ""}${s.weekChange}% vs last week`;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Kpi icon={<Users className="size-3" />} label="Users" value={userStats ? userStats.total.toString() : "…"} sub={userStats ? `${userStats.admins} admin${userStats.admins === 1 ? "" : "s"}` : "loading"} accent="text-white" />
-        <Kpi icon={<Coins className="size-3" />} label="Total TVL" value={fmtUsd(totalTvl)} sub="USDC locked" accent="text-emerald-400" />
-        <Kpi icon={<TrendingUp className="size-3" />} label="Monthly" value={fmtUsd(totalMonthly)} sub="across agents" accent="text-emerald-300" />
-        <Kpi icon={<Cpu className="size-3" />} label="Agents" value={agents.length.toString()} sub="minted" accent="text-violet-400" />
-        <Kpi icon={<Briefcase className="size-3" />} label="Campaigns" value={activeCampaigns.toString()} sub={`of ${campaigns.length} total`} accent="text-sky-400" />
-        <TreasuryKpi />
-      </div>
-    </div>
+    <LimeLayout label="Platform overview" hero={
+      <LimeHero label="Total users" value={loading ? "…" : nf(s.total)} bars={bars} barsCaption={`New users per day · ${nf(s.thisMonth)} this month`}
+        line={<><span>+{nf(s.thisWeek)} this week</span><Dot /><span>+{nf(s.today)} today</span>{trend && <><Dot /><span>{trend}</span></>}</>} />
+    }>
+      <LimeTile label="Online now" value={loading ? "…" : nf(s.online)} note={`${nf(s.active24h)} active in 24h`} />
+      <LimeTile label="Active this week" value={loading ? "…" : nf(s.active7d)} note={s.total ? `${Math.round((s.active7d / s.total) * 100)}% of users` : undefined} />
+      <LimeTile label="Influencers" value={nf(agents.length)} note={loading ? undefined : `${nf(s.creators)} creators`} />
+      <LimeTile label="Videos posted" value={loading ? "…" : nf(s.clipsPosted)} note={loading ? undefined : `${nf(s.clipsProduced)} produced`} />
+      <LimeTile label="Campaigns" value={nf(activeCampaigns)} note={`of ${nf(campaigns.length)} total`} />
+      <TreasuryTile />
+    </LimeLayout>
   );
 }

@@ -39,16 +39,16 @@ const PLATFORM_COLORS: Record<string, string> = {
 const platformColor = (p: string) => PLATFORM_COLORS[p] ?? "#84cc16";
 const platformLabel = (p: string) => (p === "x" ? "X" : p.charAt(0).toUpperCase() + p.slice(1));
 
-function Kpi({ icon, label, value, sub, accent }: {
-  icon: React.ReactNode; label: string; value: string; sub: string; accent: string;
+function Kpi({ icon, label, value, sub }: {
+  icon: React.ReactNode; label: string; value: string; sub: string; accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#1e1e24] bg-[#0d0d10] px-5 py-4 flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-zinc-600 text-[10px] uppercase tracking-widest">
+    <div className="flex flex-col gap-2 rounded-2xl bg-[#e4ff59] px-5 py-4 text-[#10140a]">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-[#10140a]/60">
         {icon}<span>{label}</span>
       </div>
-      <p className={`text-[22px] font-mono font-black tabular-nums tracking-tight leading-none ${accent}`}>{value}</p>
-      <p className="text-[10.5px] text-zinc-700">{sub}</p>
+      <p className="text-[26px] font-semibold tabular-nums leading-none tracking-tight">{value}</p>
+      <p className="text-[11px] font-medium text-[#10140a]/60">{sub}</p>
     </div>
   );
 }
@@ -102,14 +102,13 @@ export function AnalyticsSection() {
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <Kpi icon={<Users className="size-3" />} label="Active today" value={s ? nf(s.dauToday) : "…"} sub="DAU (signed-in)" accent="text-emerald-400" />
         <Kpi icon={<LogIn className="size-3" />} label="Logins today" value={s ? nf(s.loginsToday) : "…"} sub="auth events" accent="text-sky-400" />
         <Kpi icon={<UserPlus className="size-3" />} label="New today" value={s ? nf(s.newUsersToday) : "…"} sub="signups" accent="text-violet-400" />
         <Kpi icon={<CalendarDays className="size-3" />} label="WAU" value={s ? nf(s.wau) : "…"} sub="active last 7d" accent="text-white" />
         <Kpi icon={<DollarSign className="size-3" />} label="Cost today" value={s ? `$${s.costTodayUsd.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "…"} sub="video generation spend" accent="text-amber-400" />
         <Kpi icon={<Film className="size-3" />} label="Videos today" value={s ? nf(s.videosGeneratedToday) : "…"} sub="generated (clips + renders)" accent="text-white" />
-        <Kpi icon={<Users className="size-3" />} label="Total users" value={s ? nf(s.totalUsers) : "…"} sub="all-time" accent="text-white" />
       </div>
 
       {/* Main chart */}
