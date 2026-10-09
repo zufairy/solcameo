@@ -416,7 +416,7 @@ function PreviewPopover({ item, pinned, onClose, mintAddress }: { item: Schedule
             <p className="text-[14px] font-bold text-white leading-snug">{item.topic}</p>
             {item.caption && <p className="text-[11.5px] text-zinc-400 mt-1 leading-relaxed line-clamp-3">{item.caption}</p>}
             {item.status === "failed" && item.videoUrl && mintAddress && <RepostVideoButton mintAddress={mintAddress} videoUrl={item.videoUrl} title={item.topic} />}
-            {item.status === "failed" && item.error && <p className="text-[11.5px] text-rose-300 mt-1 leading-relaxed">{item.error}</p>}
+            {item.error && <p className="text-[11.5px] text-rose-300 mt-1 leading-relaxed">{item.error}</p>}
             {item.platforms.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {item.platforms.map((p) => <span key={p} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[9.5px] font-semibold text-zinc-300 capitalize">{p}</span>)}

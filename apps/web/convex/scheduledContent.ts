@@ -775,6 +775,18 @@ export const drainDueClips = internalAction({
           console.warn(`[drip] post timed out (outcome unknown) for ${row.videoUrl} — left "posting" for the reaper, not re-queued`);
           continue;
         }
+        // X explicitly rejected publication: retain the saved video while API billing is restored.
+        if (/X.*request failed \(402\)|credits depleted|credits exhausted/i.test(msg)) {
+          await ctx.runMutation(internal.scheduledContent.markStatus, {
+            id: row._id, status: "scheduled", scheduledFor: Date.now() + 60 * 60_000,
+            error: "Waiting for X API credits. Add credits to the X developer account; this video will retry automatically.",
+          });
+          if (authSecret && row.videoUrl) await ctx.runMutation(api.clipJobs.revertClipPostingByUrl, {
+            mintAddress: row.mintAddress, clipUrl: row.videoUrl, authSecret,
+          }).catch(() => undefined);
+          retried++;
+          continue;
+        }
         // Transient (network/5xx/429/not-yet-connected) → retry with backoff up to a
         // cap, rather than stranding the clip on terminal "failed" for one blip. These
         // are fast-fail (connection refused / 5xx) so the post did NOT publish → safe

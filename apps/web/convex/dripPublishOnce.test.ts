@@ -46,3 +46,21 @@ describe("drip publish-once + pacing", () => {
     expect(b2?.status).toBe("posted");
   });
 });
+
+
+it("keeps a credit-blocked X video queued without exhausting retries or uploading every tick", async () => {
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, output: { status: "failed", note: "X: X /media/upload/42/finalize request failed (402): credits depleted" } })));
+  vi.stubGlobal("fetch", fetchMock);
+  const t = convexTest(schema, modules);
+  const now = Date.now();
+  const id = await t.run(ctx => ctx.db.insert("scheduledContent", { mintAddress: MINT, scheduledFor: now - 1000, status: "scheduled", topic: "Video", platforms: ["x"], videoUrl: "https://cdn/video.mp4", createdAt: now, retryCount: 3 }));
+  await t.action(internal.scheduledContent.drainDueClips, {});
+  const row = await t.run(ctx => ctx.db.get(id));
+  expect(row?.status).toBe("scheduled");
+  expect(row?.scheduledFor).toBeGreaterThan(now + 59 * 60_000);
+  expect(row?.retryCount).toBe(3);
+  expect(row?.error).toContain("Add credits");
+  fetchMock.mockClear();
+  await t.action(internal.scheduledContent.drainDueClips, {});
+  expect(fetchMock).not.toHaveBeenCalled();
+});
