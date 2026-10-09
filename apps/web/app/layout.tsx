@@ -154,7 +154,7 @@ export default function RootLayout({
         {/* Google tag (gtag.js) — Analytics for every page. Rendered once here
             in the root layout; do NOT add it anywhere else. */}
         <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-F386L3N3JH"
+          src="https://www.googletagmanager.com/gtag/js?id=G-K8VWP6Q9Z8"
           strategy="afterInteractive"
         />
         <Script id="google-analytics" strategy="afterInteractive">
@@ -162,7 +162,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-F386L3N3JH');
+            gtag('config', 'G-K8VWP6Q9Z8');
           `}
         </Script>
       </head>
