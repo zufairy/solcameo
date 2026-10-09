@@ -3499,16 +3499,16 @@ function ClipperHomeCockpit(props: {
               Earnings card (was cockpit-missing; restored for both Home modes). */}
           {isMinted && agentWallet && (
             <div>
-              <div className="relative overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.055] p-4 backdrop-blur-2xl shadow-[0_18px_50px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)]">
+              <div className="relative overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.055] px-4 pb-4 pt-3 backdrop-blur-2xl shadow-[0_18px_50px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)]">
                 <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-white/25" />
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-black/20 text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                      <Wallet className="size-4" aria-hidden />
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-black/20 text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                      <Wallet className="size-3.5" aria-hidden />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[12px] font-semibold text-white">Agent wallet</p>
-                      <p className="truncate font-mono text-[10.5px] text-zinc-500" title={agentWallet}>
+                      <p className="text-[11px] font-semibold leading-tight text-white">Agent wallet</p>
+                      <p className="truncate font-mono text-[10px] leading-tight text-zinc-500" title={agentWallet}>
                         {agentWallet.slice(0, 6)}…{agentWallet.slice(-6)}
                       </p>
                     </div>
@@ -3524,7 +3524,7 @@ function ClipperHomeCockpit(props: {
                         } catch { /* ignore */ }
                       }}
                       title="Copy agent wallet address"
-                      className={`grid size-8 place-items-center rounded-lg border text-zinc-300 transition-colors ${
+                      className={`grid size-7 place-items-center rounded-lg border text-zinc-300 transition-colors ${
                         copiedAddr ? "border-emerald-400/20 bg-emerald-500/15 text-emerald-300" : "border-white/10 bg-black/15 hover:border-white/20 hover:bg-white/10"
                       }`}
                     >
@@ -3535,13 +3535,13 @@ function ClipperHomeCockpit(props: {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="View on explorer"
-                      className="grid size-8 place-items-center rounded-lg border border-white/10 bg-black/15 text-zinc-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white"
+                      className="grid size-7 place-items-center rounded-lg border border-white/10 bg-black/15 text-zinc-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white"
                     >
                       <ExternalLink className="size-3" aria-hidden />
                     </a>
                   </div>
                 </div>
-                <div className="mt-5 border-t border-white/[0.08] pt-4">
+                <div className="mt-3 border-t border-white/[0.08] pt-3">
                   <div className="flex items-end justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
