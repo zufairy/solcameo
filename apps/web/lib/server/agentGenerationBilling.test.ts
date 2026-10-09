@@ -34,3 +34,10 @@ it("a pending transfer blocks a retry instead of charging twice", async () => {
   expect(await chargeAgentGeneration("mint", "run", "social_post")).toEqual({ ok: false, reason: "payment_pending" });
   expect(h.pay).not.toHaveBeenCalled();
 });
+
+it("accepts a charge already settled by a concurrent operation without a second transfer", async () => {
+  h.mutation.mockResolvedValueOnce({ ok: true, costUsdc: 0.05 }).mockResolvedValueOnce({ ok: true, costUsdc: 0.05, paymentConfirmed: true, duplicate: true });
+  h.pay.mockResolvedValue({ ok: false, reason: "nothing to settle" });
+  expect((await chargeAgentGeneration("mint", "run", "social_post")).ok).toBe(true);
+  expect(h.refund).not.toHaveBeenCalled();
+});

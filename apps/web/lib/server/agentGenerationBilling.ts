@@ -29,7 +29,14 @@ export async function chargeAgentGeneration(mintAddress: string, runId: string, 
     if (!charged.ok || charged.costUsdc <= 0) return charged;
     if (!("paymentConfirmed" in charged && charged.paymentConfirmed)) {
       const paid = await payForCharge(mintAddress, { requireTransfer: true });
-      if (!paid.ok) { await refundImage(mintAddress, runId); return { ok: false as const, reason: "payment_failed" }; }
+      if (!paid.ok) {
+        // Another operation may have swept this charge while our serialized payment waited.
+        // Only this charge's durable payment proof can unlock work in that case.
+        const receipt = await book();
+        if (receipt.ok && "paymentConfirmed" in receipt && receipt.paymentConfirmed) return receipt;
+        await refundImage(mintAddress, runId);
+        return { ok: false as const, reason: "payment_failed" };
+      }
     }
     return charged;
   } catch { return { ok: false as const, reason: "billing_unavailable" }; }
