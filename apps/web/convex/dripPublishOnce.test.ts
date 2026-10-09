@@ -64,3 +64,19 @@ it("keeps a credit-blocked X video queued without exhausting retries or uploadin
   await t.action(internal.scheduledContent.drainDueClips, {});
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+it("keeps an X video queued while the agent wallet is unfunded, instead of failing it for good", async () => {
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: "insufficient_funds", code: "needs_funding", message: "Deposit USDC or SOL to this agent to continue." }), { status: 402 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const t = convexTest(schema, modules);
+  const now = Date.now();
+  const id = await t.run(ctx => ctx.db.insert("scheduledContent", { mintAddress: MINT, scheduledFor: now - 1000, status: "scheduled", topic: "Video", platforms: ["x"], videoUrl: "https://cdn/video.mp4", createdAt: now, auto: true }));
+  await t.action(internal.scheduledContent.drainDueClips, {});
+  const row = await t.run(ctx => ctx.db.get(id));
+  expect(row?.status).toBe("scheduled");
+  expect(row?.scheduledFor).toBeGreaterThan(now + 59 * 60_000);
+  expect(row?.error).toContain("Waiting for funds");
+  fetchMock.mockClear();
+  await t.action(internal.scheduledContent.drainDueClips, {});
+  expect(fetchMock).not.toHaveBeenCalled(); // not retried until the hour is up
+});

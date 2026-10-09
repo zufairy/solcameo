@@ -41,3 +41,9 @@ it("preserves a legacy post link for videos without a queue row", async () => {
   await mount([], { status: "posted", platforms: ["youtube"], postUrl: "https://youtube.com/shorts/123", postPlatform: "youtube" });
   expect(host.querySelector('a[aria-label="Open youtube post"]')?.getAttribute("href")).toBe("https://youtube.com/shorts/123");
 });
+it("explains a post that is waiting for the agent wallet to be funded", async () => {
+  await mount([{ videoUrl: "https://video.test/v.mp4", status: "scheduled", platforms: ["x"], error: "Waiting for funds. Add a little USDC or SOL to this agent's wallet; this video will post by itself once it is funded." }]);
+  expect(host.textContent).toContain("Waiting for funds");
+  expect(host.textContent).toContain("post by itself once it is funded");
+  expect(host.querySelector("button")).toBeNull();
+});

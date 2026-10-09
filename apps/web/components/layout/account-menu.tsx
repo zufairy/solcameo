@@ -429,7 +429,7 @@ export function AccountMenu() {
                   <QRCodeSVG value={address} size={150} level="M" bgColor="#ffffff" fgColor="#0b0c0e" marginSize={0} />
                 </div>
                 <p className="mt-2.5 text-xs text-zinc-500">
-                  Scan or send SOL on {network === "mainnet-beta" ? "Solana mainnet" : `Solana ${network}`} to this address
+                  Scan or send SOL on {network === "mainnet-beta" ? "Solana" : `Solana ${network}`} to this address
                 </p>
                 <button
                   type="button"
@@ -550,7 +550,7 @@ export function AccountMenu() {
           <DialogHeader>
             <DialogTitle className="text-lg text-white">Deposit</DialogTitle>
             <DialogDescription className="text-zinc-500">
-              Send SOL on {network === "mainnet-beta" ? "Solana mainnet" : `Solana ${network}`} to your Solcameo wallet. It
+              Send SOL on {network === "mainnet-beta" ? "Solana" : `Solana ${network}`} to your Solcameo wallet. It
               arrives on chain and your balance updates automatically.
             </DialogDescription>
           </DialogHeader>

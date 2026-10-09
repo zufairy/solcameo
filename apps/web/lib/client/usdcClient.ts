@@ -3,16 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
-import {
-  getAssociatedTokenAddress,
-  getAccount,
-  createAssociatedTokenAccountInstruction,
-  createTransferInstruction,
-  TokenAccountNotFoundError,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createTransferInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { getUsdcMint, getNetwork } from "@/lib/solana/network";
 import { rpcTry, rpcCandidates } from "@/lib/solana/rpc";
+import { readTokenAmount, tokenAccountExists } from "@/lib/solana/tokenBalance";
 import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "@/lib/solana/landTransaction";
 
 // IMPORTANT — derive BOTH the RPC and the USDC mint from the SAME source
@@ -72,12 +66,12 @@ export function useWalletUsdc(): { usdc: number | null; refresh: () => Promise<n
     if (!publicKey) { setUsdc(null); return null; }
     try {
       const ata = await getAssociatedTokenAddress(USDC_MINT, publicKey);
-      const acc = await rpcTry(RPC_CANDIDATES, (conn) => getAccount(conn, ata, "confirmed"));
-      const v = Number(acc.amount) / 10 ** USDC_DECIMALS;
+      // A wallet with no USDC account reads as a plain $0 (see readTokenAmount); only real RPC trouble returns null.
+      const amount = await rpcTry(RPC_CANDIDATES, (conn) => readTokenAmount(conn, ata));
+      const v = Number(amount) / 10 ** USDC_DECIMALS;
       setUsdc(v);
       return v;
-    } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) { setUsdc(0); return 0; }
+    } catch {
       // keep last value on transient RPC errors
       return null;
     }
@@ -181,30 +175,20 @@ export async function sendUsdc(opts: {
     const toAta = await getAssociatedTokenAddress(USDC_MINT, toKey);
 
     // Confirm sender has enough USDC.
-    try {
-      const senderAcc = await rpcTry(RPC_CANDIDATES, async (c) => getAccount(c, fromAta, "confirmed"));
-      const have = Number(senderAcc.amount) / 10 ** USDC_DECIMALS;
-      if (have < amountUsdc) {
-        return { ok: false, error: `Insufficient USDC. You have $${have.toFixed(2)}, need $${amountUsdc.toFixed(2)} (${NETWORK}).` };
-      }
-    } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) {
-        return { ok: false, error: `Your wallet has no USDC on ${NETWORK}. Fund it (faucet.circle.com for devnet).` };
-      }
-      throw e;
+    const haveRaw = await rpcTry(RPC_CANDIDATES, async (c) => readTokenAmount(c, fromAta));
+    if (haveRaw === 0n) return { ok: false, error: `Your wallet has no USDC. Add USDC, or pay with SOL instead.` };
+    const have = Number(haveRaw) / 10 ** USDC_DECIMALS;
+    if (have < amountUsdc) {
+      return { ok: false, error: `Insufficient USDC. You have $${have.toFixed(2)}, need $${amountUsdc.toFixed(2)}.` };
     }
 
     const tx = new Transaction();
     let makesAccount = false;
 
     // Create recipient ATA if needed (sender pays the ~0.002 SOL rent).
-    try {
-      await rpcTry(RPC_CANDIDATES, async (c) => getAccount(c, toAta, "confirmed"));
-    } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) {
-        makesAccount = true;
-        tx.add(createAssociatedTokenAccountInstruction(publicKey, toAta, toKey, USDC_MINT));
-      }
+    if (!(await rpcTry(RPC_CANDIDATES, async (c) => tokenAccountExists(c, toAta)))) {
+      makesAccount = true;
+      tx.add(createAssociatedTokenAccountInstruction(publicKey, toAta, toKey, USDC_MINT));
     }
 
     // A compute limit sized to a plain transfer and a market-rate priority fee, so the payment lands in seconds.
@@ -239,10 +223,10 @@ export async function sendUsdc(opts: {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/network mismatch|wrong network/i.test(msg)) {
-      return { ok: false, error: `Switch Phantom to ${NETWORK === "mainnet-beta" ? "Mainnet" : "Devnet"} (Settings → Developer Settings) and retry.` };
+      return { ok: false, error: NETWORK === "mainnet-beta" ? "Your wallet is on a different network. Switch it to Solana (Settings → Developer Settings) and retry." : `Switch your wallet to ${NETWORK} (Settings → Developer Settings) and retry.` };
     }
     if (/unexpected error/i.test(msg)) {
-      return { ok: false, error: "Your wallet refused to sign. On devnet, set Phantom to Testnet Mode → Solana Devnet (or use Solflare) and retry." };
+      return { ok: false, error: "Your wallet refused to sign. Open your wallet, approve the request and retry." };
     }
     return { ok: false, error: msg.slice(0, 140) };
   }

@@ -22,9 +22,10 @@ export function GenerationPostActions({ mintAddress, videoUrl, title, post }: {
   const failed = status === "failed";
   const error = current?.error ?? post?.error ?? post?.note;
   const creditBlocked = /X API credits|credits depleted|credits exhausted/i.test(error ?? "");
+  const fundsBlocked = /Waiting for funds/i.test(error ?? "");
   return <div className="mt-2 text-xs" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
     <p className={failed ? "text-rose-300" : posted ? "text-lime-300" : "text-zinc-300"} role="status">
-      {creditBlocked && !posted ? "Waiting for X credits" : posted ? "Posted" : status === "posting" ? "Posting…" : pending ? "Scheduled" : failed ? "Post failed" : "Not posted"}
+      {creditBlocked && !posted ? "Waiting for X credits" : fundsBlocked && !posted ? "Waiting for funds" : posted ? "Posted" : status === "posting" ? "Posting…" : pending ? "Scheduled" : failed ? "Post failed" : "Not posted"}
     </p>
     {posted && <div className="mt-1 flex items-center gap-2">
       {platforms.map(id => {
@@ -34,7 +35,7 @@ export function GenerationPostActions({ mintAddress, videoUrl, title, post }: {
           : <span key={id} title={`Posted to ${canonical}; post link unavailable`}><PlatformBadge id={canonical} label={canonical} className="size-6" /></span>;
       })}
     </div>}
-    {(failed || creditBlocked) && error && <p className="mt-1 line-clamp-2 text-[11px] text-rose-300" title={error}>{error}</p>}
+    {(failed || creditBlocked || fundsBlocked) && error && <p className="mt-1 line-clamp-2 text-[11px] text-rose-300" title={error}>{error}</p>}
     {!posted && !pending && rows !== undefined && <RepostVideoButton key={`${videoUrl}:${status ?? "ready"}`} mintAddress={mintAddress} videoUrl={videoUrl} title={title} failed={failed} />}
   </div>;
 }

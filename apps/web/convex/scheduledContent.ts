@@ -787,6 +787,19 @@ export const drainDueClips = internalAction({
           retried++;
           continue;
         }
+        // The agent's own wallet cannot pay the small posting fee yet: keep the video queued instead of failing it for good.
+        // It retries every hour and goes out by itself as soon as the wallet is funded (or tops itself up from SOL).
+        if (/needs_funding|insufficient_funds|Deposit USDC/i.test(msg)) {
+          await ctx.runMutation(internal.scheduledContent.markStatus, {
+            id: row._id, status: "scheduled", scheduledFor: Date.now() + 60 * 60_000,
+            error: "Waiting for funds. Add a little USDC or SOL to this agent's wallet; this video will post by itself once it is funded.",
+          });
+          if (authSecret && row.videoUrl) await ctx.runMutation(api.clipJobs.revertClipPostingByUrl, {
+            mintAddress: row.mintAddress, clipUrl: row.videoUrl, authSecret,
+          }).catch(() => undefined);
+          retried++;
+          continue;
+        }
         // Transient (network/5xx/429/not-yet-connected) → retry with backoff up to a
         // cap, rather than stranding the clip on terminal "failed" for one blip. These
         // are fast-fail (connection refused / 5xx) so the post did NOT publish → safe

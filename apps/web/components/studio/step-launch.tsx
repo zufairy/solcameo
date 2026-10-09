@@ -244,7 +244,7 @@ export function StepLaunch() {
       <Card className="border-emerald-600/30 bg-emerald-600/10">
         <CardContent className="p-3 space-y-1.5">
           {[
-            "NFT minted on Solana devnet",
+            "NFT minted on Solana",
             "Metadata stored on Arweave via Irys",
             "Appears in Market grid",
             "Visible in your Phantom wallet",
@@ -277,7 +277,7 @@ export function StepLaunch() {
           <Loader2 className="size-4 animate-spin" />
           {status === "uploading"
             ? "Uploading metadata to Arweave..."
-            : "Minting NFT on Solana devnet..."}
+            : "Minting NFT on Solana..."}
         </div>
       )}
 

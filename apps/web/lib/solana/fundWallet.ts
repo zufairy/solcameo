@@ -11,18 +11,12 @@ import {
   Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL,
   Transaction, TransactionInstruction, VersionedTransaction,
 } from "@solana/web3.js";
-import {
-  createAssociatedTokenAccountIdempotentInstruction,
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-  getAccount,
-  TOKEN_PROGRAM_ID,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
+import { createAssociatedTokenAccountIdempotentInstruction, createTransferInstruction, getAssociatedTokenAddress, getAccount, TOKEN_PROGRAM_ID, TokenAccountNotFoundError } from "@solana/spl-token";
 import { getNetwork, getUsdcMint } from "./network";
 import { rpcTry, rpcCandidates } from "./rpc";
 import { splitFundingAmount } from "./fundingFee";
 import { computeBudgetInstructions, estimatePriorityPrice, landTransaction } from "./landTransaction";
+import { readTokenAmount } from "./tokenBalance";
 
 const USDC_DECIMALS = 6;
 // Failover over public devnet → Helius. The devnet Helius key is suspended
@@ -189,7 +183,7 @@ export async function sendFundingTransfer(params: {
   const computeUnits = token === "USDC" ? 90_000 : 30_000;
   const priorityP = estimatePriorityPrice([publicKey.toBase58(), agentWallet, feeRecipient.toBase58()], computeUnits);
   const senderAccountP = usdcMintKey
-    ? getAssociatedTokenAddress(usdcMintKey, publicKey).then((ata) => rpcTry(RPC_CANDIDATES, async (conn) => getAccount(conn, ata, "confirmed")).then(() => null, (e: unknown) => e))
+    ? getAssociatedTokenAddress(usdcMintKey, publicKey).then((ata) => rpcTry(RPC_CANDIDATES, async (conn) => readTokenAmount(conn, ata)).then((amount): bigint | Error => amount, (e: unknown): bigint | Error => (e instanceof Error ? e : new Error(String(e)))))
     : Promise.resolve(null);
   const blockhashP = rpcTry(RPC_CANDIDATES, async (conn) => {
     const [genesis, latest] = await Promise.all([mainnet ? conn.getGenesisHash() : Promise.resolve(""), conn.getLatestBlockhash("confirmed")]);
@@ -210,12 +204,15 @@ export async function sendFundingTransfer(params: {
     const fromAta = await getAssociatedTokenAddress(usdcMint, publicKey);
     const toAta = await getAssociatedTokenAddress(usdcMint, recipient);
 
-    // The operator must actually hold devnet USDC (their token account must exist).
+    // The wallet must actually hold enough USDC. An unreadable balance (RPC trouble) is not "no USDC": let the transfer go on.
     {
-      const e = await senderAccountP;
-      if (e instanceof TokenAccountNotFoundError) {
-        if (mainnet) throw new Error("Your connected wallet has no Solana USDC. Add USDC, then retry.");
-        throw new Error("Your wallet has no devnet USDC yet. Get some free at faucet.circle.com (Solana Devnet), then try again — or fund with SOL instead.");
+      const held = await senderAccountP;
+      if (typeof held === "bigint") {
+        if (held === 0n) {
+          if (mainnet) throw new Error("Your wallet has no USDC, only SOL. Add USDC, or choose \"Use SOL instead\" to pay from your SOL.");
+          throw new Error("Your wallet has no devnet USDC yet. Get some free at faucet.circle.com (Solana Devnet), then try again — or fund with SOL instead.");
+        }
+        if (held < baseUnits(USDC_DECIMALS)) throw new Error(`Your wallet has $${(Number(held) / 10 ** USDC_DECIMALS).toFixed(2)} USDC and this deposit needs $${amount.toFixed(2)}. Lower the amount, add USDC, or use SOL instead.`);
       }
     }
 
@@ -261,16 +258,17 @@ export async function sendFundingTransfer(params: {
     if (sim.value.err) {
       const logs = sim.value.logs ?? [];
       const tail = logs.length ? ` — ${logs.slice(-3).join(" | ").slice(0, 220)}` : "";
-      throw new Error(
-        `This transfer would fail on devnet (so it is NOT a wallet-network issue): ${JSON.stringify(sim.value.err)}${tail}. ` +
-        `Most common cause: the operator wallet needs a little devnet SOL for the network fee + the agent's first USDC-account rent (~0.003 SOL). Airdrop some at faucet.solana.com and retry.`,
-      );
+      const invalidAccount = /InvalidAccountData|invalid account data/i.test(logs.join(" "));
+      throw new Error(mainnet
+        ? `This deposit would fail on Solana, so it was not sent and nothing was charged.${invalidAccount ? " Your wallet most likely has no USDC account (it holds only SOL): add USDC, or choose \"Use SOL instead\"." : " Check that your wallet holds enough USDC and a little SOL for the network fee."}`
+        : `This transfer would fail on devnet (so it is NOT a wallet-network issue): ${JSON.stringify(sim.value.err)}${tail}. ` +
+          `Most common cause: the operator wallet needs a little devnet SOL for the network fee + the agent's first USDC-account rent (~0.003 SOL). Airdrop some at faucet.solana.com and retry.`);
     }
     if (typeof console !== "undefined") console.info("[fund] devnet pre-simulation OK — tx is valid on devnet");
   } catch (e) {
     // Re-throw our own clear simulation verdict; swallow infra hiccups in the
     // simulate RPC call itself so a flaky sim never blocks a legitimate transfer.
-    if (e instanceof Error && /would fail on devnet/.test(e.message)) throw e;
+    if (e instanceof Error && /would fail on devnet|would fail on Solana/.test(e.message)) throw e;
   }
 
   // ALGORITHM: the wallet's ONLY job is to produce a signature. We then broadcast

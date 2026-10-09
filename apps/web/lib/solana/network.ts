@@ -145,7 +145,8 @@ export function getTxExplorerUrl(sig: string, network?: SolanaNetwork): string {
 /** Human label for the network (used in UI badges). */
 export function getNetworkLabel(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
-  if (n === "mainnet-beta") return "Mainnet";
+  // The live network is just "Solana" to people; only a test network is named.
+  if (n === "mainnet-beta") return "Solana";
   if (n === "devnet")       return "Devnet";
   return "Testnet";
 }

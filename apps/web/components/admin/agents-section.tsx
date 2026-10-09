@@ -228,7 +228,7 @@ function DeleteAgentModal({ agent, onClose }: { agent: Agent; onClose: () => voi
 
 export function AgentsSection() {
   const { accessToken } = useSupabaseAuth();
-  const agents = (useQuery(api.influencers.listAll) ?? []) as unknown as Agent[];
+  const agents = (useQuery(api.influencers.listAll, {}) ?? []) as unknown as Agent[];
   const setHeartbeat = useAction(api.admin.setAgentHeartbeat);
   const fireNow = useAction(api.admin.fireHeartbeatNow);
   const [editing, setEditing] = useState<Agent | null>(null);

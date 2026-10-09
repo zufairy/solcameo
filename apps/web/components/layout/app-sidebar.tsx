@@ -83,7 +83,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="px-4 py-3 border-t border-border">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">v2.0 · Devnet</span>
+          <span className="text-[10px] text-muted-foreground">v2.0</span>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-400">
             BETA
           </Badge>

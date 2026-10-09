@@ -836,7 +836,7 @@ export function CampaignForm() {
 
   function onSubmit(values: CampaignFormValues) {
     if (campaignType !== "marketing") {
-      setError("On-chain escrow and automatic payouts are available for Marketing campaigns only. Choose Marketing to launch on devnet.");
+      setError("On-chain escrow and automatic payouts are available for Marketing campaigns only. Choose Marketing to launch.");
       return;
     }
     setError(null);
@@ -1054,7 +1054,7 @@ export function CampaignForm() {
         } else {
           setError(
             decision.reason === "usdc"
-              ? `You need ${funding.usdcShort.toFixed(2)} more USDC on ${getNetwork()}. Fund your wallet (devnet: faucet.circle.com) and click Launch again — we kept your draft.`
+              ? `You need ${funding.usdcShort.toFixed(2)} more USDC. Fund your wallet and click Launch again — we kept your draft.`
               // 0-SOL wallets can't pay gas: give the amount + address + how to get SOL
               // (the user pays gas; full platform sponsorship is a deferred follow-up).
               : describeSolShortfall({ network: getNetwork(), walletAddress: publicKey.toBase58() }),

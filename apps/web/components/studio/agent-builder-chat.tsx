@@ -234,7 +234,7 @@ export function AgentBuilderChat() {
     if (!config.name || !config.handle || !config.niche || !config.language || !config.description || !config.personality) return;
     setLaunching(true);
     setStep("launching");
-    addBot("🚀 Minting your AI Influencer on Solana devnet...");
+    addBot("🚀 Minting your AI Influencer on Solana...");
     try {
       const mintAddress = `${config.handle!.replace("@", "")}-${Date.now()}`;
       const avatarUrl = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(config.name!)}&backgroundColor=1a1a2e`;

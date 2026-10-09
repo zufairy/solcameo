@@ -83,7 +83,7 @@ export function TokenomicsLive({ afterHero, afterCoins, heroAside }: { afterHero
         <div className="mt-5 inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[12px] text-white/70">
           <span className="relative flex size-2"><span className={`absolute inline-flex size-full rounded-full ${error || stale ? "bg-amber-400" : "animate-ping bg-emerald-400/60"}`} /><span className={`relative size-2 rounded-full ${error || stale ? "bg-amber-400" : "bg-emerald-400"}`} /></span>
           <span className="font-semibold text-white">{error ? "Reconnecting" : stale ? "Showing last read" : "Live"}</span>
-          {data && <><span className="text-white/35">·</span><span>Solana {mainnet ? "mainnet" : "devnet"}</span><span className="text-white/35">·</span><span className="tabular-nums">slot {fmtInt(data.slot)}</span><span className="text-white/35">·</span><span className="tabular-nums">updated {ageS}s ago</span></>}
+          {data && <><span className="text-white/35">·</span><span>Solana{mainnet ? "" : " devnet"}</span><span className="text-white/35">·</span><span className="tabular-nums">slot {fmtInt(data.slot)}</span><span className="text-white/35">·</span><span className="tabular-nums">updated {ageS}s ago</span></>}
         </div>
         {error && !data && <p role="alert" className="mt-3 text-sm text-amber-300">{error}</p>}
         <nav aria-label="On this page" className="mt-5 flex flex-wrap gap-2 text-[12px]">
@@ -139,7 +139,7 @@ export function TokenomicsLive({ afterHero, afterCoins, heroAside }: { afterHero
         {empty && (
           <div className={`${panel} mt-4 flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between`}>
             <div>
-              <p className="text-[15px] font-semibold">No coins have launched on {mainnet ? "mainnet" : "this network"} yet.</p>
+              <p className="text-[15px] font-semibold">No coins have launched yet.</p>
               <p className="mt-1 max-w-xl text-[13px] leading-6 text-white/50">Every counter below reads straight from the pools, so they sit at zero until the first coin trades. The moment it does, you will see its fees land here within a few seconds.</p>
             </div>
             <Link href="/create" className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-4 text-[13px] font-bold text-black" style={{ background: LIME }}>Launch the first one <ArrowUpRight className="size-4" /></Link>

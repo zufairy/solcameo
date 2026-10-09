@@ -819,7 +819,7 @@ export function NftCreatorFlow() {
         </div>
         <div className="text-center space-y-2">
           <h2 className="text-xl font-bold">Minting your NFT…</h2>
-          <p className="text-sm text-muted-foreground">Writing to Convex + Solana devnet…</p>
+          <p className="text-sm text-muted-foreground">Saving your influencer…</p>
         </div>
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>

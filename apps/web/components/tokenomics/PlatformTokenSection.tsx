@@ -21,7 +21,7 @@ const PERKS: ReadonlyArray<{ name: string; status: "Live" | "Operator-run" | "Pl
   { name: "Weekly revenue epochs", status: "Live", note: "Each closed week is frozen automatically from on-chain settled spend and shown below." },
   { name: "Buyback and burn", status: "Operator-run", note: "Burns are executed by the team from the treasury and every burn transaction is published here." },
   { name: "Holder rewards payout", status: "Planned", note: "Reward weight follows your tier. The distribution job is not live yet; no payout is promised until it is." },
-  { name: `New creator coins paired with ${TOKEN_SYMBOL}`, status: "Planned", note: "Needs devnet validation of Meteora custom quote tokens before any mainnet change." },
+  { name: `New creator coins paired with ${TOKEN_SYMBOL}`, status: "Planned", note: "Needs validation of Meteora custom quote tokens before any change." },
   { name: "Launch burn and extra agent slots", status: "Planned", note: "Spending tokens to launch a coin, and tier-based free agent slots." },
 ];
 

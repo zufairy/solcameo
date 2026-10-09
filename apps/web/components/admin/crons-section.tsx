@@ -14,7 +14,7 @@ type AgentDoc = {
 
 export function CronsSection() {
   const { accessToken } = useSupabaseAuth();
-  const docs = (useQuery(api.influencers.listAll) ?? []) as unknown as AgentDoc[];
+  const docs = (useQuery(api.influencers.listAll, {}) ?? []) as unknown as AgentDoc[];
   const setHeartbeat = useAction(api.admin.setAgentHeartbeat);
   const fireNow = useAction(api.admin.fireHeartbeatNow);
   const [busy, setBusy] = useState<string | null>(null);

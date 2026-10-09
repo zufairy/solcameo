@@ -109,7 +109,7 @@ const nf = (n: number) => n.toLocaleString("en-US");
 /** Admin home, trimmed to what this app runs on: people, influencers, videos, campaigns and the treasury. */
 export function OverviewSection() {
   const { accessToken } = useSupabaseAuth();
-  const agents = useQuery(api.influencers.listAll) ?? [];
+  const agents = useQuery(api.influencers.listAll, {}) ?? [];
   const campaigns = useQuery(api.campaigns.list) ?? [];
   const listUsers = useAction(api.admin.listUsers);
   const [users, setUsers] = useState<OverviewRow[] | null>(null);

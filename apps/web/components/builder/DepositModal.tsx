@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useUnifiedSolanaWallet } from "@/hooks/use-solana-wallet";
-import { useWalletUsdc } from "@/lib/client/usdcClient";
+import { useWalletSol, useWalletUsdc } from "@/lib/client/usdcClient";
+import { fundAgentWithSol, MIN_SOL_FUND_USD, quoteSolFund } from "@/lib/client/fundWithSol";
 import { sendFundingTransfer } from "@/lib/solana/fundWallet";
 import { landTransaction } from "@/lib/solana/landTransaction";
 import { rpcCandidates } from "@/lib/solana/rpc";
@@ -72,6 +73,9 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
   const { publicKey, signTransaction } = useUnifiedSolanaWallet();
   const { connection } = useConnection();
   const { usdc: walletUsdc, refresh: refreshWalletUsdc } = useWalletUsdc();
+  const { sol: walletSol, refresh: refreshWalletSol } = useWalletSol();
+  const [solNote, setSolNote] = useState("");
+  const [solQuote, setSolQuote] = useState<{ usdc: number; maxSol: number } | null>(null);
 
   // Ref the callback so a parent re-render doesn't stale-close over it.
   const onFundedRef = useRef(onFunded);
@@ -89,8 +93,9 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
     setError(null);
     setTxSignature(null);
     setManualOpen(false);
-    void refreshWalletUsdc();
-  }, [open, refreshWalletUsdc]);
+    setSolNote("");
+    void refreshWalletUsdc(); void refreshWalletSol();
+  }, [open, refreshWalletUsdc, refreshWalletSol]);
 
   const amount = useMemo(() => {
     const n = Number.parseFloat(amountStr);
@@ -103,6 +108,16 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
   const overBalance = walletUsdc != null && amount > walletUsdc + 1e-6;
   const walletReady = !!publicKey && !!signTransaction;
   const canDeposit = amount > 0 && !overBalance && walletReady && step !== "submitting";
+  // A wallet that holds SOL but not enough USDC can still fund the agent: one swap sells SOL and lands the exact USDC in the agent wallet.
+  const noUsdc = walletUsdc != null && (walletUsdc === 0 || amount > walletUsdc + 1e-6);
+  const solOption = mainnet && noUsdc && walletSol != null && walletSol > 0.01;
+  const canSwap = solOption && walletReady && amount >= MIN_SOL_FUND_USD && step !== "submitting";
+  useEffect(() => {
+    if (!solOption || amount < MIN_SOL_FUND_USD) return;
+    let live = true;
+    const t = setTimeout(() => { void quoteSolFund(amount).then((q) => { if (live) setSolQuote(q ? { usdc: amount, maxSol: q.maxSol } : null); }); }, 350);
+    return () => { live = false; clearTimeout(t); };
+  }, [solOption, amount]);
 
   const refreshAgentBalance = useCallback(async () => {
     const bal = await fetchWalletBalance(agentWallet);
@@ -149,6 +164,24 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
       if (/user rejected|user denied|rejected the request|request.*reject/i.test(msg)) { setStep("idle"); return; }
       setError(msg);
       setStep("error");
+    }
+  };
+
+  const swapDeposit = async () => {
+    const pk = publicKey, sign = signTransaction;
+    if (!pk || !sign) { setError("Connect your wallet first."); setStep("error"); return; }
+    setStep("submitting"); setError(null); setTxSignature(null); setSolNote("");
+    try {
+      const landed = await fundAgentWithSol({ publicKey: pk, signTransaction: sign as never, agentWallet, usdc: amount, onStatus: setSolNote });
+      setTxSignature(landed.signature);
+      void refreshAgentBalance(); void refreshWalletSol(); void refreshWalletUsdc();
+      if (landed.result === "expired") { setError("The swap did not land in time, so nothing was swapped or charged. Please try again."); setStep("error"); return; }
+      if (landed.result !== "confirmed") { setError("Swap sent but not confirmed yet. Open it on the explorer to check. Your balance updates the moment it lands."); setStep("error"); return; }
+      setStep("success");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Swap failed";
+      if (/user rejected|user denied|rejected the request|request.*reject/i.test(msg)) { setStep("idle"); return; }
+      setError(msg); setStep("error");
     }
   };
 
@@ -203,7 +236,7 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
                   <p className="text-[12.5px] text-zinc-400 mt-0.5">
                     {step === "success"
                       ? "On-chain balance increased."
-                      : `From your wallet on ${networkLabel}.`}
+                      : "From your wallet."}
                   </p>
                 </div>
               </div>
@@ -260,9 +293,23 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
                     </button>
                   </div>
                   {overBalance && (
-                    <p className="text-[11px] text-rose-600 mt-1">Amount exceeds your wallet balance.</p>
+                    <p className="text-[11px] text-rose-600 mt-1">Amount exceeds your USDC balance.{solOption ? " You can pay from your SOL instead, below." : ""}</p>
                   )}
                 </div>
+
+                {solOption && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
+                    <p className="text-[12.5px] font-semibold text-emerald-900">{walletUsdc === 0 ? "This wallet has no USDC, but it has SOL." : "Not enough USDC, but you have SOL."}</p>
+                    <p className="mt-0.5 text-[11.5px] leading-snug text-emerald-800">
+                      Pay from your SOL instead: one swap sends USDC straight to {agentName}.
+                      {amount >= MIN_SOL_FUND_USD && solQuote?.usdc === amount ? <> About <b>{solQuote.maxSol.toFixed(4)} SOL</b> for ${amount.toFixed(2)}.</> : amount > 0 && amount < MIN_SOL_FUND_USD ? <> Paying with SOL starts at ${MIN_SOL_FUND_USD.toFixed(2)}.</> : null}
+                    </p>
+                    <button type="button" onClick={swapDeposit} disabled={!canSwap}
+                      className="mt-2.5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-100 text-[13px] font-bold py-2.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+                      {submitting ? <><Loader2 className="size-4 animate-spin" /> {solNote || "Working…"}</> : <>Use SOL instead{amount >= MIN_SOL_FUND_USD ? ` ($${amount.toFixed(2)})` : ""}</>}
+                    </button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 flex items-start gap-2">
@@ -337,7 +384,7 @@ export default function DepositModal({ open, agentName, agentWallet, onClose, on
                   </button>
                   {manualOpen && (
                     <div className="mt-2 rounded-2xl bg-zinc-900 border border-zinc-700 p-3.5">
-                      <p className="text-[10.5px] text-zinc-400 font-semibold uppercase tracking-wide mb-1">Agent address ({networkLabel})</p>
+                      <p className="text-[10.5px] text-zinc-400 font-semibold uppercase tracking-wide mb-1">Agent address</p>
                       <p className="font-mono text-[12px] text-white break-all leading-relaxed">{agentWallet}</p>
                       <div className="flex gap-2 mt-2.5">
                         <button

@@ -544,7 +544,7 @@ function BoardSkeleton() {
 }
 
 export default function ArenaPage() {
-  const agents = useQuery(api.influencers.listAll) as Agent[] | undefined;
+  const agents = useQuery(api.influencers.listAll, {}) as Agent[] | undefined;
   const campaigns = useQuery(api.campaigns.list) as { budget?: number; pdaAddress?: string }[] | undefined;
   const reduce = useReducedMotion();
 

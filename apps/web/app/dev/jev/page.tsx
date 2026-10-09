@@ -243,7 +243,7 @@ export default function JevLabPage() {
   // fetched (same public data /agents shows with no auth) and used whenever
   // the signed-in user has no agents of their own to fall back on — this is
   // what was actually behind "doesn't show the video" while signed out.
-  const publicAgents = useQuery(api.influencers.listAll) as { mintAddress: string; name: string }[] | undefined;
+  const publicAgents = useQuery(api.influencers.listAll, {}) as { mintAddress: string; name: string }[] | undefined;
   const agents = myAgents?.length ? myAgents : publicAgents;
   const agentMints = useMemo(() => (agents ?? []).map((a) => a.mintAddress), [agents]);
   const allVideos = useQuery(api.downloadCache.listByMints, agentMints.length ? { mintAddresses: agentMints } : "skip") as

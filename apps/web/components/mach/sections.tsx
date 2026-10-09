@@ -935,7 +935,7 @@ function CitizenMarqueeCard({ c }: { c: CitizenCard }) {
 type InfluencerDoc = FunctionReturnType<typeof api.influencers.listAll>[number];
 
 function CitizensMarquee() {
-  const docs = useQuery(api.influencers.listAll);
+  const docs = useQuery(api.influencers.listAll, {});
 
   const fromDb: CitizenCard[] = (docs ?? []).map((d: InfluencerDoc) => ({
     name: d.name,

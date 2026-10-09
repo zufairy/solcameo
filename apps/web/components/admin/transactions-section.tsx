@@ -93,7 +93,7 @@ function Party({ addr, byAddress }: { addr: string | null; byAddress: Map<string
 }
 
 export function TransactionsSection() {
-  const influencers = useQuery(api.influencers.listAll);
+  const influencers = useQuery(api.influencers.listAll, {});
   const campaigns = useQuery(api.campaigns.list);
   const dataReady = influencers !== undefined && campaigns !== undefined;
 

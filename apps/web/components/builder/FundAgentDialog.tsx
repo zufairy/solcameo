@@ -241,7 +241,7 @@ export function FundAgentDialog({ open, onOpenChange, agentWallet, agentName, su
         <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           {agentWallet && <div className="shrink-0 rounded-xl bg-white p-2"><QRCodeSVG value={agentWallet} size={76} /></div>}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-white/50">Solana · {network === "mainnet-beta" ? "Mainnet" : network}</p>
+            <p className="text-[11px] text-white/50">Solana{network === "mainnet-beta" ? "" : ` · ${network}`}</p>
             <p className="mt-1 break-all text-xs leading-5 text-white/80">{agentWallet || "Preparing your agent wallet…"}</p>
             <div className="mt-2 flex items-center gap-3 text-[11px] text-white/60">
               <button type="button" disabled={!agentWallet} onClick={() => { if (agentWallet) void navigator.clipboard.writeText(agentWallet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }} className="inline-flex items-center gap-1 hover:text-white">{copied ? <Check className="size-3" /> : <Copy className="size-3" />}{copied ? "Copied" : "Copy"}</button>

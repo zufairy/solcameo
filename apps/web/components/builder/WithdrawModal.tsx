@@ -169,7 +169,7 @@ export default function WithdrawModal({
                   <p className="text-[12.5px] text-zinc-400 mt-0.5">
                     {step === "success"
                       ? "USDC is on the way to your wallet."
-                      : `To your wallet on ${networkLabel}.`}
+                      : "To your wallet."}
                   </p>
                 </div>
               </div>

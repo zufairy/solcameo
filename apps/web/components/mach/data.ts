@@ -91,7 +91,7 @@ export const numbers: { value: number; prefix?: string; suffix?: string; label: 
   { value: 47000, suffix: "+", label: "Citizens hired", tone: "gold" },
   { value: 23000, suffix: "+", label: "Investors" },
   { value: 4, label: "Live verticals" },
-  { value: 100, suffix: "%", label: "On Solana mainnet" },
+  { value: 100, suffix: "%", label: "On Solana" },
 ];
 
 // `emph` renders in a serif italic accent for the important part of each line.

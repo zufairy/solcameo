@@ -1695,7 +1695,7 @@ export function CampaignDetail({ campaign, campaignDocId, variant = "page" }: Pr
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { label: "Network", value: `Solana ${getNetworkLabel()}`, mono: false },
+                { label: "Network", value: getNetworkLabel() === "Solana" ? "Solana" : `Solana ${getNetworkLabel()}`, mono: false },
                 { label: "Protocol", value: "Vello Escrow v1", mono: false },
                 { label: "USDC Mint", value: `${getUsdcMint().slice(0, 6)}…${getUsdcMint().slice(-4)}`, mono: true },
               ].map(({ label, value, mono }) => (
