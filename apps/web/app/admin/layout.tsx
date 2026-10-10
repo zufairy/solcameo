@@ -7,7 +7,7 @@ import {
   ShieldCheck, Loader2, Users, Bot, Briefcase, Activity, LayoutDashboard, Lock,
   MessagesSquare, Coins, FileBarChart2, Landmark, ArrowLeftRight, Tag, Headset, Video,
   Sparkles, Clapperboard, ChevronDown, MoreHorizontal, Magnet, Terminal, UsersRound,
-  SlidersHorizontal, Globe2,
+  SlidersHorizontal, Globe2, Zap,
 } from "lucide-react";
 import { useSupabaseAuth } from "@/providers/supabase-auth-provider";
 import { AppHeaderShell } from "@/components/home/app-shell";
@@ -38,6 +38,7 @@ const NAV: NavItem[] = [
     label: "More", icon: MoreHorizontal, children: [
       { href: "/admin/transactions", label: "Transactions", icon: ArrowLeftRight },
       { href: "/admin/pricing",      label: "Pricing",      icon: Tag },
+      { href: "/admin/rpc",          label: "RPC",          icon: Zap },
       { href: "/admin/crons",        label: "Heartbeat",    icon: Activity },
       { href: "/admin/investments",  label: "Investments",  icon: Coins },
       { href: "/admin/treasuries",   label: "Treasuries",   icon: Landmark },

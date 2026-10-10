@@ -6,6 +6,8 @@
  * the wallet has tokens.
  */
 
+import { getActiveProvider, getSolamiRpcUrl } from "./rpcProvider";
+
 export type SolanaNetwork = "mainnet-beta" | "devnet" | "testnet";
 
 /** Server reads its environment; Next.js inlines this value for clients at build time. */
@@ -68,11 +70,18 @@ export function getQuickNodeRpcUrl(network?: SolanaNetwork): string {
   return "";
 }
 
-/** Shared primary RPC: QuickNode first, then Helius, then the public cluster endpoint. */
+/** The two dedicated providers, the admin-chosen one first. Either can be empty when it is not configured. */
+function dedicatedRpcUrls(n: SolanaNetwork): string[] {
+  const quick = getQuickNodeRpcUrl(n);
+  const solami = getSolamiRpcUrl(n);
+  return (getActiveProvider() === "solami" ? [solami, quick] : [quick, solami]).filter(Boolean);
+}
+
+/** Shared primary RPC: the admin-chosen provider (Solami or QuickNode), then the other, then Helius, then the public cluster endpoint. */
 export function getRpcUrl(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
-  const quick = getQuickNodeRpcUrl(n);
-  if (quick) return quick;
+  const dedicated = dedicatedRpcUrls(n);
+  if (dedicated.length) return dedicated[0];
   const helius = getHeliusRpcUrl(n);
   if (helius) return helius;
   if (n === "mainnet-beta") return "https://api.mainnet-beta.solana.com";
@@ -87,8 +96,8 @@ export function getRpcUrl(network?: SolanaNetwork): string {
  */
 export function getDbcRpcUrl(network?: SolanaNetwork): string {
   const n = network ?? getNetwork();
-  const quick = getQuickNodeRpcUrl(n);
-  if (quick) return quick;
+  const dedicated = dedicatedRpcUrls(n);
+  if (dedicated.length) return dedicated[0];
   if (getHeliusRpcUrl(n)) return getRpcUrl(n);
   return process.env.SOLCAMEO_DBC_RPC_URL?.trim() || getRpcUrl(n);
 }
@@ -102,14 +111,13 @@ export function getReadRpcUrl(network?: SolanaNetwork): string {
  *  used when neither is configured. */
 export function getRpcCandidates(network?: SolanaNetwork): string[] {
   const n = network ?? getNetwork();
-  const quick = getQuickNodeRpcUrl(n);
   const helius = getHeliusRpcUrl(n);
   const pub =
     n === "mainnet-beta" ? "https://api.mainnet-beta.solana.com"
     : n === "testnet" ? "https://api.testnet.solana.com"
     : "https://api.devnet.solana.com";
   // Avoid falling back to the shared public RPC when a dedicated provider is configured.
-  const dedicated = [quick, helius].filter(Boolean);
+  const dedicated = [...dedicatedRpcUrls(n), helius].filter(Boolean);
   const ordered = dedicated.length ? dedicated : [pub];
   return [...new Set(ordered.filter(Boolean))];
 }
@@ -117,7 +125,11 @@ export function getRpcCandidates(network?: SolanaNetwork): string[] {
 /** WebSocket RPC URL for the active network — derived from the HTTP RPC by
  *  swapping the scheme. Needed by Privy's `@solana/kit` rpcSubscriptions. */
 export function getRpcWsUrl(network?: SolanaNetwork): string {
-  return getRpcUrl(network).replace(/^http/i, "ws");
+  const url = getRpcUrl(network);
+  // Solami serves WebSockets from a different host and path than its HTTP RPC, so a scheme swap would not connect.
+  const solami = url.match(/^https:\/\/(?:(nyc|fra|ams)\.)?rpc\.solami\.dev\/sol/);
+  if (solami) return url.replace(solami[0], `wss://${solami[1] ? `${solami[1]}.` : ""}ws.solami.dev/ws/sol`);
+  return url.replace(/^http/i, "ws");
 }
 
 /** Solscan / explorer base URL per network. */

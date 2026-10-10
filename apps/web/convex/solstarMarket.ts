@@ -190,6 +190,17 @@ export const listMarket = query({
   },
 });
 
+/** Light, public list of Solcameo's live mainnet coins (name, ticker, mint) for the Pulse page. No stats: those come from Solami Blur. */
+export const pulseCoins = query({
+  args: {},
+  handler: async (ctx) => {
+    const tokens = await ctx.db.query("ssTokens").withIndex("by_network", (q) => q.eq("network", "mainnet")).order("desc").take(MAX_LIST);
+    return tokens
+      .filter((t) => t.mint && ["live", "graduated", "migrated"].includes(t.state) && t.ticker)
+      .map((t) => ({ mint: t.mint as string, ticker: t.ticker, name: t.name, state: t.state, characterId: t.characterId }));
+  },
+});
+
 /** Minimal public pool references for the live coins, so price polling never has to read the heavy terminal view. */
 export const poolRefs = query({
   args: { network: networkV },

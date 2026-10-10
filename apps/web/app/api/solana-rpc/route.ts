@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNetwork, getRpcCandidates } from "@/lib/solana/network";
 import { failoverFetch } from "@/lib/solana/failoverConnection";
+import { refreshActiveProvider } from "@/lib/solana/rpcProvider";
 
 export const maxDuration = 15;
 const METHODS = new Set(["getBalance", "getAccountInfo", "getMultipleAccounts", "getTokenAccountBalance", "getTokenAccountsByOwner", "getLatestBlockhash", "getBlockHeight", "getSignatureStatuses", "getTransaction", "getSignaturesForAddress", "getRecentPrioritizationFees", "getMinimumBalanceForRentExemption", "getFeeForMessage", "getGenesisHash", "sendTransaction", "simulateTransaction"]);
 const hits = new Map<string, { count: number; at: number }>();
 
-/** A bounded Solana RPC relay: the server's private QuickNode endpoint stays private. */
+/** A bounded Solana RPC relay: the server's private provider keys (Solami or QuickNode, as chosen in the admin panel) stay private. */
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   if (origin && origin !== req.nextUrl.origin) return NextResponse.json({ error: "invalid_origin" }, { status: 403 });
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
   const requested = req.nextUrl.searchParams.get("network") ?? getNetwork();
   if (!["mainnet-beta", "devnet", "testnet"].includes(requested)) return NextResponse.json({ error: "invalid_network" }, { status: 400 });
   try {
+    await refreshActiveProvider();
     const response = await failoverFetch(getRpcCandidates(requested as ReturnType<typeof getNetwork>), 3000)("", {
       method: "POST", headers: { "Content-Type": "application/json" }, body, cache: "no-store",
     });

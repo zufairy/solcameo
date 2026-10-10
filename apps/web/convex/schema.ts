@@ -1805,6 +1805,15 @@ export default defineSchema({
   // lib/economy/servicePrices.ts. The charge path (usage.recordUsage) reads the
   // override here and applies it via priceForWithOverride; there is at most one
   // row per skillId (by_skill unique).
+  // Admin-selected Solana RPC provider ("quicknode" | "solami"). One row, key "provider". Read by the Next.js RPC relay and
+  // every server-side RPC call; written only through the admin-gated rpcSettings.setProvider action.
+  rpcSettings: defineTable({
+    key: v.string(),
+    provider: v.string(),
+    updatedByEmail: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
   skillPriceOverrides: defineTable({
     skillId: v.string(),
     priceUsdc: v.number(),

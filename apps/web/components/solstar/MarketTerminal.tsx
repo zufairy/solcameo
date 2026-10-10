@@ -44,7 +44,7 @@ import { LiveDbcLaunch } from "@/components/solcameo/LiveDbcLaunch";
 import { DEFAULT_DBC } from "@/lib/meteora/options";
 import { PAPER_VIRTUAL_TOKENS } from "@/lib/solstar/economics";
 import { marketCapLamports, priceLamportsPerToken } from "@/lib/solstar/market";
-import { getReadRpcUrl, getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
+import { getReadRpcUrl, getRpcWsUrl, getAccountExplorerUrl, getTxExplorerUrl } from "@/lib/solana/network";
 import { TerminalChart } from "./TerminalChart";
 import { FlywheelPanel } from "@/components/solcameo/FlywheelPanel";
 import { TradeTicket } from "./TradeTicket";
@@ -134,16 +134,10 @@ function Terminal({ characterId }: { characterId: Id<"ssCharacters"> }) {
     appVolume24hLamports?: string;
   } | null>(null);
   const feed = useQuery(api.solstarFeed.listFeed, { limit: 50 });
-  const poolConnection = useMemo(
-    () =>
-      new Connection(
-        getReadRpcUrl(
-          data?.token.network === "mainnet" ? "mainnet-beta" : "devnet",
-        ),
-        "confirmed",
-      ),
-    [data?.token.network],
-  );
+  const poolConnection = useMemo(() => {
+    const network = data?.token.network === "mainnet" ? "mainnet-beta" : "devnet";
+    return new Connection(getReadRpcUrl(network), { commitment: "confirmed", wsEndpoint: getRpcWsUrl(network) });
+  }, [data?.token.network]);
   useEffect(() => {
     if (!data?.token.dbcPool) return;
     const controller = new AbortController();

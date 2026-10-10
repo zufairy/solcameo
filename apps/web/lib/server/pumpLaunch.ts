@@ -1,19 +1,19 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Connection, PublicKey, TransactionMessage, VersionedTransaction, ComputeBudgetProgram, type TransactionInstruction } from "@solana/web3.js";
-import { getNetwork } from "@/lib/solana/network";
+import { getDbcRpcUrl, getNetwork } from "@/lib/solana/network";
 import { type LaunchOptions, rewardSplit } from "@/lib/pump/economics";
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 export function pumpReadiness() {
   if (process.env.SOLCAMEO_PUMP_LIVE_ENABLED !== "true") return { ready: false, reason: "Live Pump launches are not enabled on this server." };
   if (getNetwork() !== "mainnet-beta") return { ready: false, reason: "Wallet signing is configured for devnet. Pump launches require mainnet." };
-  if (!process.env.SOLCAMEO_PUMP_RPC_URL) return { ready: false, reason: "A mainnet Pump RPC endpoint is required." };
+  if (!getDbcRpcUrl("mainnet-beta")) return { ready: false, reason: "A mainnet Pump RPC endpoint is required." };
   try { new PublicKey(process.env.SOLCAMEO_PLATFORM_WALLET ?? ""); } catch { return { ready: false, reason: "Solcameo's fee recipient wallet is not configured." }; }
   return { ready: true, reason: "Mainnet wallet approval required. Fee-sharing is permanent." };
 }
 export function pumpConnection() {
   const readiness = pumpReadiness();
   if (!readiness.ready) throw new Error(readiness.reason);
-  return new Connection(process.env.SOLCAMEO_PUMP_RPC_URL!, "confirmed");
+  return new Connection(getDbcRpcUrl("mainnet-beta"), "confirmed");
 }
 export function publicWallet(address: string) {
   const key = new PublicKey(address);

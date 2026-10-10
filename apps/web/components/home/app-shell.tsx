@@ -22,6 +22,7 @@ import {
   Clapperboard,
   CreditCard,
   Trophy,
+  Radio,
   Menu,
   X,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const MAIN_ITEMS: NavItem[] = [
   { label: "Marketplace", href: "/agents", icon: LayoutGrid },
   { label: "Leaderboards", href: "/tournament", icon: Trophy },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Solana Pulse", href: "/pulse", icon: Radio },
   { label: "Campaigns", href: "/stage", icon: Megaphone },
 ];
 const BOTTOM_ITEMS: NavItem[] = [

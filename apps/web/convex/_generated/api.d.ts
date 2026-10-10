@@ -84,6 +84,7 @@ import type * as platformLaunch from "../platformLaunch.js";
 import type * as platformStats from "../platformStats.js";
 import type * as platformToken from "../platformToken.js";
 import type * as referrals from "../referrals.js";
+import type * as rpcSettings from "../rpcSettings.js";
 import type * as sampleRuns from "../sampleRuns.js";
 import type * as scheduledContent from "../scheduledContent.js";
 import type * as scheduledRecreations from "../scheduledRecreations.js";
@@ -204,6 +205,7 @@ declare const fullApi: ApiFromModules<{
   platformStats: typeof platformStats;
   platformToken: typeof platformToken;
   referrals: typeof referrals;
+  rpcSettings: typeof rpcSettings;
   sampleRuns: typeof sampleRuns;
   scheduledContent: typeof scheduledContent;
   scheduledRecreations: typeof scheduledRecreations;
